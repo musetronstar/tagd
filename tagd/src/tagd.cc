@@ -104,6 +104,22 @@ bool tag_set_equal(const tag_set A, const tag_set B) {
     return true;
 }
 
+void abstract_tag::clear() {
+	_id.clear();
+	_super.clear();
+	// _pos = POS_UNKNOWN;  
+	_rank.clear();
+	if (!relations.empty()) relations.clear();
+}
+
+bool abstract_tag::empty() {
+	return (
+		_id.empty()
+		&& _super.empty()
+		&& _rank.empty()
+		&& relations.empty()
+	);
+}
 
 tag_code abstract_tag::relation(const tagd::predicate &p) {
     if (!valid_predicate(p))

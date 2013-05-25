@@ -313,7 +313,8 @@ query:
 fragment:
     _fragment_offset = i;
     _fragment_len = sz - _fragment_offset;
-	this->relation(HARD_TAG_HAS, HARD_TAG_FRAGMENT, _uri.substr(_fragment_offset, _fragment_len));
+	if (_fragment_len > 0)
+		this->relation(HARD_TAG_HAS, HARD_TAG_FRAGMENT, _uri.substr(_fragment_offset, _fragment_len));
 
 url_ok:
 	this->host_lower();

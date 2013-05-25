@@ -4,6 +4,8 @@
 #include <cstring>  // tolower
 #include "tagd.h"
 
+namespace tagd {
+
 typedef enum {
     URL_OK,
     URL_EMPTY,
@@ -59,10 +61,6 @@ const size_t HDURI_PASS = 8;
 // const size_t HDURI_SCHEME = 9; // not needed yet
 
 const size_t HDURI_NUM_ELEMS = 9;
-
-#define url_code_str(c) url_util::url_code_str(c)
-
-namespace tagd {
 
 typedef unsigned short url_size_t;
 
@@ -207,3 +205,5 @@ class url : public abstract_tag {
 };
 
 } // namespace tagd
+
+#define url_code_str(c) tagd::url_util::url_code_str(c)

@@ -782,6 +782,58 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.hduri(), "com:example::/a/b/c:?a=1&b=2:::joe::http" );
     }
 
+    void test_relations(void) {
+		tagd::url a("http://hypermega.com");
+        // id() an alias for hduri
+		TS_ASSERT_EQUALS( a.id() , "com:hypermega:http" )
+		TS_ASSERT_EQUALS( a.super() , "_url" )
+		TS_ASSERT( a.pos() == tagd::POS_URL )
+		TS_ASSERT( a.related(HARD_TAG_HAS, HARD_TAG_HOST, "hypermega.com") )
+		TS_ASSERT( a.related(HARD_TAG_HAS, HARD_TAG_PRIV_LABEL, "hypermega") )
+		TS_ASSERT( a.related(HARD_TAG_HAS, HARD_TAG_PUB, "com") )
+		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_SUB) )
+		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_PATH) )
+		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_QUERY) )
+		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT) )
+		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_PORT) )
+		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_USER) )
+		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_PASS) )
+		TS_ASSERT( a.related(HARD_TAG_HAS, HARD_TAG_SCHEME, "http") )
+
+		tagd::url b("http://www.hypermega.com#here");
+//  rpub:priv_label:rsub:path:query:fragment:port:user:pass:scheme
+		TS_ASSERT_EQUALS( b.id() , "com:hypermega:www:::here:http" )
+		TS_ASSERT_EQUALS( b.super() , "_url" )
+		TS_ASSERT( b.pos() == tagd::POS_URL )
+		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_HOST, "hypermega.com") )
+		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_PRIV_LABEL, "hypermega") )
+		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_PUB, "com") )
+		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_SUB, "www") )
+		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_PATH) )
+		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_QUERY) )
+		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "here") )
+		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_PORT) )
+		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_USER) )
+		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_PASS) )
+		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_SCHEME, "http") )
+
+		tagd::url c("http://en.wikipedia.org/wiki/Dog");
+		TS_ASSERT_EQUALS( c.id() , "org:wikipedia:en:/wiki/Dog:http" )
+		TS_ASSERT_EQUALS( c.super() , "_url" )
+		TS_ASSERT( c.pos() == tagd::POS_URL )
+		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_HOST, "wikipedia.org") )
+		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_PRIV_LABEL, "wikipedia") )
+		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_PUB, "org") )
+		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_SUB, "en") )
+		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_PATH, "/wiki/Dog") )
+		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_QUERY) )
+		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT) )
+		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_PORT) )
+		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_USER) )
+		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_PASS) )
+		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_SCHEME, "http") )
+		std::cout << c << std::endl;
+	}
     void test_urls(void) {
         // Borrowed from https://github.com/chadmyers/UrlRegex/blob/master/start.html
         // Thanks John Gruber

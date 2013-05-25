@@ -41,6 +41,17 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( r3.dotted_str() , "1.2.5" );
     }
 
+    void test_rank_clear(void) {
+        tagd::byte_t a1[4] = {1, 2, 5, '\0'};
+
+        // init tests
+        tagd::rank r1;
+        r1.init(a1);
+        TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.5" );
+		r1.clear();
+		TS_ASSERT(r1.empty());
+	}
+
     void test_rank_push_pop_order(void) {
         tagd::byte_t a1[4] = {1, 2, 5, '\0'};
 
@@ -408,6 +419,22 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( dog.pos() == tagd::POS_NOUN )
 	}
 
+	void test_tag_clear(void) {
+		tagd::tag dog("dog", "animal");
+		dog.relation("has", "teeth");
+		TS_ASSERT( dog.id() == "dog" )
+		TS_ASSERT( dog.is_a() == "animal" )
+		TS_ASSERT( dog.pos() == tagd::POS_NOUN )
+		TS_ASSERT( dog.related("has", "teeth")  )
+		dog.clear();
+		TS_ASSERT( dog.id().empty() )
+		TS_ASSERT( dog.is_a().empty() ) 
+		// POS doesn't get set to UNKNOWN
+		TS_ASSERT( dog.pos() == tagd::POS_NOUN )
+		TS_ASSERT( !dog.related("has", "teeth")  )
+		TS_ASSERT( dog.empty() )
+	}
+
 	void test_tag_eq(void) {
 		tagd::tag a("dog", "animal");
 		tagd::tag b("dog", "mammal");
@@ -501,6 +528,8 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( r2.pos() == tagd::POS_VERB )
 	}
 
+	// test url relations like other tags
+	// parsing tests go in UrlTester
     void test_url(void) {
 		tagd::url u("http://hypermega.com");
         u.relation("has","links", "4");

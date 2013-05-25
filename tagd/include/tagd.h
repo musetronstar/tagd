@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <set>
 
 #include "tagd/config.h"
@@ -87,7 +88,7 @@ typedef enum {
 /* hard tag that can be used in a super relation */
 inline bool is_super_hard_tag(const id_type &id) {
     return (
-        id == HARD_TAG_ENTITY ||
+        id == "_entity" ||
         id == HARD_TAG_RELATOR ||
         id == HARD_TAG_URL ||
         id == HARD_TAG_INTERROGATOR
@@ -167,6 +168,9 @@ class abstract_tag {
 
         predicate_set relations;
 
+		void clear();
+		bool empty();
+
         const id_type& id() const { return _id; }
         void id(const id_type& A) { _id = A; }
 
@@ -205,6 +209,11 @@ class abstract_tag {
         bool related(const id_type& relator, const id_type& object) const {
             return ( relations.find(make_predicate(relator, object)) != relations.end() );
         }
+
+        // relator, object, modifier
+        bool related(const id_type& r, const id_type& o, const id_type& m) const {
+            return ( relations.find(make_predicate(r, o, m)) != relations.end() );
+		}
 
         inline bool related(const predicate& p) const {
             return ( relations.find(p) != relations.end() );

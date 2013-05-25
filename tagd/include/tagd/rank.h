@@ -42,6 +42,7 @@ class rank {
         // because we must validate data either by return code
         // or exception - I'm not about to use exceptions
         ~rank();
+		void clear();
 
         rank& operator=(const rank&);
         bool operator<(const rank&) const;

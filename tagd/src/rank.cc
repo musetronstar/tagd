@@ -73,6 +73,14 @@ rank::~rank() {
         delete [] _data;
 }
 
+void rank::clear() {
+    if (_data != NULL)
+        delete [] _data;
+
+	_data = NULL;
+	_size = 0;
+}
+
 rank_code rank::validate(const byte_t *bytes, size_t *sz) {
     *sz = 0;
 
