@@ -832,8 +832,8 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_USER) )
 		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_PASS) )
 		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_SCHEME, "http") )
-		std::cout << c << std::endl;
 	}
+
     void test_urls(void) {
         // Borrowed from https://github.com/chadmyers/UrlRegex/blob/master/start.html
         // Thanks John Gruber
