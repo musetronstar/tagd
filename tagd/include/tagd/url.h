@@ -133,7 +133,35 @@ class url : public abstract_tag {
         _url_code(URL_EMPTY)
         { this->init(u); }
 
+/*
+ * TODO
+ * before we can allow identity relations other than _url,
+ * we must enforce that the super itself is_a web resource
+ * For example,
+ * http://example.com/wiki _is_a wiki  # ok because wiki is a web resource
+ * http://example.com/wiki _is_a dog   # not ok becuase dog is not a web resource
 
+        url(const std::string& u, const id_type& is_a) :
+        abstract_tag(id_type(), is_a, POS_URL),
+		_uri(id_type()), 
+        _scheme_len(0),
+        _user_offset(0),
+        _user_len(0),
+        _pass_offset(0),
+        _pass_len(0),
+        _host_offset(0),
+        _host_len(0),
+        _port_offset(0),
+        _port_len(0),
+        _path_offset(0),
+        _path_len(0),
+        _query_offset(0),
+        _query_len(0),
+        _fragment_offset(0),
+        _fragment_len(0),
+        _url_code(URL_EMPTY)
+        { this->init(u); }
+*/
         // _id is set to the hduri during init
         const id_type& id() const { return _id; }
         void id(const id_type& A) { this->init_hduri(A); }

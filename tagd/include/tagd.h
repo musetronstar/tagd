@@ -265,17 +265,7 @@ class relator : public abstract_tag {
         const id_type& type_of() const { return _super; }
         void type_of(const id_type& i) { _super = i; }
 };
-/*
-class url : public tag {
-    private:
-        id_type _url;
-    public:
-        url(const id_type& u) : tag(u, HARD_TAG_URL, POS_NOUN) {};
 
-        const id_type& str() const { return _url; }
-        void str(const id_type& u) { _url = u; }
-};
-*/
 // 'wh.*|how' words (eg who, what, where, when, why, how)
 // there are two types of interrogator:
 // 1. one that identifies and defines a tag that is a type of interrogator
