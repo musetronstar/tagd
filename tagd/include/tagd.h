@@ -73,13 +73,13 @@ typedef enum {
     TAG_ILLEGAL
 } tag_code;
 
-// part of speech
+// TAGL part of speech
 typedef enum {
-    POS_UNKNOWN = 0,  // nothing other than _entity makes sense to be assigned this
-    POS_NOUN = 1,
-    POS_VERB = 2,     // used as a "Copula" to link subjects to predicates (no always a noun)
-    // TODO we need to change POS_VERB to POS_RELATOR to reflect its greater generality
-    // Is is proper to call a general Copula a part of speech?
+    POS_UNKNOWN = 0,
+    POS_TAG = 1,
+// relator is used as a "Copula" to link subjects to predicates
+// (even more general than a "linking verb")
+    POS_RELATOR = 2,
     POS_INTERROGATOR = 3,
     POS_URL = 4
     // POS_URI = 5; // TODO
@@ -98,8 +98,7 @@ inline bool is_super_hard_tag(const id_type &id) {
 /* name of super relator (for semantic meaning) */
 inline id_type super_relator(const part_of_speech &pos) {
     switch (pos) {
-        case POS_NOUN: return HARD_TAG_IS_A;
-        case POS_UNKNOWN: return HARD_TAG_IS_A;
+        case POS_TAG: return HARD_TAG_IS_A;
         default: return HARD_TAG_TYPE_OF;
     }
 }
@@ -122,8 +121,8 @@ struct tag_util {
     static std::string pos_str(part_of_speech p) {
         switch (p) {
             case POS_UNKNOWN: return "POS_UNKNOWN";
-            case POS_NOUN:    return "POS_NOUN";
-            case POS_VERB:    return "POS_VERB";
+            case POS_TAG:    return "POS_TAG";
+            case POS_RELATOR:    return "POS_RELATOR";
             case POS_INTERROGATOR: return "POS_INTERROGATOR";
             case POS_URL:    return "POS_URL";
             default:          return "STR_EMPTY";
@@ -229,15 +228,15 @@ class abstract_tag {
 
 class tag : public abstract_tag {
     public:
-        tag() : abstract_tag(POS_NOUN) {};
+        tag() : abstract_tag(POS_TAG) {};
 
-        tag(const id_type& id) : abstract_tag(id, POS_NOUN) {};
+        tag(const id_type& id) : abstract_tag(id, POS_TAG) {};
 
         tag(const id_type& id, const id_type& super)
-            : abstract_tag(id, super, POS_NOUN) {};
+            : abstract_tag(id, super, POS_TAG) {};
 
         tag(const id_type& id, const id_type& super, const tagd::rank& rank)
-            : abstract_tag(id, super, POS_NOUN, rank) {};
+            : abstract_tag(id, super, POS_TAG, rank) {};
 
         const id_type& is_a() const { return _super; }
         void is_a(const id_type& i) { _super = i; }
@@ -257,10 +256,10 @@ class tag : public abstract_tag {
 class relator : public abstract_tag {
     public:
         relator(const id_type& id)
-            : abstract_tag(id, HARD_TAG_RELATOR, POS_VERB) {};
+            : abstract_tag(id, HARD_TAG_RELATOR, POS_RELATOR) {};
 
         relator(const id_type& id, const id_type& super)
-            : abstract_tag(id, super, POS_VERB) {};
+            : abstract_tag(id, super, POS_RELATOR) {};
 
         const id_type& type_of() const { return _super; }
         void type_of(const id_type& i) { _super = i; }

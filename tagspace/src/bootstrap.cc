@@ -20,19 +20,19 @@ ts_res_code bootstrap::init_hard_tags(tagspace& TS) {
 	// IMPORTANT: updates to tagd/hard-tags.h must be reflected here
 	ts_res_code rs;
 
-	rs = put_hard_tag(TS, HARD_TAG_SUPER, "_entity", tagd::POS_UNKNOWN);
+	rs = put_hard_tag(TS, HARD_TAG_SUPER, "_entity", tagd::POS_TAG);
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_IS_A, HARD_TAG_SUPER, tagd::POS_VERB);
+	rs = put_hard_tag(TS, HARD_TAG_IS_A, HARD_TAG_SUPER, tagd::POS_RELATOR);
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_TYPE_OF, HARD_TAG_SUPER, tagd::POS_VERB);
+	rs = put_hard_tag(TS, HARD_TAG_TYPE_OF, HARD_TAG_SUPER, tagd::POS_RELATOR);
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_RELATOR, HARD_TAG_SUPER, tagd::POS_VERB);
+	rs = put_hard_tag(TS, HARD_TAG_RELATOR, HARD_TAG_SUPER, tagd::POS_RELATOR);
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_HAS, HARD_TAG_RELATOR, tagd::POS_VERB);
+	rs = put_hard_tag(TS, HARD_TAG_HAS, HARD_TAG_RELATOR, tagd::POS_RELATOR);
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
 	rs = put_hard_tag(TS, HARD_TAG_URL, "_entity", tagd::POS_URL);
@@ -41,40 +41,40 @@ ts_res_code bootstrap::init_hard_tags(tagspace& TS) {
 	rs = put_hard_tag(TS, HARD_TAG_INTERROGATOR, "_entity", tagd::POS_INTERROGATOR); 
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_URL_PART, "_entity", tagd::POS_NOUN); 
+	rs = put_hard_tag(TS, HARD_TAG_URL_PART, "_entity", tagd::POS_TAG); 
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_HOST, HARD_TAG_URL_PART, tagd::POS_NOUN); 
+	rs = put_hard_tag(TS, HARD_TAG_HOST, HARD_TAG_URL_PART, tagd::POS_TAG); 
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_PRIV_LABEL, HARD_TAG_URL_PART, tagd::POS_NOUN); 
+	rs = put_hard_tag(TS, HARD_TAG_PRIV_LABEL, HARD_TAG_URL_PART, tagd::POS_TAG); 
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_PUB, HARD_TAG_URL_PART, tagd::POS_NOUN); 
+	rs = put_hard_tag(TS, HARD_TAG_PUB, HARD_TAG_URL_PART, tagd::POS_TAG); 
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_SUB, HARD_TAG_URL_PART, tagd::POS_NOUN); 
+	rs = put_hard_tag(TS, HARD_TAG_SUB, HARD_TAG_URL_PART, tagd::POS_TAG); 
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_PATH, HARD_TAG_URL_PART, tagd::POS_NOUN); 
+	rs = put_hard_tag(TS, HARD_TAG_PATH, HARD_TAG_URL_PART, tagd::POS_TAG); 
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_QUERY, HARD_TAG_URL_PART, tagd::POS_NOUN); 
+	rs = put_hard_tag(TS, HARD_TAG_QUERY, HARD_TAG_URL_PART, tagd::POS_TAG); 
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_FRAGMENT, HARD_TAG_URL_PART, tagd::POS_NOUN); 
+	rs = put_hard_tag(TS, HARD_TAG_FRAGMENT, HARD_TAG_URL_PART, tagd::POS_TAG); 
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_PORT, HARD_TAG_URL_PART, tagd::POS_NOUN); 
+	rs = put_hard_tag(TS, HARD_TAG_PORT, HARD_TAG_URL_PART, tagd::POS_TAG); 
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_USER, HARD_TAG_URL_PART, tagd::POS_NOUN); 
+	rs = put_hard_tag(TS, HARD_TAG_USER, HARD_TAG_URL_PART, tagd::POS_TAG); 
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_PASS, HARD_TAG_URL_PART, tagd::POS_NOUN); 
+	rs = put_hard_tag(TS, HARD_TAG_PASS, HARD_TAG_URL_PART, tagd::POS_TAG); 
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_SCHEME, HARD_TAG_URL_PART, tagd::POS_NOUN); 
+	rs = put_hard_tag(TS, HARD_TAG_SCHEME, HARD_TAG_URL_PART, tagd::POS_TAG); 
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
 	return rs;

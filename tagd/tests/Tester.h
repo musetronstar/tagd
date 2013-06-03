@@ -409,14 +409,14 @@ class Tester : public CxxTest::TestSuite {
 //		tagd::abstract_tag e("_entity", "_entity");
 //		TS_ASSERT_EQUALS( e.id() , "_entity" )
 //		TS_ASSERT( e.super().empty() )  // override, _entity super is always empty
-//		TS_ASSERT_EQUALS( e.pos() , tagd::POS_NOUN )
+//		TS_ASSERT_EQUALS( e.pos() , tagd::POS_TAG )
 //	}
 
 	void test_tag(void) {
 		tagd::tag dog("dog", "animal");
 		TS_ASSERT( dog.id() == "dog" )
 		TS_ASSERT( dog.is_a() == "animal" )
-		TS_ASSERT( dog.pos() == tagd::POS_NOUN )
+		TS_ASSERT( dog.pos() == tagd::POS_TAG )
 	}
 
 	void test_tag_clear(void) {
@@ -424,13 +424,13 @@ class Tester : public CxxTest::TestSuite {
 		dog.relation("has", "teeth");
 		TS_ASSERT( dog.id() == "dog" )
 		TS_ASSERT( dog.is_a() == "animal" )
-		TS_ASSERT( dog.pos() == tagd::POS_NOUN )
+		TS_ASSERT( dog.pos() == tagd::POS_TAG )
 		TS_ASSERT( dog.related("has", "teeth")  )
 		dog.clear();
 		TS_ASSERT( dog.id().empty() )
 		TS_ASSERT( dog.is_a().empty() ) 
 		// POS doesn't get set to UNKNOWN
-		TS_ASSERT( dog.pos() == tagd::POS_NOUN )
+		TS_ASSERT( dog.pos() == tagd::POS_TAG )
 		TS_ASSERT( !dog.related("has", "teeth")  )
 		TS_ASSERT( dog.empty() )
 	}
@@ -520,12 +520,12 @@ class Tester : public CxxTest::TestSuite {
 		tagd::relator r1("has");
 		TS_ASSERT( r1.id() == "has" )
 		TS_ASSERT( r1.type_of() == "_relator" )
-		TS_ASSERT( r1.pos() == tagd::POS_VERB )
+		TS_ASSERT( r1.pos() == tagd::POS_RELATOR )
 
 		tagd::relator r2("can", "verb");
 		TS_ASSERT( r2.id() == "can" )
 		TS_ASSERT( r2.type_of() == "verb" )
-		TS_ASSERT( r2.pos() == tagd::POS_VERB )
+		TS_ASSERT( r2.pos() == tagd::POS_RELATOR )
 	}
 
 	// test url relations like other tags
