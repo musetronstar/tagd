@@ -16,7 +16,7 @@ typedef enum {
     URL_ERR_HOST,
     URL_ERR_PORT,
     URL_ERR_PATH,
-    URL_ERR_USER,
+    URL_ERR_USER
 } url_code;
 // changes to enum need to be reflected in url_code_str
 
@@ -66,7 +66,6 @@ typedef unsigned short url_size_t;
 
 class url : public abstract_tag {
     private:
-		id_type _uri;
         /* 
             IMPORTANT, a non-zero value for *_len is the sole determiner of whether
             a url component exists.  *_offset may be set during parsing, but will only
@@ -91,10 +90,13 @@ class url : public abstract_tag {
 
         url_code _url_code; // code from init
 
+		// disable setting _id, becuase it would
+		// bypass url initialization.  require init()
+        void id(const id_type& A);
+
     public:
         url() :
         abstract_tag(id_type(), HARD_TAG_URL, POS_URL),
-		_uri(id_type()), 
         _scheme_len(0),
         _user_offset(0),
         _user_len(0),
@@ -114,7 +116,6 @@ class url : public abstract_tag {
 
         url(const std::string& u) :
         abstract_tag(id_type(), HARD_TAG_URL, POS_URL),
-		_uri(id_type()), 
         _scheme_len(0),
         _user_offset(0),
         _user_len(0),
@@ -143,7 +144,6 @@ class url : public abstract_tag {
 
         url(const std::string& u, const id_type& is_a) :
         abstract_tag(id_type(), is_a, POS_URL),
-		_uri(id_type()), 
         _scheme_len(0),
         _user_offset(0),
         _user_len(0),
@@ -162,17 +162,15 @@ class url : public abstract_tag {
         _url_code(URL_EMPTY)
         { this->init(u); }
 */
-        // _id is set to the hduri during init
-        const id_type& id() const { return _id; }
-        void id(const id_type& A) { this->init_hduri(A); }
+        
+		const id_type& id() const { return _id; }
+		// id() setter is private
 
         url_code init(const std::string &url);
-        url_code init_hduri(const std::string &hduri);
+        url_code init_hdurl(const std::string &hdurl);
 
         inline url_code code() const { return _url_code; }
         inline bool ok() const { return _url_code == URL_OK; }
-
-        inline std::string str() const { return _uri; }
 
         inline std::string scheme() const { return url_substr(0, _scheme_len); }
         inline std::string user() const { return url_substr(_user_offset, _user_len); }
@@ -204,15 +202,18 @@ class url : public abstract_tag {
         // TODO this will need to be determined during parsing
         inline authority_code authority_type() const { return AUTHORITY_HOST; }
 
-        std::string hduri() const;
+        std::string hdurl() const;
 
-        inline void clear() { _id.clear(); _uri.clear(); _url_code = URL_EMPTY; }
-        inline bool empty() const { return _id.empty() && _uri.empty(); }
+        inline void clear() { _id.clear(); _url_code = URL_EMPTY; }
+        inline bool empty() const { return _id.empty(); }
+
+		// insert url part relation into predicate_set
+		static void insert_url_part_relations(tagd::predicate_set&, const url&);
 
     private:
         inline std::string url_substr(const url_size_t offset, const url_size_t len) const {
             if (len == 0 || this->empty()) return std::string();
-            return _uri.substr(offset, len);
+            return _id.substr(offset, len);
         }
 
         // set and return
@@ -220,7 +221,7 @@ class url : public abstract_tag {
 
         void host_lower() {
             for (url_size_t i = _host_offset; i < (_host_offset + _host_len); i++)
-                _uri[i] = tolower(_uri[i]);
+                _id[i] = tolower(_id[i]);
         }
 
 		// we have to distinguish between "no password" and "blank password"
@@ -228,8 +229,6 @@ class url : public abstract_tag {
 		inline bool pass_empty() {
 			return (_pass_offset == 0 && _pass_len == 0);
 		}
-
-		tld_code add_host_parts();
 };
 
 } // namespace tagd

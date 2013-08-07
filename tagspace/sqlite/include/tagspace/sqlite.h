@@ -25,6 +25,7 @@ class sqlite: public tagspace {
         // prepared statement handles, must be sqlite3_finalized in the destructor
         sqlite3_stmt *_get_stmt;
         sqlite3_stmt *_exists_stmt;
+        sqlite3_stmt *_pos_stmt;
         sqlite3_stmt *_insert_stmt;
         sqlite3_stmt *_update_tag_stmt;
         sqlite3_stmt *_update_ranks_stmt;
@@ -47,12 +48,19 @@ class sqlite: public tagspace {
         sqlite3_stmt *_insert_authority_stmt;
         sqlite3_stmt *_insert_uri_relations_stmt;
 
+		// performing init() operations
+		bool _doing_init;
+
+		// wrapped by init(), sets _doing_init
+        ts_res_code _init(const std::string&);
+
     public:
         sqlite() :
             _db(NULL),
             _db_fname(),
             _get_stmt(NULL),
             _exists_stmt(NULL),
+            _pos_stmt(NULL),
             _insert_stmt(NULL),
             _update_tag_stmt(NULL),
             _update_ranks_stmt(NULL),
@@ -73,7 +81,8 @@ class sqlite: public tagspace {
             _insert_uri_specs_stmt(NULL),
             _insert_host_stmt(NULL),
             _insert_authority_stmt(NULL),
-            _insert_uri_relations_stmt(NULL)
+            _insert_uri_relations_stmt(NULL),
+			_doing_init(false)
         {}
 
         virtual ~sqlite();
@@ -94,15 +103,16 @@ class sqlite: public tagspace {
         ts_res_code exists(const tagd::id_type& id); 
 
         // put tag, will overrite existing (move + update)
-        ts_res_code put(tagd::abstract_tag&);  // updates rank
+        ts_res_code put(const tagd::abstract_tag&);
+        ts_res_code put(const tagd::url&);
 
-        // tags immediatly subordinate to id
-        ts_res_code sub(tagd::tag_set&, const tagd::id_type&) { return TS_ERR; }
+		tagd::part_of_speech pos(const tagd::id_type&);
+
         ts_res_code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type& = "_entity");
         ts_res_code query(tagd::tag_set&, const tagd::interrogator&);
 
         ts_res_code dump(std::ostream& = std::cout);
-        ts_res_code dump_relations(std::ostream& = std::cout);
+        ts_res_code dump_grid(std::ostream& = std::cout);
 
         ts_res_code dump_uridb(std::ostream& = std::cout);
         ts_res_code dump_uridb_relations(std::ostream& = std::cout);
@@ -112,11 +122,9 @@ class sqlite: public tagspace {
 
     protected:
         // insert - new, destination (super of new tag)
-        // rank of new tag gets updated on success
-        ts_res_code insert(tagd::abstract_tag&, const tagd::abstract_tag&);
+        ts_res_code insert(const tagd::abstract_tag&, const tagd::abstract_tag&);
         // update - updated, new destination
-        // rank of updated tag gets updated on success
-        ts_res_code update(tagd::abstract_tag&, const tagd::abstract_tag&);
+        ts_res_code update(const tagd::abstract_tag&, const tagd::abstract_tag&);
 
         ts_res_code insert_relations(const tagd::abstract_tag&);
         ts_res_code get_relations(tagd::predicate_set&, const tagd::id_type&);

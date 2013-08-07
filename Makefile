@@ -1,4 +1,4 @@
-MAKE_DIRS = tagd tagspace
+MAKE_DIRS = tagd tagspace tagl tagsh
 
 all: force_look
 	for dir in $(MAKE_DIRS) ; do \

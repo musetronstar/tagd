@@ -1,5 +1,5 @@
 CXX = g++
-CFLAGS = -Wall -Wextra -g
+CXXFLAGS = -Wall -Wextra -g -DDEBUG
 
 TAGDDIR =../../tagd
 INC = -I../include -I$(TAGDDIR)/include
@@ -10,7 +10,7 @@ OBJS=$(SRCS:.cc=.o)
 all: $(HDRS) $(SRCS) $(OBJS)
 
 .cc.o :
-	$(CXX) $(CFLAGS) -c -o $@ $< $(INC)
+	$(CXX) -c -o $@ $< $(INC) $(CXXFLAGS)
 
 clean:
 	rm -f *.o

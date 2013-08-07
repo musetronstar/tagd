@@ -97,8 +97,6 @@ void populate_tags_minimal(space_type& TS) {
     tagd::tag swim("swim","move");    // to_swim
     TS.put(swim);
 
-    tagd::tag _relator("_relator","_entity");
-    TS.put(_relator);
     tagd::tag word("word","_relator");
     TS.put(word);
     tagd::tag verb("verb","word");
@@ -179,8 +177,6 @@ void populate_tags(space_type& TS) {
     tagd::tag swim("swim","move");    // to_swim
     TS.put(swim);
 
-    tagd::tag _relator("_relator","_entity");
-    TS.put(_relator);
     tagd::tag word("word","_relator");
     TS.put(word);
     tagd::tag verb("verb","word");
@@ -294,9 +290,12 @@ class Tester : public CxxTest::TestSuite {
 		r_dotted.append(".1");
 
         tagd::tag c("living_thing", "physical_object");
-        ts_rc = TS.put(c);
+        ts_rc = TS.put(c); // rank not updated
         TS_ASSERT_EQUALS(ts_rc, TS_OK);
-        // rank updated
+
+        ts_rc = TS.get(c, c.id());  // get rank
+        TS_ASSERT_EQUALS(ts_rc, TS_OK);
+		
         TS_ASSERT_EQUALS(c.rank().dotted_str(), r_dotted);
     }
 
@@ -310,6 +309,24 @@ class Tester : public CxxTest::TestSuite {
 
         ts_rc = TS.exists("unicorn");
         TS_ASSERT_EQUALS( ts_rc, TS_NOT_FOUND );
+    }
+
+    void test_pos(void) {
+        space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+		tagd::part_of_speech pos = TS.pos("dog");
+        TS_ASSERT_EQUALS( pos, tagd::POS_TAG )
+
+		pos = TS.pos("_has");
+        TS_ASSERT_EQUALS( pos, tagd::POS_RELATOR )
+
+		pos = TS.pos("_is_a");
+        TS_ASSERT_EQUALS( pos, tagd::POS_SUPER )
+
+		pos = TS.pos("unicorn");
+        TS_ASSERT_EQUALS( pos, tagd::POS_UNKNOWN )
     }
 
     void test_insert_statements(void) {
@@ -369,6 +386,46 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
     }
 
+    void test_move(void) {
+        space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+        tagd::tag a("sea_creature", "living_thing");
+        ts_res_code ts_rc = TS.put(a);
+        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+
+        tagd::tag b("fish", "insect");
+        ts_rc = TS.put(b);  // oops
+        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+
+		b.super("sea_creature");
+        ts_rc = TS.put(b);  // move
+        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+		size_t sz = a.rank().dotted_str().size();
+		// a rank should prefix b rank
+        TS_ASSERT_EQUALS( a.rank().dotted_str(), b.rank().dotted_str().substr(0, sz) )
+    }
+
+    void test_move_entity(void) {
+        space_type TS;
+        TS.init(db_fname);
+        tagd::tag a("animal", "_entity");
+        ts_res_code ts_rc = TS.put(a);
+        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+
+        tagd::tag b("dog", "_entity");
+        ts_rc = TS.put(b);
+        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+
+        tagd::tag c("dog", "animal");
+        ts_rc = TS.put(c);  // move
+        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+		size_t sz = a.rank().dotted_str().size();
+		// a rank should prefix c rank
+        TS_ASSERT_EQUALS( a.rank().dotted_str(), c.rank().dotted_str().substr(0, sz) )
+    }
+
     void test_undef_tag_refs(void) {
         space_type TS;
         TS.init(db_fname);
@@ -399,8 +456,6 @@ class Tester : public CxxTest::TestSuite {
         //TS.init("tagspace.sqlite");
         populate_tags(TS);
 
-        //TS.dump();
-        //TS.dump_relators();
 		ts_res_code ts_rc;
 		tagd::tag t;
 
@@ -466,6 +521,27 @@ class Tester : public CxxTest::TestSuite {
         // }
     }
 
+    void test_get_hard_tag(void) {
+		space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+        tagd::tag t;
+        ts_res_code ts_rc = TS.get(t, "_url");
+        TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_OK");
+        TS_ASSERT_EQUALS( t.id(), "_url" )
+	}
+
+    void test_put_hard_tag(void) {
+		space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+        tagd::tag t("_caca", "_entity");
+        ts_res_code ts_rc = TS.put(t);
+        TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_MISUSE");
+	}
+
     void test_relations(void) {
 		space_type TS;
         TS.init(db_fname);
@@ -498,13 +574,16 @@ class Tester : public CxxTest::TestSuite {
 
         tagd::url a("http://www.hypermega.com/a/b/c?x=1&y=2#here");
         a.relation("about", "computer_security");
+		TS_ASSERT_EQUALS(a.id(), "http://www.hypermega.com/a/b/c?x=1&y=2#here"); 
         ts_rc = TS.put(a);
         TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_OK");
+		TS_ASSERT_EQUALS(a.id(), "http://www.hypermega.com/a/b/c?x=1&y=2#here"); 
 
         tagd::url b;
         ts_rc = TS.get(b, a.id()); 
         TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_OK");
-		TS_ASSERT_EQUALS(b.str(), "http://www.hypermega.com/a/b/c?x=1&y=2#here"); 
+		TS_ASSERT_EQUALS(b.id(), "http://www.hypermega.com/a/b/c?x=1&y=2#here"); 
+		TS_ASSERT_EQUALS(b.hdurl(), "com:hypermega:www:/a/b/c:?x=1&y=2:here:http");
         TS_ASSERT( b.relations.size() > 1 )
         TS_ASSERT( b.related("about", "computer_security") )
         TS_ASSERT( b.related("_has", HARD_TAG_SCHEME, "http") )
@@ -519,7 +598,6 @@ class Tester : public CxxTest::TestSuite {
         // TS.dump_uridb();
     }
 
-    // TODO
     void test_query_url(void) {
         space_type TS;
 		ts_res_code ts_rc;
@@ -527,7 +605,6 @@ class Tester : public CxxTest::TestSuite {
         // TS.init("tagspace.sqlite");
         populate_tags(TS);
 
-TS.trace_on();
         tagd::url a("http://en.wikipedia.org/wiki/Dog");
         a.relation("about", "dog");
         ts_rc = TS.put(a);
@@ -566,6 +643,13 @@ TS.trace_on();
         TS_ASSERT_EQUALS( S.size(), 2 );
         TS_ASSERT( tag_set_exists(S, "org:wikipedia:en:/wiki/Dog:http") );
         TS_ASSERT( tag_set_exists(S, "com:wikia:starwars:/wiki/Dog:http") );
-TS.trace_off();
     }
+
+//    void test_dump(void) {
+//        space_type TS;
+//        TS.init(db_fname);
+//		std::cout << std::endl;
+//        populate_tags(TS);
+//		TS.dump();
+//	}
 };

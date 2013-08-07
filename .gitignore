@@ -17,3 +17,6 @@ build/
 
 # vim leftovers
 *~
+
+# sqlite files
+*.sqlite

@@ -356,41 +356,53 @@ class Tester : public CxxTest::TestSuite {
         r1.init(a1);
 
         tagd::tag_set A, B, C, D;
-        tagd::abstract_tag t1("animal", r1);
-        A.insert(t1);  // no relations
+        tagd::abstract_tag animal("animal");
+		animal.rank(r1);
+        A.insert(animal);  // no relations
+		// A: { animal }
 
         a1[1] = 1;
         r1.init(a1);
-        tagd::abstract_tag t2("dog", r1);
-        A.insert(t2);  // no relations
-        t2.relation("has", "legs", "4");
-        B.insert(t2); // one relation
+        tagd::abstract_tag dog("dog");
+		dog.rank(r1);
+        A.insert(dog);  // no relations
+        dog.relation("has", "legs", "4");
+        B.insert(dog); // one relation
+		// A: { animal, dog }
+		// B: { dog }
 
         a1[1] = 2;
         r1.init(a1);
-        tagd::abstract_tag t3("cat", r1);
-        t3.relation("has", "legs", "4");
-        A.insert(t3); // one relation
-        t3.relation("can", "meow");
-        B.insert(t3); // two relations
+        tagd::abstract_tag cat("cat");
+		cat.rank(r1);
+        cat.relation("has", "legs", "4");
+        A.insert(cat); // one relation
+        cat.relation("can", "meow");
+        B.insert(cat); // two relations
+		// A: { animal, dog, cat }
+		// B: { dog, cat }
 
         a1[1] = 3;
         r1.init(a1);
-        tagd::abstract_tag t4("bird", r1);
-        t4.relation("has", "feathers"); 
-        t4.relation("has", "wings"); 
-        B.insert(t4);  // not in A
+        tagd::abstract_tag bird("bird");
+		bird.rank(r1);
+        bird.relation("has", "feathers"); 
+        bird.relation("has", "wings"); 
+        B.insert(bird);  // not in A
+		// A: { animal, dog, cat }
+		// B: { dog, cat, bird }
 
         // C is our control
-        C.insert(t1);
-        C.insert(t2);
-        C.insert(t3);
-        C.insert(t4);
+        C.insert(animal);
+        C.insert(dog);
+        C.insert(cat);
+        C.insert(bird);
 
         // set up D for merge and diff
-        t3.relation("has", "whiskers");
-        D.insert(t3);
-        D.insert(t4);
+        cat.relation("has", "whiskers");
+        D.insert(cat);
+        D.insert(bird);
+		// D: { cat, bird }
 
         tagd::tag_set T;  // temp to hold old A
         T.insert(A.begin(), A.end());
@@ -398,11 +410,44 @@ class Tester : public CxxTest::TestSuite {
         merge_tags(A, B);  // merge B into A
         TS_ASSERT_EQUALS( A.size(), 4 );
         TS_ASSERT( tag_set_equal(A, C) );
+		// A: { animal, dog, cat, bird }
+		// B: { dog, cat, bird }
 
         merge_tags_erase_diffs(A, D);
         TS_ASSERT_EQUALS( A.size(), 2 );  // contains cat and bird
-        tagd::tag_set::iterator it = A.find(t3); // cat
-        TS_ASSERT( it != A.end() && *it == t3 );  // cat relations merged
+        tagd::tag_set::iterator it = A.find(cat); // cat
+        TS_ASSERT( it != A.end() && *it == cat );  // cat relations merged
+    }
+
+    void test_merge_erase_diffs(void) {
+        tagd::byte_t a1[4] = {1, '\0', '\0', '\0'};
+        tagd::rank r1;
+        r1.init(a1);
+
+        tagd::tag_set A, B;
+
+        tagd::abstract_tag dog("dog");
+		dog.rank(r1);
+        A.insert(dog);  // no relations
+        dog.relation("has", "legs", "4");
+        B.insert(dog); // one relation
+		// A: { dog }
+		// B: { dog }
+
+        a1[1] = 1;
+        r1.init(a1);
+        tagd::abstract_tag cat("cat");
+		cat.rank(r1);
+        cat.relation("has", "legs", "4");
+        cat.relation("can", "meow");
+        B.insert(cat); // two relations
+		// A: { dog }
+		// B: { dog, cat }
+
+        merge_tags_erase_diffs(A, B);
+        TS_ASSERT_EQUALS( A.size(), 1 );  // contains dog
+        tagd::tag_set::iterator it = A.find(dog);
+        TS_ASSERT( it != A.end() && *it == dog );
     }
 
 //    void test_abstract_tag(void) {
@@ -415,7 +460,7 @@ class Tester : public CxxTest::TestSuite {
 	void test_tag(void) {
 		tagd::tag dog("dog", "animal");
 		TS_ASSERT( dog.id() == "dog" )
-		TS_ASSERT( dog.is_a() == "animal" )
+		TS_ASSERT( dog.super() == "animal" )
 		TS_ASSERT( dog.pos() == tagd::POS_TAG )
 	}
 
@@ -423,12 +468,12 @@ class Tester : public CxxTest::TestSuite {
 		tagd::tag dog("dog", "animal");
 		dog.relation("has", "teeth");
 		TS_ASSERT( dog.id() == "dog" )
-		TS_ASSERT( dog.is_a() == "animal" )
+		TS_ASSERT( dog.super() == "animal" )
 		TS_ASSERT( dog.pos() == tagd::POS_TAG )
 		TS_ASSERT( dog.related("has", "teeth")  )
 		dog.clear();
 		TS_ASSERT( dog.id().empty() )
-		TS_ASSERT( dog.is_a().empty() ) 
+		TS_ASSERT( dog.super().empty() ) 
 		// POS doesn't get set to UNKNOWN
 		TS_ASSERT( dog.pos() == tagd::POS_TAG )
 		TS_ASSERT( !dog.related("has", "teeth")  )
@@ -442,7 +487,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( a.id() == b.id() )
 		TS_ASSERT( a != b )
 
-        a.is_a("mammal");
+        a.super("mammal");
 		TS_ASSERT( a == b );
 
         b.relation("has", "legs");
@@ -457,14 +502,7 @@ class Tester : public CxxTest::TestSuite {
         dog.relation("has","teeth");
         dog.relation("has","legs","4");
 		TS_ASSERT( dog.id() == "dog" )
-		TS_ASSERT( dog.is_a() == "animal" )
-	}
-
-    void test_relator_is_a(void) {
-		tagd::tag dog("dog");
-        dog.relation("is_a","animal");
-		TS_ASSERT( dog.id() == "dog" )
-		TS_ASSERT( dog.is_a() == "animal" )
+		TS_ASSERT( dog.super() == "animal" )
 	}
 
     void test_related(void) {
@@ -490,12 +528,10 @@ class Tester : public CxxTest::TestSuite {
         tagd::tag fish("fish");
         tagd::predicate_set P;
         tagd::predicate_pair pr;
-        pr = P.insert(tagd::make_predicate("is_a", "animal"));
         pr = P.insert(tagd::make_predicate("has", "fins"));
         pr = P.insert(tagd::make_predicate("breaths", "water"));
         fish.predicates(P);
 
-		TS_ASSERT_EQUALS( fish.is_a(), "animal");
 		TS_ASSERT( fish.related("has", "fins") )
 		TS_ASSERT( fish.related("breaths", "water") )
     }
@@ -519,12 +555,12 @@ class Tester : public CxxTest::TestSuite {
     void test_relator(void) {
 		tagd::relator r1("has");
 		TS_ASSERT( r1.id() == "has" )
-		TS_ASSERT( r1.type_of() == "_relator" )
+		TS_ASSERT( r1.super() == "_relator" )
 		TS_ASSERT( r1.pos() == tagd::POS_RELATOR )
 
 		tagd::relator r2("can", "verb");
 		TS_ASSERT( r2.id() == "can" )
-		TS_ASSERT( r2.type_of() == "verb" )
+		TS_ASSERT( r2.super() == "verb" )
 		TS_ASSERT( r2.pos() == tagd::POS_RELATOR )
 	}
 
@@ -534,8 +570,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd::url u("http://hypermega.com");
         u.relation("has","links", "4");
         u.relation("about", "computer_security");
-        // id() an alias for hduri
-		TS_ASSERT_EQUALS( u.id() , "com:hypermega:http" )
+		TS_ASSERT_EQUALS( u.hdurl() , "com:hypermega:http" )
 		TS_ASSERT_EQUALS( u.super() , "_url" )
 		TS_ASSERT( u.pos() == tagd::POS_URL )
 		TS_ASSERT( u.related("has", "links") )
@@ -545,12 +580,12 @@ class Tester : public CxxTest::TestSuite {
     void test_interrogator(void) {
 		tagd::interrogator a("what");
 		TS_ASSERT( a.id() == "what" )
-		TS_ASSERT( a.type_of().empty() )
+		TS_ASSERT( a.super().empty() )
 		TS_ASSERT( a.pos() == tagd::POS_INTERROGATOR )
 
 		tagd::interrogator b("what", "mammal");
 		TS_ASSERT( b.id() == "what" )
-		TS_ASSERT( b.type_of() == "mammal" )
+		TS_ASSERT( b.super() == "mammal" )
 		TS_ASSERT( b.pos() == tagd::POS_INTERROGATOR )
 	}
 

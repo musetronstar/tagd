@@ -9,9 +9,9 @@
 
 void trace_callback( void* udp, const char* sql ) {
 	if (udp == NULL) {
-		dout << "SQL trace: " << sql << std::endl;
+		std::cerr << "SQL trace: " << sql << std::endl;
 	} else {
-		dout << "SQL trace(udp " << udp << "): " << sql << std::endl;
+		std::cerr << "SQL trace(udp " << udp << "): " << sql << std::endl;
 	}
 }
 
@@ -36,6 +36,13 @@ void sqlite::trace_off() {
 }
 
 ts_res_code sqlite::init(const std::string& fname) {
+	_doing_init = true;
+	ts_res_code ts_rc = this->_init(fname);
+	_doing_init = false;
+	return ts_rc;
+}
+
+ts_res_code sqlite::_init(const std::string& fname) {
     dout << "sqlite::init => " << fname << std::endl;
 
     if (fname.empty()) {
@@ -114,10 +121,10 @@ ts_res_code sqlite::create_tags_table() {
         "pos     INTEGER NOT NULL, "
         "FOREIGN KEY(super) REFERENCES tags(tag), "
         // _entity is the only self referential tag (_entity = _entity)
-        // and the only tag allowed to have rank IS NULL (indicated the root)
+        // and the only tag allowed to have rank IS NULL (indicating the root)
         "CHECK ( "
-            "(tag  = '_entity' AND super = '_entity' AND rank IS NULL AND pos = 0) OR "
-            "(tag <> '_entity' AND rank IS NOT NULL) "
+            "(tag  = '_entity' AND super = '_entity' AND rank IS NULL) OR "
+            "(tag <> '_entity' AND pos <> 0 AND rank IS NOT NULL) "  // 0 == POS_UNKNOWN
         ")"  // TODO  check rank <= super.rank
     ")" 
     );
@@ -128,8 +135,8 @@ ts_res_code sqlite::create_tags_table() {
     if (ts_rc == TS_OK) {
         ts_rc = this->exec(
             "INSERT INTO tags (tag, super, rank, pos) "
-            "VALUES ('_entity', '_entity', NULL, 0)"
-        );
+            "VALUES ('_entity', '_entity', NULL, 1)"
+        ); // IMPORTANT 1 == POS_TAG
     }
 
     return ts_rc;
@@ -249,11 +256,15 @@ ts_res_code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& id) {
 }
 
 ts_res_code sqlite::get(tagd::url& u, const tagd::id_type& id) {
-	ts_res_code ts_rc = this->get((tagd::abstract_tag&)u, id);
-	if (ts_rc != TS_OK) return ts_rc;
-
-	tagd::url_code u_rc = u.init_hduri(id);
+	// id should be a canonical url
+	tagd::url_code u_rc = u.init(id);
 	if (u_rc != tagd::URL_OK) return TS_ERR; // TODO implement errcode(), errstr()
+
+	// we use hdurl to identify urls internally
+	tagd::id_type hdurl = u.hdurl();
+	ts_res_code ts_rc = this->get((tagd::abstract_tag&)u, hdurl);
+	u.init_hdurl(hdurl);  // id() should now be canonical url
+	if (ts_rc != TS_OK) return ts_rc;
 
 	return TS_OK;
 }
@@ -301,6 +312,33 @@ ts_res_code sqlite::get_relations(tagd::predicate_set& P, const tagd::id_type& i
     return TS_OK;
 }
 
+tagd::part_of_speech sqlite::pos(const tagd::id_type& id) {
+	assert(id.length() <= tagd::MAX_TAG_LEN);
+
+    ts_res_code ts_rc = this->prepare(&_pos_stmt,
+        "SELECT pos FROM tags WHERE tag = ?",
+        "tag pos"
+    );
+    assert(ts_rc == TS_OK);
+    if (ts_rc != TS_OK) return tagd::POS_UNKNOWN;
+
+    ts_rc = this->bind_text(&_pos_stmt, 1, id.c_str(), "pos id");
+    assert(ts_rc == TS_OK);
+    if (ts_rc != TS_OK) return tagd::POS_UNKNOWN;
+
+    const int F_POS = 0;
+
+    int s_rc = sqlite3_step(_pos_stmt);
+    if (s_rc == SQLITE_ROW) {
+        return (tagd::part_of_speech) sqlite3_column_int(_pos_stmt, F_POS);
+    } else if (s_rc == SQLITE_ERROR) {
+        this->print_err("pos failed");
+        return tagd::POS_UNKNOWN;
+    } else {
+        return tagd::POS_UNKNOWN;
+    }
+}
+
 ts_res_code sqlite::exists(const tagd::id_type& id) {
     if (id.length() > tagd::MAX_TAG_LEN) {
         dout << "id exceeds MAX_TAG_LEN" << std::endl;
@@ -328,11 +366,21 @@ ts_res_code sqlite::exists(const tagd::id_type& id) {
 }
 
 // TS_NOT_FOUND returned if destination undefined
-ts_res_code sqlite::put(tagd::abstract_tag& t) {
+ts_res_code sqlite::put(const tagd::abstract_tag& t) {
     if (t.id().length() > tagd::MAX_TAG_LEN) {
         dout << "tag exceeds MAX_TAG_LEN of " << tagd::MAX_TAG_LEN << std::endl;
         return TS_ERR_MAX_TAG_LEN;;
     }
+
+	if (t.id().empty()) {
+		std::cerr << "inserting empty tag not allowed" << std::endl;
+		return TS_ERR;
+	}
+
+	if (t.id()[0] == '_' && !_doing_init) {
+		std::cerr << "inserting hard tags not allowed" << std::endl;
+		return TS_MISUSE;
+	}
 
     tagd::abstract_tag existing;
     ts_res_code existing_rc = this->get(existing, t.id());
@@ -372,7 +420,8 @@ ts_res_code sqlite::put(tagd::abstract_tag& t) {
                 return this->insert_relations(t);
         }
         // move existing to new location
-        ins_upd_rc = this->update(t, destination);
+        ins_upd_rc = this->update(existing, destination);
+		//t = existing;
     } else if (existing_rc == TS_NOT_FOUND) {
         // new tag
         ins_upd_rc = this->insert(t, destination);
@@ -386,6 +435,19 @@ ts_res_code sqlite::put(tagd::abstract_tag& t) {
 
     // res from insert/update
     return ins_upd_rc;
+}
+
+ts_res_code sqlite::put(const tagd::url& u) {
+	if (u.code() != tagd::URL_OK) {
+		std::cerr << "put url not ok: " << url_code_str(u.code()) << std::endl;
+		return TS_ERR;
+	}
+	// url _id is the actual url, but we use the hdurl
+	// internally, so we have to convert it
+	tagd::abstract_tag t = (tagd::abstract_tag) u;
+	t.id(u.hdurl());
+	tagd::url::insert_url_part_relations(t.relations, u);
+	return this->put(t);
 }
 
 ts_res_code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& super) {
@@ -412,7 +474,7 @@ ts_res_code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& super)
     return TS_OK;
 }
 
-ts_res_code sqlite::insert(tagd::abstract_tag& t, const tagd::abstract_tag& destination) {
+ts_res_code sqlite::insert(const tagd::abstract_tag& t, const tagd::abstract_tag& destination) {
     assert( t.super() == destination.id() );
     assert( !t.id().empty() );
     assert( !t.super().empty() );
@@ -437,8 +499,17 @@ ts_res_code sqlite::insert(tagd::abstract_tag& t, const tagd::abstract_tag& dest
     if (ts_rc == TS_OK)
         ts_rc = this->bind_text(&_insert_stmt, 3, rank.c_str(), "insert rank");
 
-    if (ts_rc == TS_OK)
-        ts_rc = this->bind_int(&_insert_stmt, 4, t.pos(), "insert pos");
+    if (ts_rc == TS_OK) {
+		tagd::part_of_speech pos;
+		if (t.pos() == tagd::POS_UNKNOWN) {
+			// use pos of super
+			pos = this->pos(t.super());
+			assert(pos != tagd::POS_UNKNOWN);
+		} else {
+			pos = t.pos();
+		}
+        ts_rc = this->bind_int(&_insert_stmt, 4, pos, "insert pos");
+	}
 
     if (ts_rc != TS_OK) return ts_rc;
 
@@ -448,14 +519,11 @@ ts_res_code sqlite::insert(tagd::abstract_tag& t, const tagd::abstract_tag& dest
         return TS_ERR;
     }
 
-	// tag mutated (why it can't be const)
-    t.rank(rank);
-
     return TS_OK;
 }
 
 // update existing with new tag
-ts_res_code sqlite::update(tagd::abstract_tag& t,
+ts_res_code sqlite::update(const tagd::abstract_tag& t,
                                       const tagd::abstract_tag& destination) {
     assert( !t.id().empty() );
     assert( !t.super().empty() );
@@ -466,7 +534,7 @@ ts_res_code sqlite::update(tagd::abstract_tag& t,
     if (ts_rc != TS_OK)
         return ts_rc;
 
-    dout << "update next rank: (" << rank.dotted_str() << ")" << std::endl;
+	dout << "update next rank: (" << rank.dotted_str() << ")" << std::endl;
 
     // TODO look into the impact of using a TRANSACTION
 
@@ -512,8 +580,6 @@ ts_res_code sqlite::update(tagd::abstract_tag& t,
         this->print_err("update ranks failed");
         return TS_ERR;
     }
-
-    t.rank(rank);
 
     return TS_OK;
 }
@@ -606,161 +672,6 @@ ts_res_code sqlite::insert_relations(const tagd::abstract_tag& t) {
         return TS_OK;
 }
 
-/*
-
-ts_res_code update(const tagd::abstract_tag& t, const tagd::abstract_tag& e) {  // new tag, existing
-    if (t.id().length() > tagd::MAX_TAG_LEN) {
-        dout << "tag exceeds MAX_TAG_LEN" << std::endl;
-        return TS_ERR_MAX_TAG_LEN;;
-    }
-
-    if (t.is_a().length() > tagd::MAX_TAG_LEN) {
-        dout << "is_a exceeds MAX_TAG_LEN" << std::endl;
-        return TS_ERR_MAX_TAG_LEN;;
-    }
-
-    if (t.is_a() == e.is_a()) {
-        dout << "already defined" << std::endl; 
-        return TS_UNCHANGED;
-    }
-
-    tagdb_sqlite_query rank_query(
-    "SELECT CONCAT( "
-      "rank, ':', "
-      "( "
-        "SELECT CONVERT( "
-          "SUBSTRING_INDEX( "
-            "IFNULL( "
-              "( "
-                "SELECT rank "
-                "FROM tags AS child "
-                "WHERE child.is_a = ? "
-                "ORDER BY CHAR_LENGTH(child.rank) DESC, child.rank DESC LIMIT 1 "
-              "), "
-              "CONCAT( "
-                "( "
-                  "SELECT rank "
-                  "FROM tags AS single_child "
-                  "WHERE single_child.tag = ? "
-                "), ':0' "
-              ") "
-            "), ':', -1 "
-          "), UNSIGNED "
-        ") "
-      ") + 1 "
-    ") AS next_rank "
-    "FROM tags AS parent "
-    "WHERE parent.tag = ?"
-    );
-    rank_query.p(t.is_a());
-    rank_query.p(t.is_a());
-    rank_query.p(t.is_a());
-
-    ts_res_code r = _db.query(rank_query);
-
-    if (r != TS_OK) {
-        std::cerr << "next_rank failed:" << std::endl << rank_query.str() << std::endl
-                  << "error code:" << rank_query.error_code() << std::endl
-                  << "error:" << rank_query.error_msg() << std::endl;
-        return r;
-    }
-
-    char **row = rank_query.row_next();
-    if (row == NULL) {
-        std::cerr << "next_rank not found:" << std::endl << rank_query.str() << std::endl
-                  << "error code:" << rank_query.error_code() << std::endl
-                  << "error:" << rank_query.error_msg() << std::endl;
-        return TS_NOT_FOUND;
-    }
-
-    tagd::rank_type next_rank = row[0];
-    int root_end = e.rank().length() + 1;
-
-    tagdb_sqlite_query update_rank_query(
-    "UPDATE tags "
-    "SET rank = CONCAT(?, SUBSTRING(rank, ?)) "
-    "WHERE rank LIKE CONCAT(?, '%')"
-    );
-    update_rank_query.p(next_rank);
-    update_rank_query.p(root_end);
-    update_rank_query.p(e.rank());
-
-    r = _db.query(update_rank_query);
-
-    if (r != TS_OK) {
-        std::cerr << "update rank query failed:" << std::endl << rank_query.str() << std::endl
-                  << "error code:" << rank_query.error_code() << std::endl
-                  << "error:" << rank_query.error_msg() << std::endl;
-        return r;
-    }
-
-    tagdb_sqlite_query update_is_a_query(
-    "UPDATE tags "
-    "SET is_a = ? "
-    "WHERE tag = ?"
-    );
-    update_is_a_query.p(t.is_a());
-    update_is_a_query.p(t.id());
-
-    r = _db.query(update_is_a_query);
-
-    if (r != TS_OK) {
-        dout << "update is_a query failed" << std::endl;
-        return r;
-    }
-
-    return r;
-}
-
-ts_res_code statement(const tagd::statement& s) {
-    if (s.subject.length() > tagd::MAX_TAG_LEN) {
-        dout << "subject exceeds MAX_TAG_LEN" << std::endl;
-        return TS_ERR_MAX_TAG_LEN;
-    }
-
-    if (s.relation.length() > tagd::MAX_TAG_LEN) {
-        dout << "relation exceeds MAX_TAG_LEN" << std::endl;
-        return TS_ERR_MAX_TAG_LEN;
-    }
-
-    if (s.object.length() > tagd::MAX_TAG_LEN) {
-        dout << "object exceeds MAX_TAG_LEN" << std::endl;
-        return TS_ERR_MAX_TAG_LEN;
-    }
-
-    if (s.modifier.length() > tagd::MAX_TAG_LEN) {
-        dout << "modifier exceeds MAX_TAG_LEN" << std::endl;
-        return TS_ERR_MAX_TAG_LEN;
-    }
-
-    tagdb_sqlite_query q("INSERT INTO relations VALUES(?,?,?,?)");
-    q.p(s.subject).p(s.relation).p(s.object).p(s.modifier);
-
-    ts_res_code r = _db.query(q);
-    if (r != TS_OK) {
-        return r;
-    }
-
-    // error
-    switch(q.error_code()) {
-        case 0: // ok
-            break;
-        // case 1062:  // Duplicate entry '<tag>' for key 'PRIMARY'
-        //     r = TS_DUPLICATE;
-        //     break;
-        // case 1048:  // Column 'rank' cannot be null
-        //     r = TS_SUPER_UNK;
-        //     break;
-        default:
-            r = TS_INTERNAL_ERR;
-            std::cerr << "unhandled error(" << q.error_code() << "): "
-                      << q.error_msg() << std::endl;
-    }
-
-    return r;
-}
-*/
-
 ts_res_code sqlite::related(tagd::tag_set& R, const tagd::predicate& p, const tagd::id_type& super) {
 
     sqlite3_stmt *stmt;
@@ -774,14 +685,14 @@ ts_res_code sqlite::related(tagd::tag_set& R, const tagd::predicate& p, const ta
 				"FROM relations, tags "
 				"WHERE tag = subject "
 				"AND relator IN ( "
-				"SELECT tag FROM tags WHERE rank GLOB ( "
-				"SELECT rank FROM tags WHERE tag = ? "
-				") || '*'" // all relators <= p.relator
+				 "SELECT tag FROM tags WHERE rank GLOB ( "
+				  "SELECT rank FROM tags WHERE tag = ? "
+				 ") || '*'" // all relators <= p.relator
 				") "
 				"AND object IN ( "
-				"SELECT tag FROM tags WHERE rank GLOB ( "
-				"SELECT rank FROM tags WHERE tag = ? "
-				") || '*'" // all objects <= p.object
+				 "SELECT tag FROM tags WHERE rank GLOB ( "
+				  "SELECT rank FROM tags WHERE tag = ? "
+				 ") || '*'" // all objects <= p.object
 				") "
 				"ORDER BY rank",
 				"select related"
@@ -801,14 +712,14 @@ ts_res_code sqlite::related(tagd::tag_set& R, const tagd::predicate& p, const ta
 				"FROM relations, tags "
 				"WHERE tag = subject "
 				"AND relator IN ( "
-				"SELECT tag FROM tags WHERE rank GLOB ( "
-				"SELECT rank FROM tags WHERE tag = ? "
-				") || '*'" // all relators <= p.relator
+				 "SELECT tag FROM tags WHERE rank GLOB ( "
+				  "SELECT rank FROM tags WHERE tag = ? "
+				 ") || '*'" // all relators <= p.relator
 				") "
 				"AND object IN ( "
-				"SELECT tag FROM tags WHERE rank GLOB ( "
-				"SELECT rank FROM tags WHERE tag = ? "
-				") || '*'" // all objects <= p.object
+				 "SELECT tag FROM tags WHERE rank GLOB ( "
+				  "SELECT rank FROM tags WHERE tag = ? "
+				 ") || '*'" // all objects <= p.object
 				") "
 				"AND modifier = ? "
 				"ORDER BY rank",
@@ -978,6 +889,9 @@ ts_res_code sqlite::query(tagd::tag_set& R, const tagd::interrogator& intr) {
         S.clear();
 
         ts_rc = this->related(S, *it, intr.super());
+
+		// tagd::print_tag_ids(S);
+
         if (ts_rc != TS_OK)
             return ts_rc; // not found or err
 
@@ -994,11 +908,11 @@ ts_res_code sqlite::query(tagd::tag_set& R, const tagd::interrogator& intr) {
     return TS_OK;
 }
 
-ts_res_code sqlite::dump(std::ostream& os) {
+ts_res_code sqlite::dump_grid(std::ostream& os) {
     sqlite3_stmt *stmt = NULL;
     ts_res_code ts_rc = this->prepare(&stmt,
         "SELECT tag, super, rank, pos FROM tags ORDER BY rank",
-        "dump tags"
+        "dump grid"
     );
     if (ts_rc != TS_OK) return ts_rc;
 
@@ -1010,10 +924,12 @@ ts_res_code sqlite::dump(std::ostream& os) {
     int s_rc;
     const int colw = 20;
     while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+		tagd::part_of_speech pos = (tagd::part_of_speech) sqlite3_column_int(stmt, F_POS);
         os << std::setw(colw) << std::left << sqlite3_column_text(stmt, F_ID) 
            << std::setw(colw) << std::left
-            << tagd::super_relator((tagd::part_of_speech) sqlite3_column_int(stmt, F_POS))
+           << tagd::super_relator(pos)
            << std::setw(colw) << std::left << sqlite3_column_text(stmt, F_SUPER)
+           << std::setw(colw) << std::left << pos_str(pos)
            << std::setw(colw) << std::left
            << tagd::rank::dotted_str(sqlite3_column_text(stmt, F_RANK))
            << std::endl; 
@@ -1022,16 +938,66 @@ ts_res_code sqlite::dump(std::ostream& os) {
     sqlite3_finalize(stmt);
 
     if (s_rc == SQLITE_ERROR) {
-        this->print_err("dump failed");
+        this->print_err("dump grid failed");
         return TS_INTERNAL_ERR;
     }
 
     return TS_OK;
 }
 
-ts_res_code sqlite::dump_relations(std::ostream& os) {
+ts_res_code sqlite::dump(std::ostream& os) {
+	// dump tag identities before relations, so that they are
+	// all known by the time relations are added
     sqlite3_stmt *stmt = NULL;
     ts_res_code ts_rc = this->prepare(&stmt,
+        "SELECT tag, super, pos "
+        "FROM tags "
+        "ORDER BY rank",
+        "dump tags"
+    );
+    if (ts_rc != TS_OK) return ts_rc;
+
+    const int F_ID = 0;
+    const int F_SUPER = 1;
+	const int F_POS = 2;
+
+    int s_rc;
+	tagd::abstract_tag *t = NULL;
+	tagd::id_type id;
+    while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+		id = (const char*) sqlite3_column_text(stmt, F_ID);
+
+		// ignore hard tags for now
+		if (id[0] == '_') continue;
+
+		if (t == NULL || t->id() != id) {
+			if (t != NULL) {
+				os << *t << std::endl << std::endl; 
+				delete t;
+			}
+
+			t = new tagd::abstract_tag(
+					id,
+					(const char*) sqlite3_column_text(stmt, F_SUPER),
+					(tagd::part_of_speech) sqlite3_column_int(_get_stmt, F_POS) );
+		}
+    }
+
+	if (t != NULL) {
+		os << *t << std::endl << std::endl;
+		delete t;
+	}
+
+    sqlite3_finalize(stmt);
+
+    if (s_rc == SQLITE_ERROR) {
+        this->print_err("dump tags failed");
+        return TS_INTERNAL_ERR;
+    }
+
+	// dump relations
+    stmt = NULL;
+    ts_rc = this->prepare(&stmt,
         "SELECT subject, relator, object, modifier "
         "FROM relations, tags "
         "WHERE subject = tag "
@@ -1040,25 +1006,44 @@ ts_res_code sqlite::dump_relations(std::ostream& os) {
     );
     if (ts_rc != TS_OK) return ts_rc;
 
-    const int F_SUBJECT = 0;
+    // F_ID = 0
     const int F_RELATOR = 1;
     const int F_OBJECT = 2;
     const int F_MODIFIER = 3;
 
-    int s_rc;
-    const int colw = 20;
+	t = NULL;
+	id.clear();
     while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        os << std::setw(colw) << std::left << sqlite3_column_text(stmt, F_SUBJECT) 
-           << std::setw(colw) << std::left << sqlite3_column_text(stmt, F_RELATOR)
-           << std::setw(colw) << std::left << sqlite3_column_text(stmt, F_OBJECT);
+		id = (const char*) sqlite3_column_text(stmt, F_ID);
+
+		// ignore hard tags for now
+		if (id[0] == '_') continue;
+
+		if (t == NULL || t->id() != id) {
+			if (t != NULL) {
+				os << *t << std::endl << std::endl; 
+				delete t;
+			}
+
+			t = new tagd::abstract_tag(id);
+		}
 
         if (sqlite3_column_type(stmt, F_MODIFIER) != SQLITE_NULL) {
-            os << std::setw(colw) << std::left
-               << sqlite3_column_text(stmt, F_MODIFIER);
-        }
-
-        os << std::endl; 
+			t->relation(
+				(const char*) sqlite3_column_text(stmt, F_RELATOR),
+				(const char*) sqlite3_column_text(stmt, F_OBJECT),
+				(const char*) sqlite3_column_text(stmt, F_MODIFIER) );
+        } else {
+			t->relation(
+				(const char*) sqlite3_column_text(stmt, F_RELATOR),
+				(const char*) sqlite3_column_text(stmt, F_OBJECT) );
+		}
     }
+
+	if (t != NULL) {
+		os << *t << std::endl;
+		delete t;
+	}
 
     sqlite3_finalize(stmt);
 
@@ -1212,6 +1197,7 @@ inline ts_res_code sqlite::bind_null(sqlite3_stmt**stmt, int i, const char*label
 void sqlite::finalize() {
     sqlite3_finalize(_get_stmt);
     sqlite3_finalize(_exists_stmt);
+    sqlite3_finalize(_pos_stmt);
     sqlite3_finalize(_insert_stmt);
     sqlite3_finalize(_update_tag_stmt);
     sqlite3_finalize(_update_ranks_stmt);
@@ -1234,6 +1220,7 @@ void sqlite::finalize() {
 
     _get_stmt = NULL;
     _exists_stmt = NULL;
+    _pos_stmt = NULL;
     _insert_stmt = NULL;
     _update_tag_stmt = NULL;
     _update_ranks_stmt = NULL;

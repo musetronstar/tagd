@@ -5,7 +5,7 @@ INC = -I../include -I$(TAGD_DIR)/include -I$(PRG_DIR)/include -I ~/src/cxxtest
 
 CXX = g++
 CXXTEST=~/src/cxxtest/bin/cxxtestgen --error-printer
-CFLAGS = -DDEBUG -ggdb
+CXXFLAGS = -DDEBUG -ggdb
 LFLAGS = -L../build -ltagspace-sqlite -L$(TAGD_DIR)/build -ltagd -lsqlite3 
 
 SRC = tester.cc
@@ -14,8 +14,8 @@ BIN = ./tester
 
 all: $(LIBTAGD)
 	$(CXXTEST) Tester.h -o $(SRC)
-	$(CXX) -c -o $(OBJ) $(SRC) $(CFLAGS) $(INC)
-	$(CXX) $(OBJ) -o $(BIN) $(LFLAGS)
+	$(CXX) -c -o $(OBJ) $(SRC) $(CXXFLAGS) $(INC)
+	$(CXX) $(OBJ) -o $(BIN) $(CXXFLAGS) $(LFLAGS)
 	rm -f *.sqlite
 	$(BIN)
 

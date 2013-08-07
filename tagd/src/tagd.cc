@@ -7,6 +7,14 @@
 
 namespace tagd {
 
+inline bool valid_predicate(const predicate &p) {
+    return !(p.relator.empty() || p.object.empty());
+}
+
+inline bool valid_predicate(const id_type &relator, const id_type &object) {
+    return !(relator.empty() || object.empty());
+}
+
 inline predicate make_predicate(const id_type& r, const id_type& o, const id_type& q) {
     predicate p = { r, o, q };
     return p;
@@ -17,12 +25,24 @@ inline predicate make_predicate(const id_type& r, const id_type& o) {
     return p;
 }
 
-inline bool valid_predicate(const predicate &p) {
-    return !(p.relator.empty() || p.object.empty());
+void insert_predicate(predicate_set& P,
+    const id_type &relator, const id_type &object, const id_type &modifier ) {
+    if (!valid_predicate(relator, object))
+        return;
+
+    P.insert(make_predicate(relator, object, modifier));
 }
 
-inline bool valid_predicate(const id_type &relator, const id_type &object) {
-    return !(relator.empty() || object.empty());
+void print_tag_ids(const tag_set& T) {
+	if (T.size() == 0) return;
+
+	tagd::tag_set::iterator it = T.begin();
+	std::cout << it->id();
+	++it;
+	for (; it != T.end(); ++it) {
+		std::cout << ", " << it->id();
+	}
+	std::cout << std::endl;
 }
 
 void merge_tags(tag_set& A, const tag_set& B) {
@@ -61,10 +81,8 @@ size_t merge_tags_erase_diffs(tag_set& A, const tag_set& B) {
     tagd::tag_set::iterator it = T.begin();  
 
     while (b != B.end()) {
-        if (a == A.end()) {
-            T.insert(b, B.end());
+        if (a == A.end())
             break; 
-        }
         
         if (*a < *b) {
             ++a;
@@ -143,15 +161,6 @@ tag_code abstract_tag::relation(const id_type &relator, const id_type &object) {
     if (!valid_predicate(relator, object))
         return TAG_ILLEGAL;
 
-    if (relator == "is_a") {
-        if (_super == object) { 
-            return TAG_DUPLICATE;
-        } else {
-            _super = object;
-            return TAG_OK;
-        }
-    }
-
     predicate_pair p = relations.insert(make_predicate(relator, object));
     return (p.second ? TAG_OK : TAG_DUPLICATE);
 }
@@ -161,16 +170,6 @@ tag_code abstract_tag::relation(
     const id_type &relator, const id_type &object, const id_type &modifier ) {
     if (!valid_predicate(relator, object))
         return TAG_ILLEGAL;
-
-    // TODO use hard tag
-    if (relator == "is_a") {
-        if (_super == object) { 
-            return TAG_DUPLICATE;
-        } else {
-            _super = object;
-            return TAG_OK;
-        }
-    }
 
     predicate_pair p = relations.insert(make_predicate(relator, object, modifier));
     return (p.second ? TAG_OK : TAG_DUPLICATE);
@@ -196,16 +195,9 @@ tag_code abstract_tag::not_relation(const id_type &relator, const id_type &objec
 tag_code abstract_tag::predicates(const predicate_set &p) {
     // WTF slow and temporary
     for (predicate_set::const_iterator it = p.begin(); it != p.end(); ++it) {
-        // TODO use hard tag
-        if (it->relator == "is_a") {
-            this->super(it->object);
-        } else {
-            this->relation(*it);
-        }
+		this->relation(*it);
     }
 
-    // this would be great if we could apply an "is_a" filter
-    // relations.insert(p.begin(), p.end());
     return TAG_OK;
 }
 
@@ -246,22 +238,23 @@ struct output_relations {
     void operator() (const predicate& p) {
         if (_last_relator == p.relator) {
             os << ", " <<  p.object;
-			if (!p.modifier.empty())
-				os << ' ' << p.modifier;
 		} else {
-            os << std::endl << ' ' << p.relator << ' ' <<  p.object;
-			if (!p.modifier.empty())
-				os << ' ' << p.modifier;
+            os << std::endl << p.relator << ' ' <<  p.object;
+			_last_relator = p.relator;
 		}
 
-        _last_relator = p.relator;
+		if (!p.modifier.empty())
+			os << ' ' << p.modifier;
     }
 };
 
 
 // note it is a tag freind function, not abstract_tag::operator<<
 std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
-    os << t.id() << ' ' << super_relator(t.pos()) << ' ' << t.super();
+	if (!t.super().empty())
+		os << t.id() << ' ' << super_relator(t.pos()) << ' ' << t.super();
+	else
+		os << t.id();
     for_each ( t.relations.begin(), t.relations.end(), output_relations(os) );
     return os;
 }

@@ -4,7 +4,7 @@ BUILD_DIR = ./build
 TEST_DIR = ./tests
 LIB = $(BUILD_DIR)/libtagspace-sqlite.a
 
-all: tagspace
+all: tagspace $(LIB)
 
 tagspace: force_look
 	make -C $(SRC_DIR)

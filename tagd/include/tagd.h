@@ -43,11 +43,16 @@ predicate make_predicate(const id_type&, const id_type&, const id_type&);
 // relator, object
 predicate make_predicate(const id_type&, const id_type&);
 
+// make predicate and insert relator, object, modifier
+void insert_predicate(predicate_set&, const id_type&, const id_type&, const id_type&);
+
 class abstract_tag;
 
 /**************** tag_set defs **************/
 typedef std::set<abstract_tag> tag_set;
 typedef std::pair<tag_set::iterator, bool> tag_set_pair;
+
+void print_tag_ids(const tagd::tag_set&);
 
 // Merges (in-place) tags into A from B
 // Upon merging, tag relations from B will be merged into tag relations in A
@@ -55,7 +60,7 @@ typedef std::pair<tag_set::iterator, bool> tag_set_pair;
 void merge_tags(tag_set& A, const tag_set& B);
 
 // Merges (in-place) tags into A from B that are present in both A and B
-// and erases tags from A that are not present in B
+// and erases tags from A that are not present in A and B
 // Upon merging, tag relations from B will be merged into tag relations in A
 // Tag ids and ranks must be set for each element in A and B
 // The number of tags merged will be returned
@@ -77,12 +82,13 @@ typedef enum {
 typedef enum {
     POS_UNKNOWN = 0,
     POS_TAG = 1,
+    POS_SUPER = 2,
 // relator is used as a "Copula" to link subjects to predicates
 // (even more general than a "linking verb")
-    POS_RELATOR = 2,
-    POS_INTERROGATOR = 3,
-    POS_URL = 4
-    // POS_URI = 5; // TODO
+    POS_RELATOR = 3,
+    POS_INTERROGATOR = 4,
+    POS_URL = 5
+    // POS_URI = 6; // TODO
 } part_of_speech;
 
 /* hard tag that can be used in a super relation */
@@ -122,6 +128,7 @@ struct tag_util {
         switch (p) {
             case POS_UNKNOWN: return "POS_UNKNOWN";
             case POS_TAG:    return "POS_TAG";
+            case POS_SUPER:    return "POS_SUPER";
             case POS_RELATOR:    return "POS_RELATOR";
             case POS_INTERROGATOR: return "POS_INTERROGATOR";
             case POS_URL:    return "POS_URL";
@@ -142,14 +149,10 @@ class abstract_tag {
 
     public:
         // empty tag
-        // make noun default pos - better that than junk
         abstract_tag() : _id(), _super(), _pos(POS_UNKNOWN), _rank() {};
         virtual ~abstract_tag() {};
 
         abstract_tag(const id_type& id) : _id(id), _super(), _pos(POS_UNKNOWN), _rank() {};
-
-        abstract_tag(const id_type& id, const tagd::rank& rank)
-            : _id(id), _super(), _pos(POS_UNKNOWN), _rank(rank) {};
 
         abstract_tag(const part_of_speech& p)
             : _id(), _super(), _pos(p), _rank() {};
@@ -235,18 +238,7 @@ class tag : public abstract_tag {
         tag(const id_type& id, const id_type& super)
             : abstract_tag(id, super, POS_TAG) {};
 
-        tag(const id_type& id, const id_type& super, const tagd::rank& rank)
-            : abstract_tag(id, super, POS_TAG, rank) {};
-
-        const id_type& is_a() const { return _super; }
-        void is_a(const id_type& i) { _super = i; }
-
     protected:
-        tag(const id_type& id, const id_type& super, const part_of_speech& p)
-            : abstract_tag(id, super, p) {};
-        tag(const id_type& id, const id_type& super,
-            const part_of_speech& p, const tagd::rank& rank)
-            : abstract_tag(id, super, p, rank) {};
 };
 
 // relates a subject to an object
@@ -260,9 +252,6 @@ class relator : public abstract_tag {
 
         relator(const id_type& id, const id_type& super)
             : abstract_tag(id, super, POS_RELATOR) {};
-
-        const id_type& type_of() const { return _super; }
-        void type_of(const id_type& i) { _super = i; }
 };
 
 // 'wh.*|how' words (eg who, what, where, when, why, how)
@@ -280,9 +269,6 @@ class interrogator : public abstract_tag {
 
         interrogator(const id_type& id, const id_type& super)
             : abstract_tag(id, super, POS_INTERROGATOR) {};
-
-        const id_type& type_of() const { return _super; }
-        void type_of(const id_type& i) { _super = i; }
 };
 
 // TODO maybe

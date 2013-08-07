@@ -34,7 +34,7 @@ IMPORTANT: updates here must be reflected in tagspace::init_hard_tags()
 
 // URL part hard tags
 #define HARD_TAG_URL_PART "_url_part"	// resources located by URLs
-// the naming convention is that of an hduri
+// the naming convention is that of an hdurl
 //  rpub:priv_label:rsub:path:query:fragment:port:user:pass:scheme
 #define HARD_TAG_HOST "_host"
 // host split into its parts
@@ -42,7 +42,7 @@ IMPORTANT: updates here must be reflected in tagspace::init_hard_tags()
 
 #define HARD_TAG_PUB "_pub"				// labels of a tld
 #define HARD_TAG_SUB "_sub"				// labels of a subdomain
-// TODO - not sure if these will be needed, as we will do reverse label matches on the hduri, not its parts (subject to change)
+// TODO - not sure if these will be needed, as we will do reverse label matches on the hdurl, not its parts (subject to change)
 // #define HARD_TAG_RPUB "_rpub"			// reversed labels of a tld
 // #define HARD_TAG_RSUB "_rsub"			// reversed labels of a subdomain
 

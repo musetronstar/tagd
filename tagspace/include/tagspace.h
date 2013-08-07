@@ -34,6 +34,7 @@ struct ts_res {
             case TS_OBJECT_UNK:      return "TS_OBJECT_UNK";
             case TS_ERR_MAX_TAG_LEN: return "TS_ERR_MAX_TAG_LEN";
             case TS_ERR:             return "TS_ERR";
+            case TS_MISUSE:          return "TS_MISUSE";
             case TS_INTERNAL_ERR:    return "TS_INTERNAL_ERR";
             default:                 return "TS_STR_UNK";
         }
@@ -75,18 +76,12 @@ class tagspace {
 		virtual ~tagspace() {}
 
 		virtual ts_res_code get(tagd::abstract_tag&, const tagd::id_type&) = 0; // get into tag, given id
-        virtual ts_res_code get(tagd::url&, const tagd::id_type&) = 0;
-		virtual ts_res_code put(tagd::abstract_tag&) = 0;
+		virtual ts_res_code put(const tagd::abstract_tag&) = 0;
+		virtual tagd::part_of_speech pos(const tagd::id_type&) = 0; 
 		virtual ts_res_code exists(const tagd::id_type&) = 0;
-		//virtual ts_res_code statement(const statement&) = 0;
-		virtual ts_res_code sub(tagd::tag_set&, const tagd::id_type&) = 0; // get tags subordinate to id
-
-        // get tags related to object
-		//virtual ts_res_code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type&="_entity") = 0;
-
 		virtual ts_res_code query(tagd::tag_set&, const tagd::interrogator&) = 0;
-		// virtual ts_res_code merge(const tagspace&) = 0;
 		virtual ts_res_code dump(std::ostream& os = std::cout) = 0;
+		virtual ts_res_code dump_grid(std::ostream& os = std::cout) = 0;
 };
 
 } // namespace tagspace

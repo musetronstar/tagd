@@ -23,19 +23,20 @@ ts_res_code bootstrap::init_hard_tags(tagspace& TS) {
 	rs = put_hard_tag(TS, HARD_TAG_SUPER, "_entity", tagd::POS_TAG);
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_IS_A, HARD_TAG_SUPER, tagd::POS_RELATOR);
+	rs = put_hard_tag(TS, HARD_TAG_IS_A, HARD_TAG_SUPER, tagd::POS_SUPER);
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_TYPE_OF, HARD_TAG_SUPER, tagd::POS_RELATOR);
+	rs = put_hard_tag(TS, HARD_TAG_TYPE_OF, HARD_TAG_SUPER, tagd::POS_SUPER);
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_RELATOR, HARD_TAG_SUPER, tagd::POS_RELATOR);
+	rs = put_hard_tag(TS, HARD_TAG_RELATOR, "_entity", tagd::POS_RELATOR);
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
 	rs = put_hard_tag(TS, HARD_TAG_HAS, HARD_TAG_RELATOR, tagd::POS_RELATOR);
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
-	rs = put_hard_tag(TS, HARD_TAG_URL, "_entity", tagd::POS_URL);
+	// actual URLs will use POS_URL, using POS_URL for _url will create problems (it won't parse as a url)
+	rs = put_hard_tag(TS, HARD_TAG_URL, "_entity", tagd::POS_TAG);
 	if (rs != TS_OK) return TS_INTERNAL_ERR;
 
 	rs = put_hard_tag(TS, HARD_TAG_INTERROGATOR, "_entity", tagd::POS_INTERROGATOR); 
