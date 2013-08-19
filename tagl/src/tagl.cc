@@ -3,9 +3,11 @@
 #include <iostream>
 #include <sstream>
 #include "tagl.h"  // includes taglparser.h
-#include "taglscanner.yy.h"
 #include "tagspace.h"
 
+#include <event2/buffer.h>
+
+#include <stdio.h>
 void* ParseAlloc(void* (*allocProc)(size_t));
 void* Parse(void*, int, std::string *, TAGL::driver*);
 void* ParseFree(void*, void(*freeProc)(void*));
@@ -42,7 +44,7 @@ bool callback::test_tag_ok(tagspace::tagspace& TS, const tagd::abstract_tag& t) 
 bool driver::_trace_on = false;
 
 driver::driver(tagspace::tagspace *ts) :
-		_scanner(NULL), _parser(NULL), _token(-1),
+		_scanner(this), _parser(NULL), _token(-1),
 		_code(TAGL_INIT), _msg(), _TS(NULL), _callback(NULL),
 		_default_cmd(CMD_GET), _cmd(_default_cmd), _tag(NULL), _relator()
 {
@@ -51,7 +53,7 @@ driver::driver(tagspace::tagspace *ts) :
 }
 
 driver::driver(tagspace::tagspace *ts, callback *cb) :
-		_scanner(NULL), _parser(NULL), _token(-1),
+		_scanner(this), _parser(NULL), _token(-1),
 		_code(TAGL_INIT), _msg(), _TS(NULL), _callback(NULL),
 		_default_cmd(CMD_GET), _cmd(_default_cmd), _tag(NULL), _relator()
 {
@@ -94,10 +96,6 @@ void driver::init() {
 	if (this->is_setup())
 		return;
 
-	// set up scanner
-	yylex_init(&_scanner);
-	yylex_init_extra(this, &_scanner);
-
     // set up parser
     _parser = ParseAlloc(malloc);
 
@@ -106,18 +104,10 @@ void driver::init() {
 }
 
 inline bool driver::is_setup() {
-	return (
-		_scanner != NULL &&
-		_parser != NULL
-	);
+	return ( _parser != NULL );
 }
 
 void driver::finish() {
-	if (_scanner != NULL) {
-		yylex_destroy(_scanner);
-		_scanner = NULL;
-	}
-
 	if (_parser != NULL) {
 		if (_token != TERMINATOR && _code != TAGL_ERR)
 			Parse(_parser, TERMINATOR, NULL, this);
@@ -161,25 +151,48 @@ void driver::error(const std::string& s, std::string *token) {
 	_callback->error(*this);
 }
 
-int driver::parse_tokens() {
-	int last = -1;
-    while ( (_token = yylex(_scanner)) != 0 ) {  //  0 is end of input
-		std::string *s = new std::string(yyget_text(_scanner), yyget_leng(_scanner));
-		if (_trace_on)
-			std::cout << _token << ": " << *s << std::endl;
-		Parse(_parser, _token, s, this);
-		if (_code == TAGL_ERR)
+// looks up a pos type for a tag and returns
+// its equivalent token
+int driver::lookup_pos(const std::string& s) const {
+	// std::cout << "lookup_pos: " << s << std::endl;
+	int token;
+	switch(_TS->pos(s)) {
+		case tagd::POS_TAG:
+			token = TAG;
 			break;
-		last = _token;
-    }
+		case tagd::POS_SUPER:
+			token = SUPER;
+			break;
+		case tagd::POS_RELATOR:
+			token = RELATOR;
+			break;
+		case tagd::POS_INTERROGATOR:
+			token = INTERROGATOR;
+			break;
+		default:  // POS_UNKNOWN
+			token = UNKNOWN;
+	}
 
-	return last;
+	if ( !_relator.empty()    // in a predicate list
+		 && token != RELATOR  // relator starts a new predicate list
+	     && _token == TAG )   // last token a TAG, so this must be a quantifier
+			return QUANTIFIER;
+
+	return token;
 }
+
+void driver::parse_tok(int tok, std::string *s) {
+		_token = tok;
+		if (_trace_on)
+			std::cout << _token << ": " << (s == NULL ? "NULL" : *s) << std::endl;
+		Parse(_parser, _token, s, this);
+}
+
 
 /* parses an entire string, replace end of input with a newline
  * init() should be called before calls to parseln and
  * finish() should be called afterwards
- * empty line will result in passing a TERMINIATOR token to the parser
+ * empty line will result in passing a TERMINATOR token to the parser
  */
 tagl_code driver::parseln(const std::string& line) {
 	this->init();
@@ -192,10 +205,14 @@ tagl_code driver::parseln(const std::string& line) {
 		return this->code();
 	}
 
+	/*
     YY_BUFFER_STATE buff = yy_scan_string(line.c_str(), _scanner);
 	int last = this->parse_tokens();
     yy_delete_buffer(buff, _scanner);
- 
+	*/
+	scanner scnr(this);
+	scnr.scan(line.c_str());
+ /*
     if (_token == -1) {
 		this->code(TAGL_ERR);
 		this->msg("Scanner error");
@@ -203,54 +220,68 @@ tagl_code driver::parseln(const std::string& line) {
     } else if (_token == 0 && last == TERMINATOR) {
 		// Parse the EOF token to force a statement reduce action (e.g. parseln ending with ;)
 		Parse(_parser, _token, NULL, this);
+	} */
+
+	return this->code();
+}
+
+
+tagl_code driver::execute(const std::string& statement) {
+	this->init();
+
+	_scanner.scan(statement.c_str());
+
+	this->finish();
+	return this->code();
+}
+
+tagl_code driver::evbuffer_execute(struct evbuffer *input) {
+	size_t sz = evbuffer_get_length(input);
+
+	const size_t buf_sz = 1024;
+	size_t read_sz;
+    char buf[buf_sz];
+	size_t offset = 0;
+	std::string leftover;
+	while (1) {
+		if (!leftover.empty()) {
+			strncpy(&buf[0], leftover.c_str(), leftover.size());
+			offset = leftover.size();
+			buf[offset] = '\0';	
+			// std::cout << "buf leftover: '" << buf << "'" << std::endl;
+			// std::cout << "offset: " << offset << std::endl;
+			leftover.clear();
+		} else {
+			offset = 0;
+		}
+
+		read_sz = buf_sz - offset - 1;
+        if ((sz = evbuffer_remove(input, &buf[offset], read_sz)) == 0)
+			break;
+
+		sz += offset;
+		buf[sz] = '\0';
+		// std::cout << "buf: " <<  buf << std::endl;
+
+		// overflow, find partial last token
+		if (evbuffer_get_length(input) > 0) {
+			for (size_t z=sz; z>0; --z) {
+				if(isspace(buf[z])) {
+					leftover = &buf[z+1];
+					buf[z+1] = '\0';
+					// std::cout << "leftover: '" << leftover << "'" << std::endl;
+					break;
+				}
+			}
+		}
+
+		// std::cout << "scanning: " << buf << std::endl;
+		_scanner.scan(buf);
 	}
 
-	return this->code();
-}
-
-
-/* parses an entire string until scanner reaches the end of input */
-tagl_code driver::parse(const std::string& statement) {
-	this->init();
-
-    YY_BUFFER_STATE buff = yy_scan_string(statement.c_str(), _scanner);
-	this->parse_tokens();
-    yy_delete_buffer(buff, _scanner);
- 
-    if (_token == -1) {
-		this->code(TAGL_ERR);
-		this->msg("Scanner error");
-    }
-
 	this->finish();
-
 	return this->code();
 }
-
-/* parses a file pointer until scanner reaches the end of input */
-/*
-tagl_code driver::parsefp(FILE *fp, int sz) {
-	this->init();
-
-	if (sz < 0)
-		sz = YY_BUF_SIZE;
-
-    YY_BUFFER_STATE buff = yy_create_buffer(fp, sz, _scanner);
-	yyset_in(fp, _scanner);
-	yyset_in(stdout, _scanner);
-	this->parse_tokens();
-    //yy_delete_buffer(buff, _scanner);
- 
-    if (_token == -1) {
-		this->code(TAGL_ERR);
-		this->msg("Scanner error");
-    }
-
-	this->finish();
-
-	return this->code();
-}
-*/
 
 
 } // namespace TAGL

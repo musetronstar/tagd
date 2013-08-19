@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstring>  /* memcmp, size_t ... */
+#include <string>
 #include <set>
 
 namespace tagd {

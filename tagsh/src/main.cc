@@ -8,9 +8,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include "tagd.h"
 #include "tagl.h"
 #include "tagspace/sqlite.h"
+#include <event2/buffer.h>
 
 #define PRG "tagsh"
 
@@ -64,7 +66,7 @@ class tagsh {
 		tagsh(tagspace::tagspace*, TAGL::callback*);
 		void command(const std::string&);
 		int interpret(std::istream&);
-		int interpret(const std::string&);
+		int interpret(const std::string&);  // filename
 		void dump_file(const std::string&, bool = true);
 };
 
@@ -223,22 +225,36 @@ int tagsh::interpret(std::istream& ins) {
 }
 
 int tagsh::interpret(const  std::string& fname) {
-	std::ifstream fs(fname.c_str());
-	if (!fs.is_open()) {
+	int fd = open(fname.c_str(), O_RDONLY);
+	
+	if (fd < 0) {
 		std::string msg("failed to open ");
 		msg.append(fname);
 		std::perror(msg.c_str());
 		return 1;
 	}
 
-	// interpret in another context so this one is not affected
-	tagsh sub = tagsh(this->_TS, this->_CB);
-	sub.prompt.clear();
+	struct stat st;
+	if (fstat(fd, &st) < 0) {
+		close(fd);
+		perror("stat failed");
+		return 1;
+	}
 
-	int ret = sub.interpret(fs);
-	fs.close();
+	struct evbuffer *input = evbuffer_new();
 
-	return ret;
+	// evbuffer_add_file closes fd for us
+	if (evbuffer_add_file(input, fd, 0, st.st_size) == 0) {
+		_driver.evbuffer_execute(input);
+	} else {
+		perror("add file failed");
+		if (fcntl(fd, F_GETFD) != -1)
+			close(fd);
+	}
+
+	evbuffer_free(input);
+
+	return 0;
 }
 
 int main(int argc, char **argv) {

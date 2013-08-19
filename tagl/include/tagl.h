@@ -25,15 +25,16 @@ struct tagl_util {
 
 #define tagl_code_str(c) tagl_util::tagl_code_str(c)
 
-// forward declarations for parser friendship
-namespace TAGL { class driver; }
-// in parser
+// forward declare
+struct evbuffer;
+
+// forward declare (in parser)
 struct yyParser;
 static void yy_reduce(yyParser *, int);
-// in scanner
-int scanner_pos(TAGL::driver*, const char*);
 
 namespace TAGL {
+
+class driver; 
 
 class callback {
     public:
@@ -51,12 +52,17 @@ class callback {
 		// static bool test_tag_ok(tagspace::tagspace&, const tagd::abstract_tag&);
 };
 
+class scanner {
+		driver *_driver;
+		int lookup_pos(const std::string&);
+	public:
+		scanner(driver *d) : _driver(d) {}
+		~scanner() {}
+		void scan(const char*);
+};
 
 class driver {
-	private:
-		// flex scanner context
-		// yyscan_t not defined yet (but its void*)
-		void* _scanner;
+		scanner _scanner;
 
 		// lemon parser context
 		void* _parser;
@@ -75,9 +81,8 @@ class driver {
 		callback *_callback;
 
 		friend void ::yy_reduce(yyParser *, int);
-		friend int ::scanner_pos(TAGL::driver*, const char*);
+		friend class TAGL::scanner;
 
-		// members accessed by yy_reduce
 		int _default_cmd;
 		int _cmd;
 		tagd::abstract_tag *_tag;  // tag of the current statement
@@ -90,8 +95,10 @@ class driver {
 		~driver();
 
 		tagl_code parseln(const std::string& = std::string());
-		tagl_code parse(const std::string&);
-		// tagl_code parsefp(FILE *fp, int sz = -1);  // neg size, use YY_BUF_SIZE
+		tagl_code execute(const std::string&);
+		tagl_code evbuffer_execute(struct evbuffer *);
+		int lookup_pos(const std::string&) const;
+		void parse_tok(int, std::string*);
 
 		void code(const tagl_code& c) { _code = c; }
 		tagl_code code() const { return _code; }
@@ -111,5 +118,67 @@ class driver {
 		static void trace_on(char * = NULL);
 		static void trace_off();
 };
+
+/*
+///////////////////////// Scanner /////////////////////////
+#include "../src/tokens.inc"
+
+#if defined(WIN32)
+
+    typedef signed char     int8_t;
+    typedef signed short    int16_t;
+    typedef signed int      int32_t;
+
+    typedef unsigned char   uint8_t;
+    typedef unsigned short  uint16_t;
+    typedef unsigned int    uint32_t;
+
+#else
+
+    #include <stdint.h>
+    #include <unistd.h>
+
+    #ifndef O_BINARY
+        #define O_BINARY 0
+    #endif
+
+#endif
+
+enum Token
+{
+	#define TOK(x) x,
+		TOKENS
+	#undef TOK
+};
+
+namespace TAGL {
+
+class PushScanner {
+		bool        eof;
+		int32_t     state;
+
+		uint8_t     *limit;
+		uint8_t     *start;
+		uint8_t     *cursor;
+		uint8_t     *marker;
+
+		uint8_t     *buffer;
+		uint8_t     *bufferEnd;
+
+		uint8_t     yych;
+		uint32_t    yyaccept;
+
+		TAGL::driver *tagl;
+
+		Token lookup_pos();
+		void send(Token);
+
+	public:
+		PushScanner(TAGL::driver *);
+		~PushScanner();
+
+		uint32_t push(const void *, ssize_t);  // input, input_size
+};
+*/
 
 } // namespace TAGL

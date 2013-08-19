@@ -5,7 +5,7 @@ LIBTAGD = $(TAGD_DIR)/build/libtagd.a
 CXXTEST=~/src/cxxtest/bin/cxxtestgen --error-printer
 CXX = g++
 CXXFLAGS = -DDEBUG -ggdb -Wno-write-strings -I ~/src/cxxtest $(INC)
-LFLAGS =  -L../build -ltagl -L$(TAGD_DIR)/build -ltagd
+LFLAGS =  -L../build -ltagl -L$(TAGD_DIR)/build -ltagd -levent
 
 all: tagl_tests
 

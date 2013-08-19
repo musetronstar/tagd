@@ -11,7 +11,7 @@ TAGL_DIR = ../../tagl
 TAGSPACE_DIR = ../../tagspace
 
 INC = -I../include -I$(TAGD_DIR)/include -I$(TAGL_DIR)/include -I$(TAGSPACE_DIR)/include -I$(TAGSPACE_DIR)/sqlite/include
-LFLAGS = -L $(TAGSPACE_DIR)/build -ltagspace-sqlite -L $(TAGL_DIR)/build -ltagl -L $(TAGD_DIR)/build -ltagd -lsqlite3
+LFLAGS = -L $(TAGSPACE_DIR)/build -ltagspace-sqlite -L $(TAGL_DIR)/build -ltagl -L $(TAGD_DIR)/build -ltagd -lsqlite3 -levent
 
 all : $(BIN)
 
