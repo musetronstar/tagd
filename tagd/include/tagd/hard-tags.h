@@ -28,6 +28,10 @@ IMPORTANT: updates here must be reflected in tagspace::init_hard_tags()
 // interrogators
 #define HARD_TAG_INTERROGATOR "_interrogator"  // resolves objects of inquiry (queries, searches)
 
+// errors
+#define HARD_TAG_ERROR "_error"
+#define HARD_TAG_ERROR_MSG "_error_msg"
+
 // URIs
 // TODO #define HARD_TAG_URL "_uri"   // resources located by URIs
 #define HARD_TAG_URL "_url"         // resources located by URLs

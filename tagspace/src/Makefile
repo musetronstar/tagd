@@ -3,7 +3,7 @@ CXXFLAGS = -Wall -Wextra -g -DDEBUG
 
 TAGDDIR =../../tagd
 INC = -I../include -I$(TAGDDIR)/include
-SRCS = bootstrap.cc
+SRCS = tagspace.cc bootstrap.cc
 HDRS = ../include/tagspace.h ../include/tagspace/bootstrap.h
 OBJS=$(SRCS:.cc=.o)
 

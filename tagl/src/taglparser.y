@@ -13,24 +13,22 @@
 
 %parse_accept
 {
-	//std::cerr << "parse_accept" << std::endl;
-	if (tagl->code() != TAGL_ERR) {
-		tagl->code(TAGL_OK);
-		tagl->msg("parse success");
+	if (tagl->code() != tagd::TAGL_ERR) {
+		tagl->code(tagd::TAGD_OK);
+		// tagl->msg("parse success");
 	}
 }
 
 %syntax_error
 {
-	if (tagl->code() != TAGL_ERR) {
-		switch(yymajor) { // token that caused error
-			case UNKNOWN:
-				tagl->error("unknown tag", TOKEN);
-				break;
-			default:
-				tagl->error("parse error near", TOKEN);
-		}
+	switch(yymajor) { // token that caused error
+		case UNKNOWN:
+			tagl->error(tagd::TAGL_ERR, "unknown tag: %s", TOKEN->c_str());
+			break;
+		default:
+			tagl->error(tagd::TAGL_ERR, "parse error near: %s", TOKEN->c_str());
 	}
+	tagl->do_callback();
 /*
 	std::cerr << "syntax_error stack: " << std::endl;
 	fprintf(stderr,"yymajor: %s\n",yyTokenName[yymajor]);
@@ -48,60 +46,51 @@ start ::= statement_list .
 statement_list ::= statement_list statement .
 statement_list ::= statement .
 
-// statement ::= pragma TERMINATOR .
+// statement ::= pragma .
 statement ::= get_statement TERMINATOR .
 {
 	tagl->_cmd = CMD_GET;
-	if (tagl->code() != TAGL_ERR) {
-		//std::cerr << "statement_success(" << pos_str(tagl->_tag->pos()) << "): " << std::endl;
+	if (tagl->code() != tagd::TAGL_ERR) {
 		if (tagl->_tag != NULL) {
-			//std::cerr << *(tagl->_tag) << std::endl;
-			tagl->code(TAGL_OK);
-			tagl->msg("statement success");
-			tagl->statement_end();
+			tagl->code(tagd::TAGD_OK);
+			// tagl->msg("statement success");
+			tagl->do_callback();
 			delete tagl->_tag;
 			tagl->_tag = NULL;
 		}
-		// std::cerr << std::endl;
 	}
 }
 statement ::= put_statement TERMINATOR .
 {
 	tagl->_cmd = CMD_PUT;
-	if (tagl->code() != TAGL_ERR) {
-		//std::cerr << "statement_success(" << pos_str(tagl->_tag->pos()) << "): " << std::endl;
+	if (tagl->code() != tagd::TAGL_ERR) {
 		if (tagl->_tag != NULL) {
-			//std::cerr << *(tagl->_tag) << std::endl;
-			tagl->code(TAGL_OK);
-			tagl->msg("statement success");
-			tagl->statement_end();
+			tagl->code(tagd::TAGD_OK);
+			// tagl->msg("statement success");
+			tagl->do_callback();
 			delete tagl->_tag;
 			tagl->_tag = NULL;
 		}
-		// std::cerr << std::endl;
 	}
 }
 statement ::= query_statement TERMINATOR .
 {
 	tagl->_cmd = CMD_QUERY;
-	if (tagl->code() != TAGL_ERR) {
-		//std::cerr << "statement_success(" << pos_str(tagl->_tag->pos()) << "): " << std::endl;
+	if (tagl->code() != tagd::TAGL_ERR) {
 		if (tagl->_tag != NULL) {
-			//std::cerr << *(tagl->_tag) << std::endl;
-			tagl->code(TAGL_OK);
-			tagl->msg("statement success");
-			tagl->statement_end();
+			tagl->code(tagd::TAGD_OK);
+			// tagl->msg("statement success");
+			tagl->do_callback();
 			delete tagl->_tag;
 			tagl->_tag = NULL;
 		}
-		// std::cerr << std::endl;
 	}
 }
 
 statement ::= TERMINATOR .
 
 /*
-%type cmd { int }
+%type cmd { int 
 tagl_cmd ::= cmd(c) .
 {
 	tagl->_cmd = c;
@@ -223,6 +212,11 @@ predicate_list ::= relator object_list .
 relator ::= RELATOR(R) .
 {
 	tagl->_relator = *R;
+}
+
+relator ::= WILDCARD .
+{
+	tagl->_relator.clear(); 
 }
 
 object_list ::= object_list SEPARATOR object .

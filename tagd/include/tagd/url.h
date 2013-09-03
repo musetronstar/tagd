@@ -7,43 +7,11 @@
 namespace tagd {
 
 typedef enum {
-    URL_OK,
-    URL_EMPTY,
-    URL_MAX_LEN = 2112, /* We are the Priests of the Temples of Syrinx */
-
-    // errors
-    URL_ERR_SCHEME,
-    URL_ERR_HOST,
-    URL_ERR_PORT,
-    URL_ERR_PATH,
-    URL_ERR_USER
-} url_code;
-// changes to enum need to be reflected in url_code_str
-
-typedef enum {
     AUTHORITY_UNKNOWN,
     AUTHORITY_HOST,
     AUTHORITY_IPv4,
     AUTHORITY_IPv6
 } authority_code;
-
-// wrap in struct so we can define here
-struct url_util {
-    static std::string url_code_str(url_code c) {
-        switch (c) {
-            case URL_OK:     return "URL_OK";
-            case URL_EMPTY:  return "URL_EMPTY";
-            case URL_MAX_LEN: return "URL_MAX_LEN";
-            case URL_ERR_SCHEME: return "URL_ERR_SCHEME";
-            case URL_ERR_HOST:   return "URL_ERR_HOST";
-            case URL_ERR_PORT:   return "URL_ERR_PORT";
-            case URL_ERR_PATH:   return "URL_ERR_PATH";
-            case URL_ERR_USER:   return "URL_ERR_USER";
-            default:         return "STR_EMPTY";
-        }
-    }
-};
-
 
 const char HDURI_DELIM = ':';
 // HDURI	
@@ -88,8 +56,6 @@ class url : public abstract_tag {
         url_size_t _fragment_offset;
         url_size_t _fragment_len;
 
-        url_code _url_code; // code from init
-
 		// disable setting _id, becuase it would
 		// bypass url initialization.  require init()
         void id(const id_type& A);
@@ -111,8 +77,9 @@ class url : public abstract_tag {
         _query_offset(0),
         _query_len(0),
         _fragment_offset(0),
-        _fragment_len(0),
-        _url_code(URL_EMPTY) {}
+        _fragment_len(0) {
+			_code = URL_EMPTY;
+		}
 
         url(const std::string& u) :
         abstract_tag(id_type(), HARD_TAG_URL, POS_URL),
@@ -130,10 +97,10 @@ class url : public abstract_tag {
         _query_offset(0),
         _query_len(0),
         _fragment_offset(0),
-        _fragment_len(0),
-        _url_code(URL_EMPTY)
-        { this->init(u); }
-
+		_fragment_len(0) {
+			_code = URL_EMPTY;
+			this->init(u);
+		}
 /*
  * TODO
  * before we can allow identity relations other than _url,
@@ -159,27 +126,24 @@ class url : public abstract_tag {
         _query_len(0),
         _fragment_offset(0),
         _fragment_len(0),
-        _url_code(URL_EMPTY)
+        _code(URL_EMPTY)
         { this->init(u); }
 */
         
 		const id_type& id() const { return _id; }
 		// id() setter is private
 
-        url_code init(const std::string &url);
-        url_code init_hdurl(const std::string &hdurl);
+        tagd_code init(const std::string &url);
+        tagd_code init_hdurl(const std::string &hdurl);
 
-        inline url_code code() const { return _url_code; }
-        inline bool ok() const { return _url_code == URL_OK; }
-
-        inline std::string scheme() const { return url_substr(0, _scheme_len); }
-        inline std::string user() const { return url_substr(_user_offset, _user_len); }
-        inline std::string pass() const { return url_substr(_pass_offset, _pass_len); }
-        inline std::string host() const { return url_substr(_host_offset, _host_len); }
-        inline std::string port() const { return url_substr(_port_offset, _port_len); }
-        inline std::string path() const { return url_substr(_path_offset, _path_len); }
-        inline std::string query() const { return url_substr(_query_offset, _query_len); }
-        inline std::string fragment() const { return url_substr(_fragment_offset, _fragment_len); }
+        std::string scheme() const { return url_substr(0, _scheme_len); }
+        std::string user() const { return url_substr(_user_offset, _user_len); }
+        std::string pass() const { return url_substr(_pass_offset, _pass_len); }
+        std::string host() const { return url_substr(_host_offset, _host_len); }
+        std::string port() const { return url_substr(_port_offset, _port_len); }
+        std::string path() const { return url_substr(_path_offset, _path_len); }
+        std::string query() const { return url_substr(_query_offset, _query_len); }
+        std::string fragment() const { return url_substr(_fragment_offset, _fragment_len); }
 
 		void debug() {
 			std::cout << '\t' << "_scheme_len: " << _scheme_len << std::endl;
@@ -204,7 +168,7 @@ class url : public abstract_tag {
 
         std::string hdurl() const;
 
-        inline void clear() { _id.clear(); _url_code = URL_EMPTY; }
+        inline void clear() { _id.clear(); _code = URL_EMPTY; }
         inline bool empty() const { return _id.empty(); }
 
 		// insert url part relation into predicate_set
@@ -215,9 +179,6 @@ class url : public abstract_tag {
             if (len == 0 || this->empty()) return std::string();
             return _id.substr(offset, len);
         }
-
-        // set and return
-        inline url_code code(url_code c) { _url_code = c; return c; }
 
         void host_lower() {
             for (url_size_t i = _host_offset; i < (_host_offset + _host_len); i++)
@@ -233,4 +194,3 @@ class url : public abstract_tag {
 
 } // namespace tagd
 
-#define url_code_str(c) tagd::url_util::url_code_str(c)

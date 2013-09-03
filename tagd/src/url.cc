@@ -6,11 +6,11 @@
 
 namespace tagd {
 
-url_code url::init(const std::string &url) {
+tagd_code url::init(const std::string &url) {
     if (!this->empty()) this->clear();
 
     size_t sz = url.size();
-    if (sz == 0) return _url_code;  // URL_EMPTY
+    if (sz == 0) return _code;  // URL_EMPTY
 
     if (sz > URL_MAX_LEN) return code(URL_MAX_LEN);
 
@@ -277,14 +277,14 @@ fragment:
 
 url_ok:
 	this->host_lower();
-    return code(URL_OK);
+    return code(TAGD_OK);
 }
 
-url_code url::init_hdurl(const std::string &hdurl) {
+tagd_code url::init_hdurl(const std::string &hdurl) {
     if (!this->empty()) this->clear();
 
     size_t sz = hdurl.size();
-    if (sz == 0) return _url_code;  // URL_EMPTY
+    if (sz == 0) return _code;  // URL_EMPTY
 
     if (sz > URL_MAX_LEN) return code(URL_MAX_LEN);
 
@@ -421,7 +421,7 @@ url_code url::init_hdurl(const std::string &hdurl) {
 		if (elems[i] != NULL) delete elems[i];
 
 	_id = ss_url.str();
-    return code(URL_OK);
+    return code(TAGD_OK);
 }
 
 inline void print_hdurl_elem(std::ostream& os, const std::string& elem, int *dropped, bool rev_labels=false) {

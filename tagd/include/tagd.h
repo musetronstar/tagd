@@ -2,7 +2,10 @@
 
 #include <string>
 #include <set>
+#include <vector>
+#include <iostream>
 
+#include "tagd/codes.h"
 #include "tagd/config.h"
 #include "tagd/hard-tags.h"
 #include "tagd/rank.h"
@@ -52,7 +55,7 @@ class abstract_tag;
 typedef std::set<abstract_tag> tag_set;
 typedef std::pair<tag_set::iterator, bool> tag_set_pair;
 
-void print_tag_ids(const tagd::tag_set&);
+void print_tag_ids(const tagd::tag_set&, std::ostream&os = std::cout);
 
 // Merges (in-place) tags into A from B
 // Upon merging, tag relations from B will be merged into tag relations in A
@@ -70,14 +73,6 @@ size_t merge_tags_erase_diffs(tag_set& A, const tag_set& B);
 bool tag_set_equal(const tag_set A, const tag_set B);
 /************** end tag_set defs ************/
 
-typedef enum {
-    TAG_OK,
-    TAG_INSERTED,
-    TAG_UNKNOWN,
-    TAG_DUPLICATE,
-    TAG_ILLEGAL
-} tag_code;
-
 // TAGL part of speech
 typedef enum {
     POS_UNKNOWN = 0,
@@ -87,9 +82,27 @@ typedef enum {
 // (even more general than a "linking verb")
     POS_RELATOR = 3,
     POS_INTERROGATOR = 4,
-    POS_URL = 5
-    // POS_URI = 6; // TODO
+    POS_URL = 5,
+    // POS_URI // TODO
+    POS_ERROR = 6
 } part_of_speech;
+
+// wrap in struct so we can define here
+struct tag_util {
+    static std::string pos_str(part_of_speech p) {
+        switch (p) {
+            case POS_UNKNOWN: return "POS_UNKNOWN";
+            case POS_TAG:    return "POS_TAG";
+            case POS_SUPER:    return "POS_SUPER";
+            case POS_RELATOR:    return "POS_RELATOR";
+            case POS_INTERROGATOR: return "POS_INTERROGATOR";
+            case POS_URL:    return "POS_URL";
+            default:          return "STR_EMPTY";
+        }
+    }
+};
+
+#define pos_str(c) tagd::tag_util::pos_str(c)
 
 /* hard tag that can be used in a super relation */
 inline bool is_super_hard_tag(const id_type &id) {
@@ -110,63 +123,36 @@ inline id_type super_relator(const part_of_speech &pos) {
 }
 
 
-
-// wrap in struct so we can define here
-struct tag_util {
-    static std::string tag_code_str(tag_code c) {
-        switch (c) {
-            case TAG_OK:        return "TAG_OK";
-            case TAG_INSERTED:  return "TAG_INSERTED";
-            case TAG_UNKNOWN:   return "TAG_UNKNOWN";
-            case TAG_DUPLICATE: return "TAG_DUPLICATE";
-            case TAG_ILLEGAL:   return "TAG_ILLEGAL";
-            default:            return "STR_EMPTY";
-        }
-    }
-
-    static std::string pos_str(part_of_speech p) {
-        switch (p) {
-            case POS_UNKNOWN: return "POS_UNKNOWN";
-            case POS_TAG:    return "POS_TAG";
-            case POS_SUPER:    return "POS_SUPER";
-            case POS_RELATOR:    return "POS_RELATOR";
-            case POS_INTERROGATOR: return "POS_INTERROGATOR";
-            case POS_URL:    return "POS_URL";
-            default:          return "STR_EMPTY";
-        }
-    }
-};
-
-#define tag_code_str(c) tagd::tag_util::tag_code_str(c)
-#define pos_str(c) tagd::tag_util::pos_str(c)
-
 class abstract_tag {
     protected:
         id_type _id;
         id_type _super; // superordinate, parent, or hyponym in tree
         part_of_speech _pos;
         tagd::rank _rank;
+		tagd_code _code;
 
+        // set and return
+        tagd_code code(tagd_code c) { _code = c; return _code; }
     public:
         // empty tag
-        abstract_tag() : _id(), _super(), _pos(POS_UNKNOWN), _rank() {};
+        abstract_tag() : _id(), _super(), _pos(POS_UNKNOWN), _rank(), _code(TAGD_OK) {};
         virtual ~abstract_tag() {};
 
-        abstract_tag(const id_type& id) : _id(id), _super(), _pos(POS_UNKNOWN), _rank() {};
+        abstract_tag(const id_type& id) : _id(id), _super(), _pos(POS_UNKNOWN), _rank(), _code(TAGD_OK) {};
 
         abstract_tag(const part_of_speech& p)
-            : _id(), _super(), _pos(p), _rank() {};
+            : _id(), _super(), _pos(p), _rank(), _code(TAGD_OK) {};
 
         // id, but no super
         abstract_tag(const id_type& id, const part_of_speech& p)
-            : _id(id), _super(), _pos(p), _rank() {};
+            : _id(id), _super(), _pos(p), _rank(), _code(TAGD_OK) {};
 
         abstract_tag(const id_type& id, const id_type& super, const part_of_speech& p)
-            : _id(id), _super(super), _pos(p), _rank()  {};
+            : _id(id), _super(super), _pos(p), _rank(), _code(TAGD_OK)  {};
 
         abstract_tag(const id_type& id, const id_type& super,
                      const part_of_speech& p, const tagd::rank& rank)
-            : _id(id), _super(super), _pos(p), _rank(rank) {};
+            : _id(id), _super(super), _pos(p), _rank(rank), _code(TAGD_OK) {};
 
         predicate_set relations;
 
@@ -189,20 +175,23 @@ class abstract_tag {
         // returns code because rank::init() will fail on invalid bytes
         rank_code rank(const byte_t *bytes) { return _rank.init(bytes); }
 
-        tag_code relation(const predicate&);
-                            // relator, object
-        tag_code relation(const id_type&, const id_type&);
-                            // relator, object, modifier
-        tag_code relation(const id_type&, const id_type&, const id_type&);
+        tagd_code code() const { return _code; }
+        bool ok() const { return _code == TAGD_OK; }
 
-        tag_code not_relation(const predicate&);
+        tagd_code relation(const predicate&);
                             // relator, object
-        tag_code not_relation(const id_type&, const id_type&);
+        tagd_code relation(const id_type&, const id_type&);
+                            // relator, object, modifier
+        tagd_code relation(const id_type&, const id_type&, const id_type&);
+
+        tagd_code not_relation(const predicate&);
+                            // relator, object
+        tagd_code not_relation(const id_type&, const id_type&);
   
 		// modifier not needed for negations (erasing)
-        // tag_code not_relation(const id_type&, const id_type&, const id_type&);
+        // tagd_code not_relation(const id_type&, const id_type&, const id_type&);
 
-        tag_code predicates(const predicate_set&);
+        tagd_code predicates(const predicate_set&);
 
         // object, optional id if supplied will get set the relator of the relation (if related)
         bool related(const id_type&, id_type *how=NULL) const;
@@ -279,6 +268,47 @@ class interrogator : public abstract_tag {
    http://en.wikipedia.org/wiki/Quantifier
 */
 // class modifier : public tag {
+
+class error : public abstract_tag {
+	public:
+        error() : abstract_tag(POS_ERROR)
+		{}
+
+        error(const tagd_code c, const char *msg = NULL)
+            : abstract_tag(tagd_code_str(c), HARD_TAG_ERROR, POS_ERROR)
+		{
+			_code = c;
+			if (msg != NULL) this->relation("", "_msg", msg);
+		}
+};
+
+typedef std::vector<tagd::error> errors_t;
+
+class errorable {
+	protected:
+		tagd_code _init;
+		tagd_code _code;
+		errors_t _errors;
+
+	public:
+		errorable(tagd_code c) : _init(c), _code(c), _errors() {}
+		virtual ~errorable() {}
+
+		bool ok() const { return _code == tagd::TAGD_OK; }
+		//const tagd::error& error() const { return _errors.size() > 0 ? _errors[0] : tagd::error(); }
+		tagd_code code() const { return _code; }
+
+		// set and return
+        tagd_code code(tagd_code c) { if(_code != c) _code = c; return c; }
+
+		// set and return code, set err msg to printf style formatted list
+		tagd_code error(tagd::code c, const char *, ...);
+
+		void clear() { _code = _init; _errors.clear(); }
+
+		void print_errors(std::ostream& os = std::cerr) const;
+};
+
 
 }  // namespace tagd
 

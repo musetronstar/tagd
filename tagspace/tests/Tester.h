@@ -257,17 +257,19 @@ bool tag_set_exists(const tagd::tag_set& S, tagd::id_type id) {
     return false;
 }
 
+#define TAGD_CODE_STRING(c)	std::string(tagd_code_str(c))
+
 class Tester : public CxxTest::TestSuite {
     public:
 
     void test_init(void) {
         space_type TS;
-        ts_res_code ts_rc = TS.init(db_fname);
-        TS_ASSERT_EQUALS(ts_rc, TS_OK);
+        tagd_code ts_rc = TS.init(db_fname);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
         tagd::tag t;
         ts_rc = TS.get(t, "_entity");
-        TS_ASSERT_EQUALS(ts_rc, TS_OK);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
         TS_ASSERT_EQUALS(t.id(), "_entity");
         TS_ASSERT_EQUALS(t.super(), "_entity");
     }
@@ -277,11 +279,11 @@ class Tester : public CxxTest::TestSuite {
         TS.init(db_fname);
 
         tagd::tag a("physical_object", "_entity");
-        ts_res_code ts_rc = TS.put(a);
+        tagd_code ts_rc = TS.put(a);
 
         tagd::tag b;
         ts_rc = TS.get(b, "physical_object");
-        TS_ASSERT_EQUALS(ts_rc, TS_OK);
+        TS_ASSERT_EQUALS(ts_rc, tagd::TAGD_OK);
         TS_ASSERT_EQUALS(b.id(), "physical_object");
         TS_ASSERT_EQUALS(b.super(), "_entity");
 
@@ -291,10 +293,10 @@ class Tester : public CxxTest::TestSuite {
 
         tagd::tag c("living_thing", "physical_object");
         ts_rc = TS.put(c); // rank not updated
-        TS_ASSERT_EQUALS(ts_rc, TS_OK);
+        TS_ASSERT_EQUALS(ts_rc, tagd::TAGD_OK);
 
         ts_rc = TS.get(c, c.id());  // get rank
-        TS_ASSERT_EQUALS(ts_rc, TS_OK);
+        TS_ASSERT_EQUALS(ts_rc, tagd::TAGD_OK);
 		
         TS_ASSERT_EQUALS(c.rank().dotted_str(), r_dotted);
     }
@@ -304,11 +306,11 @@ class Tester : public CxxTest::TestSuite {
         TS.init(db_fname);
         populate_tags(TS);
 
-        ts_res_code ts_rc = TS.exists("dog");
-        TS_ASSERT_EQUALS( ts_rc, TS_OK );
+        tagd_code ts_rc = TS.exists("dog");
+        TS_ASSERT_EQUALS( ts_rc, tagd::TAGD_OK );
 
         ts_rc = TS.exists("unicorn");
-        TS_ASSERT_EQUALS( ts_rc, TS_NOT_FOUND );
+        TS_ASSERT_EQUALS( ts_rc, tagd::TS_NOT_FOUND );
     }
 
     void test_pos(void) {
@@ -338,22 +340,22 @@ class Tester : public CxxTest::TestSuite {
         a.relation("has", "teeth");
         a.relation("has", "tail");
         a.relation("has", "legs", "4");
-        ts_res_code ts_rc = TS.put(a);
-        TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_OK");
+        tagd_code ts_rc = TS.put(a);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
         tagd::tag b("robin", "bird");  // non-existing
         b.relation("has", "beak");
         b.relation("has", "wings");
         b.relation("has", "feathers");
         ts_rc = TS.put(b);
-        TS_ASSERT_EQUALS(ts_rc, TS_OK);
+        TS_ASSERT_EQUALS(ts_rc, tagd::TAGD_OK);
 
         // already existing, only put relations
         tagd::tag c("dog");
         TS_ASSERT_EQUALS(c.super(), "");
         c.relation("can", "bark");
         ts_rc = TS.put(c);
-        TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_OK");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
     }
 
     void test_duplicate(void) {
@@ -362,28 +364,28 @@ class Tester : public CxxTest::TestSuite {
         populate_tags_minimal(TS);
 
         tagd::tag dog("dog", "mammal");
-        ts_res_code ts_rc = TS.put(dog); // duplicate tag, no statements
-        TS_ASSERT_EQUALS( ts_rc, TS_DUPLICATE );
+        tagd_code ts_rc = TS.put(dog); // duplicate tag, no statements
+        TS_ASSERT_EQUALS( ts_rc, tagd::TS_DUPLICATE );
 
         dog.relation("has", "tail");
         ts_rc = TS.put(dog); // not duplicate, statement was inserted
-        TS_ASSERT_EQUALS( ts_rc, TS_OK );
+        TS_ASSERT_EQUALS( ts_rc, tagd::TAGD_OK );
 
         ts_rc = TS.put(dog); // tag duplicate, statement duplicate
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_DUPLICATE" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_DUPLICATE" );
 
         dog.relation("can", "bark");
         ts_rc = TS.put(dog); // one duplicate (has tail), one insert (can bark)
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 
         tagd::tag a("dog");
         a.relation("has", "tail");
         ts_rc = TS.put(a);  // existing tag, empty super, existing relation
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_DUPLICATE" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_DUPLICATE" );
 
         a.relation("has", "teeth");
         ts_rc = TS.put(a);  // existing tag, empty super, one new relation
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
     }
 
     void test_move(void) {
@@ -392,16 +394,16 @@ class Tester : public CxxTest::TestSuite {
         populate_tags(TS);
 
         tagd::tag a("sea_creature", "living_thing");
-        ts_res_code ts_rc = TS.put(a);
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        tagd_code ts_rc = TS.put(a);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 
         tagd::tag b("fish", "insect");
         ts_rc = TS.put(b);  // oops
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 
 		b.super("sea_creature");
         ts_rc = TS.put(b);  // move
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 		size_t sz = a.rank().dotted_str().size();
 		// a rank should prefix b rank
         TS_ASSERT_EQUALS( a.rank().dotted_str(), b.rank().dotted_str().substr(0, sz) )
@@ -411,16 +413,16 @@ class Tester : public CxxTest::TestSuite {
         space_type TS;
         TS.init(db_fname);
         tagd::tag a("animal", "_entity");
-        ts_res_code ts_rc = TS.put(a);
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        tagd_code ts_rc = TS.put(a);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 
         tagd::tag b("dog", "_entity");
         ts_rc = TS.put(b);
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 
         tagd::tag c("dog", "animal");
         ts_rc = TS.put(c);  // move
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 		size_t sz = a.rank().dotted_str().size();
 		// a rank should prefix c rank
         TS_ASSERT_EQUALS( a.rank().dotted_str(), c.rank().dotted_str().substr(0, sz) )
@@ -432,22 +434,22 @@ class Tester : public CxxTest::TestSuite {
         populate_tags_minimal(TS);
 
         tagd::tag dog("dog", "nosuchthing");
-        ts_res_code ts_rc = TS.put(dog);
-        TS_ASSERT_EQUALS( ts_rc, TS_SUPER_UNK );
+        tagd_code ts_rc = TS.put(dog);
+        TS_ASSERT_EQUALS( ts_rc, tagd::TS_SUPER_UNK );
 
         dog.super("mammal");
         dog.relation("has", "tailandwings");
         ts_rc = TS.put(dog);
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OBJECT_UNK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_OBJECT_UNK" );
 
         dog.relations.clear();
-        TS_ASSERT_EQUALS( tag_code_str(dog.relation("flobdapperbates", "tail")), "TAG_OK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(dog.relation("flobdapperbates", "tail")), "TAGD_OK" );
         ts_rc = TS.put(dog);
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_RELATOR_UNK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_RELATOR_UNK" );
 
         tagd::tag a("dog");  // existing no super, no relations
         ts_rc = TS.put(a);
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_DUPLICATE" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_DUPLICATE" );
     }
 
     void test_related(void) {
@@ -456,17 +458,17 @@ class Tester : public CxxTest::TestSuite {
         //TS.init("tagspace.sqlite");
         populate_tags(TS);
 
-		ts_res_code ts_rc;
+		tagd_code ts_rc;
 		tagd::tag t;
 
         tagd::tag_set S;
         ts_rc = TS.related(S, tagd::make_predicate("has", "legs")); 
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 2 );
 
         S.empty();
         ts_rc = TS.related(S, tagd::make_predicate("_relator", "body_part")); 
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 8 );
         //for(tagd::tag_set::iterator it = S.begin(); it != S.end(); ++it) {
         //   std::cout << *it << std::endl;
@@ -475,7 +477,7 @@ class Tester : public CxxTest::TestSuite {
         // TODO test related with existing and not existing supers
 
         ts_rc = TS.related(S, tagd::make_predicate("snarfs", "cockamamy")); 
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_NOT_FOUND" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_NOT_FOUND" );
         TS_ASSERT_EQUALS( S.size(), 0 );
     }
 
@@ -492,8 +494,8 @@ class Tester : public CxxTest::TestSuite {
         q.relation("can", "swim");
 
         tagd::tag_set S;
-        ts_res_code ts_rc = TS.query(S, q);
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        tagd_code ts_rc = TS.query(S, q);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 1 );
         TS_ASSERT( tag_set_exists(S, "whale") );
 
@@ -501,7 +503,7 @@ class Tester : public CxxTest::TestSuite {
         tagd::interrogator r("what");
         r.relation("has", "fangs");
         ts_rc = TS.query(S, r);
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 2 );
         TS_ASSERT( tag_set_exists(S, "spider") );
         TS_ASSERT( tag_set_exists(S, "snake") );
@@ -510,7 +512,7 @@ class Tester : public CxxTest::TestSuite {
         tagd::interrogator s("what");
         s.relation("has", "teeth");
         ts_rc = TS.query(S, s);
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 3 );
         TS_ASSERT( tag_set_exists(S, "mammal") );
         TS_ASSERT( tag_set_exists(S, "spider") );  // fangs are teeth
@@ -527,8 +529,8 @@ class Tester : public CxxTest::TestSuite {
         populate_tags(TS);
 
         tagd::tag t;
-        ts_res_code ts_rc = TS.get(t, "_url");
-        TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_OK");
+        tagd_code ts_rc = TS.get(t, "_url");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
         TS_ASSERT_EQUALS( t.id(), "_url" )
 	}
 
@@ -538,8 +540,8 @@ class Tester : public CxxTest::TestSuite {
         populate_tags(TS);
 
         tagd::tag t("_caca", "_entity");
-        ts_res_code ts_rc = TS.put(t);
-        TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_MISUSE");
+        tagd_code ts_rc = TS.put(t);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_MISUSE");
 	}
 
     void test_relations(void) {
@@ -548,7 +550,7 @@ class Tester : public CxxTest::TestSuite {
         populate_tags(TS);
 
         tagd::tag dog;
-        ts_res_code ts_rc = TS.get(dog, "dog");
+        tagd_code ts_rc = TS.get(dog, "dog");
 
         TS_ASSERT_EQUALS( dog.relations.size(), 3 )
 		TS_ASSERT( dog.related(tagd::make_predicate("has", "legs", "4"))  )
@@ -566,9 +568,9 @@ class Tester : public CxxTest::TestSuite {
     void test_put_url(void) {
         // std::cout << "\n#################### test_put_uri ####################\n";
         space_type TS;
-        ts_res_code ts_rc = TS.init(db_fname);
-        //ts_res_code ts_rc = TS.init("tagspace.db");
-        TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_OK");
+        tagd_code ts_rc = TS.init(db_fname);
+        //tagd_code ts_rc = TS.init("tagspace.db");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
         populate_tags(TS);
 
@@ -576,12 +578,12 @@ class Tester : public CxxTest::TestSuite {
         a.relation("about", "computer_security");
 		TS_ASSERT_EQUALS(a.id(), "http://www.hypermega.com/a/b/c?x=1&y=2#here"); 
         ts_rc = TS.put(a);
-        TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_OK");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 		TS_ASSERT_EQUALS(a.id(), "http://www.hypermega.com/a/b/c?x=1&y=2#here"); 
 
         tagd::url b;
         ts_rc = TS.get(b, a.id()); 
-        TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_OK");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 		TS_ASSERT_EQUALS(b.id(), "http://www.hypermega.com/a/b/c?x=1&y=2#here"); 
 		TS_ASSERT_EQUALS(b.hdurl(), "com:hypermega:www:/a/b/c:?x=1&y=2:here:http");
         TS_ASSERT( b.relations.size() > 1 )
@@ -600,7 +602,7 @@ class Tester : public CxxTest::TestSuite {
 
     void test_query_url(void) {
         space_type TS;
-		ts_res_code ts_rc;
+		tagd_code ts_rc;
         TS.init(db_fname);
         // TS.init("tagspace.sqlite");
         populate_tags(TS);
@@ -608,19 +610,19 @@ class Tester : public CxxTest::TestSuite {
         tagd::url a("http://en.wikipedia.org/wiki/Dog");
         a.relation("about", "dog");
         ts_rc = TS.put(a);
-        TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_OK");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
 		tagd::tag starwars("starwars", "movie");
 		TS.put(starwars);
         tagd::url b("http://starwars.wikia.com/wiki/Dog");
         b.relation("about", "starwars");
         ts_rc = TS.put(b);
-        TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_OK");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
         tagd::url c("http://animal.discovery.com/tv-shows/dogs-101");
         c.relation("about", "dog");
         ts_rc = TS.put(c);
-        TS_ASSERT_EQUALS(ts_res_str(ts_rc), "TS_OK");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
         // TODO "what" is not actually used in the query
         tagd::interrogator q("what", "_url");
@@ -630,7 +632,7 @@ class Tester : public CxxTest::TestSuite {
 
         tagd::tag_set S;
         ts_rc = TS.query(S, q);
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 2 );
         TS_ASSERT( tag_set_exists(S, "org:wikipedia:en:/wiki/Dog:http") );
         TS_ASSERT( tag_set_exists(S, "com:discovery:animal:/tv-shows/dogs-101:http") );
@@ -639,7 +641,7 @@ class Tester : public CxxTest::TestSuite {
         tagd::interrogator r("what", "_url");
         r.relation("_has", "_path", "/wiki/Dog");
         ts_rc = TS.query(S, r);
-        TS_ASSERT_EQUALS( ts_res_str(ts_rc), "TS_OK" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 2 );
         TS_ASSERT( tag_set_exists(S, "org:wikipedia:en:/wiki/Dog:http") );
         TS_ASSERT( tag_set_exists(S, "com:wikia:starwars:/wiki/Dog:http") );
@@ -652,4 +654,9 @@ class Tester : public CxxTest::TestSuite {
 //        populate_tags(TS);
 //		TS.dump();
 //	}
+
+    void test_util(void) {
+		std::string db_file = tagspace::util::user_db();
+		TS_ASSERT( !db_file.empty() )
+	}
 };

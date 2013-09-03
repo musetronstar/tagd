@@ -507,8 +507,8 @@ class Tester : public CxxTest::TestSuite {
 
     void test_related(void) {
 		tagd::tag dog("dog", "animal");
-        TS_ASSERT_EQUALS( dog.relation("has","teeth"), tagd::TAG_OK )
-        TS_ASSERT_EQUALS( dog.relation("has","legs", "4"), tagd::TAG_OK )
+        TS_ASSERT_EQUALS( dog.relation("has","teeth"), tagd::TAGD_OK )
+        TS_ASSERT_EQUALS( dog.relation("has","legs", "4"), tagd::TAGD_OK )
 		TS_ASSERT( dog.related("has", "teeth")  )
 
         tagd::id_type how;
@@ -589,11 +589,11 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( b.pos() == tagd::POS_INTERROGATOR )
 	}
 
-    void test_ostream_operator(void) {
-        tagd::tag dog("dog","animal");
-        dog.relation("has", "tail");
-        dog.relation("has", "fur");
-        dog.relation("can", "bark");
+    void test_error(void) {
+        tagd::error err(tagd::TAG_ILLEGAL);
+		TS_ASSERT_EQUALS( err.code(), tagd::TAG_ILLEGAL ) 
+		TS_ASSERT_EQUALS( err.id(), "TAG_ILLEGAL" ) 
+		TS_ASSERT_EQUALS( err.super(), HARD_TAG_ERROR ) 
     }
 
 };

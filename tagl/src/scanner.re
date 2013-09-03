@@ -27,7 +27,7 @@ void scanner::scan(const char *p) {
 
 next:
 
-	if (_driver->code() == TAGL_ERR) return;
+	if (_driver->code() == tagd::TAGL_ERR) return;
 
 /*!re2c
         re2c:define:YYCTYPE  = "unsigned char";
@@ -51,6 +51,8 @@ next:
 		"PUT"                { PARSE(CMD_PUT); }
 		"QUERY"              { PARSE(CMD_QUERY); }
 
+		"*"                  { PARSE(WILDCARD); }
+
         [0-9]+               {
 							   // TODO NUM;
 							   PARSE_VALUE(QUANTIFIER);
@@ -67,7 +69,7 @@ next:
 							   return;
 						     }
 
-*/
+*/ // end re2c
 
 	return;
 
@@ -88,6 +90,73 @@ lookup_parse:
 	beg = p;
 	goto next;
 
+}
+
+
+void scanner::scan_tagurl_path(int cmd, const std::string& path) {
+	// path separator defs
+	const size_t max_seps = 2;
+	size_t sep_i = 0;
+	size_t seps[max_seps] = {0, 0};  // offsets '/' chars in path
+
+	if (path[0] != '/') {
+		_driver->error(tagd::TAGL_ERR, "malformed path: no leading '/'");
+		return;
+	}
+
+	for(size_t i = 0; i < path.size(); i++) {
+		if (path[i] == '/') {
+			if (sep_i == max_seps) {
+				// TODO use error tag
+				_driver->error(tagd::TAGL_ERR, "max_seps exceeded");
+				return;
+			}
+			seps[sep_i++] = i;
+		}
+	}
+
+	size_t num_seps = sep_i;
+
+	if (cmd == CMD_PUT && num_seps > 1) {
+		_driver->error(tagd::TAGL_ERR, "malformed path: trailing '/'");
+		return;
+	}
+	
+	// path segment
+	std::string segment;
+
+	// first segment
+	sep_i = 0;
+	if (seps[sep_i+1]) {
+		size_t sz = seps[sep_i+1] - seps[sep_i] - 1;
+		segment = path.substr((seps[sep_i]+1), sz);
+	}
+	else {
+		// get
+		segment = path.substr(seps[sep_i]+1);
+	}
+
+	if (cmd == CMD_GET && num_seps > 1) {
+		cmd = CMD_QUERY;
+		_driver->parse_tok(cmd, NULL);
+		_driver->parse_tok(INTERROGATOR, (new std::string(HARD_TAG_INTERROGATOR)));
+		_driver->parse_tok(SUPER, (new std::string(HARD_TAG_SUPER)));
+	} else {
+		_driver->parse_tok(cmd, NULL);
+	}
+
+	this->scan(segment.c_str());
+
+	if (++sep_i >= num_seps)
+		return;	
+
+	// second segment
+	segment = path.substr(seps[sep_i]+1);
+
+	if (!segment.empty()) {
+		_driver->parse_tok(WILDCARD, NULL);
+		this->scan(segment.c_str());
+	}
 }
 
 } // namespace TAGL

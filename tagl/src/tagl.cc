@@ -44,8 +44,8 @@ bool callback::test_tag_ok(tagspace::tagspace& TS, const tagd::abstract_tag& t) 
 bool driver::_trace_on = false;
 
 driver::driver(tagspace::tagspace *ts) :
-		_scanner(this), _parser(NULL), _token(-1),
-		_code(TAGL_INIT), _msg(), _TS(NULL), _callback(NULL),
+		tagd::errorable(tagd::TAGL_INIT), _scanner(this), _parser(NULL),
+		_token(-1), _TS(NULL), _callback(NULL),
 		_default_cmd(CMD_GET), _cmd(_default_cmd), _tag(NULL), _relator()
 {
 	_TS = ts;
@@ -53,8 +53,8 @@ driver::driver(tagspace::tagspace *ts) :
 }
 
 driver::driver(tagspace::tagspace *ts, callback *cb) :
-		_scanner(this), _parser(NULL), _token(-1),
-		_code(TAGL_INIT), _msg(), _TS(NULL), _callback(NULL),
+		tagd::errorable(tagd::TAGL_INIT), _scanner(this), _parser(NULL),
+		_token(-1), _TS(NULL), _callback(NULL),
 		_default_cmd(CMD_GET), _cmd(_default_cmd), _tag(NULL), _relator()
 {
 	_TS = ts;
@@ -66,10 +66,19 @@ driver::~driver() {
 	this->finish();
 }
 
-void driver::statement_end() {
-	assert(_tag != NULL);
-
+void driver::do_callback() {
 	if (_callback == NULL)  return;
+
+	if (_code != tagd::TAGD_OK) {
+		_callback->error(*this);
+		return;
+	}
+
+	assert(_tag != NULL);
+	if (_tag == NULL) {
+		this->error(tagd::TAGL_ERR, "callback on NULL tag");
+		return;
+	}
 
 	switch (_cmd) {
 		case CMD_GET:
@@ -85,8 +94,8 @@ void driver::statement_end() {
 		//	_callback->cmd_test(*_tag);
 		//	break;
 		default:
-			this->code(TAGL_ERR);
-			this->msg("unknown command");
+			this->error(tagd::TAGL_ERR, "unknown command: %d", _cmd);
+			_callback->error(*this);
 			assert(false);
 	}
 }
@@ -99,8 +108,9 @@ void driver::init() {
     // set up parser
     _parser = ParseAlloc(malloc);
 
-	_code = TAGL_INIT;
-	_msg.clear(); 
+	_code = tagd::TAGL_INIT;
+	// TODO error clear
+	// _msg.clear(); 
 }
 
 inline bool driver::is_setup() {
@@ -109,7 +119,7 @@ inline bool driver::is_setup() {
 
 void driver::finish() {
 	if (_parser != NULL) {
-		if (_token != TERMINATOR && _code != TAGL_ERR)
+		if (_token != TERMINATOR && _code != tagd::TAGL_ERR)
 			Parse(_parser, TERMINATOR, NULL, this);
 		if (_token != -1 || _token != 0)
 			Parse(_parser, 0, NULL, this);
@@ -134,6 +144,7 @@ void driver::trace_off() {
 	ParseTrace(NULL, NULL);
 }
 
+/*
 void driver::msg(const std::string& s, std::string *token) {
 	if (token != NULL) {
 		std::stringstream ss;
@@ -145,11 +156,12 @@ void driver::msg(const std::string& s, std::string *token) {
 }
 
 void driver::error(const std::string& s, std::string *token) {
-	_code = TAGL_ERR;
+	_code = tagd::TAGL_ERR;
 	this->msg(s, token);
 	if (_callback == NULL)  return;
 	_callback->error(*this);
 }
+*/
 
 // looks up a pos type for a tag and returns
 // its equivalent token
@@ -194,7 +206,7 @@ void driver::parse_tok(int tok, std::string *s) {
  * finish() should be called afterwards
  * empty line will result in passing a TERMINATOR token to the parser
  */
-tagl_code driver::parseln(const std::string& line) {
+tagd_code driver::parseln(const std::string& line) {
 	this->init();
 
 	// end of input
@@ -214,7 +226,7 @@ tagl_code driver::parseln(const std::string& line) {
 	scnr.scan(line.c_str());
  /*
     if (_token == -1) {
-		this->code(TAGL_ERR);
+		this->code(tagd::TAGL_ERR);
 		this->msg("Scanner error");
 		this->finish();
     } else if (_token == 0 && last == TERMINATOR) {
@@ -226,7 +238,7 @@ tagl_code driver::parseln(const std::string& line) {
 }
 
 
-tagl_code driver::execute(const std::string& statement) {
+tagd_code driver::execute(const std::string& statement) {
 	this->init();
 
 	_scanner.scan(statement.c_str());
@@ -235,10 +247,26 @@ tagl_code driver::execute(const std::string& statement) {
 	return this->code();
 }
 
-tagl_code driver::evbuffer_execute(struct evbuffer *input) {
+tagd_code driver::tagurl_get(const std::string& tagurl) {
+	this->init();
+
+	_scanner.scan_tagurl_path(CMD_GET, tagurl);
+
+	return this->code();
+}
+
+tagd_code driver::tagurl_put(const std::string& tagurl) {
+	this->init();
+
+	_scanner.scan_tagurl_path(CMD_PUT, tagurl);
+
+	return this->code();
+}
+
+tagd_code driver::evbuffer_execute(struct evbuffer *input) {
 	size_t sz = evbuffer_get_length(input);
 
-	const size_t buf_sz = 1024;
+	const size_t buf_sz = 1024 * 4; // 4k
 	size_t read_sz;
     char buf[buf_sz];
 	size_t offset = 0;

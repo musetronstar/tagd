@@ -9,10 +9,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+
+#include <event2/buffer.h>
 #include "tagd.h"
 #include "tagl.h"
 #include "tagspace/sqlite.h"
-#include <event2/buffer.h>
 
 #define PRG "tagsh"
 
@@ -24,7 +25,7 @@ class tagsh_callback : public TAGL::callback {
 		void cmd_get(const tagd::abstract_tag&);
 		void cmd_put(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&); 
-        void error(const TAGL::driver&);
+        void error(TAGL::driver&);
 };
 
 tagsh_callback::tagsh_callback(tagspace::tagspace *ts) {
@@ -33,27 +34,39 @@ tagsh_callback::tagsh_callback(tagspace::tagspace *ts) {
 
 void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag T;
-	ts_res_code ts_rc = _TS->get(T, t.id());
-	std::cout << ts_res_str(ts_rc) << std::endl;
-	if (ts_rc == TS_OK) {
+	tagd::code ts_rc = _TS->get(T, t.id());
+	if (ts_rc == tagd::TAGD_OK) {
 		std::cout << T << std::endl;
+	} else {
+		_TS->print_errors();
+		_TS->clear();
 	}
 }
 
 void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
-	ts_res_code ts_rc = _TS->put(t);
-	std::cout << ts_res_str(ts_rc) << std::endl;
+	tagd::code ts_rc = _TS->put(t);
+	if (ts_rc == tagd::TAGD_OK) {
+		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
+	} else {
+		_TS->print_errors();
+		_TS->clear();
+	}
+
 }
 
 void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 	tagd::tag_set T;
-	ts_res_code ts_rc = _TS->query(T, q);
-	std::cout << ts_res_str(ts_rc) << std::endl;
-	tagd::print_tag_ids(T);		
+	tagd::code ts_rc = _TS->query(T, q);
+	if (ts_rc == tagd::TAGD_OK) {
+		tagd::print_tag_ids(T);
+	} else {
+		_TS->print_errors();
+		_TS->clear();
+	}
 }
 
-void tagsh_callback::error(const TAGL::driver& D) {
-	std::cerr << tagl_code_str(D.code()) << ": " << D.msg() << std::endl;
+void tagsh_callback::error(TAGL::driver& D) {
+	D.print_errors();
 }
 
 
@@ -209,10 +222,18 @@ int tagsh::interpret(std::istream& ins) {
 		if (line[0] == '.') {
 			command(line);
 		} else {
-			tagl_code tc = _driver.parseln(line);
+			tagd_code tc = _driver.parseln(line);
 
-			if (tc == TAGL_ERR)
+			// force a reduce action when a terminator
+			// hanging on the end of the stack
+			// i.e. cmd_statement TERMINATOR
+			if (_driver.token() == TERMINATOR)
+				_driver.parse_tok(TERMINATOR, NULL);
+
+			if (tc == tagd::TAGL_ERR) {
 				_driver.finish();
+				_driver.clear();
+			}
 		}
 
 		if (!prompt.empty())
@@ -259,11 +280,15 @@ int tagsh::interpret(const  std::string& fname) {
 
 int main(int argc, char **argv) {
 
-	//const std::string db_fname = "tagspace.sqlite";
-	const std::string db_fname = ":memory:";
+	//const std::string db_fname = ":memory:";
+	const std::string db_fname = tagspace::util::user_db();
 
 	tagspace::sqlite TS;
-	TS.init(db_fname);
+	if ( TS.init(db_fname) != tagd::TAGD_OK ) {
+		TS.print_errors();
+		return 1;
+	}
+
 	tagsh_callback CB(&TS);
 	tagsh shell(&TS,&CB);
 

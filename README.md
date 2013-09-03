@@ -90,7 +90,7 @@ independently of the natural language the are defined or queried in.
 This should not be confused with translation, rather it enables separate
 *linguistic views* to map to the same underlying structure.
 
-### tagd REST Web Service (not yet implemented)
+### tagd REST Web Service
 
 Just as TAGL is a map onto a tagspace, a URL in the tagd web service (*httagd*)
 can be represented as TAGL.  A URL in such a representation is known as a
@@ -108,6 +108,8 @@ Dependencies:
     * Make, etc.
 * gperf (only to recreate gperf header from Mozilla's public suffix list)
     * Net::IDN::Encode CPAN module
+* re2c
+* [libevhtp](https://github.com/ellzey/libevhtp) for the http server
 * [CxxTest](http://cxxtest.com/)
 * [SQLite v3](http://www.sqlite.org/) libs and development headers
 

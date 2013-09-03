@@ -5,11 +5,15 @@ WFLAGS = -Wall -Wextra -g
 
 INC =  -I../include
 SRCS = tagd.cc rank.cc url.cc
+CODES_H = ../include/tagd/codes.h
 HDRS = $(wildcard $(INC).h)
 OBJS=$(SRCS:.cc=.o)
 #BIN = tagd
 
-all : $(SRCS) $(OBJS)
+all : codes.inc $(SRCS) $(OBJS)
+
+codes.inc: $(CODES_H)
+	./gen-codes-inc.pl $? > $@
 
 .cc.o :
 	$(CXX) -c -o $@ $< $(INC) $(WFLAGS)
@@ -18,5 +22,5 @@ all : $(SRCS) $(OBJS)
 #	$(CXX) -o $@ $? $(INC)
 
 clean :
-	rm -f *.o 
+	rm -f *.o *.inc 
 

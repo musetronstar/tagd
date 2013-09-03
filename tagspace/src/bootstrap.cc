@@ -4,81 +4,47 @@
 
 namespace tagspace {
 
-ts_res_code bootstrap::put_hard_tag(
+tagd::code bootstrap::put_hard_tag(
 		tagspace& TS, const tagd::id_type& id,
 		const tagd::id_type& super, const tagd::part_of_speech& pos) {
 	tagd::abstract_tag t(id, super, pos);
-	ts_res_code rs = TS.put(t);
-	assert((rs == TS_OK)||(rs == TS_DUPLICATE));
+	tagd::code rs = TS.put(t);
+	assert((rs == tagd::TAGD_OK)||(rs == tagd::TS_DUPLICATE));
 	return rs;
 }
 
-ts_res_code bootstrap::init_hard_tags(tagspace& TS) {
+#define PUT_OR_DIE(id, super, pos)  if(put_hard_tag(TS, id, super, pos) != tagd::TAGD_OK) \
+										return TS.error(tagd::TS_INTERNAL_ERR, \
+												"put_hard_tag failed (id, super, pos): %s, %s, %s", \
+												id, super, pos_str(pos).c_str());
+
+tagd::code bootstrap::init_hard_tags(tagspace& TS) {
 	// _entity should be inserted at database creation time,
 	// so that it can enforce its circular referential constraints
 
 	// IMPORTANT: updates to tagd/hard-tags.h must be reflected here
-	ts_res_code rs;
-
-	rs = put_hard_tag(TS, HARD_TAG_SUPER, "_entity", tagd::POS_TAG);
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_IS_A, HARD_TAG_SUPER, tagd::POS_SUPER);
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_TYPE_OF, HARD_TAG_SUPER, tagd::POS_SUPER);
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_RELATOR, "_entity", tagd::POS_RELATOR);
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_HAS, HARD_TAG_RELATOR, tagd::POS_RELATOR);
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
+	PUT_OR_DIE(HARD_TAG_SUPER, "_entity", tagd::POS_TAG)
+	PUT_OR_DIE(HARD_TAG_IS_A, HARD_TAG_SUPER, tagd::POS_SUPER)
+	PUT_OR_DIE(HARD_TAG_TYPE_OF, HARD_TAG_SUPER, tagd::POS_SUPER)
+	PUT_OR_DIE(HARD_TAG_RELATOR, "_entity", tagd::POS_RELATOR)
+	PUT_OR_DIE(HARD_TAG_HAS, HARD_TAG_RELATOR, tagd::POS_RELATOR)
 	// actual URLs will use POS_URL, using POS_URL for _url will create problems (it won't parse as a url)
-	rs = put_hard_tag(TS, HARD_TAG_URL, "_entity", tagd::POS_TAG);
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
+	PUT_OR_DIE(HARD_TAG_URL, "_entity", tagd::POS_TAG)
+	PUT_OR_DIE(HARD_TAG_INTERROGATOR, "_entity", tagd::POS_INTERROGATOR) 
+	PUT_OR_DIE(HARD_TAG_URL_PART, "_entity", tagd::POS_TAG) 
+	PUT_OR_DIE(HARD_TAG_HOST, HARD_TAG_URL_PART, tagd::POS_TAG) 
+	PUT_OR_DIE(HARD_TAG_PRIV_LABEL, HARD_TAG_URL_PART, tagd::POS_TAG) 
+	PUT_OR_DIE(HARD_TAG_PUB, HARD_TAG_URL_PART, tagd::POS_TAG) 
+	PUT_OR_DIE(HARD_TAG_SUB, HARD_TAG_URL_PART, tagd::POS_TAG) 
+	PUT_OR_DIE(HARD_TAG_PATH, HARD_TAG_URL_PART, tagd::POS_TAG) 
+	PUT_OR_DIE(HARD_TAG_QUERY, HARD_TAG_URL_PART, tagd::POS_TAG) 
+	PUT_OR_DIE(HARD_TAG_FRAGMENT, HARD_TAG_URL_PART, tagd::POS_TAG) 
+	PUT_OR_DIE(HARD_TAG_PORT, HARD_TAG_URL_PART, tagd::POS_TAG) 
+	PUT_OR_DIE(HARD_TAG_USER, HARD_TAG_URL_PART, tagd::POS_TAG) 
+	PUT_OR_DIE(HARD_TAG_PASS, HARD_TAG_URL_PART, tagd::POS_TAG) 
+	PUT_OR_DIE(HARD_TAG_SCHEME, HARD_TAG_URL_PART, tagd::POS_TAG) 
 
-	rs = put_hard_tag(TS, HARD_TAG_INTERROGATOR, "_entity", tagd::POS_INTERROGATOR); 
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_URL_PART, "_entity", tagd::POS_TAG); 
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_HOST, HARD_TAG_URL_PART, tagd::POS_TAG); 
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_PRIV_LABEL, HARD_TAG_URL_PART, tagd::POS_TAG); 
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_PUB, HARD_TAG_URL_PART, tagd::POS_TAG); 
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_SUB, HARD_TAG_URL_PART, tagd::POS_TAG); 
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_PATH, HARD_TAG_URL_PART, tagd::POS_TAG); 
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_QUERY, HARD_TAG_URL_PART, tagd::POS_TAG); 
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_FRAGMENT, HARD_TAG_URL_PART, tagd::POS_TAG); 
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_PORT, HARD_TAG_URL_PART, tagd::POS_TAG); 
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_USER, HARD_TAG_URL_PART, tagd::POS_TAG); 
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_PASS, HARD_TAG_URL_PART, tagd::POS_TAG); 
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	rs = put_hard_tag(TS, HARD_TAG_SCHEME, HARD_TAG_URL_PART, tagd::POS_TAG); 
-	if (rs != TS_OK) return TS_INTERNAL_ERR;
-
-	return rs;
+	return TS.code();
 }
 
 } // namespace tagspace
