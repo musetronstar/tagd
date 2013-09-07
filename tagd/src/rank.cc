@@ -56,6 +56,16 @@ bool rank::operator==(const rank& rhs) const {
     return ( memcmp(_data, rhs._data, _size) == 0 );
 }
 
+bool rank::contains(const rank& other) const {
+    if (_data == NULL || other._data == NULL)
+		return false;
+
+    if (_size > other._size)
+        return false;
+
+    return ( memcmp(_data, other._data, _size) == 0 );
+}
+
 inline void rank::copy(const byte_t *bytes, const size_t sz) {
     std::memcpy(_data, bytes, sz);
     _data[sz] = '\0';

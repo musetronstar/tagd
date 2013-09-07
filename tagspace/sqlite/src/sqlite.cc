@@ -909,6 +909,7 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& intr) {
             return tagd::TS_NOT_FOUND;  // empty interrogator, nothing to do
         else {
             tagd::abstract_tag t;
+			// TODO get children of super
             this->get(t, intr.super());
 			OK_OR_RET_ERR();
             R.insert(t);
@@ -916,9 +917,9 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& intr) {
         }
     }
 
-	// dout << "interrogator: " << intr << std::endl;
+	// std::cerr << "interrogator: " << std::endl << intr << std::endl;
 
-    tagd::tag_set T;  // temp results
+	size_t n = 0;
     tagd::tag_set S;  // related per predicate
     for (tagd::predicate_set::const_iterator it = intr.relations.begin();
                 it != intr.relations.end(); ++it) {
@@ -926,18 +927,14 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& intr) {
         S.clear();
 
         this->related(S, *it, intr.super());
-		OK_OR_RET_ERR();
 		// tagd::print_tag_ids(S);
+		OK_OR_RET_ERR();
 
-        size_t n = merge_tags_erase_diffs(T, S);
-        assert( n > 0 );
+		n += merge_containing_tags(R, S);
     }
 
-    if (T.size() == 0)
+    if (n == 0)
         return this->code(tagd::TS_NOT_FOUND);
-
-    // merge temp results into final results
-    merge_tags(R, T);
 
     return this->code(tagd::TAGD_OK);
 }

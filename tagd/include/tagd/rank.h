@@ -50,6 +50,10 @@ class rank {
         bool operator==(const rank&) const;
         inline bool operator!=(const rank& rhs) const { return !(*this == rhs); }
 
+		// this rank contains the rank being compared,
+		// in other words, this rank is a prefix to the other 
+        bool contains(const rank&) const;
+
         // validates bytes, sets size pointed to
         // byte string must be '\0' terminated
         rank_code validate(const byte_t*, size_t*);

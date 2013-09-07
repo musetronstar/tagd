@@ -56,6 +56,7 @@ typedef std::set<abstract_tag> tag_set;
 typedef std::pair<tag_set::iterator, bool> tag_set_pair;
 
 void print_tag_ids(const tagd::tag_set&, std::ostream&os = std::cout);
+std::string tag_ids_str(const tagd::tag_set&);
 
 // Merges (in-place) tags into A from B
 // Upon merging, tag relations from B will be merged into tag relations in A
@@ -68,6 +69,10 @@ void merge_tags(tag_set& A, const tag_set& B);
 // Tag ids and ranks must be set for each element in A and B
 // The number of tags merged will be returned
 size_t merge_tags_erase_diffs(tag_set& A, const tag_set& B);
+
+// Merges tags from B into A where an element of A contains B
+// or an element of B contains A.
+size_t merge_containing_tags(tag_set& A, const tag_set& B);
 
 // every member in A deep equals (===) every member in B
 bool tag_set_equal(const tag_set A, const tag_set B);

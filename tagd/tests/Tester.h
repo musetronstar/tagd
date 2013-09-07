@@ -2,6 +2,7 @@
 
 #include <cxxtest/TestSuite.h>
 
+#include <sstream>
 #include "tagd.h"
 
 class Tester : public CxxTest::TestSuite {
@@ -257,6 +258,27 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( a != b );  // size differs
     }
 
+    void test_rank_contains(void) {
+        // tag rank
+        tagd::byte_t a1[4] = {1, 2, 3, '\0'};
+        tagd::byte_t a2[4] = {1, 2, 3, 4};
+        tagd::byte_t a3[4] = {1, 4, 3, '\0'};
+
+        tagd::rank a, b, c;
+        a.init(a1); // 1.2.3
+		TS_ASSERT( !a.contains(b) )  // NULL data in b
+
+        b.init(a2); // 1.2.3.4
+        TS_ASSERT( a.contains(b) )
+        TS_ASSERT( !b.contains(a) )
+
+		c.init(a3); // 1.4.3
+        TS_ASSERT( !a.contains(c) )
+        TS_ASSERT( !b.contains(c) )
+        TS_ASSERT( !c.contains(a) )
+        TS_ASSERT( !c.contains(b) )
+    }
+
     void test_tag_rank_order(void) {
         // tag rank
         tagd::byte_t a1[4] = {1, '\0', '\0', '\0'};
@@ -414,9 +436,96 @@ class Tester : public CxxTest::TestSuite {
 		// B: { dog, cat, bird }
 
         merge_tags_erase_diffs(A, D);
+
         TS_ASSERT_EQUALS( A.size(), 2 );  // contains cat and bird
         tagd::tag_set::iterator it = A.find(cat); // cat
         TS_ASSERT( it != A.end() && *it == cat );  // cat relations merged
+    }
+
+    void test_merge_containing_tags(void) {
+        tagd::byte_t a1[4] = {1, '\0', '\0', '\0'};
+        tagd::rank r1;
+        r1.init(a1);
+
+        tagd::tag_set A, B;
+        tagd::abstract_tag animal("animal");
+		animal.rank(r1);
+		
+
+        a1[1] = 1;
+        r1.init(a1);
+        tagd::abstract_tag dog("dog");
+		dog.rank(r1);
+
+        a1[1] = 2;
+        r1.init(a1);
+        tagd::abstract_tag cat("cat");
+		cat.rank(r1);
+
+        a1[1] = 3;
+        r1.init(a1);
+        tagd::abstract_tag bird("bird");
+		bird.rank(r1);
+
+        a1[0] = 2;
+        r1.init(a1);
+        tagd::abstract_tag car("car");
+		car.rank(r1);
+
+        A.insert(animal);
+        A.insert(dog);
+        A.insert(cat);
+        A.insert(bird);
+
+		B.insert(cat);
+		B.insert(bird);
+
+		// std::cerr << "A: " ; print_tag_ids(A);
+		// std::cerr << "B: " ; print_tag_ids(B);
+		// std::cerr << "merge_containing_tags:" << std::endl;
+        merge_containing_tags(A, B);
+		// std::cerr << "A: " ; print_tag_ids(A);
+		// std::cerr << "-----\n";
+        TS_ASSERT_EQUALS( tag_ids_str(A), "cat, bird" )
+
+		A.clear();
+        A.insert(animal);
+        A.insert(dog);
+
+		B.clear();
+		B.insert(cat);
+		B.insert(bird);
+
+        merge_containing_tags(A, B);
+
+		// because cat and bird are animals
+		// and dog not in B
+        TS_ASSERT_EQUALS( tag_ids_str(A), "cat, bird" )
+
+		A.clear();
+		A.insert(cat);
+		A.insert(bird);
+
+		B.clear();
+        B.insert(animal);
+
+        merge_containing_tags(A, B);
+
+		// because cat and bird are animals
+        TS_ASSERT_EQUALS( tag_ids_str(A), "cat, bird" )
+
+		A.clear();
+        A.insert(animal);
+		A.insert(cat);
+		A.insert(bird);
+
+		B.clear();
+        B.insert(animal);
+
+        merge_containing_tags(A, B);
+
+		// because cat and bird are animals
+        TS_ASSERT_EQUALS( tag_ids_str(A), "animal, cat, bird" )
     }
 
     void test_merge_erase_diffs(void) {

@@ -48,6 +48,20 @@ void print_tag_ids(const tag_set& T, std::ostream& os) {
 	os << std::endl;
 }
 
+std::string tag_ids_str(const tag_set& T) {
+	if (T.size() == 0) return std::string();
+
+	std::stringstream ss;
+	tagd::tag_set::iterator it = T.begin();
+	ss << it->id();
+	++it;
+	for (; it != T.end(); ++it) {
+		ss << ", " << it->id();
+	}
+
+	return ss.str();
+}
+
 void merge_tags(tag_set& A, const tag_set& B) {
     if (A.empty()) {
         A.insert(B.begin(), B.end());
@@ -108,6 +122,34 @@ size_t merge_tags_erase_diffs(tag_set& A, const tag_set& B) {
 
     return T.size();
 }
+
+size_t merge_containing_tags(tag_set& A, const tag_set& B) {
+    assert (B.size() != 0);
+
+    if (A.size() == 0) {
+        A.insert(B.begin(), B.end());
+        return A.size();
+    }
+
+    tagd::tag_set::iterator a = A.begin();
+	while (a != A.end()) {
+		int merged = 0;
+		for(tagd::tag_set::iterator b = B.begin(); b != B.end(); ++b) {
+			if (b->rank().contains(a->rank())) {  // rank can contain itself (b == a)
+				//a->predicates(b->relations);
+				merged++;
+			} else if (a->rank().contains(b->rank())) {
+				//b->predicates(a->relations);
+				A.insert(*b);
+			}
+		}
+		if (merged)
+			++a;
+		else
+			A.erase(a++);
+	}
+    return A.size();
+} 
 
 bool tag_set_equal(const tag_set A, const tag_set B) {
     if (A.size() != B.size())

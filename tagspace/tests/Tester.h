@@ -110,6 +110,8 @@ void populate_tags_minimal(space_type& TS) {
 
 
 void populate_tags(space_type& TS) {
+    tagd::tag substance("substance", "_entity");
+    TS.put(substance);
     tagd::tag physical_object("physical_object", "_entity");
     TS.put(physical_object);
     tagd::tag living_thing("living_thing", "physical_object");
@@ -191,12 +193,17 @@ void populate_tags(space_type& TS) {
     tagd::relator about("about","preposition");
     TS.put(about);
 
+    tagd::tag body_fluid("body_fluid", "substance");
+    TS.put(body_fluid);
+    tagd::tag blood("blood", "body_fluid");
+    TS.put(blood);
     tagd::tag animal("animal", "living_thing");
     TS.put(animal);
     tagd::tag vertibrate("vertibrate", "animal");
     TS.put(vertibrate);
 
     tagd::tag mammal("mammal","vertibrate");
+    mammal.relation("has", "blood", "warm");
     mammal.relation("has", "teeth");
     TS.put(mammal);
 
@@ -265,6 +272,7 @@ class Tester : public CxxTest::TestSuite {
     void test_init(void) {
         space_type TS;
         tagd_code ts_rc = TS.init(db_fname);
+		if (!TS.ok()) TS.print_errors();
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
         tagd::tag t;
@@ -470,9 +478,9 @@ class Tester : public CxxTest::TestSuite {
         ts_rc = TS.related(S, tagd::make_predicate("_relator", "body_part")); 
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 8 );
-        //for(tagd::tag_set::iterator it = S.begin(); it != S.end(); ++it) {
-        //   std::cout << *it << std::endl;
-        //}
+        // for(tagd::tag_set::iterator it = S.begin(); it != S.end(); ++it) {
+        //    std::cout << *it << std::endl;
+        // }
 
         // TODO test related with existing and not existing supers
 
@@ -481,7 +489,6 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( S.size(), 0 );
     }
 
-    // TODO
     void test_query(void) {
         space_type TS;
         TS.init(db_fname);
@@ -522,6 +529,22 @@ class Tester : public CxxTest::TestSuite {
         //    std::cout << *it << std::endl;
         // }
     }
+
+void test_query_parent_relation(void) {
+        space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+        tagd::interrogator q("what");
+        q.relation("has", "blood", "warm");
+        q.relation("can", "swim");
+
+        tagd::tag_set S;
+        tagd_code ts_rc = TS.query(S, q);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 1 );
+        TS_ASSERT( tag_set_exists(S, "whale") );
+	}
 
     void test_get_hard_tag(void) {
 		space_type TS;
