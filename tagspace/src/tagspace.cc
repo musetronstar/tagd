@@ -10,10 +10,10 @@ namespace tagspace {
 
 std::string util::user_db() {
 	struct passwd *pw = getpwuid(getuid());
-	std::string str(pw->pw_dir);
+	std::string str(pw->pw_dir);  // home dir
 	if (str.empty()) return str;
 
-	str.append("/tagspace.db");
+	str.append("/.tagspace.db");
 	return str;
 }
 

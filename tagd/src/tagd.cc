@@ -168,21 +168,36 @@ bool tag_set_equal(const tag_set A, const tag_set B) {
     return true;
 }
 
+inline bool abstract_tag::operator==(const abstract_tag& rhs) const {
+	if (this->pos() == POS_REFERENT)
+		return (const referent&)*this == (const referent&)rhs;
+
+	return (
+		_id == rhs._id
+		&& _super == rhs._super
+		&& _pos == rhs._pos
+		&& _rank == rhs._rank
+		// std::equal will return true if first is subset of last
+		&& relations.size() == rhs.relations.size()
+		&& std::equal(relations.begin(), relations.end(),
+					rhs.relations.begin())
+	);
+}
+
+inline bool abstract_tag::operator<(const abstract_tag& rhs) const {
+	if (this->pos() == POS_REFERENT)
+		return (const referent&)*this < (const referent&)rhs;
+	else
+		return this->_rank < rhs._rank;
+}
+
+
 void abstract_tag::clear() {
 	_id.clear();
 	_super.clear();
 	// _pos = POS_UNKNOWN;  
 	_rank.clear();
 	if (!relations.empty()) relations.clear();
-}
-
-bool abstract_tag::empty() {
-	return (
-		_id.empty()
-		&& _super.empty()
-		&& _rank.empty()
-		&& relations.empty()
-	);
 }
 
 tagd_code abstract_tag::relation(const tagd::predicate &p) {
@@ -263,18 +278,17 @@ bool abstract_tag::related(const id_type &object, id_type *how) const {
     return false;
 }
 
-bool abstract_tag::operator==(const abstract_tag& rhs) const {
-    return (
-           _id == rhs._id
-        && _super == rhs._super
-        && _pos == rhs._pos
-        && _rank == rhs._rank
-        // std::equal will return true if first is subset of last
-        && relations.size() == rhs.relations.size()
-        && std::equal(relations.begin(), relations.end(),
-                      rhs.relations.begin())
-    );
+// referents
+id_type referent::context() const {
+    for (predicate_set::const_iterator it = relations.begin(); it != relations.end(); ++it) {
+        if (it->relator == HARD_TAG_CONTEXT)
+            return it->object;
+    }
+   
+    return id_type();
 }
+
+
 
 // tag output functions
 

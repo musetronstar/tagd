@@ -26,7 +26,7 @@ class callback {
         virtual void cmd_put(const tagd::abstract_tag&) = 0;
         virtual void cmd_query(const tagd::interrogator&) = 0;
         // virtual void cmd_test(const tagd::abstract_tag&) = 0;
-        virtual void error(TAGL::driver&) = 0;
+        virtual void error(const TAGL::driver&) = 0;
 
 		// helper function
 		// static bool test_tag_ok(tagspace::tagspace&, const tagd::abstract_tag&);
@@ -62,7 +62,6 @@ class driver : public tagd::errorable {
 		friend void ::yy_reduce(yyParser *, int);
 		friend class TAGL::scanner;
 
-		int _default_cmd;
 		int _cmd;
 		tagd::abstract_tag *_tag;  // tag of the current statement
 		tagd::id_type _relator;    // current relator
@@ -83,7 +82,11 @@ class driver : public tagd::errorable {
 		void parse_tok(int, std::string*);
 
 		int cmd() const { return _cmd; }
-		const tagd::abstract_tag * tag() const { return _tag; }
+
+		const tagd::abstract_tag& tag() const {
+			static const tagd::abstract_tag empty_tag;
+			return (_tag == NULL ? empty_tag : *_tag);
+		}
 
 		bool is_setup(); 
 		void do_callback();

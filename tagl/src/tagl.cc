@@ -46,7 +46,7 @@ bool driver::_trace_on = false;
 driver::driver(tagspace::tagspace *ts) :
 		tagd::errorable(tagd::TAGL_INIT), _scanner(this), _parser(NULL),
 		_token(-1), _TS(NULL), _callback(NULL),
-		_default_cmd(CMD_GET), _cmd(_default_cmd), _tag(NULL), _relator()
+		_cmd(), _tag(NULL), _relator()
 {
 	_TS = ts;
 	this->init();
@@ -55,7 +55,7 @@ driver::driver(tagspace::tagspace *ts) :
 driver::driver(tagspace::tagspace *ts, callback *cb) :
 		tagd::errorable(tagd::TAGL_INIT), _scanner(this), _parser(NULL),
 		_token(-1), _TS(NULL), _callback(NULL),
-		_default_cmd(CMD_GET), _cmd(_default_cmd), _tag(NULL), _relator()
+		_cmd(), _tag(NULL), _relator()
 {
 	_TS = ts;
 	_callback = cb;
@@ -63,6 +63,9 @@ driver::driver(tagspace::tagspace *ts, callback *cb) :
 }
 
 driver::~driver() {
+	if (_tag != NULL)
+		delete _tag;
+
 	this->finish();
 }
 
@@ -128,10 +131,6 @@ void driver::finish() {
 	}
 
 	_token = -1;
-	if (_tag != NULL) {
-		delete _tag;
-		_tag = NULL;
-	}
 }
 
 void driver::trace_on(char* prefix) {
@@ -166,7 +165,6 @@ void driver::error(const std::string& s, std::string *token) {
 // looks up a pos type for a tag and returns
 // its equivalent token
 int driver::lookup_pos(const std::string& s) const {
-	// std::cout << "lookup_pos: " << s << std::endl;
 	int token;
 	switch(_TS->pos(s)) {
 		case tagd::POS_TAG:
@@ -180,6 +178,18 @@ int driver::lookup_pos(const std::string& s) const {
 			break;
 		case tagd::POS_INTERROGATOR:
 			token = INTERROGATOR;
+			break;
+		case tagd::POS_REFERENT:
+			token = REFERENT;
+			break;
+		case tagd::POS_REFERS:
+			token = REFERS;
+			break;
+		case tagd::POS_REFERS_TO:
+			token = REFERS_TO;
+			break;
+		case tagd::POS_CONTEXT:
+			token = CONTEXT;
 			break;
 		default:  // POS_UNKNOWN
 			token = UNKNOWN;
@@ -196,7 +206,7 @@ int driver::lookup_pos(const std::string& s) const {
 void driver::parse_tok(int tok, std::string *s) {
 		_token = tok;
 		if (_trace_on)
-			std::cout << _token << ": " << (s == NULL ? "NULL" : *s) << std::endl;
+			std::cerr << _token << ": " << (s == NULL ? "NULL" : *s) << std::endl;
 		Parse(_parser, _token, s, this);
 }
 
@@ -242,7 +252,6 @@ tagd_code driver::execute(const std::string& statement) {
 	this->init();
 
 	_scanner.scan(statement.c_str());
-
 	this->finish();
 	return this->code();
 }

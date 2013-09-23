@@ -23,7 +23,13 @@ class sqlite: public tagspace {
         sqlite3_stmt *_update_ranks_stmt;
         sqlite3_stmt *_child_ranks_stmt;
         sqlite3_stmt *_insert_relations_stmt;
+        sqlite3_stmt *_insert_referents_stmt;
+        sqlite3_stmt *_insert_context_stmt;
+        sqlite3_stmt *_delete_context_stmt;
+        sqlite3_stmt *_truncate_context_stmt;
         sqlite3_stmt *_get_relations_stmt;
+        sqlite3_stmt *_get_referents_stmt;
+        sqlite3_stmt *_get_referent_context_stmt;
         sqlite3_stmt *_related_stmt;
         sqlite3_stmt *_related_modifier_stmt;
         sqlite3_stmt *_related_null_super_stmt;
@@ -59,7 +65,13 @@ class sqlite: public tagspace {
             _update_ranks_stmt(NULL),
             _child_ranks_stmt(NULL),
             _insert_relations_stmt(NULL),
+			_insert_referents_stmt(NULL),
+			_insert_context_stmt(NULL),
+			_delete_context_stmt(NULL),
+			_truncate_context_stmt(NULL),
             _get_relations_stmt(NULL),
+            _get_referents_stmt(NULL),
+            _get_referent_context_stmt(NULL),
             _related_stmt(NULL),
             _related_modifier_stmt(NULL),
             _related_null_super_stmt(NULL),
@@ -89,20 +101,26 @@ class sqlite: public tagspace {
         // wont fail if already closed
         void close();
 
+		tagd_code push_context(const tagd::id_type& id);
+		tagd_code pop_context();
+		tagd_code clear_context();
+
         // get into tag given id
-        tagd_code get(tagd::abstract_tag&, const tagd::id_type&);
-        tagd_code get(tagd::url&, const tagd::id_type&);
+        tagd_code get(tagd::abstract_tag&, const tagd::id_type&, const flags_t& = flags_t());
+        tagd_code get(tagd::url&, const tagd::id_type&, const flags_t& = flags_t());
 
         tagd_code exists(const tagd::id_type& id); 
 
         // put tag, will overrite existing (move + update)
-        tagd_code put(const tagd::abstract_tag&);
-        tagd_code put(const tagd::url&);
+        tagd_code put(const tagd::abstract_tag&, const flags_t& = flags_t());
+        tagd_code put(const tagd::url&, const flags_t& = flags_t());
+        tagd_code put(const tagd::referent&, const flags_t& = flags_t());
 
 		tagd::part_of_speech pos(const tagd::id_type&);
 
         tagd_code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type& = "_entity");
         tagd_code query(tagd::tag_set&, const tagd::interrogator&);
+        tagd_code query_referents(tagd::tag_set&, const tagd::interrogator&);
 
         tagd_code dump(std::ostream& = std::cout);
         tagd_code dump_grid(std::ostream& = std::cout);
@@ -120,6 +138,9 @@ class sqlite: public tagspace {
         tagd_code update(const tagd::abstract_tag&, const tagd::abstract_tag&);
 
         tagd_code insert_relations(const tagd::abstract_tag&);
+		tagd_code insert_referent(const tagd::referent&, const flags_t& = flags_t());
+		tagd_code insert_context(const tagd::id_type&);
+		tagd_code delete_context(const tagd::id_type&);
         tagd_code get_relations(tagd::predicate_set&, const tagd::id_type&);
 
         tagd_code next_rank(tagd::rank&, const tagd::abstract_tag&);
@@ -137,6 +158,8 @@ class sqlite: public tagspace {
         // init db funcs
         tagd_code create_tags_table();
         tagd_code create_relations_table();
+        tagd_code create_referents_table();
+		tagd_code create_context_stack_table();
 
     public:
         // statics

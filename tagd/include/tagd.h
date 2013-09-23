@@ -51,6 +51,7 @@ void insert_predicate(predicate_set&, const id_type&, const id_type&, const id_t
 
 class abstract_tag;
 
+typedef std::vector<tagd::id_type> id_vec;
 /**************** tag_set defs **************/
 typedef std::set<abstract_tag> tag_set;
 typedef std::pair<tag_set::iterator, bool> tag_set_pair;
@@ -89,7 +90,11 @@ typedef enum {
     POS_INTERROGATOR = 4,
     POS_URL = 5,
     // POS_URI // TODO
-    POS_ERROR = 6
+    POS_ERROR = 6,
+    POS_REFERENT = 7,
+    POS_REFERS = 8,
+    POS_REFERS_TO = 9,
+    POS_CONTEXT = 10
 } part_of_speech;
 
 // wrap in struct so we can define here
@@ -102,6 +107,10 @@ struct tag_util {
             case POS_RELATOR:    return "POS_RELATOR";
             case POS_INTERROGATOR: return "POS_INTERROGATOR";
             case POS_URL:    return "POS_URL";
+            case POS_REFERENT:    return "POS_REFERENT";
+            case POS_REFERS:    return "POS_REFERS";
+            case POS_REFERS_TO:    return "POS_REFERS_TO";
+            case POS_CONTEXT:    return "POS_CONTEXT";
             default:          return "STR_EMPTY";
         }
     }
@@ -123,6 +132,7 @@ inline bool is_super_hard_tag(const id_type &id) {
 inline id_type super_relator(const part_of_speech &pos) {
     switch (pos) {
         case POS_TAG: return HARD_TAG_IS_A;
+        case POS_REFERENT: return HARD_TAG_REFERS_TO;
         default: return HARD_TAG_TYPE_OF;
     }
 }
@@ -162,7 +172,14 @@ class abstract_tag {
         predicate_set relations;
 
 		void clear();
-		bool empty();
+		bool empty() const {
+			return (
+				_id.empty()
+				&& _super.empty()
+				&& _rank.empty()
+				&& relations.empty()
+			);
+		}
 
         const id_type& id() const { return _id; }
         void id(const id_type& A) { _id = A; }
@@ -211,14 +228,14 @@ class abstract_tag {
             return ( relations.find(make_predicate(r, o, m)) != relations.end() );
 		}
 
-        inline bool related(const predicate& p) const {
+        bool related(const predicate& p) const {
             return ( relations.find(p) != relations.end() );
         }
 
         // deep equality - every member is tested for equality
         bool operator==(const abstract_tag&) const;
-        inline bool operator!=(const abstract_tag& rhs) const { return !(*this == rhs); }
-        inline bool operator<(const abstract_tag& rhs) const { return this->_rank < rhs._rank; }
+        bool operator!=(const abstract_tag& rhs) const { return !(*this == rhs); }
+        bool operator<(const abstract_tag&) const;
 
         friend std::ostream& operator<<(std::ostream&, const abstract_tag&);
 };
@@ -265,6 +282,57 @@ class interrogator : public abstract_tag {
             : abstract_tag(id, super, POS_INTERROGATOR) {};
 };
 
+class referent : public abstract_tag {
+		// _id is the thing that refers
+		// _super is the thing refered to
+    public:
+	
+        referent()
+            : abstract_tag(POS_REFERENT)
+		{}
+
+        referent(const id_type& refers, const id_type& rt)
+            : abstract_tag(refers, rt, POS_REFERENT)
+		{}
+
+        referent(const id_type& refers, const id_type& rt, const id_type& c)
+            : abstract_tag(refers, rt, POS_REFERENT)
+		{ context(c); }
+
+        const id_type& refers() const { return _id; }
+        const id_type& refers_to() const { return _super; }
+        id_type context() const;
+        void context(const id_type& c) {
+			this->relation( HARD_TAG_CONTEXT, c);
+		}
+
+        bool operator==(const referent& rhs) const {
+			return (
+				_id == rhs._id &&
+				_super == rhs._super &&
+				_pos == rhs._pos &&
+				this->context() == rhs.context()
+			);
+		}
+
+		// override so we can have duplicate ids
+        bool operator<(const referent& rhs) const {
+			return (
+				_id < rhs._id ||
+				(
+				 _id == rhs._id &&
+				 _super < rhs._super
+				) ||
+				(
+				 _id == rhs._id &&
+				 _super == rhs._super &&
+				 this->context() < rhs.context()
+				)
+			);
+		}
+};
+
+
 // TODO maybe
 /*
    measures the object of a predicate (i.e. answers "how many?")
@@ -300,8 +368,12 @@ class errorable {
 		virtual ~errorable() {}
 
 		bool ok() const { return _code == tagd::TAGD_OK; }
-		//const tagd::error& error() const { return _errors.size() > 0 ? _errors[0] : tagd::error(); }
 		tagd_code code() const { return _code; }
+		tagd::error& last_error() {
+			if (_errors.size() == 0)
+				_errors.push_back(tagd::error());
+			return _errors[_errors.size()-1];
+		}
 
 		// set and return
         tagd_code code(tagd_code c) { if(_code != c) _code = c; return c; }

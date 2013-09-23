@@ -698,6 +698,33 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( b.pos() == tagd::POS_INTERROGATOR )
 	}
 
+	void test_referent(void) {
+		tagd::referent a("is_a", "_is_a");
+		TS_ASSERT_EQUALS( a.refers() , "is_a" )
+		TS_ASSERT_EQUALS( a.refers_to() , "_is_a" )
+		TS_ASSERT( a.pos() == tagd::POS_REFERENT )
+		TS_ASSERT( a.context().empty() )
+
+		tagd::referent b("perro", "dog", "spanish");
+		TS_ASSERT_EQUALS( b.refers() , "perro" )
+		TS_ASSERT_EQUALS( b.refers_to() , "dog" )
+		TS_ASSERT( b.pos() == tagd::POS_REFERENT )
+		TS_ASSERT_EQUALS( b.context() , "spanish" )
+	}
+
+	void test_referent_set(void) {
+		tagd::referent a("thing", "_entity");
+		tagd::referent b("thing", "monster", "movies");
+		tagd::referent c("thing", "physical_object", "substance");
+
+		tagd::tag_set R;
+		R.insert(a);
+		R.insert(b);
+		R.insert(c);
+
+		TS_ASSERT_EQUALS( R.size() , 3 ) 
+	}
+
     void test_error(void) {
         tagd::error err(tagd::TAG_ILLEGAL);
 		TS_ASSERT_EQUALS( err.code(), tagd::TAG_ILLEGAL ) 

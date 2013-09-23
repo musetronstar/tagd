@@ -17,7 +17,7 @@ class httagd_callback : public TAGL::callback {
 		void cmd_get(const tagd::abstract_tag&);
 		void cmd_put(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&); 
-        void error(TAGL::driver&);
+        void error(const TAGL::driver&);
         void driver(TAGL::driver *drvr) { _driver = drvr; }
 };
 
@@ -62,7 +62,7 @@ void httagd_callback::cmd_query(const tagd::interrogator& q) {
 	evbuffer_add(_output, ss.str().c_str(), ss.str().size());
 }
 
-void httagd_callback::error(TAGL::driver& D) {
+void httagd_callback::error(const TAGL::driver& D) {
 	std::stringstream ss;
 	_driver->print_errors(ss);
 	evbuffer_add(_output, ss.str().c_str(), ss.str().size());
@@ -159,7 +159,7 @@ set_connection_handlers(evhtp_connection_t * conn, void *arg) {
 
 static void
 main_cb(evhtp_request_t *req, void *arg) {
-	tagspace::sqlite *TS = arg;
+	tagspace::sqlite *TS = (tagspace::sqlite*)arg;
 	httagd_callback CB(TS, req->buffer_out);
 	TAGL::driver tagl(TS, &CB);
 	CB.driver(&tagl);

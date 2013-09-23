@@ -1,5 +1,6 @@
 CXX = g++ -g
 WFLAGS = -Wall -Wextra
+YACC = 
 
 INC =  -I../include -I../../tagd/include -I../../tagspace/include
 CXXFLAGS += $(INC)
@@ -7,7 +8,7 @@ CXXFLAGS += $(INC)
 all: tagl.o taglparser.o scanner.o
 
 scanner.o: lemonfiles
-	re2c scanner.re | g++ -c -o $@  -x c++ - $(CXXFLAGS)
+	re2c scanner.re | $(CXX) -c -o $@  -x c++ - $(CXXFLAGS)
 
 tagl.o: tagl.cc taglparser.cc taglparser.h
 	$(CXX) -c -o $@ tagl.cc $(CXXFLAGS) $(WFLAGS)

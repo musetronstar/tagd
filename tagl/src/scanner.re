@@ -39,19 +39,20 @@ next:
 		";"                  { PARSE(TERMINATOR); }
 		([ \t\r]*[\n]){2,}   { PARSE(TERMINATOR); }
 
-		[ \t\n\r]		     {
-								// std::cout << "SPACE" << std::endl;
+		[ \t\n\r]		     {  // SPACE
 								beg = p;
 								goto next;
 							 }
 
 		","                  { PARSE(SEPARATOR); }
 		
-		"GET"                { PARSE(CMD_GET); }
-		"PUT"                { PARSE(CMD_PUT); }
-		"QUERY"              { PARSE(CMD_QUERY); }
+		[Ss][Ee][Tt]         { PARSE(CMD_SET); }
+		[Gg][Ee][Tt]         { PARSE(CMD_GET); }
+		[Pp][Uu][Tt]         { PARSE(CMD_PUT); }
+		[Qq][Uu][Ee][Rr][Yy] { PARSE(CMD_QUERY); }
 
 		"*"                  { PARSE(WILDCARD); }
+		"\"\""               { PARSE(EMPTY_STR); }
 
         [0-9]+               {
 							   // TODO NUM;

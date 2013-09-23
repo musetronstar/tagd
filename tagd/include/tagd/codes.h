@@ -31,6 +31,12 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
     TS_SUBJECT_UNK,  /* 400 */
     TS_RELATOR_UNK,  /* 400 */
     TS_OBJECT_UNK,  /* 400 */
+
+    TS_REFERS_UNK, 
+    TS_REFERS_TO_UNK,
+    TS_CONTEXT_UNK,
+	TS_AMBIGUOUS,
+
     TS_ERR_MAX_TAG_LEN, /* 400 */
     TS_ERR,         /* general error due to caller input */
     TS_MISUSE,      /* caller misusing class interface */

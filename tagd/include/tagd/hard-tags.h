@@ -28,6 +28,12 @@ IMPORTANT: updates here must be reflected in tagspace::init_hard_tags()
 // interrogators
 #define HARD_TAG_INTERROGATOR "_interrogator"  // resolves objects of inquiry (queries, searches)
 
+// referents
+#define HARD_TAG_REFERENT  "_referent"	// super relation for token that refer to a tag in a context
+#define HARD_TAG_REFERS    "_refers"	// relation that refers a refers_to to a tag
+#define HARD_TAG_REFERS_TO "_refers_to"	// relation that refers_to a tag
+#define HARD_TAG_CONTEXT   "_context"	// relation that defines the context of a _referent
+
 // errors
 #define HARD_TAG_ERROR "_error"
 #define HARD_TAG_ERROR_MSG "_error_msg"
