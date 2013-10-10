@@ -117,7 +117,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.id(), "http://example.com" );
 //  rpub:priv_label:rsub:path:query:fragment:port:user:pass:scheme
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example:http" )
 
 		// std::cout << a << std::endl;
 		// com:example:http _is_a _url
@@ -126,7 +126,7 @@ class Tester : public CxxTest::TestSuite {
 		//    	_scheme	http 
 
 		tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
         TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -134,10 +134,10 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( b.path().empty() );
         TS_ASSERT_EQUALS( b.id(), "http://example.com" );
 //  rpub:priv_label:rsub:path:query:fragment:port:user:pass:scheme
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example:http" )
     }
 
-    void test_hdurl_ctor(void) {
+    void test_hduri_ctor(void) {
         tagd::url a("http://example.com");
         TS_ASSERT( !a.empty() );
         TS_ASSERT( a.ok() )
@@ -146,13 +146,13 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.id(), "http://example.com" );
 //  rpub:priv_label:rsub:path:query:fragment:port:user:pass:scheme
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example:http" )
 		// std::cout << a << std::endl;
 
-		std::string hdurl("hdurl://");
-		hdurl.append(a.hdurl());
+		std::string hduri("hduri://");
+		hduri.append(a.hduri());
 
-		tagd::url b(hdurl);
+		tagd::url b(hduri);
         TS_ASSERT( !b.empty() );
         TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -160,7 +160,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( b.path().empty() );
         TS_ASSERT_EQUALS( b.id(), "http://example.com" );
 //  rpub:priv_label:rsub:path:query:fragment:port:user:pass:scheme
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example:http" )
     }
 
     void test_ok(void) {
@@ -179,18 +179,18 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.host(), "example.com" );
         TS_ASSERT_EQUALS( a.path(), "/" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com/" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::/:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::/:http" )
 		// std::cout << a << std::endl;
 
 		tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
         TS_ASSERT( a.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
         TS_ASSERT_EQUALS( b.host(), "example.com" );
         TS_ASSERT_EQUALS( b.path(), "/" );
         TS_ASSERT_EQUALS( b.id(), "http://example.com/" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::/:http" );
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::/:http" );
     }
 
     void test_sub_slash_path(void) {
@@ -201,18 +201,18 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.host(), "a.b.c.example.com" );
         TS_ASSERT_EQUALS( a.path(), "/" );
         TS_ASSERT_EQUALS( a.id(), "http://a.b.c.example.com/" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example:c.b.a:/:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example:c.b.a:/:http" )
 		// std::cout << a << std::endl;
 
 		tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
         TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
         TS_ASSERT_EQUALS( b.host(), "a.b.c.example.com" );
         TS_ASSERT_EQUALS( b.path(), "/" );
         TS_ASSERT_EQUALS( b.id(), "http://a.b.c.example.com/" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example:c.b.a:/:http" );
+        TS_ASSERT_EQUALS( b.hduri(), "com:example:c.b.a:/:http" );
     }
 
     void test_path(void) {
@@ -223,18 +223,18 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.host(), "example.com" );
         TS_ASSERT_EQUALS( a.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com/a/b/c" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::/a/b/c:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::/a/b/c:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
         TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
         TS_ASSERT_EQUALS( b.host(), "example.com" );
         TS_ASSERT_EQUALS( b.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( b.id(), "http://example.com/a/b/c" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::/a/b/c:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::/a/b/c:http" )
     }
 
     void test_no_path_query(void) {
@@ -246,11 +246,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com?a=1&b=2" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example:::?a=1&b=2:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example:::?a=1&b=2:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
         TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -258,7 +258,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( b.path().empty() );
         TS_ASSERT_EQUALS( b.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( b.id(), "http://example.com?a=1&b=2" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example:::?a=1&b=2:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example:::?a=1&b=2:http" )
 
     }
 
@@ -271,11 +271,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.path(), "/" );
         TS_ASSERT_EQUALS( a.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com/?a=1&b=2" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::/:?a=1&b=2:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::/:?a=1&b=2:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
         TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -283,7 +283,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.path(), "/" );
         TS_ASSERT_EQUALS( b.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( b.id(), "http://example.com/?a=1&b=2" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::/:?a=1&b=2:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::/:?a=1&b=2:http" )
     }
 
     void test_path_query(void) {
@@ -295,11 +295,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( a.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com/a/b/c?a=1&b=2" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::/a/b/c:?a=1&b=2:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::/a/b/c:?a=1&b=2:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
         TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -307,7 +307,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( b.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( b.id(), "http://example.com/a/b/c?a=1&b=2" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::/a/b/c:?a=1&b=2:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::/a/b/c:?a=1&b=2:http" )
     }
 
     void test_path_slash_query(void) {
@@ -319,11 +319,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.path(), "/a/b/c/" );
         TS_ASSERT_EQUALS( a.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com/a/b/c/?a=1&b=2" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::/a/b/c/:?a=1&b=2:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::/a/b/c/:?a=1&b=2:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
 
         TS_ASSERT( !b.empty() );
         TS_ASSERT( b.ok() )
@@ -332,7 +332,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.path(), "/a/b/c/" );
         TS_ASSERT_EQUALS( b.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( b.id(), "http://example.com/a/b/c/?a=1&b=2" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::/a/b/c/:?a=1&b=2:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::/a/b/c/:?a=1&b=2:http" )
     }
 
     void test_empty_query(void) {
@@ -342,21 +342,21 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.host(), "example.com" );
         TS_ASSERT( a.path().empty() );
 		// the '?' is retained query strings, otherwise we would have no
-		// in the hdurl to determine between "http://example.com?" and "http://example.com"
+		// in the hduri to determine between "http://example.com?" and "http://example.com"
         TS_ASSERT_EQUALS( a.query(),  "?" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example:::?:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example:::?:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
         TS_ASSERT_EQUALS( b.host(), "example.com" );
         TS_ASSERT( b.path().empty() );
 		// the '?' is retained query strings, otherwise we would have no
-		// in the hdurl to determine between "http://example.com?" and "http://example.com"
+		// in the hduri to determine between "http://example.com?" and "http://example.com"
         TS_ASSERT_EQUALS( b.query(),  "?" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example:::?:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example:::?:http" )
     }
 
     void test_path_empty_query(void) {
@@ -366,17 +366,17 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.host(), "example.com" );
         TS_ASSERT_EQUALS( a.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( a.query(),  "?" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::/a/b/c:?:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::/a/b/c:?:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
         TS_ASSERT_EQUALS( b.host(), "example.com" );
         TS_ASSERT_EQUALS( b.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( b.query(),  "?" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::/a/b/c:?:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::/a/b/c:?:http" )
     }
 
     void test_simple_port(void) {
@@ -390,11 +390,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.port(), "8080" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com:8080" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example:::::8080:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example:::::8080:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
         TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -402,7 +402,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( b.path().empty() );
         TS_ASSERT_EQUALS( b.port(), "8080" );
         TS_ASSERT_EQUALS( b.id(), "http://example.com:8080" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example:::::8080:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example:::::8080:http" )
     }
 
     void test_port_path(void) {
@@ -414,11 +414,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.port(), "8080" );
         TS_ASSERT_EQUALS( a.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com:8080/a/b/c" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::/a/b/c:::8080:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::/a/b/c:::8080:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
         TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -426,7 +426,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.port(), "8080" );
         TS_ASSERT_EQUALS( b.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( b.id(), "http://example.com:8080/a/b/c" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::/a/b/c:::8080:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::/a/b/c:::8080:http" )
     }
 
     void test_port_query(void) {
@@ -439,11 +439,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com:8080?a=1&b=2" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example:::?a=1&b=2::8080:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example:::?a=1&b=2::8080:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
         TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -452,7 +452,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( b.path().empty() );
         TS_ASSERT_EQUALS( b.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( b.id(), "http://example.com:8080?a=1&b=2" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example:::?a=1&b=2::8080:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example:::?a=1&b=2::8080:http" )
     }
 
     void test_fragment(void) {
@@ -464,11 +464,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.fragment(), "here" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com#here" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::::here:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::::here:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
 		TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -476,7 +476,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( b.path().empty() );
         TS_ASSERT_EQUALS( b.fragment(), "here" );
         TS_ASSERT_EQUALS( b.id(), "http://example.com#here" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::::here:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::::here:http" )
     }
 
 	//  TODO maybe
@@ -490,12 +490,12 @@ class Tester : public CxxTest::TestSuite {
 //        TS_ASSERT( a.path().empty() );
 //        TS_ASSERT( a.fragment().empty() );
 //        TS_ASSERT_EQUALS( a.id(), "http://example.com#" );
-//        TS_ASSERT_EQUALS( a.hdurl(), "com:example::::::::http" )
+//        TS_ASSERT_EQUALS( a.hduri(), "com:example::::::::http" )
 //		std::cout << "a.debug(" << __LINE__ << "):" << std::std::endl;
 //		a.debug();
 
 //        tagd::url b;
-//		b.init_hdurl(a.hdurl());
+//		b.init_hduri(a.hduri());
 //		std::cout << "b.debug(" << __LINE__ << "):" << std::std::endl;
 //		b.debug();
 //        TS_ASSERT( !b.empty() );
@@ -505,7 +505,7 @@ class Tester : public CxxTest::TestSuite {
  //       TS_ASSERT( b.path().empty() );
 //        TS_ASSERT( b.fragment().empty() );
 //        TS_ASSERT_EQUALS( b.id(), "http://example.com#" );
-//        TS_ASSERT_EQUALS( b.hdurl(), "com:example::::::::http" )
+//        TS_ASSERT_EQUALS( b.hduri(), "com:example::::::::http" )
 //    }
 
     void test_simple_user(void) {
@@ -518,11 +518,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.host(), "example.com" );
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.id(), "http://joe@example.com" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::::::joe:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::::::joe:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
 		TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -531,7 +531,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.host(), "example.com" );
         TS_ASSERT( b.path().empty() );
         TS_ASSERT_EQUALS( b.id(), "http://joe@example.com" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::::::joe:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::::::joe:http" )
     }
 
     void test_sub_user(void) {
@@ -544,11 +544,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.host(), "www.example.com" );
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.id(), "http://joe@www.example.com" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example:www:::::joe:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example:www:::::joe:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
 		TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -557,7 +557,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.host(), "www.example.com" );
         TS_ASSERT( b.path().empty() );
         TS_ASSERT_EQUALS( b.id(), "http://joe@www.example.com" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example:www:::::joe:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example:www:::::joe:http" )
     }
 
     void test_simple_user_pass(void) {
@@ -570,11 +570,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.host(), "example.com" );
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.id(), "http://joe:bl0w@example.com" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::::::joe:bl0w:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::::::joe:bl0w:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
 		TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -583,7 +583,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.host(), "example.com" );
         TS_ASSERT( b.path().empty() );
         TS_ASSERT_EQUALS( b.id(), "http://joe:bl0w@example.com" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::::::joe:bl0w:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::::::joe:bl0w:http" )
     }
 
     void test_user_blank_pass(void) {
@@ -596,11 +596,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.host(), "example.com" );
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.id(), "http://joe:@example.com" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::::::joe::http" );
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::::::joe::http" );
 		// std::cout << a << std::endl;
 
 		tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
 
         TS_ASSERT( !b.empty() );
 		TS_ASSERT( b.ok() )
@@ -610,7 +610,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.host(), "example.com" );
         TS_ASSERT( b.path().empty() );
         TS_ASSERT_EQUALS( b.id(), "http://joe:@example.com" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::::::joe::http" );
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::::::joe::http" );
     }
 
     void test_sub_user_blank_pass(void) {
@@ -623,11 +623,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.host(), "www.example.com" );
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.id(), "http://joe:@www.example.com" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example:www:::::joe::http" );
+        TS_ASSERT_EQUALS( a.hduri(), "com:example:www:::::joe::http" );
 		// std::cout << a << std::endl;
 
 		tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
 
         TS_ASSERT( !b.empty() );
 		TS_ASSERT( b.ok() )
@@ -637,7 +637,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.host(), "www.example.com" );
         TS_ASSERT( b.path().empty() );
         TS_ASSERT_EQUALS( b.id(), "http://joe:@www.example.com" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example:www:::::joe::http" );
+        TS_ASSERT_EQUALS( b.hduri(), "com:example:www:::::joe::http" );
     }
 
     void test_simple_user_pass_path(void) {
@@ -650,11 +650,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.host(), "example.com" );
         TS_ASSERT_EQUALS( a.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( a.id(), "http://joe:bl0w@example.com/a/b/c" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::/a/b/c::::joe:bl0w:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::/a/b/c::::joe:bl0w:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
 		TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -663,7 +663,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.host(), "example.com" );
         TS_ASSERT_EQUALS( b.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( b.id(), "http://joe:bl0w@example.com/a/b/c" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::/a/b/c::::joe:bl0w:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::/a/b/c::::joe:bl0w:http" )
     }
 
     void test_simple_user_pass_query(void) {
@@ -677,11 +677,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( a.id(), "http://joe:bl0w@example.com?a=1&b=2" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example:::?a=1&b=2:::joe:bl0w:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example:::?a=1&b=2:::joe:bl0w:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
 		TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -691,7 +691,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( b.path().empty() );
         TS_ASSERT_EQUALS( b.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( b.id(), "http://joe:bl0w@example.com?a=1&b=2" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example:::?a=1&b=2:::joe:bl0w:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example:::?a=1&b=2:::joe:bl0w:http" )
     }
 
     void test_simple_user_pass_path_query(void) {
@@ -705,11 +705,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( a.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( a.id(), "http://joe:bl0w@example.com/a/b/c?a=1&b=2" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::/a/b/c:?a=1&b=2:::joe:bl0w:http" )
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::/a/b/c:?a=1&b=2:::joe:bl0w:http" )
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
 		TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -719,7 +719,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( b.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( b.id(), "http://joe:bl0w@example.com/a/b/c?a=1&b=2" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::/a/b/c:?a=1&b=2:::joe:bl0w:http" )
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::/a/b/c:?a=1&b=2:::joe:bl0w:http" )
     }
 
     void test_simple_user_blank_pass_query(void) {
@@ -733,11 +733,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( a.id(), "http://joe:@example.com?a=1&b=2" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example:::?a=1&b=2:::joe::http" );
+        TS_ASSERT_EQUALS( a.hduri(), "com:example:::?a=1&b=2:::joe::http" );
 		// std::cout << a << std::endl;
 		
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
 		TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -747,7 +747,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( b.path().empty() );
         TS_ASSERT_EQUALS( b.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( b.id(), "http://joe:@example.com?a=1&b=2" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example:::?a=1&b=2:::joe::http" );
+        TS_ASSERT_EQUALS( b.hduri(), "com:example:::?a=1&b=2:::joe::http" );
     }
 
     void test_simple_user_blank_pass_path_query(void) {
@@ -761,11 +761,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( a.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( a.id(), "http://joe:@example.com/a/b/c?a=1&b=2" );
-        TS_ASSERT_EQUALS( a.hdurl(), "com:example::/a/b/c:?a=1&b=2:::joe::http" );
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::/a/b/c:?a=1&b=2:::joe::http" );
 		// std::cout << a << std::endl;
 
         tagd::url b;
-		b.init_hdurl(a.hdurl());
+		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
 		TS_ASSERT( b.ok() )
         TS_ASSERT_EQUALS( b.scheme(), "http" );
@@ -775,7 +775,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.path(), "/a/b/c" );
         TS_ASSERT_EQUALS( b.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( b.id(), "http://joe:@example.com/a/b/c?a=1&b=2" );
-        TS_ASSERT_EQUALS( b.hdurl(), "com:example::/a/b/c:?a=1&b=2:::joe::http" );
+        TS_ASSERT_EQUALS( b.hduri(), "com:example::/a/b/c:?a=1&b=2:::joe::http" );
     }
 
     void test_relations(void) {

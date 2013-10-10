@@ -8,7 +8,7 @@ tagd::code bootstrap::put_hard_tag(
 		tagspace& TS, const tagd::id_type& id,
 		const tagd::id_type& super, const tagd::part_of_speech& pos) {
 	tagd::abstract_tag t(id, super, pos);
-	tagd::code rs = TS.put(t);
+	tagd::code rs = TS.put(t, NO_POS_CAST);
 	assert((rs == tagd::TAGD_OK)||(rs == tagd::TS_DUPLICATE));
 	return rs;
 }
@@ -23,11 +23,12 @@ tagd::code bootstrap::init_hard_tags(tagspace& TS) {
 	// so that it can enforce its circular referential constraints
 
 	// IMPORTANT: updates to tagd/hard-tags.h must be reflected here
-	PUT_OR_DIE(HARD_TAG_SUPER, "_entity", tagd::POS_TAG)
+	PUT_OR_DIE(HARD_TAG_SUPER, "_entity", tagd::POS_SUPER)
 	PUT_OR_DIE(HARD_TAG_IS_A, HARD_TAG_SUPER, tagd::POS_SUPER)
 	PUT_OR_DIE(HARD_TAG_TYPE_OF, HARD_TAG_SUPER, tagd::POS_SUPER)
 	PUT_OR_DIE(HARD_TAG_RELATOR, "_entity", tagd::POS_RELATOR)
 	PUT_OR_DIE(HARD_TAG_HAS, HARD_TAG_RELATOR, tagd::POS_RELATOR)
+	PUT_OR_DIE(HARD_TAG_CAN, HARD_TAG_RELATOR, tagd::POS_RELATOR)
 	// actual URLs will use POS_URL, using POS_URL for _url will create problems (it won't parse as a url)
 	PUT_OR_DIE(HARD_TAG_URL, "_entity", tagd::POS_TAG)
 	PUT_OR_DIE(HARD_TAG_INTERROGATOR, "_entity", tagd::POS_INTERROGATOR) 

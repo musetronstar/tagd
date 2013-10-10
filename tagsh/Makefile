@@ -1,5 +1,5 @@
 SRC_DIR = ./src
-BUILD_DIR = ./build
+BUILD_DIR = ./bin
 TEST_DIR = ./tests
 
 all: tagsh
@@ -9,7 +9,7 @@ tagsh: force_look
 	make -C	$(SRC_DIR)
 
 tests: force_look tagsh
-	# make -C $(TEST_DIR)  # TODO
+	make -C $(TEST_DIR)
 
 force_look:
 	true

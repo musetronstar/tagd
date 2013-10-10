@@ -36,13 +36,23 @@ void insert_predicate(predicate_set& P,
     P.insert(make_predicate(relator, object, modifier));
 }
 
+void print_tags(const tag_set& T, std::ostream& os) {
+	if (T.size() == 0) return;
+
+	tagd::tag_set::iterator it = T.begin();
+	os << *it;
+	for (++it; it != T.end(); ++it) {
+		os << std::endl << std::endl << *it;
+	}
+	os << std::endl;
+}
+
 void print_tag_ids(const tag_set& T, std::ostream& os) {
 	if (T.size() == 0) return;
 
 	tagd::tag_set::iterator it = T.begin();
 	os << it->id();
-	++it;
-	for (; it != T.end(); ++it) {
+	for (++it; it != T.end(); ++it) {
 		os << ", " << it->id();
 	}
 	os << std::endl;
@@ -60,6 +70,25 @@ std::string tag_ids_str(const tag_set& T) {
 	}
 
 	return ss.str();
+}
+
+id_type super_relator(const part_of_speech &p) {
+    switch (p) {
+        case POS_TAG:
+        case POS_URL:
+			return HARD_TAG_IS_A;
+        case POS_REFERENT:
+			return HARD_TAG_REFERS_TO;
+        default:
+			return HARD_TAG_TYPE_OF;
+    }
+}
+
+id_type super_relator(const abstract_tag& t) {
+	if (t.id() == HARD_TAG_REFERENT)
+		return HARD_TAG_IS_A;
+	else
+		return super_relator(t.pos());
 }
 
 void merge_tags(tag_set& A, const tag_set& B) {
@@ -292,69 +321,110 @@ id_type referent::context() const {
 
 // tag output functions
 
-bool is_number(const std::string& s) {
-    std::string::const_iterator it = s.begin();
-    while (it != s.end() && std::isdigit(*it)) ++it;
-    return !s.empty() && it == s.end();
+// whether a label should be quoted
+inline bool do_quotes(const id_type& s) {
+	for (size_t i=0; i<s.size(); i++) {
+		if (isspace(s[i]))
+			return true;
+
+		switch (s[i]) {
+			case ';':
+			case ':':
+			case '=':
+				return true;
+			default:
+				continue;
+		}
+	}
+
+	return false;
 }
 
-struct output_relations {
-    std::ostream& os;
-    id_type _last_relator;
-    output_relations(std::ostream& out) : os(out), _last_relator() {}
-    void operator() (const predicate& p) {
-		// use wildcard for empty relators
-		id_type relator(p.relator.empty() ? "*" : p.relator);
-        if (_last_relator == relator) {
-            os << ", " <<  p.object;
-		} else {
-            os << std::endl << relator << ' ' <<  p.object;
-			_last_relator = relator;
-		}
+void print_object (std::ostream& os, const predicate& p) {
+	os << p.object;
+	if (!p.modifier.empty()) {
+		os << " = ";
+		if (do_quotes(p.modifier))
+			os << '"' << p.modifier << '"';
+		else
+			os << p.modifier;
+	} 
+}
 
-		if (!p.modifier.empty()) {
-			if (is_number(p.modifier)) // TODO a more robust scanner of types
-				os << ' ' << p.modifier;
-			else
-				os << ' ' << '"' << p.modifier << '"';
-		} 
-    }
-};
-
-
-// note it is a tag freind function, not abstract_tag::operator<<
+// note it is a tag friend function, not abstract_tag::operator<<
 std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
 	if (!t.super().empty())
-		os << t.id() << ' ' << super_relator(t.pos()) << ' ' << t.super();
+		os << t.id() << ' ' << super_relator(t) << ' ' << t.super();
 	else
 		os << t.id();
-    for_each ( t.relations.begin(), t.relations.end(), output_relations(os) );
+
+	predicate_set::const_iterator it = t.relations.begin();
+	if (it == t.relations.end())
+		return os;
+
+	if (t.relations.size() == 1 && t.super().empty()) {
+		os << ' ' << it->relator << ' ';
+		print_object(os, *it);
+		return os;
+	} 
+
+	id_type last_relator;
+	for (; it != t.relations.end(); ++it) {
+		// use wildcard for empty relators
+		id_type relator(it->relator.empty() ? "*" : it->relator);
+		if (last_relator == relator) {
+			os << ", ";
+			print_object(os, *it);
+		} else {
+			os << std::endl << relator << ' ';
+			print_object(os, *it);
+			last_relator = relator;
+		}
+	}
+ 
     return os;
 }
 // end tag output functions
+
+char* util::csprintf(const char *fmt, ...) {
+	va_list args;
+	va_start (args, fmt);
+	va_end (args);
+
+	return util::csprintf(fmt, args);
+}
+
+static const size_t CSPRINTF_MAX_SZ = 255;
+static char CSPRINTF_BUF[CSPRINTF_MAX_SZ+1];
+char* util::csprintf(const char *fmt, va_list& args) {
+	int sz = vsnprintf(CSPRINTF_BUF, CSPRINTF_MAX_SZ, fmt, args);
+	if (sz <= 0) {
+		std::cerr << "error vsnprintf failed: " << fmt << std::endl;
+		return NULL;
+	}
+
+	if ((size_t)sz >= CSPRINTF_MAX_SZ) {
+		CSPRINTF_BUF[CSPRINTF_MAX_SZ] = '\0';
+		std::cerr << "error truncated to " << CSPRINTF_MAX_SZ << "chars: " << CSPRINTF_BUF << std::endl;
+		return NULL;
+	}
+
+	return CSPRINTF_BUF;
+}
 
 // error helper class
 tagd_code errorable::error(tagd::code c, const char *errfmt, ...) {
 	_code = c;
 
-	const size_t max_sz = 255;
-	char buf[max_sz+1];
 	va_list args;
 	va_start (args, errfmt);
-	int sz = vsnprintf(buf, max_sz, errfmt, args);
-	if (sz <= 0) {
-		std::cerr << "error vsnprintf failed: " << errfmt << std::endl;
-		return c;
-	}
-	if ((size_t)sz >= max_sz) {
-		buf[max_sz] = '\0';
-		std::cerr << "error truncated to " << max_sz << "chars: " << buf << std::endl;
-	}
-	
-	// std::cerr << "error: " << tagd_code_str(c) << ", " << buf << std::endl;
-
-	_errors.push_back(tagd::error(c, buf));
 	va_end (args);
+		
+	char *msg = util::csprintf(errfmt, args);
+	if (msg == NULL)
+		_errors.push_back(tagd::error(c, "errorable::error() failed"));
+	else
+		_errors.push_back(tagd::error(c, msg));
 
 	return c;
 }

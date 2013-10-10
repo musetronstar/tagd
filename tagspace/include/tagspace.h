@@ -1,18 +1,19 @@
 #pragma once
 
 #include <cassert>
-#include <bitset>
+#include <stdint.h>
 #include "tagd.h"
 
 namespace tagspace {
 
 typedef enum {
-	NO_REFERENTS	= 1 << 0		// don't do referent lookups
+	NO_REFERENTS	= 1, //= 1 << 0,		// don't do referent lookups
+	NO_POS_CAST	    = 2  //= 1 << 1,		// don't cast a tag according to its pos (i.e. url, referent...)
 	// ...
 	//          	= 1 << 31,
-} flags;
+} ts_flags;
 
-typedef std::bitset<sizeof(flags)> flags_t;
+typedef uint32_t flags_t;
 
 // pure virtual interface
 class tagspace : public tagd::errorable {
@@ -24,22 +25,10 @@ class tagspace : public tagd::errorable {
 		tagspace() : tagd::errorable(tagd::TS_INIT) {}
 		virtual ~tagspace() {}
 
-		tagd_code push_context(const tagd::id_type& id) {
-			tagd::abstract_tag t;
-			if (this->exists(id) == tagd::TAGD_OK) {
-				_context.push_back(id);
-				return _code;
-			}
-
-			return this->error(tagd::TS_INTERNAL_ERR, "push_context failed: %s");
-		}
-
-		const tagd::id_vec& context() const { return _context; }
-
-		// though returning a tagd code is irrelevent here, it is useful
-		// for derived classes to return a code
-		tagd_code pop_context() { _context.pop_back(); return tagd::TAGD_OK; }
-		tagd_code clear_context() { _context.clear(); return tagd::TAGD_OK; }
+		virtual tagd_code push_context(const tagd::id_type&);
+		virtual const tagd::id_vec& context() const;
+		virtual tagd_code pop_context();
+		virtual tagd_code clear_context();
 
 		virtual tagd_code get(tagd::abstract_tag&, const tagd::id_type&, const flags_t& = flags_t()) = 0; // get into tag, given id
 		virtual tagd_code put(const tagd::abstract_tag&, const flags_t& = flags_t()) = 0;

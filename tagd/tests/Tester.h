@@ -679,7 +679,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd::url u("http://hypermega.com");
         u.relation("has","links", "4");
         u.relation("about", "computer_security");
-		TS_ASSERT_EQUALS( u.hdurl() , "com:hypermega:http" )
+		TS_ASSERT_EQUALS( u.hduri() , "com:hypermega:http" )
 		TS_ASSERT_EQUALS( u.super() , "_url" )
 		TS_ASSERT( u.pos() == tagd::POS_URL )
 		TS_ASSERT( u.related("has", "links") )

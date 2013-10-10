@@ -33,6 +33,7 @@ class sqlite: public tagspace {
         sqlite3_stmt *_related_stmt;
         sqlite3_stmt *_related_modifier_stmt;
         sqlite3_stmt *_related_null_super_stmt;
+		sqlite3_stmt *_get_children_stmt;
         sqlite3_stmt *_related_null_super_modifier_stmt;
         /*** uridb ***/
         sqlite3_stmt *_get_uri_stmt;
@@ -75,6 +76,7 @@ class sqlite: public tagspace {
             _related_stmt(NULL),
             _related_modifier_stmt(NULL),
             _related_null_super_stmt(NULL),
+			_get_children_stmt(NULL),
             _related_null_super_modifier_stmt(NULL),
             /*** uridb ***/
             _get_uri_stmt(NULL),
@@ -120,6 +122,7 @@ class sqlite: public tagspace {
 
         tagd_code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type& = "_entity");
         tagd_code query(tagd::tag_set&, const tagd::interrogator&);
+        tagd_code get_children(tagd::tag_set&, const tagd::id_type&);
         tagd_code query_referents(tagd::tag_set&, const tagd::interrogator&);
 
         tagd_code dump(std::ostream& = std::cout);

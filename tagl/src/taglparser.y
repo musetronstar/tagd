@@ -127,12 +127,14 @@ cmd(c) ::= CMD_TEST .
 
 %type context { std::string * }
 set_statement ::= set_context .
-set_context ::= CMD_SET CONTEXT context_list .
-set_context ::= CMD_SET CONTEXT EMPTY_STR .
+set_context ::= cmd_set_context context_list .
+set_context ::= cmd_set_context EMPTY_STR .
+cmd_set_context ::= CMD_SET CONTEXT .
 {
+	// clear context before pushing, or errors occur if not empty
 	tagl->_TS->clear_context();
 }
-context_list ::= context_list SEPARATOR push_context .
+context_list ::= context_list COMMA push_context .
 context_list ::= push_context .
 push_context ::= context(c) .
 {
@@ -140,6 +142,8 @@ push_context ::= context(c) .
 }
 
 get_statement ::= CMD_GET subject .
+// let tagspace return unknown or do context disambiguation
+get_statement ::= CMD_GET unknown .
 
 put_statement ::= CMD_PUT subject_super_relation relations .
 put_statement ::= CMD_PUT subject_super_relation .
@@ -324,6 +328,12 @@ super_object ::=  INTERROGATOR(I) .
 {
 	tagl->_tag->super(*I);
 }
+super_object ::=  REFERENT(R) .
+{
+	tagl->_tag->super(*R);
+}
+
+
 
 /* URL are concretes.
    They can't be a super, unless we devise a way for 
@@ -349,12 +359,16 @@ relator ::= WILDCARD .
 	tagl->_relator.clear(); 
 }
 
-object_list ::= object_list SEPARATOR object .
+object_list ::= object_list COMMA object .
 object_list ::= object .
 
-object ::= TAG(T) QUANTIFIER(Q) .
+object ::= TAG(T) EQUALS QUANTIFIER(Q) .
 {
 	tagl->_tag->relation(tagl->_relator, *T, *Q);
+}
+object ::= TAG(T) EQUALS MODIFIER(M) .
+{
+	tagl->_tag->relation(tagl->_relator, *T, *M);
 }
 object ::= TAG(T) .
 {

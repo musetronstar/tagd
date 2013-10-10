@@ -1,5 +1,5 @@
 SRC_DIR = ./src
-BUILD_DIR = ./build
+BUILD_DIR = ./lib
 TEST_DIR = ./tests
 
 LIB = $(BUILD_DIR)/libtagl.a

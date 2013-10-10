@@ -25,12 +25,12 @@ tagd_code url::init(const std::string &url) {
 
             if (_id.substr(i, 3) == "://") {
 				/*
-				 * hdurl://com:example:http
+				 * hduri://com:example:http
 				 * becomes:
 				 * http://example.com
 				 */
-				if (_id.substr(0, i) == "hdurl")
-					return this->init_hdurl(_id.substr(i+3));
+				if (_id.substr(0, i) == "hduri")
+					return this->init_hduri(_id.substr(i+3));
                 _scheme_len = i;
                 i += 3;
                 goto authority;
@@ -280,10 +280,10 @@ url_ok:
     return code(TAGD_OK);
 }
 
-tagd_code url::init_hdurl(const std::string &hdurl) {
+tagd_code url::init_hduri(const std::string &hduri) {
     if (!this->empty()) this->clear();
 
-    size_t sz = hdurl.size();
+    size_t sz = hduri.size();
     if (sz == 0) return _code;  // URL_EMPTY
 
     if (sz > URL_MAX_LEN) return code(URL_MAX_LEN);
@@ -291,7 +291,7 @@ tagd_code url::init_hdurl(const std::string &hdurl) {
 	// find scheme (at the end)
     size_t i = sz;
 	while (--i > 0) {
-		if (hdurl[i] == HDURI_DELIM)
+		if (hduri[i] == HDURI_DELIM)
 			break;
 	}
 
@@ -300,7 +300,7 @@ tagd_code url::init_hdurl(const std::string &hdurl) {
 
 	// scheme is after the last delim
     std::stringstream ss_url;
-	ss_url << hdurl.substr(i+1);
+	ss_url << hduri.substr(i+1);
 
 	_scheme_len = sz - (i+1);
 	sz = _scheme_len;  // reuse sz for url now
@@ -313,8 +313,8 @@ tagd_code url::init_hdurl(const std::string &hdurl) {
 	//std::cout << "_scheme_len(" << __LINE__ << "): " << _scheme_len << std::endl;
 
 	{
-		// we will split on the hdurl before :scheme
-		std::string s(hdurl.substr(0, i));
+		// we will split on the hduri before :scheme
+		std::string s(hduri.substr(0, i));
 
 		size_t idx, j;
 		idx = j = i = 0;
@@ -424,7 +424,7 @@ tagd_code url::init_hdurl(const std::string &hdurl) {
     return code(TAGD_OK);
 }
 
-inline void print_hdurl_elem(std::ostream& os, const std::string& elem, int *dropped, bool rev_labels=false) {
+inline void print_hduri_elem(std::ostream& os, const std::string& elem, int *dropped, bool rev_labels=false) {
 	if (!elem.empty()) {
 		if (*dropped) {
 			os << std::string((*dropped), HDURI_DELIM);
@@ -467,7 +467,7 @@ inline void print_hdurl_elem(std::ostream& os, const std::string& elem, int *dro
 //
 //  TODO, you probably want to use '~' (ascii 127) as your delimiter
 //  because it will collate after all other printable chars
-std::string url::hdurl() const {
+std::string url::hduri() const {
 	assert(!this->scheme().empty());
 
     std::stringstream ss;
@@ -479,13 +479,13 @@ std::string url::hdurl() const {
 	else
 		dropped++;
 
-	print_hdurl_elem(ss, d.priv_label(), &dropped);
-	print_hdurl_elem(ss, d.sub(), &dropped, true);
-	print_hdurl_elem(ss, this->path(), &dropped);
-	print_hdurl_elem(ss, this->query(), &dropped);
-	print_hdurl_elem(ss, this->fragment(), &dropped);
-	print_hdurl_elem(ss, this->port(), &dropped);
-	print_hdurl_elem(ss, this->user(), &dropped);
+	print_hduri_elem(ss, d.priv_label(), &dropped);
+	print_hduri_elem(ss, d.sub(), &dropped, true);
+	print_hduri_elem(ss, this->path(), &dropped);
+	print_hduri_elem(ss, this->query(), &dropped);
+	print_hduri_elem(ss, this->fragment(), &dropped);
+	print_hduri_elem(ss, this->port(), &dropped);
+	print_hduri_elem(ss, this->user(), &dropped);
 
 	// we have to distinguish between "no password"
 	// and "blank password"
@@ -496,7 +496,7 @@ std::string url::hdurl() const {
 		}
 		ss << HDURI_DELIM;  // :<blank pass>
 	} else
-		print_hdurl_elem(ss, this->pass(), &dropped);
+		print_hduri_elem(ss, this->pass(), &dropped);
 
 	ss << HDURI_DELIM << this->scheme();
 

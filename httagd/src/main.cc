@@ -2,10 +2,15 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <cstring>
+#include <cstdio>
+#include <sys/stat.h>
 
 #include "tagd.h"
 #include "tagl.h"
 #include "tagspace/sqlite.h"
+
+bool TRACE_ON = false;
 
 class httagd_callback : public TAGL::callback {
 		TAGL::driver *_driver;
@@ -76,10 +81,10 @@ handle_path(evhtp_request_t *req, evhtp_path_t *path, void *arg) {
 
 	switch(evhtp_request_get_method(req)) {
 		case htp_method_GET:
-			tagl->tagurl_get(path->full);			
+			tagl->tagdurl_get(path->full);			
 			break;
 		case htp_method_PUT:
-			tagl->tagurl_put(path->full);			
+			tagl->tagdurl_put(path->full);			
 			break;
 		default:
 			evbuffer_add_printf(req->buffer_out, "Unsupported method: %d",
@@ -164,13 +169,16 @@ main_cb(evhtp_request_t *req, void *arg) {
 	TAGL::driver tagl(TS, &CB);
 	CB.driver(&tagl);
 
+	if (TRACE_ON)
+		TAGL::driver::trace_on((char *)"trace: ");
+
 	switch(evhtp_request_get_method(req)) {
 		case htp_method_GET:
-			tagl.tagurl_get(req->uri->path->full);			
+			tagl.tagdurl_get(req->uri->path->full);			
 			tagl.finish();
 			break;
 		case htp_method_PUT:
-			tagl.tagurl_put(req->uri->path->full);
+			tagl.tagdurl_put(req->uri->path->full);
 			tagl.evbuffer_execute(req->buffer_in);
 			tagl.finish();
 			break;
@@ -204,28 +212,69 @@ main_cb(evhtp_request_t *req, void *arg) {
 			evbuffer_add(req->buffer_out, ss.str().c_str(), ss.str().size());
 	}
 
-	if (tagl.code() == tagd::TAGD_OK)
+	if (tagl.code() == tagd::TAGD_OK) {
 		evhtp_send_reply(req, EVHTP_RES_OK);
-	else
+	} else {
+		tagl.clear_errors();
 		evhtp_send_reply(req, EVHTP_RES_SERVERR);
+	}
+}
+
+// TODO put in a utility library
+int error(const char *errfmt, ...) {
+	va_list args;
+	va_start (args, errfmt);
+	va_end (args);
+
+	char *err = tagd::util::csprintf(errfmt, args);
+	if (err != NULL)
+		std::perror(err);
+	return 1;
+}
+
+// TODO put in a utility library
+bool file_exists(const std::string& fname) {
+  struct stat buff;
+  return (stat(fname.c_str(), &buff) == 0);
 }
 
 int
 main(int argc, char ** argv) {
-    const char   * bind_addr   = "0.0.0.0";
-    uint16_t bind_port   = 8082;
+	std::string db_fname;
 
-    evbase_t * evbase = event_base_new();
-    evhtp_t  * htp    = evhtp_new(evbase, NULL);
+	for(int i=1; i<argc; i++) {
+		if (strcmp(argv[i], "--db") == 0) {
+			if (++i < argc) {
+				if (argv[i][0] == '-')
+					db_fname = ":memory:";
+				else if (file_exists(argv[i]))
+					db_fname = argv[i];
+				else
+					return error("no such file: %s", argv[i]);
+			} else {
+				return error("--db option requires database file");
+			}
+		} else if (strcmp(argv[i], "--trace") == 0) {
+			TRACE_ON = true;
+		} else {
+			return error("unknown argument: %s", argv[i]);
+		}
+	}
 
-	// const std::string db_fname = ":memory:";
-	const std::string db_fname = tagspace::util::user_db();
+	if (db_fname.empty())
+		db_fname = tagspace::util::user_db();
 
 	tagspace::sqlite TS;
 	if ( TS.init(db_fname) != tagd::TAGD_OK ) {
 		TS.print_errors();
 		return 1;
 	}
+
+    const char   * bind_addr   = "0.0.0.0";
+    uint16_t bind_port   = 8082;
+
+    evbase_t * evbase = event_base_new();
+    evhtp_t  * htp    = evhtp_new(evbase, NULL);
 
     // general request handler
     evhtp_set_gencb(htp, main_cb, &TS);

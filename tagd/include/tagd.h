@@ -10,9 +10,11 @@
 #include "tagd/hard-tags.h"
 #include "tagd/rank.h"
 
+#include <cstdarg>  // for va_list
+
 namespace tagd {
 
-const size_t MAX_TAG_LEN = 128;
+const size_t MAX_TAG_LEN = 2112;  // We are the Priests of the Temples of Syrinx 
 typedef std::string id_type;
 
 struct predicate {
@@ -56,7 +58,9 @@ typedef std::vector<tagd::id_type> id_vec;
 typedef std::set<abstract_tag> tag_set;
 typedef std::pair<tag_set::iterator, bool> tag_set_pair;
 
+void print_tags(const tagd::tag_set&, std::ostream&os = std::cout);
 void print_tag_ids(const tagd::tag_set&, std::ostream&os = std::cout);
+
 std::string tag_ids_str(const tagd::tag_set&);
 
 // Merges (in-place) tags into A from B
@@ -129,14 +133,8 @@ inline bool is_super_hard_tag(const id_type &id) {
 }
 
 /* name of super relator (for semantic meaning) */
-inline id_type super_relator(const part_of_speech &pos) {
-    switch (pos) {
-        case POS_TAG: return HARD_TAG_IS_A;
-        case POS_REFERENT: return HARD_TAG_REFERS_TO;
-        default: return HARD_TAG_TYPE_OF;
-    }
-}
-
+id_type super_relator(const part_of_speech&);
+id_type super_relator(const abstract_tag&);
 
 class abstract_tag {
     protected:
@@ -351,7 +349,7 @@ class error : public abstract_tag {
             : abstract_tag(tagd_code_str(c), HARD_TAG_ERROR, POS_ERROR)
 		{
 			_code = c;
-			if (msg != NULL) this->relation("", "_msg", msg);
+			if (msg != NULL) this->relation(HARD_TAG_HAS, "_msg", msg);
 		}
 };
 
@@ -381,11 +379,16 @@ class errorable {
 		// set and return code, set err msg to printf style formatted list
 		tagd_code error(tagd::code c, const char *, ...);
 
-		void clear() { _code = _init; _errors.clear(); }
+		void clear_errors() { _code = _init; _errors.clear(); }
 
 		void print_errors(std::ostream& os = std::cerr) const;
 };
 
+struct util {
+	// returns c string of formatted printf string, or NULL on failure
+	static char* csprintf(const char *, ...);
+	static char* csprintf(const char *, va_list&);
+};
 
 }  // namespace tagd
 

@@ -1,5 +1,5 @@
 SRC_DIR = ./src
-BUILD_DIR = ./build
+BUILD_DIR = ./bin
 TEST_DIR = ./tests
 
 all: tagsh

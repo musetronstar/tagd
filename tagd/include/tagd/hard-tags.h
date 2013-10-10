@@ -24,6 +24,7 @@ IMPORTANT: updates here must be reflected in tagspace::init_hard_tags()
 // relators
 #define HARD_TAG_RELATOR "_relator" // relates subject to object, superordinate to all relators
 #define HARD_TAG_HAS "_has"
+#define HARD_TAG_CAN "_can"
 
 // interrogators
 #define HARD_TAG_INTERROGATOR "_interrogator"  // resolves objects of inquiry (queries, searches)
@@ -43,16 +44,16 @@ IMPORTANT: updates here must be reflected in tagspace::init_hard_tags()
 #define HARD_TAG_URL "_url"         // resources located by URLs
 
 // URL part hard tags
-#define HARD_TAG_URL_PART "_url_part"	// resources located by URLs
-// the naming convention is that of an hdurl
+#define HARD_TAG_URL_PART "_url_part"	// the super tag of url part hard tags
+// the naming convention is that of an hduri
 //  rpub:priv_label:rsub:path:query:fragment:port:user:pass:scheme
 #define HARD_TAG_HOST "_host"
 // host split into its parts
-#define HARD_TAG_PRIV_LABEL "_private_label"  // private label of a registered tld (i.e. the "hypermega" in hypermega.com)
+#define HARD_TAG_PRIV_LABEL "_private"  // private label of a registered tld (i.e. the "hypermega" in hypermega.com)
 
 #define HARD_TAG_PUB "_pub"				// labels of a tld
 #define HARD_TAG_SUB "_sub"				// labels of a subdomain
-// TODO - not sure if these will be needed, as we will do reverse label matches on the hdurl, not its parts (subject to change)
+// TODO - not sure if these will be needed, as we will do reverse label matches on the hduri, not its parts (subject to change)
 // #define HARD_TAG_RPUB "_rpub"			// reversed labels of a tld
 // #define HARD_TAG_RSUB "_rsub"			// reversed labels of a subdomain
 

@@ -3,7 +3,7 @@ INCLUDE = ../include
 CXX = g++
 CXXTEST=~/src/cxxtest/bin/cxxtestgen --error-printer
 CFLAGS = -DDEBUG -ggdb -I ~/src/cxxtest -I$(INCLUDE)
-LFLAGS = -L../build -ltagd $(PG)
+LFLAGS = -L../lib -ltagd $(PG)
 
 all: tag_tests url_tests domain_tests
 

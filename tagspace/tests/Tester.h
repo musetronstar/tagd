@@ -347,8 +347,6 @@ class Tester : public CxxTest::TestSuite {
 		tagd::referent d1("pictures", "photography", "event");
 		ts_rc = TS.put(d1);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_DUPLICATE");
-
-		// TS.dump_grid();
     }
 
     void test_get_referent(void) {
@@ -425,7 +423,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( t3.super(), "mammal" )
 	}
 
-    void test_query_refers(void) {
+    void test_query_referents(void) {
         space_type TS;
         TS.init(db_fname);
         populate_tags(TS);
@@ -444,7 +442,15 @@ class Tester : public CxxTest::TestSuite {
 
         tagd::tag_set S;
 		// refers.empty() && refers_to.empty() && context.empty()
-		// assert fails
+		// all referents
+        tagd::interrogator q_referent("what", HARD_TAG_REFERENT);
+        S.clear();
+        TS.query(S, q_referent);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 3 );
+        TS_ASSERT( tag_set_exists(S, thing_physical_object) );
+        TS_ASSERT( tag_set_exists(S, thing_animal) );
+        TS_ASSERT( tag_set_exists(S, creature) );
 
 		// refers.empty() && refers_to.empty() && !context.empty()
         tagd::interrogator q_context("what", HARD_TAG_REFERENT);
@@ -584,13 +590,16 @@ class Tester : public CxxTest::TestSuite {
         TS.put(jp_dog);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
 
+		tagd::tag d;
+		TS.get(d, "イヌ");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TS_AMBIGUOUS")
+
 		tagd::tag t;
 		TS.push_context("japanese");
 		TS.get(t, "イヌ");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
         TS_ASSERT_EQUALS( t.id(), "dog" )
         TS_ASSERT( t.related(HARD_TAG_REFERENT, "イヌ") )
-		TS.print_errors();
 	}
 
     void test_exists(void) {
@@ -623,7 +632,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( pos, tagd::POS_UNKNOWN )
     }
 
-    void test_insert_statements(void) {
+    void test_insert_relations(void) {
         space_type TS;
         TS.init(db_fname);
         populate_tags_minimal(TS);
@@ -656,19 +665,23 @@ class Tester : public CxxTest::TestSuite {
         populate_tags_minimal(TS);
 
         tagd::tag dog("dog", "mammal");
-        tagd_code ts_rc = TS.put(dog); // duplicate tag, no statements
+        tagd_code ts_rc = TS.put(dog); // duplicate tag, no relations
         TS_ASSERT_EQUALS( ts_rc, tagd::TS_DUPLICATE );
 
         dog.relation("has", "tail");
-        ts_rc = TS.put(dog); // not duplicate, statement was inserted
+        ts_rc = TS.put(dog); // not duplicate, relation was inserted
         TS_ASSERT_EQUALS( ts_rc, tagd::TAGD_OK );
 
-        ts_rc = TS.put(dog); // tag duplicate, statement duplicate
+        ts_rc = TS.put(dog); // tag duplicate, relations duplicate
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_DUPLICATE" );
 
         dog.relation("can", "bark");
         ts_rc = TS.put(dog); // one duplicate (has tail), one insert (can bark)
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+
+		TS.put(tagd::relator("wags", "move"));
+		dog.relation("wags", "tail");
+        ts_rc = TS.put(dog); // relator makes unique
 
         tagd::tag a("dog");
         a.relation("has", "tail");
@@ -814,7 +827,27 @@ class Tester : public CxxTest::TestSuite {
         // }
     }
 
-void test_query_parent_relation(void) {
+    void test_query_super(void) {
+        space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+        // TODO "what" is not actually used in the query
+        // this will change over time, as different types
+        // of interrogators will denote different queries
+        tagd::interrogator q("what", "mammal");
+
+        tagd::tag_set S;
+        tagd_code ts_rc = TS.query(S, q);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 4 );
+        TS_ASSERT( tag_set_exists(S, "dog") );
+        TS_ASSERT( tag_set_exists(S, "cat") );
+        TS_ASSERT( tag_set_exists(S, "whale") );
+        TS_ASSERT( tag_set_exists(S, "bat") );
+    }
+
+	void test_query_parent_relation(void) {
         space_type TS;
         TS.init(db_fname);
         populate_tags(TS);
@@ -892,7 +925,7 @@ void test_query_parent_relation(void) {
         ts_rc = TS.get(b, a.id()); 
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 		TS_ASSERT_EQUALS(b.id(), "http://www.hypermega.com/a/b/c?x=1&y=2#here"); 
-		TS_ASSERT_EQUALS(b.hdurl(), "com:hypermega:www:/a/b/c:?x=1&y=2:here:http");
+		TS_ASSERT_EQUALS(b.hduri(), "com:hypermega:www:/a/b/c:?x=1&y=2:here:http");
         TS_ASSERT( b.relations.size() > 1 )
         TS_ASSERT( b.related("about", "computer_security") )
         TS_ASSERT( b.related("_has", HARD_TAG_SCHEME, "http") )
@@ -903,8 +936,35 @@ void test_query_parent_relation(void) {
         TS_ASSERT( b.related("_has", HARD_TAG_PATH, "/a/b/c") )
         TS_ASSERT( b.related("_has", HARD_TAG_QUERY, "?x=1&y=2") )
         TS_ASSERT( b.related("_has", HARD_TAG_FRAGMENT, "here") )
+    }
 
-        // TS.dump_uridb();
+    void test_get_hduri(void) {
+        space_type TS;
+        tagd_code ts_rc = TS.init(db_fname);
+        //tagd_code ts_rc = TS.init("tagspace.db");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+        populate_tags(TS);
+
+        tagd::url a("http://www.hypermega.com/a/b/c?x=1&y=2#here");
+        a.relation("about", "computer_security");
+        ts_rc = TS.put(a);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+        tagd::abstract_tag b;
+        ts_rc = TS.get(b, a.hduri()); 
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+		TS_ASSERT_EQUALS(b.id(), "com:hypermega:www:/a/b/c:?x=1&y=2:here:http");
+        TS_ASSERT_EQUALS( b.super() , HARD_TAG_URL )
+        TS_ASSERT( b.related("about", "computer_security") )
+        TS_ASSERT( b.related("_has", HARD_TAG_SCHEME, "http") )
+        TS_ASSERT( b.related("_has", HARD_TAG_HOST, "hypermega.com") )
+        TS_ASSERT( b.related("_has", HARD_TAG_PRIV_LABEL, "hypermega") )
+        TS_ASSERT( b.related("_has", HARD_TAG_PUB, "com") )
+        TS_ASSERT( b.related("_has", HARD_TAG_SUB, "www") )
+        TS_ASSERT( b.related("_has", HARD_TAG_PATH, "/a/b/c") )
+        TS_ASSERT( b.related("_has", HARD_TAG_QUERY, "?x=1&y=2") )
+        TS_ASSERT( b.related("_has", HARD_TAG_FRAGMENT, "here") )
     }
 
     void test_query_url(void) {
@@ -935,14 +995,12 @@ void test_query_parent_relation(void) {
         tagd::interrogator q("what", "_url");
         q.relation("about", "dog");
 
-		// TS.dump();
-
         tagd::tag_set S;
         ts_rc = TS.query(S, q);
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 2 );
-        TS_ASSERT( tag_set_exists(S, "org:wikipedia:en:/wiki/Dog:http") );
-        TS_ASSERT( tag_set_exists(S, "com:discovery:animal:/tv-shows/dogs-101:http") );
+        TS_ASSERT( tag_set_exists(S, "http://en.wikipedia.org/wiki/Dog") );
+        TS_ASSERT( tag_set_exists(S, "http://animal.discovery.com/tv-shows/dogs-101") );
 
         S.clear();
         tagd::interrogator r("what", "_url");
@@ -950,9 +1008,14 @@ void test_query_parent_relation(void) {
         ts_rc = TS.query(S, r);
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 2 );
-        TS_ASSERT( tag_set_exists(S, "org:wikipedia:en:/wiki/Dog:http") );
-        TS_ASSERT( tag_set_exists(S, "com:wikia:starwars:/wiki/Dog:http") );
+        TS_ASSERT( tag_set_exists(S, "http://en.wikipedia.org/wiki/Dog") );
+        TS_ASSERT( tag_set_exists(S, "http://starwars.wikia.com/wiki/Dog") );
     }
+
+    void test_util(void) {
+		std::string db_file = tagspace::util::user_db();
+		TS_ASSERT( !db_file.empty() )
+	}
 
 //    void test_dump(void) {
 //        space_type TS;
@@ -961,9 +1024,4 @@ void test_query_parent_relation(void) {
 //        populate_tags(TS);
 //		TS.dump();
 //	}
-
-    void test_util(void) {
-		std::string db_file = tagspace::util::user_db();
-		TS_ASSERT( !db_file.empty() )
-	}
 };

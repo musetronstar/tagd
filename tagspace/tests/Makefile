@@ -1,12 +1,12 @@
 TAGD_DIR = ../../tagd
-LIBTAGD = $(TAGD_DIR)/build/libtagd.a
+LIBTAGD = $(TAGD_DIR)/lib/libtagd.a
 PRG_DIR = ../sqlite
 INC = -I../include -I$(TAGD_DIR)/include -I$(PRG_DIR)/include -I ~/src/cxxtest
 
 CXX = g++
 CXXTEST=~/src/cxxtest/bin/cxxtestgen --error-printer
 CXXFLAGS = -DDEBUG -ggdb
-LFLAGS = -L../build -ltagspace-sqlite -L$(TAGD_DIR)/build -ltagd -lsqlite3 
+LFLAGS = -L../lib -ltagspace-sqlite -L$(TAGD_DIR)/lib -ltagd -lsqlite3 
 
 SRC = tester.cc
 OBJ = tester.o

@@ -17,30 +17,6 @@ void* ParseTrace(FILE *stream, char *zPrefix);
 
 namespace TAGL {
 
-/*
-bool callback::test_tag_ok(tagspace::tagspace& TS, const tagd::abstract_tag& t) {
-	tagd::abstract_tag T;
-	ts_res_code ts_rc = TS.get(T, t.id());
-
-	bool test_ok = (ts_rc == TS_OK);
-
-	if (test_ok) {
-		if (!t.super().empty() && T.super() != t.super())
-			return false;
-	}
-
-	if (test_ok && t.relations.size() > 0) {
-		for (tagd::predicate_set::iterator it = t.relations.begin(); it != t.relations.end(); ++it) {
-			if (!T.related(*it)) {
-				return false;
-			}
-		}
-	}
-
-	return test_ok;
-}
-*/
-
 bool driver::_trace_on = false;
 
 driver::driver(tagspace::tagspace *ts) :
@@ -143,28 +119,12 @@ void driver::trace_off() {
 	ParseTrace(NULL, NULL);
 }
 
-/*
-void driver::msg(const std::string& s, std::string *token) {
-	if (token != NULL) {
-		std::stringstream ss;
-		ss << s << ": " << *token;
-		_msg = ss.str();
-	} else {
-		_msg = s;
-	}
-}
-
-void driver::error(const std::string& s, std::string *token) {
-	_code = tagd::TAGL_ERR;
-	this->msg(s, token);
-	if (_callback == NULL)  return;
-	_callback->error(*this);
-}
-*/
-
 // looks up a pos type for a tag and returns
 // its equivalent token
 int driver::lookup_pos(const std::string& s) const {
+	if ( _token == EQUALS ) // '=' separates object and modifier
+		return MODIFIER;
+
 	int token;
 	switch(_TS->pos(s)) {
 		case tagd::POS_TAG:
@@ -195,11 +155,6 @@ int driver::lookup_pos(const std::string& s) const {
 			token = UNKNOWN;
 	}
 
-	if ( !_relator.empty()    // in a predicate list
-		 && token != RELATOR  // relator starts a new predicate list
-	     && _token == TAG )   // last token a TAG, so this must be a quantifier
-			return QUANTIFIER;
-
 	return token;
 }
 
@@ -209,7 +164,6 @@ void driver::parse_tok(int tok, std::string *s) {
 			std::cerr << _token << ": " << (s == NULL ? "NULL" : *s) << std::endl;
 		Parse(_parser, _token, s, this);
 }
-
 
 /* parses an entire string, replace end of input with a newline
  * init() should be called before calls to parseln and
@@ -227,22 +181,8 @@ tagd_code driver::parseln(const std::string& line) {
 		return this->code();
 	}
 
-	/*
-    YY_BUFFER_STATE buff = yy_scan_string(line.c_str(), _scanner);
-	int last = this->parse_tokens();
-    yy_delete_buffer(buff, _scanner);
-	*/
 	scanner scnr(this);
 	scnr.scan(line.c_str());
- /*
-    if (_token == -1) {
-		this->code(tagd::TAGL_ERR);
-		this->msg("Scanner error");
-		this->finish();
-    } else if (_token == 0 && last == TERMINATOR) {
-		// Parse the EOF token to force a statement reduce action (e.g. parseln ending with ;)
-		Parse(_parser, _token, NULL, this);
-	} */
 
 	return this->code();
 }
@@ -256,23 +196,25 @@ tagd_code driver::execute(const std::string& statement) {
 	return this->code();
 }
 
-tagd_code driver::tagurl_get(const std::string& tagurl) {
+tagd_code driver::tagdurl_get(const std::string& tagdurl) {
 	this->init();
 
-	_scanner.scan_tagurl_path(CMD_GET, tagurl);
+	_scanner.scan_tagdurl_path(CMD_GET, tagdurl);
 
 	return this->code();
 }
 
-tagd_code driver::tagurl_put(const std::string& tagurl) {
+tagd_code driver::tagdurl_put(const std::string& tagdurl) {
 	this->init();
 
-	_scanner.scan_tagurl_path(CMD_PUT, tagurl);
+	_scanner.scan_tagdurl_path(CMD_PUT, tagdurl);
 
 	return this->code();
 }
 
 tagd_code driver::evbuffer_execute(struct evbuffer *input) {
+	this->init();
+
 	size_t sz = evbuffer_get_length(input);
 
 	const size_t buf_sz = 1024 * 4; // 4k
@@ -319,6 +261,5 @@ tagd_code driver::evbuffer_execute(struct evbuffer *input) {
 	this->finish();
 	return this->code();
 }
-
 
 } // namespace TAGL

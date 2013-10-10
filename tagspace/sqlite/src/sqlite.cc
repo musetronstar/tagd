@@ -29,7 +29,7 @@ typedef enum {
 } ts_sqlite_code;
 
 ts_sqlite_code sqlite_constraint_type(const char *err) {
-	if (strcmp(err, "columns subject, object are not unique") == 0)
+	if (strcmp(err, "columns subject, relator, object are not unique") == 0)
 		return TS_SQLITE_UNIQUE;
 
 	if (strcmp(err, "columns refers, refers_to are not unique") == 0)
@@ -293,7 +293,7 @@ tagd::code sqlite::create_relations_table() {
         "modifier  TEXT, "
         // whatever statement throws a unique constraint will fail
         // but the trasaction overall can still succeed
-        "PRIMARY KEY (subject, object) ON CONFLICT FAIL, " // makes unique
+        "PRIMARY KEY (subject, relator, object) ON CONFLICT FAIL, " // makes unique
         "FOREIGN KEY (subject) REFERENCES tags(tag), "
         "FOREIGN KEY (relator) REFERENCES tags(tag), "
         "FOREIGN KEY (object) REFERENCES tags(tag)"
@@ -347,7 +347,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& id, const fla
 	// 1. if context is is set, do context lookup
 	//    use refers_to, set _referent to id
 	tagd::id_type refers_to;
-	if (!flags[NO_REFERENTS] && !_context.empty()) {
+	if (!(flags & NO_REFERENTS) && !_context.empty()) {
 		// get the top most element on the context stack
 		// that matches the referent 
 		this->prepare(&_get_referent_context_stmt,
@@ -369,7 +369,6 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& id, const fla
 				"AND rank GLOB ("
 				 "SELECT rank FROM tags WHERE tag = ctx_elem"
 				") || '*' " // all context <= {_context}
-
 			") "
 			"ORDER BY context_id DESC "
 			"LIMIT 1",
@@ -432,7 +431,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& id, const fla
         return this->error(tagd::TS_ERR, "get failed: %s", id.c_str());
     }
 
-	if (flags[NO_REFERENTS])
+	if (flags & NO_REFERENTS)
 		return this->code(tagd::TS_NOT_FOUND);
 
 	// 3. NOT FOUND, and context not set
@@ -462,7 +461,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& id, const fla
 			return this->get(
 					t,
 					(const char*) sqlite3_column_text(_get_referents_stmt, F_REFERS_TO),
-					flags|flags_t(NO_REFERENTS)
+					(flags|NO_REFERENTS)
 				);
         } else {
 			refs.push_back(
@@ -504,14 +503,14 @@ tagd::code sqlite::get(tagd::url& u, const tagd::id_type& id, const flags_t& fla
 	if (!u.ok())
 		return this->error(u.code(), "url init failed: %s", id.c_str());
 
-	// we use hdurl to identify urls internally
-	tagd::id_type hdurl = u.hdurl();
-	this->get((tagd::abstract_tag&)u, hdurl, flags);
+	// we use hduri to identify urls internally
+	tagd::id_type hduri = u.hduri();
+	this->get((tagd::abstract_tag&)u, hduri, flags);
 	OK_OR_RET_ERR();
 
-	u.init_hdurl(hdurl);  // id() should now be canonical url
+	u.init_hduri(hduri);  // id() should now be canonical url
 	if (!u.ok())
-		return this->error(u.code(), "url init_hdurl failed: %s", hdurl.c_str());
+		return this->error(u.code(), "url init_hduri failed: %s", hduri.c_str());
 
 	return this->code(tagd::TAGD_OK);
 }
@@ -615,6 +614,17 @@ tagd::code sqlite::put(const tagd::abstract_tag& t, const flags_t& flags) {
 	if (t.id()[0] == '_' && !_doing_init)
 		return this->error(tagd::TS_MISUSE, "inserting hard tags not allowed: %s", t.id().c_str()); 
 
+	if (!(flags & NO_POS_CAST)) {
+		switch (t.pos()) {
+			case tagd::POS_URL:
+				return this->put((const tagd::url&)t, flags);
+			case tagd::POS_REFERENT:
+				return this->put((const tagd::referent&)t, flags);
+			default:
+				; // NOOP
+		}
+	}
+
     tagd::abstract_tag existing;
     tagd::code existing_rc = this->get(existing, t.id(), flags);
 
@@ -674,16 +684,16 @@ tagd::code sqlite::put(const tagd::url& u, const flags_t& flags) {
 	if (!u.ok())
 		return this->error(u.code(), "put url not ok(%s): %s",  tagd_code_str(u.code()), u.id().c_str());
 
-	// url _id is the actual url, but we use the hdurl
+	// url _id is the actual url, but we use the hduri
 	// internally, so we have to convert it
 	tagd::abstract_tag t = (tagd::abstract_tag) u;
-	t.id(u.hdurl());
+	t.id(u.hduri());
 	tagd::url::insert_url_part_relations(t.relations, u);
-	return this->put(t, flags);
+	return this->put(t, (flags|NO_POS_CAST));
 }
 
 tagd::code sqlite::put(const tagd::referent& r, const flags_t& flags) {
-	return this->insert_referent(r);
+	return this->insert_referent(r, flags);
 }
 
 tagd::code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& super) {
@@ -887,7 +897,7 @@ tagd::code sqlite::insert_relations(const tagd::abstract_tag& t) {
 tagd::code sqlite::insert_referent(const tagd::referent& t, const flags_t& flags) {
     assert( !t.refers().empty() );
     assert( !t.refers_to().empty() );
-	assert( flags.size() < 32 );  // use flags here to suppress unused param warning
+	assert( flags < 32 );  // use flags here to suppress unused param warning
 
     this->prepare(&_insert_referents_stmt,
         "INSERT INTO referents (refers, refers_to, context) "
@@ -1242,29 +1252,81 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& p, const tag
 
     while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         rank.init(sqlite3_column_text(stmt, F_RANK));
-        tagd::abstract_tag t(
-            (const char*) sqlite3_column_text(stmt, F_SUBJECT),
-            (const char*) sqlite3_column_text(stmt, F_SUPER),
-            (tagd::part_of_speech) sqlite3_column_int(stmt, F_POS),
-            rank
-        );
+		tagd::part_of_speech pos = (tagd::part_of_speech) sqlite3_column_int(stmt, F_POS);
 
-        tagd::id_type relator((const char*) sqlite3_column_text(stmt, F_RELATOR));
-        tagd::id_type object((const char*) sqlite3_column_text(stmt, F_OBJECT));
-
-		if (sqlite3_column_type(stmt, F_MODIFIER) != SQLITE_NULL) {
-			tagd::id_type modifier((const char*) sqlite3_column_text(stmt, F_MODIFIER));
-			t.relation(relator, object, modifier);
+        tagd::abstract_tag *t;
+		if (pos != tagd::POS_URL) {
+			t = new tagd::abstract_tag( (const char*) sqlite3_column_text(stmt, F_SUBJECT) );
 		} else {
-			t.relation(relator, object);
+			t = new tagd::url();
+			((tagd::url*)t)->init_hduri( (const char*) sqlite3_column_text(stmt, F_SUBJECT) );
+			if (t->code() != tagd::TAGD_OK) {
+				this->error( t->code(), "failed to init related url: %s",
+						(const char*) sqlite3_column_text(stmt, F_SUBJECT) );
+				delete t;
+				return this->code();
+			}
 		}
 
-        it = R.insert(it, t);
+		t->super( (const char*) sqlite3_column_text(stmt, F_SUPER) );
+		t->pos(pos);
+		t->rank(rank);
+
+		if (sqlite3_column_type(stmt, F_MODIFIER) != SQLITE_NULL) {
+			t->relation(
+				(const char*) sqlite3_column_text(stmt, F_RELATOR),
+				(const char*) sqlite3_column_text(stmt, F_OBJECT),
+				(const char*) sqlite3_column_text(stmt, F_MODIFIER)
+			);
+		} else {
+			t->relation(
+				(const char*) sqlite3_column_text(stmt, F_RELATOR),
+				(const char*) sqlite3_column_text(stmt, F_OBJECT)
+			);
+		}
+
+        it = R.insert(it, *t);
+		delete t;
     }
 
     if (s_rc == SQLITE_ERROR) {
 		return this->error(tagd::TS_ERR, "related failed(super, relator, object, modifier): %s, %s, %s, %s",
 							super.c_str(), p.relator.c_str(), p.object.c_str(), p.modifier.c_str());
+    }
+
+    return this->code(R.size() == 0 ?  tagd::TS_NOT_FOUND : tagd::TAGD_OK);
+}
+
+tagd::code sqlite::get_children(tagd::tag_set& R, const tagd::id_type& super) {
+	this->prepare(&_get_children_stmt,
+        "SELECT tag, super, pos, rank "
+        "FROM tags WHERE super = ? "
+		"ORDER BY rank",
+        "select children"
+    );
+	OK_OR_RET_ERR(); 
+
+	this->bind_text(&_get_children_stmt, 1, super.c_str(), "get children super");
+	OK_OR_RET_ERR(); 
+
+    const int F_ID = 0;
+    const int F_SUPER = 1;
+    const int F_POS = 2;
+    const int F_RANK = 3;
+
+	R.clear();
+    tagd::tag_set::iterator it = R.begin();
+    int s_rc;
+
+    while ((s_rc = sqlite3_step(_get_children_stmt)) == SQLITE_ROW) {
+		tagd::abstract_tag t(
+			(const char*) sqlite3_column_text(_get_children_stmt, F_ID),
+        	(const char*) sqlite3_column_text(_get_children_stmt, F_SUPER),
+			(tagd::part_of_speech) sqlite3_column_int(_get_children_stmt, F_POS)
+		);
+        t.rank( sqlite3_column_text(_get_children_stmt, F_RANK) );
+
+        it = R.insert(it, t);
     }
 
     return this->code(R.size() == 0 ?  tagd::TS_NOT_FOUND : tagd::TAGD_OK);
@@ -1286,8 +1348,12 @@ tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& i
 	if (refers.empty()) {
 		if (refers_to.empty()) {
 			if (context.empty()) {
-				assert(false);  // shouldn't happen
-				return this->code(tagd::TS_NOT_FOUND);
+				// all referents
+				this->prepare(&stmt,
+					"SELECT refers, refers_to, context FROM referents",
+					"query referent context"
+				);
+				OK_OR_RET_ERR();
 			} else {
 				this->prepare(&stmt,
 					"SELECT refers, refers_to, context "
@@ -1423,7 +1489,6 @@ tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& i
     const int F_CONTEXT = 2;
 
     R.clear();
-    tagd::tag_set::iterator it = R.begin();
     int s_rc;
 
     while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
@@ -1436,7 +1501,7 @@ tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& i
 			r.context( (const char*) sqlite3_column_text(stmt, F_CONTEXT) );
 
 		// std::cerr << "query_referents: " << r << std::endl;
-        R.insert(it, r);
+        R.insert(r);
     }
 
 	if (stmt != NULL)
@@ -1460,14 +1525,8 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& intr) {
     if (intr.relations.empty()) {
         if (intr.super().empty())
             return tagd::TS_NOT_FOUND;  // empty interrogator, nothing to do
-        else {
-            tagd::abstract_tag t;
-			// TODO get children of super
-            this->get(t, intr.super());
-			OK_OR_RET_ERR();
-            R.insert(t);
-			return _code;
-        }
+        else
+            return this->get_children(R, intr.super());
     }
 
 	// std::cerr << "interrogator: " << std::endl << intr << std::endl;
@@ -1608,7 +1667,7 @@ tagd::code sqlite::dump(std::ostream& os) {
 
 		if (t == NULL || t->id() != id) {
 			if (t != NULL) {
-				os << *t << std::endl << std::endl; 
+				os << "PUT " << *t << std::endl << std::endl; 
 				delete t;
 			}
 
@@ -1620,7 +1679,7 @@ tagd::code sqlite::dump(std::ostream& os) {
     }
 
 	if (t != NULL) {
-		os << *t << std::endl << std::endl;
+		os << "PUT " << *t << std::endl << std::endl;
 		delete t;
 	}
 
@@ -1655,7 +1714,7 @@ tagd::code sqlite::dump(std::ostream& os) {
 
 		if (t == NULL || t->id() != id) {
 			if (t != NULL) {
-				os << *t << std::endl << std::endl; 
+				os << "PUT " << *t << std::endl << std::endl; 
 				delete t;
 			}
 
@@ -1675,7 +1734,7 @@ tagd::code sqlite::dump(std::ostream& os) {
     }
 
 	if (t != NULL) {
-		os << *t << std::endl;
+		os << "PUT " << *t << std::endl;
 		delete t;
 	}
 
@@ -1704,7 +1763,7 @@ tagd::code sqlite::dump(std::ostream& os) {
 
 		if (r == NULL || r->id() != refers) {
 			if (r != NULL) {
-				os << *r << std::endl << std::endl; 
+				os << std::endl << "PUT " << *r << std::endl; 
 				delete r;
 			}
 
@@ -1712,7 +1771,7 @@ tagd::code sqlite::dump(std::ostream& os) {
 				r = new tagd::referent(
 					refers,
 					(const char*) sqlite3_column_text(stmt, F_REFERS_TO),
-					(const char*) sqlite3_column_int(_get_stmt, F_CONTEXT) );
+					(const char*) sqlite3_column_text(stmt, F_CONTEXT) );
 			} else {
 				r = new tagd::referent(
 					refers,
@@ -1722,7 +1781,7 @@ tagd::code sqlite::dump(std::ostream& os) {
     }
 
 	if (r != NULL) {
-		os << *r << std::endl << std::endl;
+		os << std::endl << "PUT " << *r << std::endl;
 		delete r;
 	}
 
@@ -1882,6 +1941,8 @@ void sqlite::finalize() {
     sqlite3_finalize(_get_referent_context_stmt);
     sqlite3_finalize(_related_stmt);
     sqlite3_finalize(_related_null_super_stmt);
+    sqlite3_finalize(_get_children_stmt);
+
     /*** uridb ***/
     sqlite3_finalize(_get_uri_stmt);
     sqlite3_finalize(_get_uri_specs_stmt);
@@ -1911,6 +1972,7 @@ void sqlite::finalize() {
     _get_referent_context_stmt = NULL;
     _related_stmt = NULL;
     _related_null_super_stmt = NULL;
+	_get_children_stmt = NULL;
     /*** uridb ***/
     _get_uri_stmt = NULL;
     _get_uri_specs_stmt = NULL;

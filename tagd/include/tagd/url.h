@@ -134,7 +134,7 @@ class url : public abstract_tag {
 		// id() setter is private
 
         tagd_code init(const std::string &url);
-        tagd_code init_hdurl(const std::string &hdurl);
+        tagd_code init_hduri(const std::string &hduri);
 
         std::string scheme() const { return url_substr(0, _scheme_len); }
         std::string user() const { return url_substr(_user_offset, _user_len); }
@@ -166,7 +166,7 @@ class url : public abstract_tag {
         // TODO this will need to be determined during parsing
         inline authority_code authority_type() const { return AUTHORITY_HOST; }
 
-        std::string hdurl() const;
+        std::string hduri() const;
 
         inline void clear() { _id.clear(); _code = URL_EMPTY; }
         inline bool empty() const { return _id.empty(); }

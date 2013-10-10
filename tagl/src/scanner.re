@@ -36,34 +36,37 @@ next:
         re2c:yych:conversion = 1;
         re2c:indent:top      = 1;
 
-		";"                  { PARSE(TERMINATOR); }
 		([ \t\r]*[\n]){2,}   { PARSE(TERMINATOR); }
 
 		[ \t\n\r]		     {  // SPACE
 								beg = p;
 								goto next;
 							 }
-
-		","                  { PARSE(SEPARATOR); }
-		
+	
+		[a-zA-Z]+[a-zA-Z.+-]* "://" [^\000 \t\r\n'"]+
+							 {  PARSE_VALUE(URL); }
+	
 		[Ss][Ee][Tt]         { PARSE(CMD_SET); }
 		[Gg][Ee][Tt]         { PARSE(CMD_GET); }
 		[Pp][Uu][Tt]         { PARSE(CMD_PUT); }
 		[Qq][Uu][Ee][Rr][Yy] { PARSE(CMD_QUERY); }
-
-		"*"                  { PARSE(WILDCARD); }
-		"\"\""               { PARSE(EMPTY_STR); }
 
         [0-9]+               {
 							   // TODO NUM;
 							   PARSE_VALUE(QUANTIFIER);
 						     }
 
-		[a-zA-Z]+[a-zA-Z.+-]* "://" [^ \t\r\n;,'"]+
-							 {  PARSE_VALUE(URL); }
+		"*"                  { PARSE(WILDCARD); }
+		"\"\""               { PARSE(EMPTY_STR); }
+		","                  { PARSE(COMMA); }
+		"="                  { PARSE(EQUALS); }
+		";"                  { PARSE(TERMINATOR); }
 
-		[^\000 \t\r\n;,'"]+  { goto lookup_parse; }
+		[^\000 \t\r\n;,='"]+  { goto lookup_parse; }
 
+		[\000]               {
+								return;
+		                     }
 
         [^]                  {
 							   // std::cout << "ANY" << std::endl;
@@ -90,11 +93,10 @@ lookup_parse:
 	_driver->parse_tok(_driver->lookup_pos(*value), value);
 	beg = p;
 	goto next;
-
 }
 
 
-void scanner::scan_tagurl_path(int cmd, const std::string& path) {
+void scanner::scan_tagdurl_path(int cmd, const std::string& path) {
 	// path separator defs
 	const size_t max_seps = 2;
 	size_t sep_i = 0;
@@ -140,13 +142,17 @@ void scanner::scan_tagurl_path(int cmd, const std::string& path) {
 	if (cmd == CMD_GET && num_seps > 1) {
 		cmd = CMD_QUERY;
 		_driver->parse_tok(cmd, NULL);
-		_driver->parse_tok(INTERROGATOR, (new std::string(HARD_TAG_INTERROGATOR)));
-		_driver->parse_tok(SUPER, (new std::string(HARD_TAG_SUPER)));
+		_driver->parse_tok(INTERROGATOR, (new std::string(HARD_TAG_INTERROGATOR)));  // parser deletes
+
+		// first segment of "*" is a placeholder for super relation, so ignore it
+		if (segment != "*") {
+			_driver->parse_tok(SUPER, (new std::string(HARD_TAG_SUPER)));
+			this->scan(segment.c_str());
+		}
 	} else {
 		_driver->parse_tok(cmd, NULL);
+		this->scan(segment.c_str());
 	}
-
-	this->scan(segment.c_str());
 
 	if (++sep_i >= num_seps)
 		return;	

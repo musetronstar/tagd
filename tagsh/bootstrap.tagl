@@ -8,6 +8,12 @@ PUT about _is_a _relator
 
 PUT physical_object _is_a _entity
 
+PUT substance _is_a _entity
+
+PUT body_fluid _is_a substance
+
+PUT blood _is_a body_fluid
+
 PUT living_thing _is_a physical_object
 
 PUT animal _is_a living_thing
@@ -78,6 +84,12 @@ PUT movie _is_a visual_art
 
 PUT tv_show _is_a visual_art
 
+PUT communication _is_a _entity
+
+PUT language _is_a communication
+
+PUT japanese _is_a language
+
 PUT event _is_a _entity
 
 PUT sound _is_a event
@@ -97,15 +109,15 @@ PUT fly _is_a move
 PUT swim _is_a move
 
 PUT mammal
-has teeth
+has blood = warm, teeth
 
 PUT dog
 can bark
-has legs 4, tail
+has legs = 4, tail
 
 PUT cat
 can meow
-has legs 4, tail
+has legs = 4, tail
 
 PUT whale
 can swim
