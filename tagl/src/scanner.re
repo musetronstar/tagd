@@ -6,7 +6,6 @@
 #include <stdio.h>
 
 #include "tagl.h"
-#include "taglparser.h"
 
 namespace TAGL {
 

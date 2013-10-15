@@ -3,7 +3,7 @@
 #include <string>
 #include "tagd.h"
 #include "tagspace.h"
-#include "taglparser.h"
+#include "parser.h"
 
 // forward declare
 struct evbuffer;

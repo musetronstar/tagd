@@ -2,7 +2,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
-#include "tagl.h"  // includes taglparser.h
+#include "tagl.h"
 #include "tagspace.h"
 
 #include <event2/buffer.h>

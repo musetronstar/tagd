@@ -10,7 +10,8 @@
 *.a
 
 # build dir
-build/
+lib/
+bin/
 
 # CxxTest output - note the ucase in test filenames (e.g. Tester.h)
 *tester*
@@ -20,3 +21,9 @@ build/
 
 # sqlite files
 *.sqlite
+
+# generated files
+*.inc
+parser.h
+parser.cc
+parser.out

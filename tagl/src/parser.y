@@ -3,8 +3,7 @@
 	#include <cassert>
 	#include <iostream>
 	#include "tagd.h"
-	#include "tagl.h"  // includes taglparser.h
-
+	#include "tagl.h"  // includes parser.h
 }
 
 %extra_argument { TAGL::driver *tagl }
