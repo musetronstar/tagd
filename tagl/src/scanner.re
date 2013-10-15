@@ -13,7 +13,6 @@ void scanner::scan(const char *cur) {
 
 	const char *beg = cur;
 	const char *mark;
-	std::string *value;
 	int tok;
 
 // parse token, value not needed
@@ -82,14 +81,19 @@ parse:
 	goto next;
 
 parse_value:
-	value = new std::string(beg, (cur-beg));  // parser deletes
-	_driver->parse_tok(tok, value);
+	_driver->parse_tok(
+		tok,
+		new std::string(beg, (cur-beg))  // parser deletes
+	);
 	beg = cur;
 	goto next;
 
 lookup_parse:
-	value = new std::string(beg, (cur-beg));  // parser deletes
-	_driver->parse_tok(_driver->lookup_pos(*value), value);
+	{
+		// parser deletes value
+		std::string *value = new std::string(beg, (cur-beg));
+		_driver->parse_tok(_driver->lookup_pos(*value), value);
+	}
 	beg = cur;
 	goto next;
 }
