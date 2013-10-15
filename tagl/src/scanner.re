@@ -9,9 +9,9 @@
 
 namespace TAGL {
 
-void scanner::scan(const char *p) {
+void scanner::scan(const char *cur) {
 
-	const char *beg = p;
+	const char *beg = cur;
 	const char *mark;
 	std::string *value;
 	int tok;
@@ -29,48 +29,48 @@ next:
 	if (_driver->code() == tagd::TAGL_ERR) return;
 
 /*!re2c
-        re2c:define:YYCTYPE  = "unsigned char";
-        re2c:define:YYCURSOR = p;
-        re2c:yyfill:enable   = 0;
-        re2c:yych:conversion = 1;
-        re2c:indent:top      = 1;
+	re2c:define:YYCTYPE  = "unsigned char";
+	re2c:define:YYCURSOR = cur;
+	re2c:yyfill:enable   = 0;
+	re2c:yych:conversion = 1;
+	re2c:indent:top      = 1;
 
-		([ \t\r]*[\n]){2,}   { PARSE(TERMINATOR); }
+	([ \t\r]*[\n]){2,}   { PARSE(TERMINATOR); }
 
-		[ \t\n\r]		     {  // SPACE
-								beg = p;
-								goto next;
-							 }
+	[ \t\n\r]            {  // SPACE
+	                        beg = cur;
+	                        goto next;
+	                     }
 	
-		[a-zA-Z]+[a-zA-Z.+-]* "://" [^\000 \t\r\n'"]+
-							 {  PARSE_VALUE(URL); }
+	[a-zA-Z]+[a-zA-Z.+-]* "://" [^\000 \t\r\n'"]+
+	                     {  PARSE_VALUE(URL); }
 	
-		[Ss][Ee][Tt]         { PARSE(CMD_SET); }
-		[Gg][Ee][Tt]         { PARSE(CMD_GET); }
-		[Pp][Uu][Tt]         { PARSE(CMD_PUT); }
-		[Qq][Uu][Ee][Rr][Yy] { PARSE(CMD_QUERY); }
+	[Ss][Ee][Tt]         { PARSE(CMD_SET); }
+	[Gg][Ee][Tt]         { PARSE(CMD_GET); }
+	[Pp][Uu][Tt]         { PARSE(CMD_PUT); }
+	[Qq][Uu][Ee][Rr][Yy] { PARSE(CMD_QUERY); }
 
-        [0-9]+               {
-							   // TODO NUM;
-							   PARSE_VALUE(QUANTIFIER);
-						     }
+	[0-9]+               {
+	                        // TODO NUM;
+	                        PARSE_VALUE(QUANTIFIER);
+	                     }
 
-		"*"                  { PARSE(WILDCARD); }
-		"\"\""               { PARSE(EMPTY_STR); }
-		","                  { PARSE(COMMA); }
-		"="                  { PARSE(EQUALS); }
-		";"                  { PARSE(TERMINATOR); }
+	"*"                  { PARSE(WILDCARD); }
+	"\"\""               { PARSE(EMPTY_STR); }
+	","                  { PARSE(COMMA); }
+	"="                  { PARSE(EQUALS); }
+	";"                  { PARSE(TERMINATOR); }
 
-		[^\000 \t\r\n;,='"]+  { goto lookup_parse; }
+	[^\000 \t\r\n;,='"]+  { goto lookup_parse; }
 
-		[\000]               {
-								return;
-		                     }
+	[\000]               {
+	                        return;
+	                     }
 
-        [^]                  {
-							   // std::cout << "ANY" << std::endl;
-							   return;
-						     }
+	[^]                  {
+	                        // ANY
+	                        return;
+	                     }
 
 */ // end re2c
 
@@ -78,19 +78,19 @@ next:
 
 parse:
 	_driver->parse_tok(tok, NULL);
-	beg = p;
+	beg = cur;
 	goto next;
 
 parse_value:
-	value = new std::string(beg, (p-beg));  // parser deletes
+	value = new std::string(beg, (cur-beg));  // parser deletes
 	_driver->parse_tok(tok, value);
-	beg = p;
+	beg = cur;
 	goto next;
 
 lookup_parse:
-	value = new std::string(beg, (p-beg));  // parser deletes
+	value = new std::string(beg, (cur-beg));  // parser deletes
 	_driver->parse_tok(_driver->lookup_pos(*value), value);
-	beg = p;
+	beg = cur;
 	goto next;
 }
 
