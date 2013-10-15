@@ -53,8 +53,8 @@ requires a bit of abstract metaphysical thinking, but here we go:
 Note the predicate `_is_a _entity`.  Tags with a leading underscore ('\_') are
 known as *hard tags*, that is, they are hard-coded in the software, defined for
 you, and cannot be redefined.  User defined tags with a leading underscore are
-illegal.  The `_entity` tag is the root of the tagspace, it does not
-get more abtract than that.
+illegal.  The `_entity` tag is the root of the tagspace - it does not get more
+abtract than that.
 
 The `_entity` tag is axiomatic and self-referencing (i.e. `_entity _is_a _entity`).
 It is the only tag having this relation.
@@ -222,7 +222,7 @@ you to match objects while leaving out relators.
 URLs are recognized and parsed in TAGL with no special syntax required.  Unlike
 other tags, URLs cannot currently be assigned a super relation.  A super relation
 `_is_a _url` is assigned for you when putting a URL.  This will likely change
-in the future so that tags "refereced by url" can be defined (e.g. "wiki").
+in the future so that tags "referenced by url" can be defined (e.g. "wiki").
 
 Let's put some urls:
 
