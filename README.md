@@ -120,7 +120,7 @@ Now is a good time to define a put statement more formally...
 
 Where TAG and MODIFIER are UTF-8 labels composed of alphanumeric characters and
 underscores and a QUANTIFIER is a number.  The `SUPER TAG` predicate defines
-the subject as being subordinate (i.e. "is a" or child relation) another tag.
+the subject as being subordinate to (i.e. "is a" or child relation) another tag.
 
 #### GET Statement
 
@@ -376,8 +376,8 @@ Results:
 	_refers_to dog = japanese
 
 Though there is currently only one referent of "イヌ", its not safe to resolve
-it in universal context, as one could later define another referent of the same
-label and alter program logic, as it then truly would be ambiguous.
+it in the universal context, as one could later define another referent of the
+same label and alter program logic, as it then truly would be ambiguous.
 
 If a referent is defined in a context, that context must be set to resolve it:
 
