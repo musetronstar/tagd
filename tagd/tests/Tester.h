@@ -5,6 +5,8 @@
 #include <sstream>
 #include "tagd.h"
 
+#define TAGD_CODE_STRING(c)	std::string(tagd_code_str(c))
+
 class Tester : public CxxTest::TestSuite {
 	public:
 
@@ -59,8 +61,8 @@ class Tester : public CxxTest::TestSuite {
         // push,pop
         tagd::rank r1;
         r1.init(a1);
-        tagd::rank_code rc = r1.push(3); 
-        TS_ASSERT_EQUALS( rc , tagd::RANK_OK );
+        tagd::code rc = r1.push(3); 
+        TS_ASSERT_EQUALS( rc , tagd::TAGD_OK );
         TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.5.3" );
 
         tagd::byte_t b = r1.pop();
@@ -68,7 +70,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.5" );
 
         rc = r1.push();
-        TS_ASSERT_EQUALS( rc , tagd::RANK_OK );
+        TS_ASSERT_EQUALS( rc , tagd::TAGD_OK );
         TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.5.1" );
 
         r1.pop();    
@@ -83,7 +85,7 @@ class Tester : public CxxTest::TestSuite {
         // push unallocated
         tagd::rank r4;
         rc = r4.push();
-        TS_ASSERT_EQUALS( rc , tagd::RANK_OK );
+        TS_ASSERT_EQUALS( rc , tagd::TAGD_OK );
         TS_ASSERT_EQUALS( r4.dotted_str() , "1" );
         TS_ASSERT_EQUALS( r4.last() , 1 );
         TS_ASSERT_EQUALS( r4.size() , 1 );
@@ -155,16 +157,32 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( it , R.end() );
 
         // test maximum byte value 
-        tagd::rank_code rc;
+        tagd::code rc;
         a1[2] = 1;
         while (a1[2]++ < 255) {
             rc = r1.init(a1);
-            if (rc == tagd::RANK_OK)
+            if (rc == tagd::TAGD_OK)
                 R.insert(r1);
         }
 
         TS_ASSERT_EQUALS (rc , tagd::RANK_MAX_BYTE);
         TS_ASSERT_EQUALS( R.size() , 254 );
+    }
+
+	void test_rank_increment(void) {
+        tagd::byte_t a1[4] = {1, 2, 1, '\0'};
+
+        tagd::rank r1;
+        r1.init(a1);
+
+        tagd::code rc;
+        while (r1.last() <= tagd::RANK_MAX_BYTE) {
+            rc = r1.increment();
+            if (rc != tagd::TAGD_OK)
+                break;
+        }
+
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "RANK_MAX_BYTE");
     }
 
     void test_rank_maximums(void) {
@@ -173,7 +191,7 @@ class Tester : public CxxTest::TestSuite {
         std::fill(max, (max+tagd::RANK_MAX_LEN+1), 1);
 
         tagd::rank r1;
-        tagd::rank_code rc = r1.init(max);
+        tagd::code rc = r1.init(max);
         TS_ASSERT_EQUALS (rc , tagd::RANK_MAX_LEN);
 
         for (size_t i=0; i<tagd::RANK_MAX_LEN+1; ++i) {
@@ -193,7 +211,7 @@ class Tester : public CxxTest::TestSuite {
 
         // rank_code passthrough
         a1[2] = 120;
-        tagd::rank_code rc = t.rank(a1);
+        tagd::code rc = t.rank(a1);
         TS_ASSERT_EQUALS( t.rank().dotted_str() , "1.2.120" );
 
         // error passthrough

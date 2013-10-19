@@ -193,7 +193,7 @@ class abstract_tag {
         void rank(const tagd::rank& r) { _rank = r; }
 
         // returns code because rank::init() will fail on invalid bytes
-        rank_code rank(const byte_t *bytes) { return _rank.init(bytes); }
+        tagd_code rank(const byte_t *bytes) { return _rank.init(bytes); }
 
         tagd_code code() const { return _code; }
         bool ok() const { return _code == TAGD_OK; }

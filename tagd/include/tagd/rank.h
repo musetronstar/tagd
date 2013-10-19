@@ -3,26 +3,19 @@
 #include <cstring>  /* memcmp, size_t ... */
 #include <string>
 #include <set>
+#include "codes.h"
 
 namespace tagd {
 
 class rank;
 typedef unsigned char byte_t;
 typedef std::set<rank> rank_set;
-typedef std::pair<rank_set::iterator, bool> rank_pair;
 
-typedef enum {
-    RANK_OK,
-    RANK_ERR,
-    RANK_EMPTY,
-    // 255 may be reserved for variable length rank strings in the future,
-    // so that the number of elements can be greater than UCHAR_MAX (our value type)
-    RANK_MAX_BYTE = 254,  // max value per inividual byte
-    RANK_MAX_LEN = 255 // max bytes in _data string
-} rank_code;
+// holds the value of a multibyte rank node representing each level
+// ex: 1.2.3
+// 1, 2, and 3 would each be represented by a node_value_t
+typedef unsigned long node_value_t;
 
-// changes to rank_code enum need to be updated in this function
-const char* rank_code_str(const rank_code);
 void print_rank_set(const tagd::rank_set&);
 
 // encapsulates bytes used to order the tag heirachy
@@ -56,11 +49,11 @@ class rank {
 
         // validates bytes, sets size pointed to
         // byte string must be '\0' terminated
-        rank_code validate(const byte_t*, size_t*);
+		tagd::code validate(const byte_t*, size_t*);
 
         // validates bytes, allocs and copies bytes into memory
         // already alloced memory will be reused if possible
-        rank_code init(const byte_t *);
+		tagd::code init(const byte_t *);
  
         const char* c_str() const { return reinterpret_cast<const char*>(_data); }
         const byte_t* uc_str() const { return _data; }
@@ -73,17 +66,17 @@ class rank {
         byte_t pop();
 
         // push a byte on (default 1)
-        rank_code push(const byte_t=1);
+		tagd::code push(const byte_t=1);
 
-        // increment the last byte, returns RANK_OK or RANK_MAX_BYTE
-        rank_code increment();
+        // increment the last byte, returns TAGD_OK or RANK_MAX_BYTE
+		tagd::code increment();
 
         size_t size() const { return _size; }
 
         bool empty() const { return _size == 0; }
 
         // next rank in a rank set - fills holes
-        static rank_code next(rank&, const rank_set&);
+        static tagd::code next(rank&, const rank_set&);
         static std::string dotted_str(const byte_t*);
 };
 

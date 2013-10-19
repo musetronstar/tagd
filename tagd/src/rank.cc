@@ -43,12 +43,8 @@ bool rank::operator==(const rank& rhs) const {
             return false;
     }
 
-    if (rhs._data == NULL) {
-        if (_data == NULL)
-            return true;
-        else
-            return false;
-    }
+    if (rhs._data == NULL) 
+		return false;
 
     if (_size != rhs._size)
         return false;
@@ -91,7 +87,7 @@ void rank::clear() {
 	_size = 0;
 }
 
-rank_code rank::validate(const byte_t *bytes, size_t *sz) {
+tagd::code rank::validate(const byte_t *bytes, size_t *sz) {
     *sz = 0;
 
     while (bytes[*sz] != '\0' && *sz < RANK_MAX_LEN) {
@@ -101,17 +97,17 @@ rank_code rank::validate(const byte_t *bytes, size_t *sz) {
 
     if (*sz == 0) return RANK_EMPTY;
 
-    return (*sz == RANK_MAX_LEN ? RANK_MAX_LEN : RANK_OK);
+    return (*sz == RANK_MAX_LEN ? RANK_MAX_LEN : TAGD_OK);
 }
 
-rank_code rank::init(const byte_t *bytes) {
+tagd::code rank::init(const byte_t *bytes) {
     if (bytes == NULL) return RANK_EMPTY;
 
     size_t sz;
-    rank_code r = validate(bytes, &sz);
+	tagd::code tc = validate(bytes, &sz);
 
-    if (r != RANK_OK)
-        return r;
+    if (tc != TAGD_OK)
+        return tc;
 
     if (_data == NULL) {
         this->alloc_copy(bytes, sz);
@@ -125,7 +121,7 @@ rank_code rank::init(const byte_t *bytes) {
         }
     }
 
-    return RANK_OK;
+    return TAGD_OK;
 }
 
 std::string rank::dotted_str() const {
@@ -164,7 +160,7 @@ byte_t rank::pop() {
     return b;    
 }
 
-rank_code rank::push(const byte_t b) {
+tagd::code rank::push(const byte_t b) {
     if (b == '\0') return RANK_EMPTY;
     if (b > RANK_MAX_BYTE) return RANK_MAX_BYTE;
     if (_size == RANK_MAX_LEN) return RANK_MAX_LEN;
@@ -186,10 +182,10 @@ rank_code rank::push(const byte_t b) {
     _data[_size++] = b;
     _data[_size] = '\0';
 
-    return RANK_OK;
+    return TAGD_OK;
 }
 
-rank_code rank::increment() {
+tagd::code rank::increment() {
     if (_size == 0)
         return RANK_EMPTY;
 
@@ -198,10 +194,10 @@ rank_code rank::increment() {
 
     _data[_size-1]++;
 
-    return RANK_OK;
+    return TAGD_OK;
 }
 
-rank_code rank::next(rank& next, const rank_set& R) {
+tagd::code rank::next(rank& next, const rank_set& R) {
     rank_set::const_iterator it = R.begin();
     if (it == R.end()) return RANK_EMPTY;
 
@@ -211,7 +207,7 @@ rank_code rank::next(rank& next, const rank_set& R) {
         next = *it;
         next.pop();
         next.push(1);
-        return RANK_OK;
+        return TAGD_OK;
     }
 
     // all elements must conform to size of the first element
@@ -260,31 +256,6 @@ rank_code rank::next(rank& next, const rank_set& R) {
     next = *prev;
 
     return next.increment();
-}
-
-const char* rank_code_str(const rank_code r) {
-    const char *s;
-    switch(r) {
-        case RANK_OK:
-            s = "RANK_OK";
-            break;
-        case RANK_ERR:
-            s = "RANK_ERR";
-            break;
-        case RANK_EMPTY:
-            s = "RANK_ERR";
-            break;
-        case RANK_MAX_BYTE:
-            s = "RANK_MAX_BYTE";
-            break;
-        case RANK_MAX_LEN:
-            s = "RANK_MAX_LEN";
-            break;
-        default:
-            s = "RANK_UNKNOWN";
-    }
-
-    return s;
 }
 
 void print_rank_set(const tagd::rank_set& R) {
