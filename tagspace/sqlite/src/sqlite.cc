@@ -709,9 +709,9 @@ tagd::code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& super) 
         return this->code(tagd::TAGD_OK);
     }
 
-    tagd::rank_code r_rc = tagd::rank::next(next, R);
-    if (r_rc != tagd::RANK_OK)
-        return this->error(tagd::TS_ERR, "next_rank error: %s", tagd::rank_code_str(r_rc));
+    tagd::code r_rc = tagd::rank::next(next, R);
+    if (r_rc != tagd::TAGD_OK)
+        return this->error(tagd::TS_ERR, "next_rank error: %s", tagd_code_str(r_rc));
 
     return this->code(tagd::TAGD_OK);
 }
@@ -1808,12 +1808,12 @@ tagd::code sqlite::child_ranks(tagd::rank_set& R, const tagd::id_type& super_id)
 
     const int F_RANK = 0;
     tagd::rank rank;
-    tagd::rank_code rc;
+    tagd::code rc;
 
     while ((s_rc = sqlite3_step(_child_ranks_stmt)) == SQLITE_ROW) {
         rc = rank.init(sqlite3_column_text(_child_ranks_stmt, F_RANK));
         switch (rc) {
-            case tagd::RANK_OK:
+            case tagd::TAGD_OK:
                 break;
             case tagd::RANK_EMPTY:
                 if (super_id == "_entity") {
@@ -1826,7 +1826,7 @@ tagd::code sqlite::child_ranks(tagd::rank_set& R, const tagd::id_type& super_id)
                 }
                 break;
             default:
-                return this->error(tagd::TS_ERR, "get_childs rank.init() error: %s", tagd::rank_code_str(rc));
+                return this->error(tagd::TS_ERR, "get_childs rank.init() error: %s", tagd_code_str(rc));
         }
 
         R.insert(rank);
