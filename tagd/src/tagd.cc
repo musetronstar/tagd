@@ -162,7 +162,7 @@ size_t merge_containing_tags(tag_set& A, const tag_set& B) {
 
     tagd::tag_set::iterator a = A.begin();
 	while (a != A.end()) {
-		int merged = 0;
+		size_t merged = 0;
 		for(tagd::tag_set::iterator b = B.begin(); b != B.end(); ++b) {
 			if (b->rank().contains(a->rank())) {  // rank can contain itself (b == a)
 				//a->predicates(b->relations);
@@ -177,6 +177,7 @@ size_t merge_containing_tags(tag_set& A, const tag_set& B) {
 		else
 			A.erase(a++);
 	}
+
     return A.size();
 } 
 
@@ -214,8 +215,13 @@ inline bool abstract_tag::operator==(const abstract_tag& rhs) const {
 }
 
 inline bool abstract_tag::operator<(const abstract_tag& rhs) const {
+	assert( !(_rank.empty() && !rhs._rank.empty()) );
+	assert( !(!_rank.empty() && rhs._rank.empty()) );
+
 	if (this->pos() == POS_REFERENT)
 		return (const referent&)*this < (const referent&)rhs;
+	else if (_rank.empty() && rhs._rank.empty())  // allows tag w/o ranks to be inserted in tagsets
+		return this->id() < rhs.id();
 	else
 		return this->_rank < rhs._rank;
 }

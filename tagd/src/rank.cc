@@ -7,91 +7,21 @@
 
 namespace tagd {
 
-rank::rank(const rank& rhs) : _data(NULL), _size(0) {
-    if (rhs._data != NULL && rhs._size != 0)
-        this->alloc_copy(rhs._data, rhs._size);
-}
-
-rank& rank::operator=(const rank& rhs) {
-    if (_data != NULL)
-        delete [] _data;
-
-    this->alloc_copy(rhs._data, rhs._size);
-
-    return *this;
-}
-
-bool rank::operator<(const rank& rhs) const {
-    if (rhs._data == NULL)
-            return false;
-
-    if (_data == NULL)
-            return true;
-
-    const int c = memcmp(_data, rhs._data, _size);
-    if ( c < 0 || (c == 0 && _size < rhs._size))
-        return true;
-    else
-        return false;
-}
-
-bool rank::operator==(const rank& rhs) const {
-    if (_data == NULL) {
-        if (rhs._data == NULL)
-            return true;
-        else
-            return false;
-    }
-
-    if (rhs._data == NULL) 
-		return false;
-
-    if (_size != rhs._size)
-        return false;
-
-    return ( memcmp(_data, rhs._data, _size) == 0 );
-}
-
 bool rank::contains(const rank& other) const {
-    if (_data == NULL || other._data == NULL)
+    if (_data.empty() || other._data.empty())
 		return false;
 
-    if (_size > other._size)
+    if (_data.size() > other._data.size())
         return false;
 
-    return ( memcmp(_data, other._data, _size) == 0 );
+    return ( _data.compare(0, _data.size(), other._data.substr(0, _data.size())) == 0 );
 }
 
-inline void rank::copy(const byte_t *bytes, const size_t sz) {
-    std::memcpy(_data, bytes, sz);
-    _data[sz] = '\0';
-}
-
-inline void rank::alloc_copy(const byte_t *bytes, const size_t sz, const size_t padding) {
-    _alloc_size = sz + 1 + padding;
-    _data = new byte_t[_alloc_size];
-    this->copy(bytes, sz);
-    _size = sz;
-}
-
-rank::~rank() {
-    if (_data != NULL)
-        delete [] _data;
-}
-
-void rank::clear() {
-    if (_data != NULL)
-        delete [] _data;
-
-	_data = NULL;
-	_size = 0;
-}
-
-tagd::code rank::validate(const byte_t *bytes, size_t *sz) {
+tagd::code rank::validate(const char *bytes, size_t *sz) {
     *sz = 0;
 
     while (bytes[*sz] != '\0' && *sz < RANK_MAX_LEN) {
-        if (bytes[(*sz)++] > RANK_MAX_BYTE)
+        if ((unsigned char)bytes[(*sz)++] > RANK_MAX_BYTE)
             return RANK_MAX_BYTE;
     }
 
@@ -100,7 +30,7 @@ tagd::code rank::validate(const byte_t *bytes, size_t *sz) {
     return (*sz == RANK_MAX_LEN ? RANK_MAX_LEN : TAGD_OK);
 }
 
-tagd::code rank::init(const byte_t *bytes) {
+tagd::code rank::init(const char *bytes) {
     if (bytes == NULL) return RANK_EMPTY;
 
     size_t sz;
@@ -109,28 +39,18 @@ tagd::code rank::init(const byte_t *bytes) {
     if (tc != TAGD_OK)
         return tc;
 
-    if (_data == NULL) {
-        this->alloc_copy(bytes, sz);
-    } else {
-        if (sz < _alloc_size) { // reuse buffer
-            this->copy(bytes, sz);
-            _size = sz;
-        } else {
-            delete [] _data;
-            this->alloc_copy(bytes, sz);
-        }
-    }
+	_data.assign(bytes, sz);
 
     return TAGD_OK;
 }
 
 std::string rank::dotted_str() const {
-    if (_size == 0) return std::string();
+    if (_data.empty()) return std::string();
 
-    return rank::dotted_str(_data);
+    return rank::dotted_str(_data.c_str());
 }
 
-std::string rank::dotted_str(const byte_t *s) {
+std::string rank::dotted_str(const char *s) {
     if (s == NULL) return std::string();
 
     std::stringstream ss;
@@ -142,57 +62,41 @@ std::string rank::dotted_str(const byte_t *s) {
     return ss.str();
 }
 
-byte_t rank::last() const {
-    if (_size == 0)
+char rank::back() const {
+    if (_data.empty())
         return '\0';
 
-    return _data[_size-1];
+    return _data[_data.size()-1];
 }
 
-byte_t rank::pop() {
-    if (_size == 0)
+char rank::pop_back() {
+    if (_data.empty())
         return '\0';
 
-    _size--;
-    byte_t b = _data[_size];
-    _data[_size] = '\0';
+	char c = _data[_data.size()-1];
+	_data.erase(_data.size()-1);
 
-    return b;    
+    return c;    
 }
 
-tagd::code rank::push(const byte_t b) {
+tagd::code rank::push_back(const char b) {
     if (b == '\0') return RANK_EMPTY;
-    if (b > RANK_MAX_BYTE) return RANK_MAX_BYTE;
-    if (_size == RANK_MAX_LEN) return RANK_MAX_LEN;
+    if ((unsigned char)b > RANK_MAX_BYTE) return RANK_MAX_BYTE;
+    if (_data.size() == RANK_MAX_LEN) return RANK_MAX_LEN;
 
-    if (_data == NULL) {
-        byte_t a[] = {b, '\0'};
-        return this->init(a);
-    }
-
-    if ((_size+1) == _alloc_size) {
-        byte_t *tmp = _data;
-        this->alloc_copy(tmp, _size, 2);
-        // _data, and _alloc_size are now different
-        delete [] tmp;
-    }
-
-    assert( _data[_size] == '\0' );
-
-    _data[_size++] = b;
-    _data[_size] = '\0';
+	_data.push_back(b);
 
     return TAGD_OK;
 }
 
 tagd::code rank::increment() {
-    if (_size == 0)
-        return RANK_EMPTY;
+    if (_data.empty())
+        return this->push_back();
 
-    if (_data[_size-1] >= RANK_MAX_BYTE)
+    if ((unsigned char)_data[_data.size()-1] >= RANK_MAX_BYTE)
         return RANK_MAX_BYTE;
 
-    _data[_size-1]++;
+    _data[_data.size()-1]++;
 
     return TAGD_OK;
 }
@@ -201,12 +105,12 @@ tagd::code rank::next(rank& next, const rank_set& R) {
     rank_set::const_iterator it = R.begin();
     if (it == R.end()) return RANK_EMPTY;
 
-    if (it->last() != 1) {
+    if ((unsigned char)it->back() != 1) {
         // first slot not taken, use the lowest rank
         // by replacing last byte with 1
         next = *it;
-        next.pop();
-        next.push(1);
+        next.pop_back();
+        next.push_back(1);
         return TAGD_OK;
     }
 
@@ -226,18 +130,20 @@ tagd::code rank::next(rank& next, const rank_set& R) {
             return RANK_ERR;
         }
 
-        if (prev->_data == NULL || it->_data == NULL) {
-            std::cerr << "NULL data in rank set" << std::endl;
+        if (prev->_data.empty() || it->_data.empty()) {
+            std::cerr << "empty data in rank set" << std::endl;
             return RANK_ERR;
         }
 
         // compares 1.2 in the example above
-        if (memcmp(prev->_data, it->_data, (prev->_size-1)) != 0) {
-            std::cerr << "mismatched branches in rank set" << std::endl;
-            return RANK_ERR;
-        }
+		if (prev->_data.size() > 1) {
+			if (prev->_data.compare(0, (prev->_data.size()-1), it->_data.substr(0,(it->_data.size()-1))) != 0) {
+				std::cerr << "mismatched branches in rank set" << std::endl;
+				return RANK_ERR;
+			}
+		}
 
-        int diff = it->_data[sz-1] - prev->_data[sz-1];
+        int diff = (unsigned char)it->_data[sz-1] - (unsigned char)prev->_data[sz-1];
         if (!(diff > 0)) {
             std::cerr << "unordered rank set" << std::endl;
             return RANK_ERR;

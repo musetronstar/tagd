@@ -421,7 +421,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& id, const fla
         t.id( (const char*) sqlite3_column_text(_get_stmt, F_ID) );
         t.super( (const char*) sqlite3_column_text(_get_stmt, F_SUPER) );
         t.pos( (tagd::part_of_speech) sqlite3_column_int(_get_stmt, F_POS) );
-        t.rank( sqlite3_column_text(_get_stmt, F_RANK) );
+        t.rank( (const char*) sqlite3_column_text(_get_stmt, F_RANK) );
 
         this->get_relations(t.relations, id);
         if (!(_code == tagd::TAGD_OK || _code == tagd::TS_NOT_FOUND)) return _code;
@@ -705,7 +705,7 @@ tagd::code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& super) 
 
     if (R.empty()) { // create first child element
         next = super.rank();
-        next.push(1);
+        next.push_back(1);
         return this->code(tagd::TAGD_OK);
     }
 
@@ -1251,7 +1251,7 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& p, const tag
     int s_rc;
 
     while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        rank.init(sqlite3_column_text(stmt, F_RANK));
+        rank.init( (const char*) sqlite3_column_text(stmt, F_RANK));
 		tagd::part_of_speech pos = (tagd::part_of_speech) sqlite3_column_int(stmt, F_POS);
 
         tagd::abstract_tag *t;
@@ -1324,7 +1324,7 @@ tagd::code sqlite::get_children(tagd::tag_set& R, const tagd::id_type& super) {
         	(const char*) sqlite3_column_text(_get_children_stmt, F_SUPER),
 			(tagd::part_of_speech) sqlite3_column_int(_get_children_stmt, F_POS)
 		);
-        t.rank( sqlite3_column_text(_get_children_stmt, F_RANK) );
+        t.rank( (const char*) sqlite3_column_text(_get_children_stmt, F_RANK) );
 
         it = R.insert(it, t);
     }
@@ -1587,7 +1587,7 @@ tagd::code sqlite::dump_grid(std::ostream& os) {
            << std::setw(colw) << std::left << sqlite3_column_text(stmt, F_SUPER)
            << std::setw(colw) << std::left << pos_str(pos)
            << std::setw(colw) << std::left
-           << tagd::rank::dotted_str(sqlite3_column_text(stmt, F_RANK))
+           << tagd::rank::dotted_str( (const char*) sqlite3_column_text(stmt, F_RANK))
            << std::endl; 
     }
 
@@ -1811,7 +1811,7 @@ tagd::code sqlite::child_ranks(tagd::rank_set& R, const tagd::id_type& super_id)
     tagd::code rc;
 
     while ((s_rc = sqlite3_step(_child_ranks_stmt)) == SQLITE_ROW) {
-        rc = rank.init(sqlite3_column_text(_child_ranks_stmt, F_RANK));
+        rc = rank.init( (const char*) sqlite3_column_text(_child_ranks_stmt, F_RANK));
         switch (rc) {
             case tagd::TAGD_OK:
                 break;

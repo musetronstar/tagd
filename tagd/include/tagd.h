@@ -56,7 +56,6 @@ class abstract_tag;
 typedef std::vector<tagd::id_type> id_vec;
 /**************** tag_set defs **************/
 typedef std::set<abstract_tag> tag_set;
-typedef std::pair<tag_set::iterator, bool> tag_set_pair;
 
 void print_tags(const tagd::tag_set&, std::ostream&os = std::cout);
 void print_tag_ids(const tagd::tag_set&, std::ostream&os = std::cout);
@@ -193,7 +192,7 @@ class abstract_tag {
         void rank(const tagd::rank& r) { _rank = r; }
 
         // returns code because rank::init() will fail on invalid bytes
-        tagd_code rank(const byte_t *bytes) { return _rank.init(bytes); }
+        tagd_code rank(const char *bytes) { return _rank.init(bytes); }
 
         tagd_code code() const { return _code; }
         bool ok() const { return _code == TAGD_OK; }
