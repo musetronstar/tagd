@@ -32,7 +32,7 @@ class rank {
 		|*|   - as a means to encode numbers as multibyte strings,
 		|*|     it was already figured out for us (thanks Dave Prosser and Ken Thompson)
 		|*|
-		|*|  Caveat: The 0xFFD byte sequence is used as a replacement for invalid uft8 sequences.
+		|*|  Caveat: The 0xFFFD byte sequence is used as a replacement for invalid uft8 sequences.
 		|*|          Our utf8 functions use it to indicate an error state, so it must not be
 		|*|          used in valid ranks - it will fail to validate.
 		\*/
