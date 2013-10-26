@@ -1,14 +1,12 @@
 CC = gcc
 CXX = g++
 WFLAGS = -Wall -Wextra -g
-#OBJECTS = $(patsubst %.c,%.o,$(wildcard *.c))
 
 INC =  -I../include
-SRCS = tagd.cc rank.cc url.cc
+SRCS = tagd.cc rank.cc url.cc utf8.cc
 CODES_H = ../include/tagd/codes.h
 HDRS = $(wildcard $(INC).h)
 OBJS=$(SRCS:.cc=.o)
-#BIN = tagd
 
 all : codes.inc $(SRCS) $(OBJS)
 
@@ -17,9 +15,6 @@ codes.inc: $(CODES_H)
 
 .cc.o :
 	$(CXX) -c -o $@ $< $(INC) $(WFLAGS)
-
-#$(BIN) : $(OBJS)
-#	$(CXX) -o $@ $? $(INC)
 
 clean :
 	rm -f *.o *.inc 

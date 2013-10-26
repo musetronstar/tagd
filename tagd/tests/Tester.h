@@ -4,11 +4,76 @@
 
 #include <sstream>
 #include "tagd.h"
+#include "tagd/utf8.h"
 
 #define TAGD_CODE_STRING(c)	std::string(tagd_code_str(c))
 
 class Tester : public CxxTest::TestSuite {
 	public:
+
+    void test_utf8_read(void) {
+		std::string str;
+		size_t pos = 0;
+		uint32_t cp = tagd::utf8_read(str, &pos);
+		TS_ASSERT( cp == 0 )
+		TS_ASSERT( pos == 0 )
+
+		str = "\x00";
+		pos = 0;
+		cp = tagd::utf8_read(str, &pos);
+		TS_ASSERT( cp == 0 )
+		TS_ASSERT( pos == 0 )
+
+		str = "\x01";
+		pos = 0;
+		cp = tagd::utf8_read(str, &pos);
+		TS_ASSERT_EQUALS( cp , 1 )
+		TS_ASSERT_EQUALS( pos , 1 )
+	}
+
+    void test_utf8_append(void) {
+		std::string str = "\x01";
+		uint32_t cp = 2;
+		tagd::utf8_append(str, cp);
+		TS_ASSERT( str == "\x01\x02" )
+	}
+
+    void test_utf8_read_append(void) {
+		// काचं शक्नोम्यत्तुम् । नोपहिनस्ति माम् ॥
+		std::string str = "\xE0\xA4\x95\xE0\xA4\xBE\xE0\xA4\x9A\xE0\xA4\x82\x20\xE0\xA4\xB6\xE0\xA4\x95\xE0\xA5\x8D\xE0\xA4\xA8\xE0\xA5\x8B\xE0\xA4\xAE\xE0\xA5\x8D\xE0\xA4\xAF\xE0\xA4\xA4\xE0\xA5\x8D\xE0\xA4\xA4\xE0\xA5\x81\xE0\xA4\xAE\xE0\xA5\x8D\x20\xE0\xA5\xA4\x20\xE0\xA4\xA8\xE0\xA5\x8B\xE0\xA4\xAA\xE0\xA4\xB9\xE0\xA4\xBF\xE0\xA4\xA8\xE0\xA4\xB8\xE0\xA5\x8D\xE0\xA4\xA4\xE0\xA4\xBF\x20\xE0\xA4\xAE\xE0\xA4\xBE\xE0\xA4\xAE\xE0\xA5\x8D\x20\xE0\xA5\xA5";
+		std::string res;
+		size_t pos = 0;
+		uint32_t cp;
+		do {
+			cp = tagd::utf8_read(str, &pos);
+			tagd::utf8_append(res, cp);
+		} while (cp != 0);
+
+		TS_ASSERT( res == str )
+	}
+
+    void test_utf8_pos_back(void) {
+		// काचं शक्नोम्यत्तुम् । नोपहिनस्ति माम् ॥
+		std::string str = "\xE0\xA4\x95\xE0\xA4\xBE\xE0\xA4\x9A\xE0\xA4\x82\x20\xE0\xA4\xB6\xE0\xA4\x95\xE0\xA5\x8D\xE0\xA4\xA8\xE0\xA5\x8B\xE0\xA4\xAE\xE0\xA5\x8D\xE0\xA4\xAF\xE0\xA4\xA4\xE0\xA5\x8D\xE0\xA4\xA4\xE0\xA5\x81\xE0\xA4\xAE\xE0\xA5\x8D\x20\xE0\xA5\xA4\x20\xE0\xA4\xA8\xE0\xA5\x8B\xE0\xA4\xAA\xE0\xA4\xB9\xE0\xA4\xBF\xE0\xA4\xA8\xE0\xA4\xB8\xE0\xA5\x8D\xE0\xA4\xA4\xE0\xA4\xBF\x20\xE0\xA4\xAE\xE0\xA4\xBE\xE0\xA4\xAE\xE0\xA5\x8D\x20\xE0\xA5\xA5";
+		size_t pos = tagd::utf8_pos_back(str);
+		TS_ASSERT( pos != std::string::npos )
+		TS_ASSERT_EQUALS( str.substr(pos) , "\xE0\xA5\xA5" )
+
+		pos = tagd::utf8_pos_back("\x81\x82\x83");
+		TS_ASSERT ( pos == std::string::npos )
+
+		pos = tagd::utf8_pos_back(str, 1);
+		TS_ASSERT ( pos == 0 )
+	}
+
+    void test_utf8_increment(void) {
+		uint32_t cp = 2405;
+		uint32_t inc = tagd::utf8_increment(cp);
+		TS_ASSERT_EQUALS( inc , (cp + 1) )
+
+		inc = tagd::utf8_increment(0xD801);  // UTF16 surrogate
+		TS_ASSERT_EQUALS( inc , (0xDFFF + 1) )  // advance past UTF16 surrogate
+	}
 
     void test_rank_nil(void) {
         char *nil = NULL; 
@@ -64,13 +129,13 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( rc , tagd::TAGD_OK );
         TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.5.3" );
 
-        char b = r1.pop_back();
+        uint32_t b = r1.pop_back();
         TS_ASSERT_EQUALS( b , 3 );
         TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.5" );
 
-        rc = r1.push_back();
+        rc = r1.push_back(1000);
         TS_ASSERT_EQUALS( rc , tagd::TAGD_OK );
-        TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.5.1" );
+        TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.5.1000" );
 
         r1.pop_back();    
         TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.5" );
@@ -83,7 +148,7 @@ class Tester : public CxxTest::TestSuite {
 
         // push unallocated
         tagd::rank r4;
-        rc = r4.push_back();
+        rc = r4.push_back(1);
         TS_ASSERT_EQUALS( rc , tagd::TAGD_OK );
         TS_ASSERT_EQUALS( r4.dotted_str() , "1" );
         TS_ASSERT_EQUALS( r4.back() , 1 );
@@ -94,16 +159,16 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b, 1 );
         b = r4.pop_back();
         TS_ASSERT( r4.empty() );
-        TS_ASSERT_EQUALS( b, '\0' );
+        TS_ASSERT_EQUALS( b, 0 );
         b = r4.pop_back(); // again
-        TS_ASSERT_EQUALS( b, '\0' );
+        TS_ASSERT_EQUALS( b, 0 );
 
         // pop unallocated
         tagd::rank r5;
         b = r4.pop_back();
-        TS_ASSERT_EQUALS( b, '\0' );
+        TS_ASSERT_EQUALS( b, 0 );
         TS_ASSERT_EQUALS( r4.dotted_str() , "" );
-        TS_ASSERT_EQUALS( r4.back() , '\0' );
+        TS_ASSERT_EQUALS( r4.back() , 0 );
         TS_ASSERT_EQUALS( r4.size() , 0 );
     }
 
@@ -121,67 +186,99 @@ class Tester : public CxxTest::TestSuite {
     }
 
     void test_rank_set(void) {
-        char a1[4] = {1, 2, 5, '\0'};
+        char a1[5] = {0x01, 0xCD, 0xB6, 0x5, '\0'};
+
+		// 0xCDB6 == 11001101 10110110
+		//    value:    01101   110110 == 886
 
         tagd::rank r1;
         r1.init(a1);
 
         // rank set
         tagd::rank_set R;
-        R.insert(r1); // "1.2.5" 
+        R.insert(r1); // "1.886.5" 
 
         tagd::rank next;
-        tagd::rank::next (next, R);
-        TS_ASSERT_EQUALS( next.dotted_str() , "1.2.1" );
+        tagd::rank::next(next, R);
+        TS_ASSERT_EQUALS( next.dotted_str() , "1.886.1" );
         R.insert(next);
 
-        tagd::rank::next (next, R);
-        TS_ASSERT_EQUALS( next.dotted_str() , "1.2.2" );
+        tagd::rank::next(next, R);
+        TS_ASSERT_EQUALS( next.dotted_str() , "1.886.2" );
         R.insert(next);
 
         // set order
         tagd::rank_set::iterator it = R.begin();
-        TS_ASSERT_EQUALS( it->dotted_str(), "1.2.1" ); 
+        TS_ASSERT_EQUALS( it->dotted_str(), "1.886.1" ); 
 
         it = R.end(); --it;
-        TS_ASSERT_EQUALS( it->dotted_str(), "1.2.5" ); 
+        TS_ASSERT_EQUALS( it->dotted_str(), "1.886.5" ); 
 
         // find
         it = R.find(next);  // 1.2.2
-        TS_ASSERT_EQUALS( it->dotted_str() , "1.2.2" );
+        TS_ASSERT_EQUALS( it->dotted_str() , "1.886.2" );
 
-        a1[2] = 4;
+        a1[3] = 0x04;
         next.init(a1);        
-        it = R.find(next);  // 1.2.4 not there
+        it = R.find(next);  // 1.886.4 not there
         TS_ASSERT_EQUALS( it , R.end() );
 
-        // test maximum byte value 
-        tagd::code rc;
-        a1[2] = 1;
-        while ((unsigned char)a1[2]++ < 255) {
-            rc = r1.init(a1);
-            if (rc == tagd::TAGD_OK)
-                R.insert(r1);
-        }
-
-        TS_ASSERT_EQUALS (rc , tagd::RANK_MAX_BYTE);
-        TS_ASSERT_EQUALS( R.size() , 254 );
+		R.clear();
+		tagd::code rc = next.push_back(tagd::UTF8_MAX_CODE_POINT);
+		R.insert(next);
+        rc = tagd::rank::next(next, R);
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "RANK_MAX_VALUE");
     }
 
 	void test_rank_increment(void) {
-        char a1[4] = {1, 2, 1, '\0'};
-
+        char a1[4] = {1, 2, 125, '\0'};
         tagd::rank r1;
-        r1.init(a1);
+        tagd::code rc = r1.init(a1);
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "TAGD_OK");
 
-        tagd::code rc;
-        while (r1.back() <= tagd::RANK_MAX_BYTE) {
+		// increment past the single utf8 leading byte 0x80 == 128
+		// into the multibyte range
+        while (r1.back() < 130) {
             rc = r1.increment();
             if (rc != tagd::TAGD_OK)
                 break;
         }
 
-        TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "RANK_MAX_BYTE");
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "TAGD_OK");
+        TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.130" );
+
+		// utf8 two byte sequence
+		//   110xxxxx 10xxxxxx
+		//   11011111 10111101 == 0xDFBD
+		// val: 11111   111101 == 2045
+        char a2[5] = {1, 2, 0xDF, 0xBD, '\0'};
+        rc = r1.init(a2);
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "TAGD_OK");
+        TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.2045" );
+
+		// increment from two bytes to three
+        while (r1.back() < 2050) {
+            rc = r1.increment();
+            if (rc != tagd::TAGD_OK)
+                break;
+        }
+
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "TAGD_OK");
+        TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.2050" );
+
+		// utf8 three byte sequence
+		//   1110xxxx 10xxxxxx 10xxxxxx
+		//   11101111 10111111 10111101 == 0xEFBFBD
+		// val:  1111   111111   111101 == 0xFFFD == 65533 
+		rc = r1.push_back(0xFFFD);  // invalid replacement sequence
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "RANK_ERR");
+        TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.2050" );
+
+		rc = r1.push_back(0xFFFD - 1);
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "TAGD_OK");
+        TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.2050.65532" );
+
+		// 11110xxx	10xxxxxx	10xxxxxx	10xxxxxx
     }
 
     void test_rank_maximums(void) {
@@ -191,12 +288,12 @@ class Tester : public CxxTest::TestSuite {
 
         tagd::rank r1;
         tagd::code rc = r1.init(max);
-        TS_ASSERT_EQUALS (rc , tagd::RANK_MAX_LEN);
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "RANK_MAX_LEN");
 
         for (size_t i=0; i<tagd::RANK_MAX_LEN+1; ++i) {
-            rc = r1.push_back();
+            rc = r1.push_back(1);
         }
-        TS_ASSERT_EQUALS (rc , tagd::RANK_MAX_LEN);
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "RANK_MAX_LEN");
     }
 
     void test_tag_rank(void) {

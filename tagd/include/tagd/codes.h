@@ -14,7 +14,7 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
     RANK_EMPTY,
     // 255 may be reserved for variable length rank strings in the future,
     // so that the number of elements can be greater than UCHAR_MAX (our value type)
-    RANK_MAX_BYTE = 254,  // max value per inividual byte
+    RANK_MAX_VALUE,  // max value per rank level
     RANK_MAX_LEN = 255, // max bytes in _data string
 
     // urls
