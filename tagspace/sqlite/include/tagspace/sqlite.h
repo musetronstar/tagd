@@ -18,6 +18,7 @@ class sqlite: public tagspace {
         sqlite3_stmt *_get_stmt;
         sqlite3_stmt *_exists_stmt;
         sqlite3_stmt *_pos_stmt;
+        sqlite3_stmt *_insert_term_stmt;
         sqlite3_stmt *_insert_stmt;
         sqlite3_stmt *_update_tag_stmt;
         sqlite3_stmt *_update_ranks_stmt;
@@ -61,6 +62,7 @@ class sqlite: public tagspace {
             _get_stmt(NULL),
             _exists_stmt(NULL),
             _pos_stmt(NULL),
+            _insert_term_stmt(NULL),
             _insert_stmt(NULL),
             _update_tag_stmt(NULL),
             _update_ranks_stmt(NULL),
@@ -136,6 +138,9 @@ class sqlite: public tagspace {
 
     protected:
         // insert - new, destination (super of new tag)
+        tagd_code insert_term(const tagd::id_type&, const tagd::part_of_speech);
+
+        // insert - new, destination (super of new tag)
         tagd_code insert(const tagd::abstract_tag&, const tagd::abstract_tag&);
         // update - updated, new destination
         tagd_code update(const tagd::abstract_tag&, const tagd::abstract_tag&);
@@ -159,6 +164,7 @@ class sqlite: public tagspace {
         virtual void finalize();
 
         // init db funcs
+		tagd_code create_terms_table();
         tagd_code create_tags_table();
         tagd_code create_relations_table();
         tagd_code create_referents_table();

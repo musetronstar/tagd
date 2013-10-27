@@ -52,6 +52,71 @@ void finalize_stmt(sqlite3_stmt **stmt) {
     *stmt = NULL;
 }
 
+static void term_id_func(
+	sqlite3_context *context,
+	int argc,
+	sqlite3_value **argv
+){
+	assert( argc==1 );
+	if( sqlite3_value_type(argv[0])==SQLITE_NULL ) return;
+
+	tagd::id_type term(
+		(const char*)sqlite3_value_text(argv[0]),
+		sqlite3_value_bytes(argv[0])
+	);
+
+	// sqlite3 *db = sqlite3_context_db_handle(context);
+
+	/// tagspace::sqlite *ts;
+	// ts = (tagspace::sqlite*)sqlite3_user_data(context);
+	// tagd::part_of_speech pos = ts->pos(term);
+	tagd::part_of_speech pos = tagd::POS_UNKNOWN;
+
+	sqlite3_result_int64(context, pos);
+}
+
+static void id_term_func(
+	sqlite3_context *context,
+	int argc,
+	sqlite3_value **argv
+){
+	//const unsigned char *zIn;
+	//int nIn;
+	//unsigned char *zOut;
+	//char *zToFree = 0;
+	//int i;
+	//char zTemp[100];
+
+	assert( argc==1 );
+	if( sqlite3_value_type(argv[0])==SQLITE_NULL ) return;
+
+	sqlite3_int64 term_id = sqlite3_value_int64(argv[0]);
+	std::stringstream ss;
+	ss << "id_to_term: " << term_id << std::endl;
+	std::string results(ss.str());
+
+	sqlite3_result_text(context, results.data(), results.size(), SQLITE_STATIC);
+	// get length of term
+	/*
+	nIn = sqlite3_value_bytes(argv[0]);
+  if( nIn<sizeof(zTemp)-1 ){
+    zOut = zTemp;
+  }else{
+    zOut = zToFree = sqlite3_malloc( nIn+1 );
+    if( zOut==0 ){
+      sqlite3_result_error_nomem(context);
+      return;
+    }
+  }
+  for(i=0; i<nIn; i++) zOut[i] = rot13(zIn[i]);
+  zOut[i] = 0;
+  //sqlite3_result_text(context, (char*)zOut, i, SQLITE_TRANSIENT);
+	//void sqlite3_result_int64(sqlite3_context*, sqlite3_int64);
+
+  //sqlite3_free(zToFree);
+*/
+}
+
 
 #define OK_OR_RET_ERR() if(_code != tagd::TAGD_OK) return _code;
 
@@ -93,6 +158,9 @@ tagd::code sqlite::_init(const std::string& fname) {
     this->exec("BEGIN");
 
     if (_code == tagd::TAGD_OK)
+		this->create_terms_table();
+
+    if (_code == tagd::TAGD_OK)
 		this->create_tags_table();
 
     if (_code == tagd::TAGD_OK)
@@ -120,6 +188,67 @@ tagd::code sqlite::_init(const std::string& fname) {
     }
 
     this->exec("COMMIT");
+
+    return _code;
+}
+
+
+
+tagd::code sqlite::create_terms_table() {
+	int rc = sqlite3_create_function(_db, "tid", 1, SQLITE_UTF8, this, term_id_func, 0, 0);
+	if( rc != SQLITE_OK )
+		return this->error(tagd::TS_INTERNAL_ERR, "create function tid error");
+
+	rc = sqlite3_create_function(_db, "idt", 1, SQLITE_UTF8, this, id_term_func, 0, 0);
+	if( rc != SQLITE_OK )
+		return this->error(tagd::TS_INTERNAL_ERR, "create function idt error");
+
+	return tagd::TAGD_OK;
+    // check db
+    sqlite3_stmt *stmt = NULL; 
+    this->prepare(&stmt,
+        "SELECT 1 FROM sqlite_master "
+        "WHERE type = 'terms' "
+        "AND sql LIKE 'CREATE TABLE terms%'",
+        "terms table exists"
+    );
+	OK_OR_RET_ERR();
+
+    int s_rc = sqlite3_step(stmt);
+    if (s_rc == SQLITE_ERROR) {
+        return this->error(tagd::TS_INTERNAL_ERR, "check terms table error");
+    }
+/*
+    
+    // table exists
+    if (s_rc == SQLITE_ROW) {
+        tagd::tag t;
+        this->get(t, "_entity");
+		OK_OR_RET_ERR();
+
+        if (t.id() == "_entity" && t.super() == "_entity")
+            return tagd::TAGD_OK; // db already initialized
+    
+        return this->error(tagd::TS_INTERNAL_ERR, "tag table exists but has no _entity row; database corrupt");
+    }
+
+    //create db
+*/
+    this->exec(
+    "CREATE TABLE terms ( "
+        "term TEXT PRIMARY KEY NOT NULL, "
+        "pos INTEGER NOT NULL"
+    ")" 
+    );
+	OK_OR_RET_ERR();
+
+	//this->exec("CREATE INDEX idx_pos ON terms(pos)");
+	//OK_OR_RET_ERR();
+
+	this->exec(
+		"INSERT INTO terms (term, pos) "
+		"VALUES ('_entity', 1)"
+	); // IMPORTANT 1 == POS_TAG
 
     return _code;
 }
@@ -560,7 +689,7 @@ tagd::part_of_speech sqlite::pos(const tagd::id_type& id) {
 	assert(id.length() <= tagd::MAX_TAG_LEN);
 
     tagd::code ts_rc = this->prepare(&_pos_stmt,
-        "SELECT pos FROM tags WHERE tag = ?",
+        "SELECT pos, tid(tag), idt(tags.ROWID) FROM tags WHERE tag = ?",
         "tag pos"
     );
     assert(ts_rc == tagd::TAGD_OK);
@@ -571,10 +700,17 @@ tagd::part_of_speech sqlite::pos(const tagd::id_type& id) {
     if (ts_rc != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
 
     const int F_POS = 0;
+    const int F_TERM_ID = 1;
+    const int F_ID_TERM = 2;
 
     int s_rc = sqlite3_step(_pos_stmt);
     if (s_rc == SQLITE_ROW) {
-        return (tagd::part_of_speech) sqlite3_column_int(_pos_stmt, F_POS);
+		tagd::part_of_speech p = (tagd::part_of_speech) sqlite3_column_int(_pos_stmt, F_POS);
+        sqlite3_int64 term_id = (tagd::part_of_speech) sqlite3_column_int64(_pos_stmt, F_TERM_ID);
+		std::string id_term( (const char*) sqlite3_column_text(_pos_stmt, F_ID_TERM) );
+		std::cout << "tid(" << id << "): " << term_id << std::endl;
+		std::cout << "idt(" << id << "): " << id_term << std::endl;
+		return p;
     } else if (s_rc == SQLITE_ERROR) {
         this->error(tagd::TS_INTERNAL_ERR, "pos failed: %s", id.c_str());
         return tagd::POS_UNKNOWN;
@@ -712,6 +848,28 @@ tagd::code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& super) 
     tagd::code r_rc = tagd::rank::next(next, R);
     if (r_rc != tagd::TAGD_OK)
         return this->error(tagd::TS_ERR, "next_rank error: %s", tagd_code_str(r_rc));
+
+    return this->code(tagd::TAGD_OK);
+}
+
+tagd::code sqlite::insert_term(const tagd::id_type& t, const tagd::part_of_speech pos) {
+    assert( !t.empty() );
+
+    this->prepare(&_insert_term_stmt,
+        "INSERT INTO terms (term, pos) VALUES (?, ?)",
+        "insert term"
+    );
+    OK_OR_RET_ERR(); 
+
+    this->bind_text(&_insert_term_stmt, 1, t.c_str(), "insert term");
+    OK_OR_RET_ERR(); 
+ 
+	this->bind_int(&_insert_term_stmt, 4, pos, "insert pos");
+    OK_OR_RET_ERR(); 
+
+    int s_rc = sqlite3_step(_insert_term_stmt);
+    if (s_rc != SQLITE_DONE)
+        return this->error(tagd::TS_ERR, "insert term failed: %s", t.c_str());
 
     return this->code(tagd::TAGD_OK);
 }
@@ -1927,6 +2085,7 @@ void sqlite::finalize() {
     sqlite3_finalize(_get_stmt);
     sqlite3_finalize(_exists_stmt);
     sqlite3_finalize(_pos_stmt);
+    sqlite3_finalize(_insert_term_stmt);
     sqlite3_finalize(_insert_stmt);
     sqlite3_finalize(_update_tag_stmt);
     sqlite3_finalize(_update_ranks_stmt);
@@ -1958,6 +2117,8 @@ void sqlite::finalize() {
     _get_stmt = NULL;
     _exists_stmt = NULL;
     _pos_stmt = NULL;
+    _insert_term_stmt = NULL;
+    _insert_term_stmt = NULL;
     _insert_stmt = NULL;
     _update_tag_stmt = NULL;
     _update_ranks_stmt = NULL;
