@@ -1,4 +1,4 @@
-CXX = g++
+CXX = g++ -std=c++0x
 CFLAGS = -Wall -Wextra -g
 
 TAGDDIR =../../../tagd

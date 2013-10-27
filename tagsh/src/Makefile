@@ -1,4 +1,4 @@
-CXX = g++ -g
+CXX = g++ -g -std=c++0x
 #DFLAGS =
 FLAGS = -DDEBUG
 # -Wno-write-strings suppress const char * to char * warnings

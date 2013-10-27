@@ -1,5 +1,4 @@
-CC = gcc
-CXX = g++ -g
+CXX = g++ -g -std=c++0x
 WFLAGS = -Wall
 DFLAGS = -DNDEBUG
 CFLAGS = -fno-strict-aliasing

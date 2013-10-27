@@ -1,5 +1,5 @@
 CC = gcc
-CXX = g++
+CXX = g++ -std=c++0x
 WFLAGS = -Wall -Wextra -g
 
 INC =  -I../include

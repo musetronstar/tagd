@@ -186,13 +186,13 @@ class Tester : public CxxTest::TestSuite {
     }
 
     void test_rank_set(void) {
-        char a1[5] = {0x01, 0xCD, 0xB6, 0x5, '\0'};
+		std::string a1 {"\x01\xCD\xB6\x05"};
 
 		// 0xCDB6 == 11001101 10110110
 		//    value:    01101   110110 == 886
 
         tagd::rank r1;
-        r1.init(a1);
+        r1.init(a1.c_str());
 
         // rank set
         tagd::rank_set R;
@@ -219,7 +219,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( it->dotted_str() , "1.886.2" );
 
         a1[3] = 0x04;
-        next.init(a1);        
+        next.init(a1.c_str());        
         it = R.find(next);  // 1.886.4 not there
         TS_ASSERT_EQUALS( it , R.end() );
 
@@ -251,8 +251,8 @@ class Tester : public CxxTest::TestSuite {
 		//   110xxxxx 10xxxxxx
 		//   11011111 10111101 == 0xDFBD
 		// val: 11111   111101 == 2045
-        char a2[5] = {1, 2, 0xDF, 0xBD, '\0'};
-        rc = r1.init(a2);
+		std::string a2 {"\x01\x02\xDF\xBD"};
+        rc = r1.init(a2.c_str());
         TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "TAGD_OK");
         TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.2045" );
 
