@@ -1,4 +1,4 @@
-CXX = g++
+CXX = g++ -std=c++0x
 CXXTEST = ~/src/cxxtest/bin/cxxtestgen --error-printer
 CFLAGS = -DDEBUG -ggdb
 INC = -I ~/src/cxxtest -I../ -I../../../include

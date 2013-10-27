@@ -1,4 +1,4 @@
-CXX=g++
+CXX=g++ -std=c++0x
 
 GPERF=public-suffix.gperf
 GPERF_H=public-suffix.gperf.h

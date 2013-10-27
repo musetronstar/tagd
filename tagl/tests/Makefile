@@ -4,7 +4,7 @@ INC = -I../include -I$(TAGD_DIR)/include -I../../tagspace/include
 LIBTAGD = $(TAGD_DIR)/lib/libtagd.a
 
 CXXTEST=~/src/cxxtest/bin/cxxtestgen --error-printer
-CXX = g++
+CXX = g++ -std=c++0x
 CXXFLAGS = -DDEBUG -ggdb -Wno-write-strings -I ~/src/cxxtest $(INC)
 LFLAGS =  -L $(TAGSPACE_DIR)/lib -ltagspace-sqlite -L../lib -ltagl -L$(TAGD_DIR)/lib -ltagd -levent
 

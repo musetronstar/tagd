@@ -1,4 +1,4 @@
-CXX = g++ -g
+CXX = g++ -g -std=c++0x
 WFLAGS = -Wall -Wextra
 YACC = 
 
