@@ -1887,7 +1887,7 @@ tagd::code sqlite::dump_grid(std::ostream& os) {
 tagd::code sqlite::dump_terms(std::ostream& os) {
     sqlite3_stmt *stmt = NULL;
     tagd::code ts_rc = this->prepare(&stmt,
-        "SELECT term, term_pos, ROWID FROM terms ORDER BY term",
+        "SELECT term, term_pos, ROWID FROM terms",
         "dump terms"
     );
     if (ts_rc != tagd::TAGD_OK) return ts_rc;

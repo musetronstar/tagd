@@ -173,6 +173,7 @@ void cmd_show() {
 	std::cout << ".dump\t# dump tagspace to stdout" << std::endl;
 	std::cout << ".dump [-f] <filename>\t# dump tagspace to file, [-f] forces overwrite existing" << std::endl;
 	std::cout << ".dump_grid\t# dump tagspace to stdout as a grid (specific to sqlite)" << std::endl;
+	std::cout << ".dump_terms\t# dump tagspace terms and part_of_speech lists to stdout" << std::endl;
 	std::cout << ".trace_on\t# trace tagl lexer and parser execution path and sql statements" << std::endl;
 	std::cout << ".trace_off\t# turn trace off" << std::endl;
 	std::cout << ".exit\t# exit this shell" << std::endl;
@@ -220,6 +221,11 @@ void tagsh::command(const std::string& cmdline) {
 	// dump_grid specific only to tagspace_sqlite
 	if ( cmd == ".dump_grid" ) {
 		_TS->dump_grid();
+		return;
+	
+	}
+	if ( cmd == ".dump_terms" ) {
+		_TS->dump_terms();
 		return;
 	}
 

@@ -119,6 +119,7 @@ struct tag_util {
             case POS_INTERROGATOR: return "POS_INTERROGATOR";
             case POS_URL:    return "POS_URL";
             case POS_ERROR:    return "POS_ERROR";
+            case POS_SUPER_RELATED:    return "POS_SUPER_RELATED";
             case POS_SUBJECT:    return "POS_SUBJECT";
             case POS_RELATED:    return "POS_RELATED";
             case POS_OBJECT:    return "POS_OBJECT";
