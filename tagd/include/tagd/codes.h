@@ -6,9 +6,14 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
     TAGD_OK,
 
     TAG_INSERTED,
+
+	TAGD_ERR,  // all tags >= to TAGD_ERR or considered errors
     TAG_UNKNOWN,
     TAG_DUPLICATE,
     TAG_ILLEGAL,
+
+    TS_INIT,
+    TAGL_INIT,
 
     RANK_ERR,
     RANK_EMPTY,
@@ -30,7 +35,6 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
     URL_ERR_USER,
 
 	// tagspace
-    TS_INIT,		// initial state (not initialized)
     // TS_OK uses TAGD_OK instead /* 200 */
     TS_NOT_FOUND,   /* 404 */
     TS_DUPLICATE,
@@ -49,7 +53,6 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
     TS_MISUSE,      /* caller misusing class interface */
     TS_INTERNAL_ERR, /* error not due to caller input  */ /* 500 */
 
-    TAGL_INIT,
     TAGL_ERR,
 
 	HTTP_ERR

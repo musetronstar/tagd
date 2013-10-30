@@ -84,28 +84,29 @@ bool tag_set_equal(const tag_set A, const tag_set B);
 
 // TAGL part of speech
 typedef enum {
-    POS_UNKNOWN      = 0,
-    POS_TAG          = 1 << 0,
-    POS_SUPER        = 1 << 1,
+    POS_UNKNOWN       = 0,
+    POS_TAG           = 1 << 0,
+    POS_SUPER         = 1 << 1,
 // relator is used as a "Copula" to link subjects to predicates
 // (even more general than a "linking verb")
-    POS_RELATOR      = 1 << 2,
-    POS_INTERROGATOR = 1 << 3,
-    POS_URL          = 1 << 4,
+    POS_RELATOR       = 1 << 2,
+    POS_INTERROGATOR  = 1 << 3,
+    POS_URL           = 1 << 4,
     // POS_URI // TODO
-    POS_ERROR        = 1 << 5,
-	POS_SUBJECT      = 1 << 6,
+    POS_ERROR         = 1 << 5,
+	POS_SUPER_RELATED = 1 << 6,  // term was used in a super relation
+	POS_SUBJECT       = 1 << 7,
 	// a relator at use in a relation
-	POS_RELATED      = 1 << 7,
-	POS_OBJECT       = 1 << 8,
-	POS_MODIFIER     = 1 << 9,
-    POS_REFERENT     = 1 << 10,
-    POS_REFERS       = 1 << 11,
-    POS_REFERS_TO    = 1 << 12,
-    POS_CONTEXT      = 1 << 13
+	POS_RELATED       = 1 << 8,
+	POS_OBJECT        = 1 << 9,
+	POS_MODIFIER      = 1 << 10,
+    POS_REFERENT      = 1 << 11,
+    POS_REFERS        = 1 << 12,
+    POS_REFERS_TO     = 1 << 13,
+    POS_CONTEXT       = 1 << 14
 } part_of_speech;
-const int POS_BEGIN  = 0;
-const int POS_END    = 1 << 14;
+const int POS_BEGIN   = 0;
+const int POS_END     = 1 << 15;
 
 // wrap in struct so we can define here
 struct tag_util {

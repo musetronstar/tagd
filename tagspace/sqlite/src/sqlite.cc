@@ -971,7 +971,7 @@ tagd::code sqlite::insert(const tagd::abstract_tag& t, const tagd::abstract_tag&
     this->bind_text(&_insert_stmt, ++i, t.id().c_str(), "insert id");
     OK_OR_RET_ERR(); 
  
-	this->put_term(t.super(), tagd::POS_SUPER);
+	this->put_term(t.super(), tagd::POS_SUPER_RELATED);
 	this->bind_text(&_insert_stmt, ++i, t.super().c_str(), "insert super");
     OK_OR_RET_ERR(); 
 

@@ -72,6 +72,13 @@ class tagspace_tester : public tagspace::tagspace {
 			_cat = cat;
 		}
 
+		tagd::part_of_speech term_pos(const tagd::id_type& id) {
+			tag_map::iterator it = db.find(id);
+			if (it == db.end()) return tagd::POS_UNKNOWN;
+
+			return it->second.pos();
+		}
+
 		tagd::part_of_speech pos(const tagd::id_type& id) {
 			tag_map::iterator it = db.find(id);
 			if (it == db.end()) return tagd::POS_UNKNOWN;

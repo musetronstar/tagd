@@ -126,8 +126,9 @@ class sqlite: public tagspace {
         tagd_code put(const tagd::url&, const flags_t& = flags_t());
         tagd_code put(const tagd::referent&, const flags_t& = flags_t());
 
-		tagd::part_of_speech term_pos(const tagd::id_type&, rowid_t* = NULL);
-		tagd::part_of_speech term_id_pos(rowid_t, tagd::id_type* = NULL);
+		tagd::part_of_speech term_pos(const tagd::id_type& t) {
+			return this->term_pos(t, NULL);
+		}
 		tagd::part_of_speech pos(const tagd::id_type&);
 
         tagd_code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type& = "_entity");
@@ -147,6 +148,9 @@ class sqlite: public tagspace {
 
     protected:
         tagd_code put_term(const tagd::id_type&, const tagd::part_of_speech);
+		tagd::part_of_speech term_pos(const tagd::id_type&, rowid_t*);
+		tagd::part_of_speech term_id_pos(rowid_t, tagd::id_type* = NULL);
+
         tagd_code insert_term(const tagd::id_type&, const tagd::part_of_speech);
         tagd_code update_term(const tagd::id_type&, const tagd::part_of_speech);
 

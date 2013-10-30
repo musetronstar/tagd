@@ -143,6 +143,13 @@ push_context ::= context(c) .
 get_statement ::= CMD_GET subject .
 // let tagspace return unknown or do context disambiguation
 get_statement ::= CMD_GET unknown .
+get_statement ::= CMD_GET REFERS(R) .
+{
+	if (tagl->_tag != NULL)
+		delete tagl->_tag;
+	tagl->_tag = new tagd::abstract_tag(*R);
+}
+
 
 put_statement ::= CMD_PUT subject_super_relation relations .
 put_statement ::= CMD_PUT subject_super_relation .
