@@ -248,6 +248,7 @@ class abstract_tag {
         tagd_code predicates(const predicate_set&);
 
         // object, optional id if supplied will get set the relator of the relation (if related)
+        bool has_relator(const id_type&) const;
         bool related(const id_type&, id_type *how=NULL) const;
 
         // relator, object

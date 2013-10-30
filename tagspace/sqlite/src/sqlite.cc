@@ -1132,6 +1132,9 @@ tagd::code sqlite::insert_referent(const tagd::referent& t, const flags_t& flags
     assert( !t.refers_to().empty() );
 	assert( flags < 32 );  // use flags here to suppress unused param warning
 
+	if (t.refers() == t.refers_to())
+		return this->error(tagd::TS_MISUSE, "_refers == _refers_to not allowed!"); 
+
     this->prepare(&_insert_referents_stmt,
         "INSERT INTO referents (refers, refers_to, context) "
         "VALUES (tid(?), tid(?), tid(?))",

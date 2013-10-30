@@ -307,6 +307,10 @@ refers_to(rt) ::= INTERROGATOR(I) .
 {
 	rt = I;
 }
+refers_to(rt) ::= REFERS_TO(RT) .
+{
+	rt = RT;
+}
 // refers_to(rt) ::= URL(U) .
 // {
 // 	rt = U;

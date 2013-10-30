@@ -297,6 +297,18 @@ tagd_code abstract_tag::predicates(const predicate_set &p) {
     return this->code(TAGD_OK);
 }
 
+bool abstract_tag::has_relator(const id_type &r) const {
+    if (r.empty())
+        return false;
+
+    for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
+        if (it->relator == r) {
+            return true;
+        }
+    }
+   
+    return false;
+}
 bool abstract_tag::related(const id_type &object, id_type *how) const {
     if (object.empty())
         return false;

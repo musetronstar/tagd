@@ -146,8 +146,18 @@ int driver::lookup_pos(const std::string& s) const {
 	if (p & tagd::POS_REFERENT)
 		return REFERENT;
 	
-	if (p & tagd::POS_REFERS)
+	if (p & tagd::POS_REFERS) {
+		tagd::abstract_tag t;
+		if (_TS->get(t, s) != tagd::TAGD_OK)  // error already set
+			return UNKNOWN;
+
+		if (t.has_relator(HARD_TAG_REFERENT)) {
+			// this _refers_to of a referent is now t.id()
+			return this->lookup_pos(t.id());
+		}
+
 		return REFERS;
+	}
 
 	if (p & tagd::POS_REFERS_TO)
 		return REFERS_TO;
