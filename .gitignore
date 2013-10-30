@@ -21,6 +21,7 @@ bin/
 
 # sqlite files
 *.sqlite
+*.db
 
 # generated files
 *.inc

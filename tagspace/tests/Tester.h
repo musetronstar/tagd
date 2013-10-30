@@ -274,8 +274,8 @@ class Tester : public CxxTest::TestSuite {
 
     void test_init(void) {
         space_type TS;
-        //tagd_code ts_rc = TS.init(db_fname);
-        tagd_code ts_rc = TS.init("test.db");
+        tagd_code ts_rc = TS.init(db_fname);
+        //tagd_code ts_rc = TS.init("test.db");
 		TS.print_errors();
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
