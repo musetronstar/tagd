@@ -37,6 +37,7 @@ class tagspace : public tagd::errorable {
 		virtual tagd_code query(tagd::tag_set&, const tagd::interrogator&) = 0;
 		virtual tagd_code dump(std::ostream& os = std::cout) = 0;
 		virtual tagd_code dump_grid(std::ostream& os = std::cout) = 0;
+		virtual tagd_code dump_terms(std::ostream& os = std::cout) = 0;
 };
 
 struct util {

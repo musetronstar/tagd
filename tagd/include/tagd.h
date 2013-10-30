@@ -84,21 +84,28 @@ bool tag_set_equal(const tag_set A, const tag_set B);
 
 // TAGL part of speech
 typedef enum {
-    POS_UNKNOWN = 0,
-    POS_TAG = 1,
-    POS_SUPER = 2,
+    POS_UNKNOWN      = 0,
+    POS_TAG          = 1 << 0,
+    POS_SUPER        = 1 << 1,
 // relator is used as a "Copula" to link subjects to predicates
 // (even more general than a "linking verb")
-    POS_RELATOR = 3,
-    POS_INTERROGATOR = 4,
-    POS_URL = 5,
+    POS_RELATOR      = 1 << 2,
+    POS_INTERROGATOR = 1 << 3,
+    POS_URL          = 1 << 4,
     // POS_URI // TODO
-    POS_ERROR = 6,
-    POS_REFERENT = 7,
-    POS_REFERS = 8,
-    POS_REFERS_TO = 9,
-    POS_CONTEXT = 10
+    POS_ERROR        = 1 << 5,
+	POS_SUBJECT      = 1 << 6,
+	// a relator at use in a relation
+	POS_RELATED      = 1 << 7,
+	POS_OBJECT       = 1 << 8,
+	POS_MODIFIER     = 1 << 9,
+    POS_REFERENT     = 1 << 10,
+    POS_REFERS       = 1 << 11,
+    POS_REFERS_TO    = 1 << 12,
+    POS_CONTEXT      = 1 << 13
 } part_of_speech;
+const int POS_BEGIN  = 0;
+const int POS_END    = 1 << 14;
 
 // wrap in struct so we can define here
 struct tag_util {
@@ -110,16 +117,42 @@ struct tag_util {
             case POS_RELATOR:    return "POS_RELATOR";
             case POS_INTERROGATOR: return "POS_INTERROGATOR";
             case POS_URL:    return "POS_URL";
+            case POS_ERROR:    return "POS_ERROR";
+            case POS_SUBJECT:    return "POS_SUBJECT";
+            case POS_RELATED:    return "POS_RELATED";
+            case POS_OBJECT:    return "POS_OBJECT";
+            case POS_MODIFIER:    return "POS_MODIFIER";
             case POS_REFERENT:    return "POS_REFERENT";
             case POS_REFERS:    return "POS_REFERS";
             case POS_REFERS_TO:    return "POS_REFERS_TO";
             case POS_CONTEXT:    return "POS_CONTEXT";
-            default:          return "STR_EMPTY";
+            default:          return "POS_STR_DEFAULT";
         }
     }
+
+	static std::string pos_list_str(part_of_speech p) {
+		if (p == POS_UNKNOWN)
+			return "POS_UNKNOWN";
+
+		std::string s;
+		int i = 0;
+		part_of_speech pos = (part_of_speech)(1 << i);
+		if ((p & pos) == pos)
+			s.append( pos_str(pos) );
+		while ((pos=(part_of_speech)(1<<(++i))) < POS_END) {
+			if ((p & pos) == pos) {
+				if (s.size() > 0)
+					s.append(",");
+				s.append(pos_str(pos));
+			}
+		}
+
+		return s;
+	}
 };
 
 #define pos_str(c) tagd::tag_util::pos_str(c)
+#define pos_list_str(c) tagd::tag_util::pos_list_str(c)
 
 /* hard tag that can be used in a super relation */
 inline bool is_super_hard_tag(const id_type &id) {

@@ -274,7 +274,9 @@ class Tester : public CxxTest::TestSuite {
 
     void test_init(void) {
         space_type TS;
-        tagd_code ts_rc = TS.init(db_fname);
+        //tagd_code ts_rc = TS.init(db_fname);
+        tagd_code ts_rc = TS.init("test.db");
+		TS.print_errors();
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
         tagd::tag t;
@@ -347,6 +349,10 @@ class Tester : public CxxTest::TestSuite {
 		tagd::referent d1("pictures", "photography", "event");
 		ts_rc = TS.put(d1);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_DUPLICATE");
+
+		//std::cout << "dump_terms: " << std::endl;
+		//if (TS.dump_terms() != tagd::TAGD_OK)
+		//	TS.print_errors();
     }
 
     void test_get_referent(void) {
@@ -426,11 +432,17 @@ class Tester : public CxxTest::TestSuite {
     void test_query_referents(void) {
         space_type TS;
         TS.init(db_fname);
+        //TS.init("test.db");
         populate_tags(TS);
-
         tagd::referent thing_physical_object("thing", "physical_object");
         TS.put(thing_physical_object);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+		tagd::abstract_tag t;
+		TS.get(t, "thing");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+        TS_ASSERT_EQUALS( t.id() , "physical_object" );
+        TS_ASSERT( t.related(HARD_TAG_REFERENT, "thing") );
 
         tagd::referent thing_animal("thing", "animal", "living_thing");
         TS.put(thing_animal);
@@ -617,19 +629,21 @@ class Tester : public CxxTest::TestSuite {
     void test_pos(void) {
         space_type TS;
         TS.init(db_fname);
+        //TS.init("test.db");
         populate_tags(TS);
-
 		tagd::part_of_speech pos = TS.pos("dog");
-        TS_ASSERT_EQUALS( pos, tagd::POS_TAG )
+		TS.print_errors();
+        TS_ASSERT_EQUALS( pos_str(pos), "POS_TAG" )
 
 		pos = TS.pos("_has");
-        TS_ASSERT_EQUALS( pos, tagd::POS_RELATOR )
+        TS_ASSERT_EQUALS( pos_str(pos), "POS_RELATOR" )
 
 		pos = TS.pos("_is_a");
-        TS_ASSERT_EQUALS( pos, tagd::POS_SUPER )
+        TS_ASSERT_EQUALS( pos_str(pos), "POS_SUPER" )
 
 		pos = TS.pos("unicorn");
-        TS_ASSERT_EQUALS( pos, tagd::POS_UNKNOWN )
+        TS_ASSERT_EQUALS( pos_str(pos), "POS_UNKNOWN" )
+
     }
 
     void test_insert_relations(void) {
@@ -1024,4 +1038,13 @@ class Tester : public CxxTest::TestSuite {
 //        populate_tags(TS);
 //		TS.dump();
 //	}
+
+//	void test_dump_terms(void) {
+//        space_type TS;
+//        TS.init(db_fname);
+//		std::cout << std::endl;
+//        populate_tags(TS);
+//		TS.dump_terms();
+//	}
+
 };

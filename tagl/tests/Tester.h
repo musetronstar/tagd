@@ -123,6 +123,11 @@ class tagspace_tester : public tagspace::tagspace {
 			assert(false);
 			return tagd::TS_ERR;
 		}
+
+		tagd::code dump_terms(std::ostream& os = std::cout) {
+			assert(false);
+			return tagd::TS_ERR;
+		}
 };
 
 class callback_tester : public TAGL::callback {

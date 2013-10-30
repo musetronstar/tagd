@@ -17,8 +17,11 @@ class sqlite: public tagspace {
         // prepared statement handles, must be sqlite3_finalized in the destructor
         sqlite3_stmt *_get_stmt;
         sqlite3_stmt *_exists_stmt;
+        sqlite3_stmt *_term_pos_stmt;
+        sqlite3_stmt *_term_id_pos_stmt;
         sqlite3_stmt *_pos_stmt;
         sqlite3_stmt *_insert_term_stmt;
+        sqlite3_stmt *_update_term_stmt;
         sqlite3_stmt *_insert_stmt;
         sqlite3_stmt *_update_tag_stmt;
         sqlite3_stmt *_update_ranks_stmt;
@@ -61,8 +64,11 @@ class sqlite: public tagspace {
             _db_fname(),
             _get_stmt(NULL),
             _exists_stmt(NULL),
+            _term_pos_stmt(NULL),
+            _term_id_pos_stmt(NULL),
             _pos_stmt(NULL),
             _insert_term_stmt(NULL),
+            _update_term_stmt(NULL),
             _insert_stmt(NULL),
             _update_tag_stmt(NULL),
             _update_ranks_stmt(NULL),
@@ -120,6 +126,8 @@ class sqlite: public tagspace {
         tagd_code put(const tagd::url&, const flags_t& = flags_t());
         tagd_code put(const tagd::referent&, const flags_t& = flags_t());
 
+		tagd::part_of_speech term_pos(const tagd::id_type&, rowid_t* = NULL);
+		tagd::part_of_speech term_id_pos(rowid_t, tagd::id_type* = NULL);
 		tagd::part_of_speech pos(const tagd::id_type&);
 
         tagd_code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type& = "_entity");
@@ -129,6 +137,7 @@ class sqlite: public tagspace {
 
         tagd_code dump(std::ostream& = std::cout);
         tagd_code dump_grid(std::ostream& = std::cout);
+        tagd_code dump_terms(std::ostream& = std::cout);
 
         tagd_code dump_uridb(std::ostream& = std::cout);
         tagd_code dump_uridb_relations(std::ostream& = std::cout);
@@ -137,8 +146,9 @@ class sqlite: public tagspace {
 		void trace_off();
 
     protected:
-        // insert - new, destination (super of new tag)
+        tagd_code put_term(const tagd::id_type&, const tagd::part_of_speech);
         tagd_code insert_term(const tagd::id_type&, const tagd::part_of_speech);
+        tagd_code update_term(const tagd::id_type&, const tagd::part_of_speech);
 
         // insert - new, destination (super of new tag)
         tagd_code insert(const tagd::abstract_tag&, const tagd::abstract_tag&);
@@ -172,6 +182,8 @@ class sqlite: public tagspace {
 
     public:
         // statics
+        static tagd_code prepare(sqlite*, sqlite3_stmt**, const char*, const char*label=NULL);
+
         static const char* sqlite_err_code_str(int code) {
             switch (code) {
                 case SQLITE_OK:      return "SQLITE_OK";

@@ -9,6 +9,10 @@ tagd::code bootstrap::put_hard_tag(
 		const tagd::id_type& super, const tagd::part_of_speech& pos) {
 	tagd::abstract_tag t(id, super, pos);
 	tagd::code rs = TS.put(t, NO_POS_CAST);
+	if (!((rs == tagd::TAGD_OK)||(rs == tagd::TS_DUPLICATE))) {
+		std::cerr << "bootstrap err put_hard_tag: id, pos: " << pos_str(pos) << std::endl;
+		TS.print_errors();
+	}
 	assert((rs == tagd::TAGD_OK)||(rs == tagd::TS_DUPLICATE));
 	return rs;
 }
