@@ -3,10 +3,13 @@
 #include "tagd.h"
 #include "tagspace.h"
 #include "sqlite3.h"
+#include <functional>
 
 namespace tagspace {
 
 typedef sqlite3_int64 rowid_t;
+
+typedef std::function<tagd::id_type(const tagd::id_type&)> id_transform_func_t;
 
 class sqlite: public tagspace {
     protected:
@@ -20,6 +23,8 @@ class sqlite: public tagspace {
         sqlite3_stmt *_term_pos_stmt;
         sqlite3_stmt *_term_id_pos_stmt;
         sqlite3_stmt *_pos_stmt;
+        sqlite3_stmt *_refers_to_stmt;
+        sqlite3_stmt *_refers_stmt;
         sqlite3_stmt *_insert_term_stmt;
         sqlite3_stmt *_update_term_stmt;
         sqlite3_stmt *_insert_stmt;
@@ -32,8 +37,6 @@ class sqlite: public tagspace {
         sqlite3_stmt *_delete_context_stmt;
         sqlite3_stmt *_truncate_context_stmt;
         sqlite3_stmt *_get_relations_stmt;
-        sqlite3_stmt *_get_referents_stmt;
-        sqlite3_stmt *_get_referent_context_stmt;
         sqlite3_stmt *_related_stmt;
         sqlite3_stmt *_related_modifier_stmt;
         sqlite3_stmt *_related_null_super_stmt;
@@ -57,6 +60,8 @@ class sqlite: public tagspace {
 		// wrapped by init(), sets _doing_init
         tagd_code _init(const std::string&);
 
+		id_transform_func_t  _f_encode_referent;
+
     public:
         sqlite() :
 			tagspace(),
@@ -67,6 +72,8 @@ class sqlite: public tagspace {
             _term_pos_stmt(NULL),
             _term_id_pos_stmt(NULL),
             _pos_stmt(NULL),
+            _refers_to_stmt(NULL),
+            _refers_stmt(NULL),
             _insert_term_stmt(NULL),
             _update_term_stmt(NULL),
             _insert_stmt(NULL),
@@ -79,8 +86,6 @@ class sqlite: public tagspace {
 			_delete_context_stmt(NULL),
 			_truncate_context_stmt(NULL),
             _get_relations_stmt(NULL),
-            _get_referents_stmt(NULL),
-            _get_referent_context_stmt(NULL),
             _related_stmt(NULL),
             _related_modifier_stmt(NULL),
             _related_null_super_stmt(NULL),
@@ -116,24 +121,29 @@ class sqlite: public tagspace {
 		tagd_code clear_context();
 
         // get into tag given id
-        tagd_code get(tagd::abstract_tag&, const tagd::id_type&, const flags_t& = flags_t());
-        tagd_code get(tagd::url&, const tagd::id_type&, const flags_t& = flags_t());
+        tagd_code get(tagd::abstract_tag&, const tagd::id_type&, flags_t = flags_t());
+        tagd_code get(tagd::url&, const tagd::id_type&, flags_t = flags_t());
 
         tagd_code exists(const tagd::id_type& id); 
 
         // put tag, will overrite existing (move + update)
-        tagd_code put(const tagd::abstract_tag&, const flags_t& = flags_t());
-        tagd_code put(const tagd::url&, const flags_t& = flags_t());
-        tagd_code put(const tagd::referent&, const flags_t& = flags_t());
+        tagd_code put(const tagd::abstract_tag&, flags_t = flags_t());
+        tagd_code put(const tagd::url&, flags_t = flags_t());
+        tagd_code put(const tagd::referent&, flags_t = flags_t());
 
 		tagd::part_of_speech term_pos(const tagd::id_type& t) {
 			return this->term_pos(t, NULL);
 		}
-		tagd::part_of_speech pos(const tagd::id_type&);
+		tagd::part_of_speech pos(const tagd::id_type&, flags_t = flags_t());
+		tagd_code refers_to(tagd::id_type&, const tagd::id_type&);
+		tagd_code refers(tagd::id_type&, const tagd::id_type&);
 
-        tagd_code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type& = "_entity");
-        tagd_code query(tagd::tag_set&, const tagd::interrogator&);
-        tagd_code get_children(tagd::tag_set&, const tagd::id_type&);
+        tagd_code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type&, flags_t = flags_t());
+        tagd_code related(tagd::tag_set &T, const tagd::predicate &p, flags_t f = flags_t()) {
+			return this->related(T, p, tagd::id_type(), f);
+		}
+        tagd_code query(tagd::tag_set&, const tagd::interrogator&, flags_t = flags_t());
+        tagd_code get_children(tagd::tag_set&, const tagd::id_type&, flags_t = flags_t());
         tagd_code query_referents(tagd::tag_set&, const tagd::interrogator&);
 
         tagd_code dump(std::ostream& = std::cout);
@@ -147,7 +157,8 @@ class sqlite: public tagspace {
 		void trace_off();
 
     protected:
-        tagd_code put_term(const tagd::id_type&, const tagd::part_of_speech);
+		// returns the part of speech that was inserted or updated, or a duplicate, POS_UNKNOWN on error
+		tagd::part_of_speech put_term(const tagd::id_type&, const tagd::part_of_speech);
 		tagd::part_of_speech term_pos(const tagd::id_type&, rowid_t*);
 		tagd::part_of_speech term_id_pos(rowid_t, tagd::id_type* = NULL);
 
@@ -161,9 +172,18 @@ class sqlite: public tagspace {
 
         tagd_code insert_relations(const tagd::abstract_tag&);
 		tagd_code insert_referent(const tagd::referent&, const flags_t& = flags_t());
+
+		void encode_referent(tagd::id_type&, const tagd::id_type&);
+		void encode_referents(tagd::predicate_set&, const tagd::predicate_set&);
+		void encode_referents(tagd::abstract_tag&, const tagd::abstract_tag&);
+
+		void decode_referent(tagd::id_type&, const tagd::id_type&);
+		void decode_referents(tagd::predicate_set&, const tagd::predicate_set&);
+		void decode_referents(tagd::abstract_tag&, const tagd::abstract_tag&);
+
 		tagd_code insert_context(const tagd::id_type&);
 		tagd_code delete_context(const tagd::id_type&);
-        tagd_code get_relations(tagd::predicate_set&, const tagd::id_type&);
+        tagd_code get_relations(tagd::predicate_set&, const tagd::id_type&, flags_t = flags_t());
 
         tagd_code next_rank(tagd::rank&, const tagd::abstract_tag&);
         tagd_code child_ranks(tagd::rank_set&, const tagd::id_type&);
@@ -186,8 +206,6 @@ class sqlite: public tagspace {
 
     public:
         // statics
-        static tagd_code prepare(sqlite*, sqlite3_stmt**, const char*, const char*label=NULL);
-
         static const char* sqlite_err_code_str(int code) {
             switch (code) {
                 case SQLITE_OK:      return "SQLITE_OK";

@@ -36,8 +36,21 @@ struct predicate {
         return ( 
           relator == p.relator
           && object == p.object
+          && modifier == p.modifier
         );
     }
+
+	bool operator!=(const predicate& p) const {
+		return (!(*this == p));
+	}
+
+	bool empty() const {
+		return (
+			relator.empty()
+			&& object.empty()
+			&& modifier.empty()
+		);
+	}
 };
 
 typedef std::set<predicate> predicate_set;
@@ -155,16 +168,6 @@ struct tag_util {
 
 #define pos_str(c) tagd::tag_util::pos_str(c)
 #define pos_list_str(c) tagd::tag_util::pos_list_str(c)
-
-/* hard tag that can be used in a super relation */
-inline bool is_super_hard_tag(const id_type &id) {
-    return (
-        id == "_entity" ||
-        id == HARD_TAG_RELATOR ||
-        id == HARD_TAG_URL ||
-        id == HARD_TAG_INTERROGATOR
-    );
-}
 
 /* name of super relator (for semantic meaning) */
 id_type super_relator(const part_of_speech&);

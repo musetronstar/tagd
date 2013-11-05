@@ -61,9 +61,7 @@ It is the only tag having this relation.
 
 Now let's put some more tags so that we can define dog more completely:
 
-	put is_a _type_of _super;
 	put can _type_of _relator;
-	put has _type_of _relator;
 	put event _is_a _entity;
 	put sound _is_a event;
 	put utterance _is_a sound;
@@ -74,7 +72,7 @@ Now let's put some more tags so that we can define dog more completely:
 
 	put dog
 	can bark
-	has legs = 4, tail;
+	_has legs = 4, tail;
 
 Note the missing semicolon (';') after the statement `put tail _is_a body_part`.
 That's not a syntax error.  A statement can be terminated by a semicolon, `<EOF>`,
@@ -132,7 +130,7 @@ Results should be:
 
 	dog _is_a mammal
 	can bark
-	has legs = 4, tail
+	_has legs = 4, tail
 
 ##### GET Grammar:
 
@@ -147,44 +145,44 @@ Tags (subjects) can be retrieved according to matching predicates using query
 statements.  Let's define some more tags to make it interesting:
 
 	put lives_in _type_of _relator;
-	put substance is_a _entity;
-	put fluid is_a substance;
-	put water is_a fluid;
-	put gas is_a substance;
-	put air is_a gas;
-	put body_fluid is_a substance;
-	put blood is_a body_fluid;
-	put fins is_a body_part;
-	put gills is_a body_part;
-	put hair is_a body_part;
-	put scales is_a body_part;
-	put breathes is_a _relator;
-	put what is_a _interrogator;
+	put substance _is_a _entity;
+	put fluid _is_a substance;
+	put water _is_a fluid;
+	put gas _is_a substance;
+	put air _is_a gas;
+	put body_fluid _is_a substance;
+	put blood _is_a body_fluid;
+	put fins _is_a body_part;
+	put gills _is_a body_part;
+	put hair _is_a body_part;
+	put scales _is_a body_part;
+	put breathes _is_a _relator;
+	put what _is_a _interrogator;
 
-	put fish is_a vertibrate
-	has gills, fins, scales
+	put fish _is_a vertibrate
+	_has gills, fins, scales
 	lives_in water
 	breathes water
 
 	put mammal
-	has hair, blood = warm
+	_has hair, blood = warm
 	breathes air
 
-	put whale is_a mammal
-	has fins
+	put whale _is_a mammal
+	_has fins
 	lives_in water;
 
 Now let's try a query:
 
-	query what is_a animal
+	query what _is_a animal
 	lives_in water;
 
 Results should be:
 
 	whale, fish
 
-But `whale is_a mammal` and `fish is_a vertibrate` - how did we query for
-`is_a animal` and get a match?  Since tagspace is organized as a tree, and
+But `whale _is_a mammal` and `fish _is_a vertibrate` - how did we query for
+`_is_a animal` and get a match?  Since tagspace is organized as a tree, and
 animal is a parent (aka superordinate or hypernym) of both vertibrate and
 mammal, it is logically true that whale and fish match.
 
@@ -192,7 +190,7 @@ Let's try another:
 
 	query what lives_in water
 	breathes air
-	has fins, blood = warm;
+	_has fins, blood = warm;
 
 Results should be:
 
@@ -239,7 +237,7 @@ Let's put some urls:
 
 Now we can query some URLs:
 
-	query what is_a _url
+	query what _is_a _url
 	about dog;
 
 Results:
@@ -295,7 +293,20 @@ same thing (synonyms), and different things referred by the same name
 
 #### Referent Statement:
 
-	put creature _refers_to animal;
+If you would like to alias hard tags, you can do so:
+
+	put is_a _refers_to _is_a;
+	put has _refers_to _has;
+	put context _refers_to _context;
+	put refers _refers_to _refers;
+
+We can even alias `_refers_to`:
+
+	put refers_to _refers_to _refers_to;
+
+Here is a synonym for animal:
+
+	put creature refers_to animal;
 
 Now, we can `get animal` by refering to creature:
 
@@ -303,8 +314,8 @@ Now, we can `get animal` by refering to creature:
 
 Results:
 
-	animal _is_a living_thing
-	_referent creature
+	creature _is_a living_thing
+	refers_to animal  
 
 Since no context was specified, creature refers to animal in the *universal
 context* (same as *null* context).
@@ -324,8 +335,8 @@ Here are some referents within a context:
 	put automobile is_a machine;
 	put used_car is_a automobile;
 
-	put lemon _refers_to yellow _context color;
-	put lemon _refers_to used_car _context automobile;
+	put lemon refers_to yellow context color;
+	put lemon refers_to used_car context automobile;
 
 Now, let's get lemon in the universal context:
 
@@ -344,26 +355,26 @@ No surprises - now let's set a context...
 
 Results:
 
-	used_car _is_a automobile
-	_referent lemon = automobile
+	lemon _is_a automobile
+	refers_to used_car
 
 Context heirarchies can also be set, where the closest (from right to left)
 context is tested for a match before moving up the context list:
 
-	set _context automobile, color;
+	set context automobile, color;
 	get lemon;
 
 Results:
 
-	yellow _is_a color
-	_referent lemon = color 
+	lemon _is_a color
+	refers_to yellow
 
 Example of a foreign language referent:
 
 	put communication is_a _entity;
 	put language is_a communication;
 	put japanese is_a language;
-	put イヌ _refers_to dog _context japanese;
+	put イヌ refers_to dog context japanese;
 
 First, here is a gotcha:
 
@@ -373,7 +384,6 @@ Results:
 
 	TS_AMBIGUOUS _type_of _error
 	_has _msg = "イヌ refers to a tag with no matching context"
-	_refers_to dog = japanese
 
 Though there is currently only one referent of "イヌ", its not safe to resolve
 it in the universal context, as one could later define another referent of the
@@ -381,17 +391,19 @@ same label and alter program logic, as it then truly would be ambiguous.
 
 If a referent is defined in a context, that context must be set to resolve it:
 
-	set _context japanese;
+	set context japanese;
 	get イヌ;
 
 Results:
 
-	dog _is_a mammal
-	_referent イヌ = japanese
+	イヌ _is_a mammal
+	can bark
+	has legs = 4, tail
+	refers_to dog
 
 The context can be cleared by setting it to an empty string:
 
-	set _context "";
+	set context "";
 
 ##### QUERY Referents:
 

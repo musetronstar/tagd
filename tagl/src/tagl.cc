@@ -126,46 +126,36 @@ int driver::lookup_pos(const std::string& s) const {
 		return MODIFIER;
 
 	int token;
-	tagd::part_of_speech p = _TS->term_pos(s);
-
-	if (_trace_on)
-		std::cerr << "term: " << s << '\t' << pos_list_str(p) << std::endl;
-
-	if (p & tagd::POS_TAG)
-		return TAG;
-
-	if (p & tagd::POS_SUPER)
-		return SUPER;
-
-	if (p & tagd::POS_RELATOR)
-		return RELATOR;
-
-	if (p & tagd::POS_INTERROGATOR)
-		return INTERROGATOR;
-	
-	if (p & tagd::POS_REFERENT)
-		return REFERENT;
-	
-	if (p & tagd::POS_REFERS) {
-		tagd::abstract_tag t;
-		if (_TS->get(t, s) != tagd::TAGD_OK)  // error already set
-			return UNKNOWN;
-
-		if (t.has_relator(HARD_TAG_REFERENT)) {
-			// this _refers_to of a referent is now t.id()
-			return this->lookup_pos(t.id());
-		}
-
-		return REFERS;
+	switch(_TS->pos(s)) {
+		case tagd::POS_TAG:
+			token = TAG;
+			break;
+		case tagd::POS_SUPER:
+			token = SUPER;
+			break;
+		case tagd::POS_RELATOR:
+			token = RELATOR;
+			break;
+		case tagd::POS_INTERROGATOR:
+			token = INTERROGATOR;
+			break;
+		case tagd::POS_REFERENT:
+			token = REFERENT;
+			break;
+		case tagd::POS_REFERS:
+			token = REFERS;
+			break;
+		case tagd::POS_REFERS_TO:
+			token = REFERS_TO;
+			break;
+		case tagd::POS_CONTEXT:
+			token = CONTEXT;
+			break;
+		default:  // POS_UNKNOWN
+			token = UNKNOWN;
 	}
 
-	if (p & tagd::POS_REFERS_TO)
-		return REFERS_TO;
-
-	if (p & tagd::POS_CONTEXT)
-		return CONTEXT;
-
-	return UNKNOWN;
+	return token;
 }
 
 void driver::parse_tok(int tok, std::string *s) {

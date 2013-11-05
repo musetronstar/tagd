@@ -13,205 +13,83 @@ const std::string db_fname = ":memory:";
 // can be used by other tagspace implementation
 typedef tagspace::sqlite space_type;
 
-// populate tags minimally so we can test inserting, etc
-void populate_tags_minimal(space_type& TS) {
-    tagd::tag physical_object("physical_object", "_entity");
-    TS.put(physical_object);
-    tagd::tag living_thing("living_thing", "physical_object");
-    TS.put(living_thing);
-    tagd::tag animal("animal", "living_thing");
-    TS.put(animal);
-    tagd::tag vertibrate("vertibrate", "animal");
-    TS.put(vertibrate);
-    tagd::tag mammal("mammal","vertibrate");
-    TS.put(mammal);
-    tagd::tag dog("dog","mammal");
-    TS.put(dog);
-    tagd::tag cat("cat","mammal");
-    TS.put(cat);
-    tagd::tag bird("bird","vertibrate");
-    TS.put(bird);
-    tagd::tag canary("canary","bird");
-    TS.put(canary);
-    tagd::tag invertebrate("invertebrate","animal");
-    TS.put(invertebrate);
-    tagd::tag arthropod("arthropod","invertebrate");
-    TS.put(arthropod);
-    tagd::tag insect("insect","arthropod");
-    TS.put(insect);
-    tagd::tag n("spider","insect");
 
+// populate tags
+// return the number of referents inserted
+size_t populate_tags(space_type& TS) {
+	size_t num_referents = 0;
+
+    TS.put( tagd::tag("substance", "_entity") );
+    TS.put( tagd::tag("physical_object", "_entity") );
+    TS.put( tagd::tag("living_thing", "physical_object") );
     // TODO change plural referents when referents in place
-    tagd::tag body_part("body_part","physical_object");
-    TS.put(body_part);
-    tagd::tag teeth("teeth","body_part");  // plural referent => tooth, for now, what the hell
-    TS.put(teeth);
-    tagd::tag tail("tail","body_part");
-    TS.put(tail);
-    tagd::tag legs("legs","body_part");  // plural referent
-    TS.put(legs);
-    tagd::tag beak("beak","body_part");
-    TS.put(beak);
-    tagd::tag wings("wings","body_part");  // plural referent
-    TS.put(wings);
-    tagd::tag feathers("feathers","body_part");  // plural referent
-    TS.put(feathers);
-    tagd::tag fins("fins","body_part");  // plural referent
-    TS.put(fins);
+    TS.put( tagd::tag("body_part","physical_object") );
+    TS.put( tagd::tag("teeth","body_part") );  // plural referent => tooth, for now, what the hell
+    TS.put( tagd::tag("fangs","teeth") );
+    TS.put( tagd::tag("fur","body_part") );
+    TS.put( tagd::tag("tail","body_part") );
+    TS.put( tagd::tag("legs","body_part") );  // plural referent
+    TS.put( tagd::tag("beak","body_part") );
+    TS.put( tagd::tag("wings","body_part") );  // plural referent
+    TS.put( tagd::tag("feathers","body_part") );  // plural referent
+    TS.put( tagd::tag("fins","body_part") );  // plural referent
 
-    tagd::tag event("event","_entity");
-    TS.put(event);
-    tagd::tag sound("sound","event");
-    TS.put(sound);
-    tagd::tag action("action","event");
-    TS.put(action);
-    tagd::tag utterance("utterance","sound");
-    TS.put(utterance);
-    tagd::tag bark("bark","utterance");
-    TS.put(bark);
-    tagd::tag meow("meow","utterance");
-    TS.put(meow);
+	TS.put( tagd::tag("machine", "physical_object") );
+	TS.put( tagd::tag("computer", "machine") );
+
+    TS.put( tagd::tag("mind", "_entity") );
+
+    TS.put( tagd::tag("communication", "_entity") );
+    TS.put( tagd::tag("language", "communication") );
+	TS.put( tagd::tag("instruction", "language") );
+	TS.put( tagd::tag("program", "instruction") );
+
+    TS.put( tagd::tag("knowledge", "mind") );
+    TS.put( tagd::tag("concept", "knowledge") );
+    TS.put( tagd::tag("science", "knowledge") );
+	TS.put( tagd::tag("computer_security", "science") );
+
+	TS.put( tagd::tag("creativity", "mind") );
+	TS.put( tagd::tag("art", "creativity") );
+	TS.put( tagd::tag("visual_art", "art") );
+	TS.put( tagd::tag("movie", "visual_art") );
+	TS.put( tagd::tag("tv_show", "visual_art") );
+
+    TS.put( tagd::tag("event","_entity") );
+    TS.put( tagd::tag("sound","event") );
+    TS.put( tagd::tag("action","event") );
+    TS.put( tagd::tag("utterance","sound") );
+    TS.put( tagd::tag("bark","utterance") );
+    TS.put( tagd::tag("meow","utterance") );
     // TODO these are verbs, how do we deal with them?
-    tagd::tag move("move","action");  // to_move
-    TS.put(move);
-    tagd::tag fly("fly","move");    // to_fly
-    TS.put(fly);
-    tagd::tag swim("swim","move");    // to_swim
-    TS.put(swim);
+    TS.put( tagd::tag("move","action") );  // to_move
+    TS.put( tagd::tag("fly","move") );    // to_fly
+    TS.put( tagd::tag("swim","move") );    // to_swim
 
-    tagd::tag word("word","_relator");
-    TS.put(word);
-    tagd::tag verb("verb","word");
-    TS.put(verb);
+    TS.put( tagd::relator("verb","_relator") );
+    TS.put( tagd::relator("can","verb") );  // no hard_tagd == _can, so no referent
+    TS.put( tagd::relator("preposition","_relator") );
+    TS.put( tagd::relator("about","preposition") );
 
-    tagd::relator has("has","verb");
-    TS.put(has);
-    tagd::relator can("can","verb");
-    TS.put(can);
-}
+    TS.put( tagd::referent("is_a","_is_a") );
+	num_referents++;
+    TS.put( tagd::referent("has","_has") );
+	num_referents++;
 
-
-void populate_tags(space_type& TS) {
-    tagd::tag substance("substance", "_entity");
-    TS.put(substance);
-    tagd::tag physical_object("physical_object", "_entity");
-    TS.put(physical_object);
-    tagd::tag living_thing("living_thing", "physical_object");
-    TS.put(living_thing);
-    // TODO change plural referents when referents in place
-    tagd::tag body_part("body_part","physical_object");
-    TS.put(body_part);
-    tagd::tag teeth("teeth","body_part");  // plural referent => tooth, for now, what the hell
-    TS.put(teeth);
-    tagd::tag fangs("fangs","teeth");
-    TS.put(fangs);
-    tagd::tag tail("tail","body_part");
-    TS.put(tail);
-    tagd::tag legs("legs","body_part");  // plural referent
-    TS.put(legs);
-    tagd::tag beak("beak","body_part");
-    TS.put(beak);
-    tagd::tag wings("wings","body_part");  // plural referent
-    TS.put(wings);
-    tagd::tag feathers("feathers","body_part");  // plural referent
-    TS.put(feathers);
-    tagd::tag fins("fins","body_part");  // plural referent
-    TS.put(fins);
-
-	tagd::tag machine("machine", "physical_object");
-	TS.put(machine);
-	tagd::tag computer("computer", "machine");
-	TS.put(computer);
-
-    tagd::tag mind("mind", "_entity");
-    TS.put(mind);
-
-    tagd::tag communication("communication", "_entity");
-    TS.put(communication);
-    tagd::tag language("language", "communication");
-    TS.put(language);
-	tagd::tag instruction("instruction", "language");
-	TS.put(instruction);
-	tagd::tag prg("program", "instruction");
-	TS.put(prg);
-
-    tagd::tag knowledge("knowledge", "mind");
-    TS.put(knowledge);
-    tagd::tag concept("concept", "knowledge");
-    TS.put(concept);
-    tagd::tag science("science", "knowledge");
-    TS.put(science);
-	tagd::tag cs("computer_security", "science");
-	TS.put(cs);
-
-	tagd::tag creativity("creativity", "mind");
-	TS.put(creativity);
-	tagd::tag art("art", "creativity");
-	TS.put(art);
-	tagd::tag visual_art("visual_art", "art");
-	TS.put(visual_art);
-	tagd::tag movie("movie", "visual_art");
-	TS.put(movie);
-	tagd::tag tv_show("tv_show", "visual_art");
-	TS.put(tv_show);
-
-    tagd::tag event("event","_entity");
-    TS.put(event);
-    tagd::tag sound("sound","event");
-    TS.put(sound);
-    tagd::tag action("action","event");
-    TS.put(action);
-    tagd::tag utterance("utterance","sound");
-    TS.put(utterance);
-    tagd::tag bark("bark","utterance");
-    TS.put(bark);
-    tagd::tag meow("meow","utterance");
-    TS.put(meow);
-    // TODO these are verbs, how do we deal with them?
-    tagd::tag move("move","action");  // to_move
-    TS.put(move);
-    tagd::tag fly("fly","move");    // to_fly
-    TS.put(fly);
-    tagd::tag swim("swim","move");    // to_swim
-    TS.put(swim);
-
-    tagd::tag word("word","_relator");
-    TS.put(word);
-    tagd::tag verb("verb","word");
-    TS.put(verb);
-    tagd::tag preposition("preposition","word");
-    TS.put(preposition);
-
-    tagd::relator has("has","verb");
-    TS.put(has);
-    tagd::relator can("can","verb");
-    TS.put(can);
-    tagd::relator about("about","preposition");
-    TS.put(about);
-
-    tagd::tag body_fluid("body_fluid", "substance");
-    TS.put(body_fluid);
-    tagd::tag blood("blood", "body_fluid");
-    TS.put(blood);
-    tagd::tag animal("animal", "living_thing");
-    TS.put(animal);
-    tagd::tag vertibrate("vertibrate", "animal");
-    TS.put(vertibrate);
+    TS.put( tagd::tag("body_fluid", "substance") );
+    TS.put( tagd::tag("blood", "body_fluid") );
+    TS.put( tagd::tag("animal", "living_thing") );
+    TS.put( tagd::tag("vertibrate", "animal") );
 
     tagd::tag mammal("mammal","vertibrate");
     mammal.relation("has", "blood", "warm");
     mammal.relation("has", "teeth");
     TS.put(mammal);
 
-    tagd::tag reptile("reptile","vertibrate");
-    TS.put(reptile);
-    tagd::tag invertebrate("invertebrate","animal");
-    TS.put(invertebrate);
-    tagd::tag arthropod("arthropod","invertebrate");
-    TS.put(arthropod);
-    tagd::tag insect("insect","arthropod");
-    TS.put(insect);
-    tagd::tag n("spider","insect");
+    TS.put( tagd::tag("reptile","vertibrate") );
+    TS.put( tagd::tag("invertebrate","animal") );
+    TS.put( tagd::tag("arthropod","invertebrate") );
+    TS.put( tagd::tag("insect","arthropod") );
 
     tagd::tag dog("dog", "mammal");
     dog.relation("has", "legs", "4");
@@ -241,8 +119,7 @@ void populate_tags(space_type& TS) {
     bird.relation("can", "fly");
     TS.put(bird);
 
-    tagd::tag canary("canary","bird");
-    TS.put(canary);
+    TS.put( tagd::tag("canary","bird") );
 
     tagd::tag spider("spider", "insect");
     spider.relation("has", "fangs");
@@ -251,6 +128,8 @@ void populate_tags(space_type& TS) {
     tagd::tag snake("snake", "reptile");
     snake.relation("has", "fangs");
     TS.put(snake);
+
+	return num_referents;
 }
 
 bool tag_set_exists(const tagd::tag_set& S, const tagd::id_type& id) {
@@ -275,8 +154,6 @@ class Tester : public CxxTest::TestSuite {
     void test_init(void) {
         space_type TS;
         tagd_code ts_rc = TS.init(db_fname);
-        //tagd_code ts_rc = TS.init("test.db");
-		TS.print_errors();
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
         tagd::tag t;
@@ -311,6 +188,16 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(ts_rc, tagd::TAGD_OK);
 		
         TS_ASSERT_EQUALS(c.rank().dotted_str(), r_dotted);
+    }
+
+	void test_put_id_equals_super(void) {
+        space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+        tagd::tag a("dog", "dog");
+        TS.put(a);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TS_MISUSE");
     }
 
     void test_put_referent(void) {
@@ -355,7 +242,39 @@ class Tester : public CxxTest::TestSuite {
 		//	TS.print_errors();
     }
 
-    void test_get_referent(void) {
+	void test_put_refers_to_self(void) {
+        space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+        tagd::referent a("thing", "thing");
+        TS.put(a);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TS_MISUSE");
+
+        tagd::referent b("dog", "dog");
+        TS.put(b);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TS_MISUSE");
+    }
+
+	void test_get_referent(void) {
+        space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+		TS.print_errors();
+
+        tagd::referent thing("thing", "physical_object");
+        TS.put(thing);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+		tagd::tag t;
+		TS.get(t, "thing");
+		TS.print_errors();
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+        TS_ASSERT_EQUALS( t.id(), "thing" )
+        TS_ASSERT( t.related(HARD_TAG_REFERS_TO, "physical_object") )
+	}
+
+    void test_refers_to(void) {
         space_type TS;
         TS.init(db_fname);
         populate_tags(TS);
@@ -367,8 +286,32 @@ class Tester : public CxxTest::TestSuite {
 		tagd::tag t;
 		TS.get(t, "thing");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
-        TS_ASSERT_EQUALS( t.id(), "physical_object" )
-        TS_ASSERT( t.related(HARD_TAG_REFERENT, "thing") )
+        TS_ASSERT_EQUALS( t.id(), "thing" )
+        TS_ASSERT( t.related(HARD_TAG_REFERS_TO, "physical_object") )
+
+        tagd::referent thing2("thing", "animal", "living_thing");
+        TS.put(thing2);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+		tagd::id_type refers_to;
+		TS.refers_to(refers_to, "thing");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+        TS_ASSERT_EQUALS( refers_to , "physical_object" )
+
+		refers_to.clear();
+		TS.refers_to(refers_to, "physical_object"); // not a referent
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TS_NOT_FOUND")
+
+		TS.push_context("living_thing");
+		refers_to.clear();
+		TS.refers_to(refers_to, "thing");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+        TS_ASSERT_EQUALS( refers_to , "animal" )
+
+		tagd::part_of_speech p1 = TS.pos("animal");
+		tagd::part_of_speech p2 = TS.pos("thing");
+		TS_ASSERT_EQUALS ( pos_str(p1) , "POS_TAG" )
+		TS_ASSERT_EQUALS ( p1 , p2 )
 	}
 
     void test_ambiguous_referent(void) {
@@ -391,8 +334,8 @@ class Tester : public CxxTest::TestSuite {
 		TS.push_context("living_thing");
 		TS.get(t, "thing");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
-        TS_ASSERT_EQUALS( t.id(), "animal" )
-        TS_ASSERT( t.related(HARD_TAG_REFERENT, "thing") )
+        TS_ASSERT_EQUALS( t.id(), "thing" )
+        TS_ASSERT( t.related(HARD_TAG_REFERS_TO, "animal") )
 	}
 
     void test_referent_override(void) {
@@ -417,9 +360,9 @@ class Tester : public CxxTest::TestSuite {
 		tagd::tag t2;
 		TS.get(t2, "cat");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
-        TS_ASSERT_EQUALS( t2.id(), "cat_program" )
+        TS_ASSERT_EQUALS( t2.id(), "cat" )
         TS_ASSERT_EQUALS( t2.super(), "program" )
-        TS_ASSERT( t2.related(HARD_TAG_REFERENT, "cat", "computer") )
+        TS_ASSERT( t2.related(HARD_TAG_REFERS_TO, "cat_program") )
 
 		TS.push_context("animal");
 		tagd::tag t3;
@@ -433,7 +376,7 @@ class Tester : public CxxTest::TestSuite {
         space_type TS;
         TS.init(db_fname);
         //TS.init("test.db");
-        populate_tags(TS);
+        size_t num_referents = populate_tags(TS);
         tagd::referent thing_physical_object("thing", "physical_object");
         TS.put(thing_physical_object);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
@@ -441,8 +384,8 @@ class Tester : public CxxTest::TestSuite {
 		tagd::abstract_tag t;
 		TS.get(t, "thing");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
-        TS_ASSERT_EQUALS( t.id() , "physical_object" );
-        TS_ASSERT( t.related(HARD_TAG_REFERENT, "thing") );
+        TS_ASSERT_EQUALS( t.id() , "thing" );
+        TS_ASSERT( t.related(HARD_TAG_REFERS_TO, "physical_object") );
 
         tagd::referent thing_animal("thing", "animal", "living_thing");
         TS.put(thing_animal);
@@ -458,8 +401,9 @@ class Tester : public CxxTest::TestSuite {
         tagd::interrogator q_referent("what", HARD_TAG_REFERENT);
         S.clear();
         TS.query(S, q_referent);
+		//tagd::print_tags(S);
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
-        TS_ASSERT_EQUALS( S.size(), 3 );
+        TS_ASSERT_EQUALS( S.size(), (3+num_referents) );
         TS_ASSERT( tag_set_exists(S, thing_physical_object) );
         TS_ASSERT( tag_set_exists(S, thing_animal) );
         TS_ASSERT( tag_set_exists(S, creature) );
@@ -558,36 +502,36 @@ class Tester : public CxxTest::TestSuite {
 		tagd::tag t1;
 		TS.get(t1, "thing");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
-        TS_ASSERT_EQUALS( t1.id(), "physical_object" )
-        TS_ASSERT( t1.related(HARD_TAG_REFERENT, "thing") )
+        TS_ASSERT_EQUALS( t1.id(), "thing" )
+        TS_ASSERT( t1.related(HARD_TAG_REFERS_TO, "physical_object") )
 
 		TS.push_context("living_thing");
 		tagd::tag t2;
 		TS.get(t2, "thing");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
-        TS_ASSERT_EQUALS( t2.id(), "animal" )
-        TS_ASSERT( t2.related(HARD_TAG_REFERENT, "thing", "living_thing") )
+        TS_ASSERT_EQUALS( t2.id(), "thing" )
+        TS_ASSERT( t2.related(HARD_TAG_REFERS_TO, "animal") )
 
 		TS.push_context("mind");  // knowledge is_a mind
 		tagd::tag t3;
 		TS.get(t3, "thing");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
-        TS_ASSERT_EQUALS( t3.id(), "concept" )
-        TS_ASSERT( t3.related(HARD_TAG_REFERENT, "thing", "mind") )
+        TS_ASSERT_EQUALS( t3.id(), "thing" )
+        TS_ASSERT( t3.related(HARD_TAG_REFERS_TO, "concept" ) )
 
 		TS.pop_context();
 		tagd::tag t4;
 		TS.get(t4, "thing");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
-        TS_ASSERT_EQUALS( t4.id(), "animal" )
-        TS_ASSERT( t4.related(HARD_TAG_REFERENT, "thing", "living_thing") )
+        TS_ASSERT_EQUALS( t4.id(), "thing" )
+        TS_ASSERT( t4.related(HARD_TAG_REFERS_TO, "animal") )
 
 		TS.clear_context();
 		tagd::tag t5;
 		TS.get(t5, "thing");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
-        TS_ASSERT_EQUALS( t5.id(), "physical_object" )
-        TS_ASSERT( t5.related(HARD_TAG_REFERENT, "thing") )
+        TS_ASSERT_EQUALS( t5.id(), "thing" )
+        TS_ASSERT( t5.related(HARD_TAG_REFERS_TO, "physical_object") )
 	}
 
     void test_utf8_japanese_referent(void) {
@@ -610,8 +554,8 @@ class Tester : public CxxTest::TestSuite {
 		TS.push_context("japanese");
 		TS.get(t, "イヌ");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
-        TS_ASSERT_EQUALS( t.id(), "dog" )
-        TS_ASSERT( t.related(HARD_TAG_REFERENT, "イヌ") )
+        TS_ASSERT_EQUALS( t.id(), "イヌ" )
+        TS_ASSERT( t.related(HARD_TAG_REFERS_TO, "dog") )
 	}
 
     void test_exists(void) {
@@ -638,7 +582,13 @@ class Tester : public CxxTest::TestSuite {
 		pos = TS.pos("_has");
         TS_ASSERT_EQUALS( pos_str(pos), "POS_RELATOR" )
 
+		pos = TS.pos("has");  // referent relator
+        TS_ASSERT_EQUALS( pos_str(pos), "POS_RELATOR" )
+
 		pos = TS.pos("_is_a");
+        TS_ASSERT_EQUALS( pos_str(pos), "POS_SUPER" )
+
+		pos = TS.pos("is_a");
         TS_ASSERT_EQUALS( pos_str(pos), "POS_SUPER" )
 
 		pos = TS.pos("unicorn");
@@ -649,7 +599,7 @@ class Tester : public CxxTest::TestSuite {
     void test_insert_relations(void) {
         space_type TS;
         TS.init(db_fname);
-        populate_tags_minimal(TS);
+        populate_tags(TS);
 
         tagd::tag a("dog", "mammal");  // existing
         a.relation("has", "teeth");
@@ -665,10 +615,11 @@ class Tester : public CxxTest::TestSuite {
         ts_rc = TS.put(b);
         TS_ASSERT_EQUALS(ts_rc, tagd::TAGD_OK);
 
+		TS.put( tagd::tag("bite", "action") );
         // already existing, only put relations
         tagd::tag c("dog");
         TS_ASSERT_EQUALS(c.super(), "");
-        c.relation("can", "bark");
+        c.relation("can", "bite");
         ts_rc = TS.put(c);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
     }
@@ -676,21 +627,22 @@ class Tester : public CxxTest::TestSuite {
     void test_duplicate(void) {
         space_type TS;
         TS.init(db_fname);
-        populate_tags_minimal(TS);
+        populate_tags(TS);
 
         tagd::tag dog("dog", "mammal");
         tagd_code ts_rc = TS.put(dog); // duplicate tag, no relations
         TS_ASSERT_EQUALS( ts_rc, tagd::TS_DUPLICATE );
 
-        dog.relation("has", "tail");
+        dog.relation("has", "fur");
         ts_rc = TS.put(dog); // not duplicate, relation was inserted
-        TS_ASSERT_EQUALS( ts_rc, tagd::TAGD_OK );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
         ts_rc = TS.put(dog); // tag duplicate, relations duplicate
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_DUPLICATE" );
 
-        dog.relation("can", "bark");
-        ts_rc = TS.put(dog); // one duplicate (has tail), one insert (can bark)
+		TS.put( tagd::tag("bite", "action") );
+        dog.relation("can", "bite");
+        ts_rc = TS.put(dog); // one duplicate (has tail), one insert (can bite)
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 
 		TS.put(tagd::relator("wags", "move"));
@@ -750,7 +702,7 @@ class Tester : public CxxTest::TestSuite {
     void test_undef_tag_refs(void) {
         space_type TS;
         TS.init(db_fname);
-        populate_tags_minimal(TS);
+        populate_tags(TS);
 
         tagd::tag dog("dog", "nosuchthing");
         tagd_code ts_rc = TS.put(dog);
@@ -905,7 +857,6 @@ class Tester : public CxxTest::TestSuite {
 
         tagd::tag dog;
         tagd_code ts_rc = TS.get(dog, "dog");
-
         TS_ASSERT_EQUALS( dog.relations.size(), 3 )
 		TS_ASSERT( dog.related(tagd::make_predicate("has", "legs", "4"))  )
 		TS_ASSERT( dog.related("has", "tail")  )
@@ -942,14 +893,14 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS(b.hduri(), "com:hypermega:www:/a/b/c:?x=1&y=2:here:http");
         TS_ASSERT( b.relations.size() > 1 )
         TS_ASSERT( b.related("about", "computer_security") )
-        TS_ASSERT( b.related("_has", HARD_TAG_SCHEME, "http") )
-        TS_ASSERT( b.related("_has", HARD_TAG_HOST, "hypermega.com") )
-        TS_ASSERT( b.related("_has", HARD_TAG_PRIV_LABEL, "hypermega") )
-        TS_ASSERT( b.related("_has", HARD_TAG_PUB, "com") )
-        TS_ASSERT( b.related("_has", HARD_TAG_SUB, "www") )
-        TS_ASSERT( b.related("_has", HARD_TAG_PATH, "/a/b/c") )
-        TS_ASSERT( b.related("_has", HARD_TAG_QUERY, "?x=1&y=2") )
-        TS_ASSERT( b.related("_has", HARD_TAG_FRAGMENT, "here") )
+        TS_ASSERT( b.related("has", HARD_TAG_SCHEME, "http") )
+        TS_ASSERT( b.related("has", HARD_TAG_HOST, "hypermega.com") )
+        TS_ASSERT( b.related("has", HARD_TAG_PRIV_LABEL, "hypermega") )
+        TS_ASSERT( b.related("has", HARD_TAG_PUB, "com") )
+        TS_ASSERT( b.related("has", HARD_TAG_SUB, "www") )
+        TS_ASSERT( b.related("has", HARD_TAG_PATH, "/a/b/c") )
+        TS_ASSERT( b.related("has", HARD_TAG_QUERY, "?x=1&y=2") )
+        TS_ASSERT( b.related("has", HARD_TAG_FRAGMENT, "here") )
     }
 
     void test_get_hduri(void) {
@@ -971,14 +922,14 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS(b.id(), "com:hypermega:www:/a/b/c:?x=1&y=2:here:http");
         TS_ASSERT_EQUALS( b.super() , HARD_TAG_URL )
         TS_ASSERT( b.related("about", "computer_security") )
-        TS_ASSERT( b.related("_has", HARD_TAG_SCHEME, "http") )
-        TS_ASSERT( b.related("_has", HARD_TAG_HOST, "hypermega.com") )
-        TS_ASSERT( b.related("_has", HARD_TAG_PRIV_LABEL, "hypermega") )
-        TS_ASSERT( b.related("_has", HARD_TAG_PUB, "com") )
-        TS_ASSERT( b.related("_has", HARD_TAG_SUB, "www") )
-        TS_ASSERT( b.related("_has", HARD_TAG_PATH, "/a/b/c") )
-        TS_ASSERT( b.related("_has", HARD_TAG_QUERY, "?x=1&y=2") )
-        TS_ASSERT( b.related("_has", HARD_TAG_FRAGMENT, "here") )
+        TS_ASSERT( b.related("has", HARD_TAG_SCHEME, "http") )
+        TS_ASSERT( b.related("has", HARD_TAG_HOST, "hypermega.com") )
+        TS_ASSERT( b.related("has", HARD_TAG_PRIV_LABEL, "hypermega") )
+        TS_ASSERT( b.related("has", HARD_TAG_PUB, "com") )
+        TS_ASSERT( b.related("has", HARD_TAG_SUB, "www") )
+        TS_ASSERT( b.related("has", HARD_TAG_PATH, "/a/b/c") )
+        TS_ASSERT( b.related("has", HARD_TAG_QUERY, "?x=1&y=2") )
+        TS_ASSERT( b.related("has", HARD_TAG_FRAGMENT, "here") )
     }
 
     void test_query_url(void) {
@@ -1018,7 +969,7 @@ class Tester : public CxxTest::TestSuite {
 
         S.clear();
         tagd::interrogator r("what", "_url");
-        r.relation("_has", "_path", "/wiki/Dog");
+        r.relation("has", "_path", "/wiki/Dog");
         ts_rc = TS.query(S, r);
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 2 );

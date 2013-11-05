@@ -325,6 +325,7 @@ int main(int argc, char **argv) {
 	typedef std::vector<std::string> str_vec_t; 
 	str_vec_t tagl_files;
 	std::string db_fname;
+	bool opt_trace = false;
 
 	for(int i=1; i<argc; i++) {
 		if (strcmp(argv[i], "--db") == 0) {
@@ -338,6 +339,8 @@ int main(int argc, char **argv) {
 			} else {
 				return error("--db option requires database file");
 			}
+		} else if (strcmp(argv[i], "--trace_on") == 0) {
+			opt_trace = true;
 		} else {
 			tagl_files.push_back(argv[i]);
 		}
@@ -351,6 +354,8 @@ int main(int argc, char **argv) {
 		TS.print_errors();
 		return 1;
 	}
+
+	if (opt_trace) TS.trace_on();
 
 	tagsh_callback CB(&TS);
 	tagsh shell(&TS,&CB);

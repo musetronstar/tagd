@@ -72,21 +72,14 @@ class tagspace_tester : public tagspace::tagspace {
 			_cat = cat;
 		}
 
-		tagd::part_of_speech term_pos(const tagd::id_type& id) {
+		tagd::part_of_speech pos(const tagd::id_type& id, ts_flags_t flags = ts_flags_t()) {
 			tag_map::iterator it = db.find(id);
 			if (it == db.end()) return tagd::POS_UNKNOWN;
 
 			return it->second.pos();
 		}
 
-		tagd::part_of_speech pos(const tagd::id_type& id) {
-			tag_map::iterator it = db.find(id);
-			if (it == db.end()) return tagd::POS_UNKNOWN;
-
-			return it->second.pos();
-		}
-
-		tagd::code get(tagd::abstract_tag& t, const tagd::id_type& id, const ts_flags_t& flags = ts_flags_t()) {
+		tagd::code get(tagd::abstract_tag& t, const tagd::id_type& id, ts_flags_t flags = ts_flags_t()) {
 			tag_map::iterator it = db.find(id);
 			if (it == db.end()) return tagd::TS_NOT_FOUND;
 
@@ -94,7 +87,10 @@ class tagspace_tester : public tagspace::tagspace {
 			return tagd::TAGD_OK;
 		}
 
-		tagd::code put(const tagd::abstract_tag& t, const ts_flags_t& flags = ts_flags_t()) {
+		tagd::code put(const tagd::abstract_tag& t, ts_flags_t flags = ts_flags_t()) {
+			if (t.id() == t.super())
+				return this->error(tagd::TS_MISUSE, "_id == _super not allowed!"); 
+
 			db[t.id()] = t;
 
 			return tagd::TAGD_OK;
@@ -107,7 +103,7 @@ class tagspace_tester : public tagspace::tagspace {
 			return tagd::TAGD_OK;
 		}
 
-		tagd::code query(tagd::tag_set& T, const tagd::interrogator& q) {
+		tagd::code query(tagd::tag_set& T, const tagd::interrogator& q, ts_flags_t flags = ts_flags_t()) {
 			if (q.super().empty() &&
 					q.related("legs") &&
 					q.related("tail") ) {
@@ -171,6 +167,10 @@ class callback_tester : public TAGL::callback {
 		}
 
 		void cmd_put(const tagd::abstract_tag& t) {
+			if (t.id() == t.super()) {
+				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as super");
+				return;
+			}
 			cmd = CMD_PUT;
 			renew_last_tag(t.pos());
 			*last_tag = t;
@@ -810,10 +810,25 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 	}
 
+	// tagspace_tester won't allow this, but tagl parser will
+	// void test_put_referent_self(void) {
+	// 	tagspace_tester TS;
+	// 	TAGL::driver tagl(&TS);
+	// 	tagd_code tc = tagl.execute("PUT dog _refers_to dog");
+	// 	TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_MISUSE" )
+	// }
+
 	void test_put_referent_context(void) {
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
 		tagd_code tc = tagl.execute("PUT doggy _refers_to dog _context child");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+	}
+
+	void test_put_referent_referent(void) {
+		tagspace_tester TS;
+		TAGL::driver tagl(&TS);
+		tagd_code tc = tagl.execute("PUT refers_to _refers_to _refers_to");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 	}
 

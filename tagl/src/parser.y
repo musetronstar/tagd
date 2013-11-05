@@ -311,6 +311,11 @@ refers_to(rt) ::= REFERS_TO(RT) .
 {
 	rt = RT;
 }
+refers_to(rt) ::= CONTEXT(C) .
+{
+	rt = C;
+}
+
 // refers_to(rt) ::= URL(U) .
 // {
 // 	rt = U;

@@ -1,6 +1,10 @@
 PUT what _is_a _interrogator
 
-PUT has _is_a _relator
+PUT refers_to _refers_to _refers_to
+
+PUT is_a refers_to _is_a
+
+PUT has refers_to _has
 
 PUT can _is_a _relator
 
