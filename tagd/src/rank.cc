@@ -147,7 +147,9 @@ tagd::code rank::next(rank& next, const rank_set& R) {
 		std::cerr << "empty data in rank set" << std::endl;
 		return RANK_EMPTY;
 	}
-	
+
+	// TODO, use R.end()-1 to determine whether to fill holes
+	// otherwise, the beginning could be a single byte and the end a multibyte
 	uint32_t back = it->back();
 
 	// next rank cannot fit in leading utf8 byte

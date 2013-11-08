@@ -13,7 +13,6 @@ const std::string db_fname = ":memory:";
 // can be used by other tagspace implementation
 typedef tagspace::sqlite space_type;
 
-
 // populate tags
 // return the number of referents inserted
 size_t populate_tags(space_type& TS) {
@@ -160,7 +159,7 @@ class Tester : public CxxTest::TestSuite {
         ts_rc = TS.get(t, "_entity");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
         TS_ASSERT_EQUALS(t.id(), "_entity");
-        TS_ASSERT_EQUALS(t.super(), "_entity");
+        TS_ASSERT_EQUALS(t.super_object(), "_entity");
     }
 
     void test_put_get_rank(void) {
@@ -174,7 +173,7 @@ class Tester : public CxxTest::TestSuite {
         ts_rc = TS.get(b, "physical_object");
         TS_ASSERT_EQUALS(ts_rc, tagd::TAGD_OK);
         TS_ASSERT_EQUALS(b.id(), "physical_object");
-        TS_ASSERT_EQUALS(b.super(), "_entity");
+        TS_ASSERT_EQUALS(b.super_object(), "_entity");
 
 		std::string r_dotted = b.rank().dotted_str();
 		// living_thing will be first child
@@ -190,7 +189,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(c.rank().dotted_str(), r_dotted);
     }
 
-	void test_put_id_equals_super(void) {
+	void test_put_id_equals_super_object(void) {
         space_type TS;
         TS.init(db_fname);
         populate_tags(TS);
@@ -213,7 +212,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_DUPLICATE");
 
 		// same thing cannot refer to different tag in same context
-        tagd::referent a1("thing", "_entity");
+        tagd::referent a1("thing", "animal");
         TS.put(a1);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TS_DUPLICATE");
 
@@ -354,14 +353,14 @@ class Tester : public CxxTest::TestSuite {
 		TS.get(t1, "cat");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
         TS_ASSERT_EQUALS( t1.id(), "cat" )
-        TS_ASSERT_EQUALS( t1.super(), "mammal" )
+        TS_ASSERT_EQUALS( t1.super_object(), "mammal" )
 
 		TS.push_context("computer");
 		tagd::tag t2;
 		TS.get(t2, "cat");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
         TS_ASSERT_EQUALS( t2.id(), "cat" )
-        TS_ASSERT_EQUALS( t2.super(), "program" )
+        TS_ASSERT_EQUALS( t2.super_object(), "program" )
         TS_ASSERT( t2.related(HARD_TAG_REFERS_TO, "cat_program") )
 
 		TS.push_context("animal");
@@ -369,7 +368,7 @@ class Tester : public CxxTest::TestSuite {
 		TS.get(t3, "cat");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
         TS_ASSERT_EQUALS( t3.id(), "cat" )
-        TS_ASSERT_EQUALS( t3.super(), "mammal" )
+        TS_ASSERT_EQUALS( t3.super_object(), "mammal" )
 	}
 
     void test_query_referents(void) {
@@ -586,10 +585,10 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( pos_str(pos), "POS_RELATOR" )
 
 		pos = TS.pos("_is_a");
-        TS_ASSERT_EQUALS( pos_str(pos), "POS_SUPER" )
+        TS_ASSERT_EQUALS( pos_str(pos), "POS_SUPER_RELATOR" )
 
 		pos = TS.pos("is_a");
-        TS_ASSERT_EQUALS( pos_str(pos), "POS_SUPER" )
+        TS_ASSERT_EQUALS( pos_str(pos), "POS_SUPER_RELATOR" )
 
 		pos = TS.pos("unicorn");
         TS_ASSERT_EQUALS( pos_str(pos), "POS_UNKNOWN" )
@@ -618,10 +617,15 @@ class Tester : public CxxTest::TestSuite {
 		TS.put( tagd::tag("bite", "action") );
         // already existing, only put relations
         tagd::tag c("dog");
-        TS_ASSERT_EQUALS(c.super(), "");
         c.relation("can", "bite");
         ts_rc = TS.put(c);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+		tagd::tag d;
+		ts_rc = TS.get(d, "dog");
+		TS_ASSERT( d.related("has", "legs", "4") )
+		TS_ASSERT( d.related("has", "tail")  )
+		TS_ASSERT( d.related("can", "bite")  )
     }
 
     void test_duplicate(void) {
@@ -672,7 +676,7 @@ class Tester : public CxxTest::TestSuite {
         ts_rc = TS.put(b);  // oops
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 
-		b.super("sea_creature");
+		b.super_object("sea_creature");
         ts_rc = TS.put(b);  // move
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 		size_t sz = a.rank().dotted_str().size();
@@ -708,7 +712,7 @@ class Tester : public CxxTest::TestSuite {
         tagd_code ts_rc = TS.put(dog);
         TS_ASSERT_EQUALS( ts_rc, tagd::TS_SUPER_UNK );
 
-        dog.super("mammal");
+        dog.super_object("mammal");
         dog.relation("has", "tailandwings");
         ts_rc = TS.put(dog);
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_OBJECT_UNK" );
@@ -720,7 +724,7 @@ class Tester : public CxxTest::TestSuite {
 
         tagd::tag a("dog");  // existing no super, no relations
         ts_rc = TS.put(a);
-        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_DUPLICATE" );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_MISUSE" );
     }
 
     void test_related(void) {
@@ -793,7 +797,7 @@ class Tester : public CxxTest::TestSuite {
         // }
     }
 
-    void test_query_super(void) {
+    void test_query_super_object(void) {
         space_type TS;
         TS.init(db_fname);
         populate_tags(TS);
@@ -850,6 +854,21 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_MISUSE");
 	}
 
+    void test_put_get_tag_super_relator(void) {
+		space_type TS;
+		TS.init(db_fname);
+		populate_tags(TS);
+
+		tagd::tag t1("husky", HARD_TAG_TYPE_OF, "dog");
+		TS.put(t1);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+		tagd::abstract_tag t2;
+		TS.get(t2, "husky");
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+		TS_ASSERT_EQUALS( t2.super_relator() , HARD_TAG_TYPE_OF )
+	}
+
     void test_relations(void) {
 		space_type TS;
         TS.init(db_fname);
@@ -858,7 +877,7 @@ class Tester : public CxxTest::TestSuite {
         tagd::tag dog;
         tagd_code ts_rc = TS.get(dog, "dog");
         TS_ASSERT_EQUALS( dog.relations.size(), 3 )
-		TS_ASSERT( dog.related(tagd::make_predicate("has", "legs", "4"))  )
+		TS_ASSERT( dog.related("has", "legs", "4") )
 		TS_ASSERT( dog.related("has", "tail")  )
 
         tagd::id_type how;
@@ -920,7 +939,7 @@ class Tester : public CxxTest::TestSuite {
         ts_rc = TS.get(b, a.hduri()); 
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 		TS_ASSERT_EQUALS(b.id(), "com:hypermega:www:/a/b/c:?x=1&y=2:here:http");
-        TS_ASSERT_EQUALS( b.super() , HARD_TAG_URL )
+        TS_ASSERT_EQUALS( b.super_object() , HARD_TAG_URL )
         TS_ASSERT( b.related("about", "computer_security") )
         TS_ASSERT( b.related("has", HARD_TAG_SCHEME, "http") )
         TS_ASSERT( b.related("has", HARD_TAG_HOST, "hypermega.com") )

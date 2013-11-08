@@ -62,7 +62,7 @@ class url : public abstract_tag {
 
     public:
         url() :
-        abstract_tag(id_type(), HARD_TAG_URL, POS_URL),
+        abstract_tag(id_type(), HARD_TAG_IS_A, HARD_TAG_URL, POS_URL),
         _scheme_len(0),
         _user_offset(0),
         _user_len(0),
@@ -82,7 +82,7 @@ class url : public abstract_tag {
 		}
 
         url(const std::string& u) :
-        abstract_tag(id_type(), HARD_TAG_URL, POS_URL),
+        abstract_tag(id_type(), HARD_TAG_IS_A, HARD_TAG_URL, POS_URL),
         _scheme_len(0),
         _user_offset(0),
         _user_len(0),

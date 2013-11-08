@@ -4,7 +4,6 @@
 #include <cstring>
 #include <cassert>
 #include <cstdio>
-#include <cstdarg>
 
 #include "tagd.h"
 
@@ -70,25 +69,6 @@ std::string tag_ids_str(const tag_set& T) {
 	}
 
 	return ss.str();
-}
-
-id_type super_relator(const part_of_speech &p) {
-    switch (p) {
-        case POS_TAG:
-        case POS_URL:
-			return HARD_TAG_IS_A;
-        case POS_REFERENT:
-			return HARD_TAG_REFERS_TO;
-        default:
-			return HARD_TAG_TYPE_OF;
-    }
-}
-
-id_type super_relator(const abstract_tag& t) {
-	if (t.id() == HARD_TAG_REFERENT)
-		return HARD_TAG_IS_A;
-	else
-		return super_relator(t.pos());
 }
 
 void merge_tags(tag_set& A, const tag_set& B) {
@@ -204,7 +184,8 @@ inline bool abstract_tag::operator==(const abstract_tag& rhs) const {
 
 	return (
 		_id == rhs._id
-		&& _super == rhs._super
+		&& _super_relator == rhs._super_relator
+		&& _super_object == rhs._super_object
 		&& _pos == rhs._pos
 		&& _rank == rhs._rank
 		// std::equal will return true if first is subset of last
@@ -229,7 +210,8 @@ inline bool abstract_tag::operator<(const abstract_tag& rhs) const {
 
 void abstract_tag::clear() {
 	_id.clear();
-	_super.clear();
+	_super_relator.clear();
+	_super_object.clear();
 	// _pos = POS_UNKNOWN;  
 	_rank.clear();
 	if (!relations.empty()) relations.clear();
@@ -239,18 +221,8 @@ tagd_code abstract_tag::relation(const tagd::predicate &p) {
     if (!valid_predicate(p))
         return this->code(TAG_ILLEGAL);
 
-    if (p.relator == super_relator(this->pos())) {
-        if (this->_super == p.object) { 
-            return this->code(TAG_DUPLICATE);
-        } else {
-            this->_super = p.object;
-            return this->code(TAGD_OK);
-        }
-    }
-
     predicate_pair pr = relations.insert(p);
     return this->code((pr.second ? TAGD_OK : TAG_DUPLICATE));
-
 }
 
 tagd_code abstract_tag::relation(const id_type &relator, const id_type &object) {
@@ -260,7 +232,6 @@ tagd_code abstract_tag::relation(const id_type &relator, const id_type &object) 
     predicate_pair p = relations.insert(make_predicate(relator, object));
     return this->code((p.second ? TAGD_OK : TAG_DUPLICATE));
 }
-
 
 tagd_code abstract_tag::relation(
     const id_type &relator, const id_type &object, const id_type &modifier ) {
@@ -287,12 +258,8 @@ tagd_code abstract_tag::not_relation(const id_type &relator, const id_type &obje
     return this->code((erased ? TAGD_OK : TAG_UNKNOWN));
 }
 
-
 tagd_code abstract_tag::predicates(const predicate_set &p) {
-    // WTF slow and temporary
-    for (predicate_set::const_iterator it = p.begin(); it != p.end(); ++it) {
-		this->relation(*it);
-    }
+	this->relations.insert(p.begin(), p.end());
 
     return this->code(TAGD_OK);
 }
@@ -335,8 +302,6 @@ id_type referent::context() const {
     return id_type();
 }
 
-
-
 // tag output functions
 
 // whether a label should be quoted
@@ -371,8 +336,8 @@ void print_object (std::ostream& os, const predicate& p) {
 
 // note it is a tag friend function, not abstract_tag::operator<<
 std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
-	if (!t.super().empty())
-		os << t.id() << ' ' << super_relator(t) << ' ' << t.super();
+	if (!t.super_object().empty())
+		os << t.id() << ' ' << t.super_relator() << ' ' << t.super_object();
 	else
 		os << t.id();
 
@@ -380,7 +345,7 @@ std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
 	if (it == t.relations.end())
 		return os;
 
-	if (t.relations.size() == 1 && t.super().empty()) {
+	if (t.relations.size() == 1 && t.super_object().empty()) {
 		os << ' ' << it->relator << ' ';
 		print_object(os, *it);
 		return os;
@@ -414,7 +379,7 @@ char* util::csprintf(const char *fmt, ...) {
 
 static const size_t CSPRINTF_MAX_SZ = 255;
 static char CSPRINTF_BUF[CSPRINTF_MAX_SZ+1];
-char* util::csprintf(const char *fmt, va_list& args) {
+char* util::csprintf(const char *fmt, const va_list& args) {
 	int sz = vsnprintf(CSPRINTF_BUF, CSPRINTF_MAX_SZ, fmt, args);
 	if (sz <= 0) {
 		std::cerr << "error vsnprintf failed: " << fmt << std::endl;
@@ -431,13 +396,9 @@ char* util::csprintf(const char *fmt, va_list& args) {
 }
 
 // error helper class
-tagd_code errorable::error(tagd::code c, const char *errfmt, ...) {
+tagd_code errorable::error(tagd::code c, const char *errfmt, const va_list& args) {
 	_code = c;
 
-	va_list args;
-	va_start (args, errfmt);
-	va_end (args);
-		
 	char *msg = util::csprintf(errfmt, args);
 	if (msg == NULL)
 		_errors.push_back(tagd::error(c, "errorable::error() failed"));
@@ -445,6 +406,14 @@ tagd_code errorable::error(tagd::code c, const char *errfmt, ...) {
 		_errors.push_back(tagd::error(c, msg));
 
 	return c;
+}
+
+tagd_code errorable::error(tagd::code c, const char *errfmt, ...) {
+	va_list args;
+	va_start (args, errfmt);
+	va_end (args);
+
+	return this->error(c, errfmt, args);
 }
 
 void errorable::print_errors(std::ostream& os) const {

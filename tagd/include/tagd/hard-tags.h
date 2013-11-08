@@ -12,9 +12,9 @@
 IMPORTANT: updates here must be reflected in tagspace::init_hard_tags()
 */
 /*** superordinate relation semantics ***/
-// topmost tags based on how they function
-// "_entity" is hard coded everywhere - commented to be consistent
-// #define HARD_TAG_ENTITY "_entity"   // root _entity (only axiomatic entity that exists)
+// hard coded tags based on how they function
+
+#define HARD_TAG_ENTITY "_entity"   // root _entity (only axiomatic entity that exists)
 
 // topmost identifiers (as in the property of identity)
 #define HARD_TAG_SUPER "_super"     // relation between entities to their parent

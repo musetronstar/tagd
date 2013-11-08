@@ -149,7 +149,7 @@ void scanner::scan_tagdurl_path(int cmd, const std::string& path) {
 
 		// first segment of "*" is a placeholder for super relation, so ignore it
 		if (segment != "*") {
-			_driver->parse_tok(SUPER, (new std::string(HARD_TAG_SUPER)));
+			_driver->parse_tok(SUPER_RELATOR, (new std::string(HARD_TAG_SUPER)));
 			this->scan(segment.c_str());
 		}
 	} else {

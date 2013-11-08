@@ -56,6 +56,7 @@ class sqlite: public tagspace {
 
 		// performing init() operations
 		bool _doing_init;
+		bool _trace_on;
 
 		// wrapped by init(), sets _doing_init
         tagd_code _init(const std::string&);
@@ -102,7 +103,8 @@ class sqlite: public tagspace {
             _insert_host_stmt(NULL),
             _insert_authority_stmt(NULL),
             _insert_uri_relations_stmt(NULL),
-			_doing_init(false)
+			_doing_init(false),
+			_trace_on(false)
         {}
 
         virtual ~sqlite();
@@ -190,11 +192,13 @@ class sqlite: public tagspace {
 
         // sqlite3 helper funcs
         tagd_code exec(const char*, const char*label=NULL);
+		tagd_code exec_mprintf(const char *, ...);
         tagd_code prepare(sqlite3_stmt**, const char*, const char*label=NULL);
         tagd_code bind_text(sqlite3_stmt**, int, const char*, const char*label=NULL);
         tagd_code bind_int(sqlite3_stmt**, int, int, const char*label=NULL);
         tagd_code bind_rowid(sqlite3_stmt**, int, rowid_t, const char*label=NULL);
         tagd_code bind_null(sqlite3_stmt**, int, const char*label=NULL);
+		tagd_code error(tagd::code, const char *, ...);
         virtual void finalize();
 
         // init db funcs
@@ -237,7 +241,7 @@ class sqlite: public tagspace {
                 case SQLITE_NOTADB:  return "SQLITE_NOTADB";
                 case SQLITE_ROW: return "SQLITE_ROW";
                 case SQLITE_DONE:    return "SQLITE_DONE";
-                default: return "UNKNOWN";
+                default: return "SQLITE_UNKNOWN";
             }
         }
 };

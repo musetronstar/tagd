@@ -23,13 +23,12 @@ tagd::code bootstrap::put_hard_tag(
 												id, super, pos_str(pos).c_str());
 
 tagd::code bootstrap::init_hard_tags(tagspace& TS) {
-	// _entity should be inserted at database creation time,
-	// so that it can enforce its circular referential constraints
-
 	// IMPORTANT: updates to tagd/hard-tags.h must be reflected here
-	PUT_OR_DIE(HARD_TAG_SUPER, "_entity", tagd::POS_SUPER)
-	PUT_OR_DIE(HARD_TAG_IS_A, HARD_TAG_SUPER, tagd::POS_SUPER)
-	PUT_OR_DIE(HARD_TAG_TYPE_OF, HARD_TAG_SUPER, tagd::POS_SUPER)
+	// HARD_TAG_ENTITY must have been inserted previously
+
+	PUT_OR_DIE(HARD_TAG_SUPER, "_entity", tagd::POS_SUPER_RELATOR)
+	PUT_OR_DIE(HARD_TAG_IS_A, HARD_TAG_SUPER, tagd::POS_SUPER_RELATOR)
+	PUT_OR_DIE(HARD_TAG_TYPE_OF, HARD_TAG_SUPER, tagd::POS_SUPER_RELATOR)
 	PUT_OR_DIE(HARD_TAG_RELATOR, "_entity", tagd::POS_RELATOR)
 	PUT_OR_DIE(HARD_TAG_HAS, HARD_TAG_RELATOR, tagd::POS_RELATOR)
 	PUT_OR_DIE(HARD_TAG_CAN, HARD_TAG_RELATOR, tagd::POS_RELATOR)

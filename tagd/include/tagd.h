@@ -4,6 +4,7 @@
 #include <set>
 #include <vector>
 #include <iostream>
+#include <cstdarg>
 
 #include "tagd/codes.h"
 #include "tagd/config.h"
@@ -99,15 +100,15 @@ bool tag_set_equal(const tag_set A, const tag_set B);
 typedef enum {
     POS_UNKNOWN       = 0,
     POS_TAG           = 1 << 0,
-    POS_SUPER         = 1 << 1,
+    POS_SUPER_RELATOR = 1 << 1,
+    POS_SUPER_OBJECT  = 1 << 2,
 // relator is used as a "Copula" to link subjects to predicates
 // (even more general than a "linking verb")
-    POS_RELATOR       = 1 << 2,
-    POS_INTERROGATOR  = 1 << 3,
-    POS_URL           = 1 << 4,
+    POS_RELATOR       = 1 << 3,
+    POS_INTERROGATOR  = 1 << 4,
+    POS_URL           = 1 << 5,
     // POS_URI // TODO
-    POS_ERROR         = 1 << 5,
-	POS_SUPER_RELATED = 1 << 6,  // term was used in a super relation
+    POS_ERROR         = 1 << 6,
 	POS_SUBJECT       = 1 << 7,
 	// a relator at use in a relation
 	POS_RELATED       = 1 << 8,
@@ -127,12 +128,12 @@ struct tag_util {
         switch (p) {
             case POS_UNKNOWN: return "POS_UNKNOWN";
             case POS_TAG:    return "POS_TAG";
-            case POS_SUPER:    return "POS_SUPER";
+            case POS_SUPER_RELATOR:    return "POS_SUPER_RELATOR";
+            case POS_SUPER_OBJECT:    return "POS_SUPER_OBJECT";
             case POS_RELATOR:    return "POS_RELATOR";
             case POS_INTERROGATOR: return "POS_INTERROGATOR";
             case POS_URL:    return "POS_URL";
             case POS_ERROR:    return "POS_ERROR";
-            case POS_SUPER_RELATED:    return "POS_SUPER_RELATED";
             case POS_SUBJECT:    return "POS_SUBJECT";
             case POS_RELATED:    return "POS_RELATED";
             case POS_OBJECT:    return "POS_OBJECT";
@@ -169,14 +170,11 @@ struct tag_util {
 #define pos_str(c) tagd::tag_util::pos_str(c)
 #define pos_list_str(c) tagd::tag_util::pos_list_str(c)
 
-/* name of super relator (for semantic meaning) */
-id_type super_relator(const part_of_speech&);
-id_type super_relator(const abstract_tag&);
-
 class abstract_tag {
     protected:
         id_type _id;
-        id_type _super; // superordinate, parent, or hyponym in tree
+        id_type _super_relator; // superordinate relation (i.e. _is_a)
+        id_type _super_object;  // superordinate, parent, or hyponym in tree
         part_of_speech _pos;
         tagd::rank _rank;
 		tagd_code _code;
@@ -185,24 +183,36 @@ class abstract_tag {
         tagd_code code(tagd_code c) { _code = c; return _code; }
     public:
         // empty tag
-        abstract_tag() : _id(), _super(), _pos(POS_UNKNOWN), _rank(), _code(TAGD_OK) {};
+        abstract_tag() :
+			_id(), _super_relator(HARD_TAG_SUPER), _super_object(),
+			_pos(POS_UNKNOWN), _rank(), _code(TAGD_OK) {};
         virtual ~abstract_tag() {};
 
-        abstract_tag(const id_type& id) : _id(id), _super(), _pos(POS_UNKNOWN), _rank(), _code(TAGD_OK) {};
+        abstract_tag(const id_type& id) :
+			_id(id), _super_relator(HARD_TAG_SUPER), _super_object(),
+			_pos(POS_UNKNOWN), _rank(), _code(TAGD_OK) {};
 
-        abstract_tag(const part_of_speech& p)
-            : _id(), _super(), _pos(p), _rank(), _code(TAGD_OK) {};
+        abstract_tag(const part_of_speech& p) :
+			_id(), _super_relator(HARD_TAG_SUPER), _super_object(),
+			_pos(p), _rank(), _code(TAGD_OK) {};
 
         // id, but no super
-        abstract_tag(const id_type& id, const part_of_speech& p)
-            : _id(id), _super(), _pos(p), _rank(), _code(TAGD_OK) {};
+        abstract_tag(const id_type& id, const part_of_speech& p) :
+			_id(id), _super_relator(HARD_TAG_SUPER), _super_object(),
+			_pos(p), _rank(), _code(TAGD_OK) {};
 
-        abstract_tag(const id_type& id, const id_type& super, const part_of_speech& p)
-            : _id(id), _super(super), _pos(p), _rank(), _code(TAGD_OK)  {};
+        abstract_tag(const id_type& id, const id_type& super_obj, const part_of_speech& p) :
+			_id(id), _super_relator(HARD_TAG_SUPER), _super_object(super_obj),
+			_pos(p), _rank(), _code(TAGD_OK) {};
 
-        abstract_tag(const id_type& id, const id_type& super,
-                     const part_of_speech& p, const tagd::rank& rank)
-            : _id(id), _super(super), _pos(p), _rank(rank), _code(TAGD_OK) {};
+        abstract_tag(
+				const id_type& id,
+				const id_type& rel,
+				const id_type& obj,
+				const part_of_speech& p
+				) :
+			_id(id), _super_relator(rel), _super_object(obj),
+			_pos(p), _rank(), _code(TAGD_OK) {};
 
         predicate_set relations;
 
@@ -210,7 +220,8 @@ class abstract_tag {
 		bool empty() const {
 			return (
 				_id.empty()
-				&& _super.empty()
+				//&& _super_relator.empty()  // super relators are set by constructor
+				&& _super_object.empty()
 				&& _rank.empty()
 				&& relations.empty()
 			);
@@ -219,9 +230,11 @@ class abstract_tag {
         const id_type& id() const { return _id; }
         void id(const id_type& A) { _id = A; }
 
-        const id_type& super() const { return _super; }
-        void super(const id_type& s) { _super = s; }
-        //void super(const char *s); // have to deal with NULL*
+        const id_type& super_relator() const { return _super_relator; }
+        void super_relator(const id_type& s) { _super_relator = s; }
+
+        const id_type& super_object() const { return _super_object; }
+        void super_object(const id_type& s) { _super_object = s; }
 
         const part_of_speech& pos() const { return _pos; }
         void pos(const part_of_speech& p) { _pos = p; }
@@ -280,12 +293,16 @@ class tag : public abstract_tag {
     public:
         tag() : abstract_tag(POS_TAG) {};
 
-        tag(const id_type& id) : abstract_tag(id, POS_TAG) {};
+        tag(const id_type& id) : abstract_tag(id, POS_TAG)
+		{
+			_super_relator = HARD_TAG_IS_A;
+		};
 
-        tag(const id_type& id, const id_type& super)
-            : abstract_tag(id, super, POS_TAG) {};
+        tag(const id_type& id, const id_type& super_obj) :
+			abstract_tag(id, HARD_TAG_IS_A, super_obj, POS_TAG) {};
 
-    protected:
+        tag(const id_type& id, const id_type& super_rel, const id_type& super_obj) :
+			abstract_tag(id, super_rel, super_obj, POS_TAG) {};
 };
 
 // relates a subject to an object
@@ -294,11 +311,14 @@ class tag : public abstract_tag {
 // e.g. "dog is_a animal"; 'is_a' being the relator
 class relator : public abstract_tag {
     public:
-        relator(const id_type& id)
-            : abstract_tag(id, HARD_TAG_RELATOR, POS_RELATOR) {};
+        relator(const id_type& id) :
+			abstract_tag(id, HARD_TAG_TYPE_OF, HARD_TAG_RELATOR, POS_RELATOR) {};
 
-        relator(const id_type& id, const id_type& super)
-            : abstract_tag(id, super, POS_RELATOR) {};
+        relator(const id_type& id, const id_type& super_obj) :
+			abstract_tag(id, HARD_TAG_TYPE_OF, super_obj, POS_RELATOR) {};
+
+        relator(const id_type& id, const id_type& super_rel, const id_type& super_obj) :
+			abstract_tag(id, super_rel, super_obj, POS_RELATOR) {};
 };
 
 // 'wh.*|how' words (eg who, what, where, when, why, how)
@@ -311,32 +331,41 @@ class relator : public abstract_tag {
 //    this type cannot be inserted into a tagspace
 class interrogator : public abstract_tag {
     public:
-        interrogator(const id_type& id)
-            : abstract_tag(id, POS_INTERROGATOR) {};
+        interrogator(const id_type& id) :
+			abstract_tag(id, POS_INTERROGATOR) {};
 
-        interrogator(const id_type& id, const id_type& super)
-            : abstract_tag(id, super, POS_INTERROGATOR) {};
+        interrogator(const id_type& id, const id_type& super_obj) :
+			abstract_tag(id, HARD_TAG_TYPE_OF, super_obj, POS_INTERROGATOR) {};
+
+        interrogator(const id_type& id, const id_type& super_rel, const id_type& super_obj) :
+			abstract_tag(id, super_rel, super_obj, POS_INTERROGATOR) {};
 };
 
 class referent : public abstract_tag {
 		// _id is the thing that refers
-		// _super is the thing refered to
+		// _super_object is the thing refered to
     public:
 	
-        referent()
-            : abstract_tag(POS_REFERENT)
+        referent() :
+			abstract_tag(POS_REFERENT)
+		{
+			_super_relator = HARD_TAG_REFERS_TO;
+		};
+
+        referent(const id_type& refers, const id_type& refers_to) :
+			abstract_tag(refers, HARD_TAG_REFERS_TO, refers_to, POS_REFERENT)
 		{}
 
-        referent(const id_type& refers, const id_type& rt)
-            : abstract_tag(refers, rt, POS_REFERENT)
-		{}
-
-        referent(const id_type& refers, const id_type& rt, const id_type& c)
-            : abstract_tag(refers, rt, POS_REFERENT)
+        referent(const id_type& refers, const id_type& refers_to, const id_type& c) :
+			abstract_tag(refers, HARD_TAG_REFERS_TO, refers_to, POS_REFERENT)
 		{ context(c); }
 
+		// TODO don't allow overridding HARD_TAG_REFERS_TO
+		// the problem, though, is that the getter method also gets deleted
+        // void super_relator(const id_type& s) = delete;
+
         const id_type& refers() const { return _id; }
-        const id_type& refers_to() const { return _super; }
+        const id_type& refers_to() const { return _super_object; }
         id_type context() const;
         void context(const id_type& c) {
 			this->relation( HARD_TAG_CONTEXT, c);
@@ -345,7 +374,10 @@ class referent : public abstract_tag {
         bool operator==(const referent& rhs) const {
 			return (
 				_id == rhs._id &&
-				_super == rhs._super &&
+				// leave _super_relator out of equality and less comparisons
+				// because _id, _super_object, and _context make it unique
+				//_super_relator == rhs._super_relator &&
+				_super_object == rhs._super_object &&
 				_pos == rhs._pos &&
 				this->context() == rhs.context()
 			);
@@ -357,11 +389,11 @@ class referent : public abstract_tag {
 				_id < rhs._id ||
 				(
 				 _id == rhs._id &&
-				 _super < rhs._super
+				 _super_object < rhs._super_object
 				) ||
 				(
 				 _id == rhs._id &&
-				 _super == rhs._super &&
+				 _super_object == rhs._super_object &&
 				 this->context() < rhs.context()
 				)
 			);
@@ -383,8 +415,8 @@ class error : public abstract_tag {
         error() : abstract_tag(POS_ERROR)
 		{}
 
-        error(const tagd_code c, const char *msg = NULL)
-            : abstract_tag(tagd_code_str(c), HARD_TAG_ERROR, POS_ERROR)
+        error(const tagd_code c, const char *msg = NULL) :
+			abstract_tag(tagd_code_str(c), HARD_TAG_TYPE_OF, HARD_TAG_ERROR, POS_ERROR)
 		{
 			_code = c;
 			if (msg != NULL) this->relation(HARD_TAG_HAS, "_msg", msg);
@@ -416,6 +448,7 @@ class errorable {
 
 		// set and return code, set err msg to printf style formatted list
 		tagd_code error(tagd::code c, const char *, ...);
+		tagd_code error(tagd::code c, const char *, const va_list&);
 
 		void clear_errors() { _code = _init; _errors.clear(); }
 
@@ -425,7 +458,7 @@ class errorable {
 struct util {
 	// returns c string of formatted printf string, or NULL on failure
 	static char* csprintf(const char *, ...);
-	static char* csprintf(const char *, va_list&);
+	static char* csprintf(const char *, const va_list&);
 };
 
 }  // namespace tagd

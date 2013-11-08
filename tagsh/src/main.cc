@@ -87,7 +87,7 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 	_TS->query(T, q);
 	switch(_TS->code()) {
 		case tagd::TAGD_OK:
-			if (q.super() == HARD_TAG_REFERENT)
+			if (q.super_object() == HARD_TAG_REFERENT)
 				tagd::print_tags(T);
 			else
 				tagd::print_tag_ids(T);

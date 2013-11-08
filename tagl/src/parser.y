@@ -161,10 +161,10 @@ query_statement ::= CMD_QUERY interrogator_super_relation .
 query_statement ::= CMD_QUERY interrogator relations .
 query_statement ::= CMD_QUERY interrogator query_referent_relations .
 {
-	tagl->_tag->super(HARD_TAG_REFERENT);
+	tagl->_tag->super_object(HARD_TAG_REFERENT);
 }
 
-interrogator_super_relation ::= interrogator SUPER super_object .
+interrogator_super_relation ::= interrogator super_relator super_object .
 
 interrogator ::= INTERROGATOR(I) .
 {
@@ -173,8 +173,8 @@ interrogator ::= INTERROGATOR(I) .
 	tagl->_tag = new tagd::interrogator(*I);
 }
 
-subject_super_relation ::= subject SUPER super_object .
-subject_super_relation ::= unknown SUPER super_object .
+subject_super_relation ::= subject super_relator super_object .
+subject_super_relation ::= unknown super_relator super_object .
 
 subject ::= TAG(T) .
 {
@@ -182,7 +182,7 @@ subject ::= TAG(T) .
 		delete tagl->_tag;
 	tagl->_tag = new tagd::tag(*T);
 }
-subject ::= SUPER(S) .
+subject ::= SUPER_RELATOR(S) .
 {
 	if (tagl->_tag != NULL)
 		delete tagl->_tag;
@@ -269,7 +269,7 @@ refers(r) ::= TAG(T) .
 {
 	r = T;
 }
-refers(r) ::= SUPER(S) .
+refers(r) ::= SUPER_RELATOR(S) .
 {
 	r = S;
 }
@@ -295,7 +295,7 @@ refers_to(rt) ::= TAG(T) .
 {
 	rt = T;
 }
-refers_to(rt) ::= SUPER(S) .
+refers_to(rt) ::= SUPER_RELATOR(S) .
 {
 	rt = S;
 }
@@ -306,6 +306,10 @@ refers_to(rt) ::= RELATOR(R) .
 refers_to(rt) ::= INTERROGATOR(I) .
 {
 	rt = I;
+}
+refers_to(rt) ::= REFERS(R) .
+{
+	rt = R;
 }
 refers_to(rt) ::= REFERS_TO(RT) .
 {
@@ -327,25 +331,30 @@ context(c) ::= TAG(C) .
 	c = C;
 }
 
+super_relator ::= SUPER_RELATOR(S) .
+{
+	tagl->_tag->super_relator(*S);
+}
+
 super_object ::=  TAG(T) .
 {
-	tagl->_tag->super(*T);
+	tagl->_tag->super_object(*T);
 }
-super_object ::=  SUPER(S) .
+super_object ::=  SUPER_RELATOR(S) .
 {
-	tagl->_tag->super(*S);
+	tagl->_tag->super_object(*S);
 }
 super_object ::=  RELATOR(R) .
 {
-	tagl->_tag->super(*R);
+	tagl->_tag->super_object(*R);
 }
 super_object ::=  INTERROGATOR(I) .
 {
-	tagl->_tag->super(*I);
+	tagl->_tag->super_object(*I);
 }
 super_object ::=  REFERENT(R) .
 {
-	tagl->_tag->super(*R);
+	tagl->_tag->super_object(*R);
 }
 
 

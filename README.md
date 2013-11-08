@@ -405,6 +405,27 @@ The context can be cleared by setting it to an empty string:
 
 	set context "";
 
+###### Foreign Language Predicates:
+
+Predicates can be defined in another language and be available in the universal
+context (English in this case).  To do so, let's define some spanish referents:
+
+	put spanish is_a language;
+	put perro refers_to dog context spanish;
+	put es_un refers_to is_a context spanish;
+	put mamífero refers_to mammal context spanish;
+	put puede refers_to can context spanish;
+	put ladrar refers_to bark context spanish;
+	put tiene refers_to has context spanish;
+	put patas refers_to legs context spanish;
+	put cola refers_to tail context spanish;
+
+	put fur is_a body_part;
+	put piel refers_to fur context spanish;
+	put perro tiene piel;
+
+
+
 ##### QUERY Referents:
 
 You can see what a label *refers* by using a query:
@@ -472,6 +493,44 @@ Results:
 
 	クジラ _refers_to whale
 	_context japanese
+
+Through the use of referents, we can state predicates in other languages, and
+have those predicates immediately available in the context they refer to.
+
+Let's set up referents that will allow us to express the definition of dog in
+Spanish:
+
+	put spanish is_a language;
+	put perro refers_to dog context spanish;
+	put es_un refers_to is_a context spanish;
+	put mamífero refers_to mammal context spanish;
+	put puede refers_to can context spanish;
+	put ladrar refers_to bark context spanish;
+	put tiene refers_to has context spanish;
+	put patas refers_to legs context spanish;
+	put cola refers_to tail context spanish;
+
+	put fur is_a body_part;
+	put piel refers_to fur context spanish;
+
+Now let's add a predicate in Spanish:
+
+	set context spanish;
+	put perro tiene piel;
+
+Now we can see the predicate that was stated in Spanish:
+
+	set context "";
+	get dog;
+
+Results:
+
+	dog is_a mammal
+	can bark
+	has fur, legs = 4, tail
+
+We can se the Spanish predicate `tiene piel` is available in English as
+`has fur`.
 
 Lets dump all the data we have entered so far to file so we can reuse it:
 

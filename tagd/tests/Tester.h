@@ -701,17 +701,19 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( it != A.end() && *it == dog );
     }
 
-//    void test_abstract_tag(void) {
-//		tagd::abstract_tag e("_entity", "_entity");
-//		TS_ASSERT_EQUALS( e.id() , "_entity" )
-//		TS_ASSERT( e.super().empty() )  // override, _entity super is always empty
-//		TS_ASSERT_EQUALS( e.pos() , tagd::POS_TAG )
-//	}
-
 	void test_tag(void) {
 		tagd::tag dog("dog", "animal");
 		TS_ASSERT( dog.id() == "dog" )
-		TS_ASSERT( dog.super() == "animal" )
+		TS_ASSERT( dog.super_relator() == HARD_TAG_IS_A )
+		TS_ASSERT( dog.super_object() == "animal" )
+		TS_ASSERT( dog.pos() == tagd::POS_TAG )
+	}
+	
+	void test_super_relator(void) {
+		tagd::tag dog("perro", "es_un", "animal");
+		TS_ASSERT( dog.id() == "perro" )
+		TS_ASSERT( dog.super_relator() == "es_un" )
+		TS_ASSERT( dog.super_object() == "animal" )
 		TS_ASSERT( dog.pos() == tagd::POS_TAG )
 	}
 
@@ -719,12 +721,12 @@ class Tester : public CxxTest::TestSuite {
 		tagd::tag dog("dog", "animal");
 		dog.relation("has", "teeth");
 		TS_ASSERT( dog.id() == "dog" )
-		TS_ASSERT( dog.super() == "animal" )
+		TS_ASSERT( dog.super_object() == "animal" )
 		TS_ASSERT( dog.pos() == tagd::POS_TAG )
 		TS_ASSERT( dog.related("has", "teeth")  )
 		dog.clear();
 		TS_ASSERT( dog.id().empty() )
-		TS_ASSERT( dog.super().empty() ) 
+		TS_ASSERT( dog.super_object().empty() ) 
 		// POS doesn't get set to UNKNOWN
 		TS_ASSERT( dog.pos() == tagd::POS_TAG )
 		TS_ASSERT( !dog.related("has", "teeth")  )
@@ -732,14 +734,18 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_tag_eq(void) {
-		tagd::tag a("dog", "animal");
-		tagd::tag b("dog", "mammal");
+		tagd::tag a("dog", "is_a", "animal");
+		tagd::tag b("dog", "is_a", "mammal");
 
 		TS_ASSERT( a.id() == b.id() )
 		TS_ASSERT( a != b )
 
-        a.super("mammal");
+        a.super_object("mammal");
 		TS_ASSERT( a == b );
+
+		a.super_relator("es_un");
+		TS_ASSERT( a != b );
+		a.super_relator("is_a");
 
         b.relation("has", "legs");
 		TS_ASSERT( a != b );
@@ -753,7 +759,7 @@ class Tester : public CxxTest::TestSuite {
         dog.relation("has","teeth");
         dog.relation("has","legs","4");
 		TS_ASSERT( dog.id() == "dog" )
-		TS_ASSERT( dog.super() == "animal" )
+		TS_ASSERT( dog.super_object() == "animal" )
 	}
 
     void test_related(void) {
@@ -788,30 +794,34 @@ class Tester : public CxxTest::TestSuite {
     }
 
     void test_tag_copy(void) {
-        tagd::tag fish("fish", "animal");
+        tagd::tag fish("fish", "is_a", "animal");
         fish.relation(tagd::make_predicate("has", "fins"));
 
         tagd::abstract_tag a(fish);
 		TS_ASSERT_EQUALS( a.id(), "fish" );
-		TS_ASSERT_EQUALS( a.super(), "animal" );
+		TS_ASSERT_EQUALS( a.super_relator(), "is_a" );
+		TS_ASSERT_EQUALS( a.super_object(), "animal" );
 		TS_ASSERT( a.related("has", "fins") )
 
         tagd::abstract_tag b;
         b = fish;
 		TS_ASSERT_EQUALS( b.id(), "fish" );
-		TS_ASSERT_EQUALS( b.super(), "animal" );
+		TS_ASSERT_EQUALS( b.super_relator(), "is_a" );
+		TS_ASSERT_EQUALS( b.super_object(), "animal" );
 		TS_ASSERT( b.related("has", "fins") )
     }
 
     void test_relator(void) {
 		tagd::relator r1("has");
 		TS_ASSERT( r1.id() == "has" )
-		TS_ASSERT( r1.super() == "_relator" )
+		TS_ASSERT( r1.id() == "has" )
+		TS_ASSERT( r1.super_relator() == HARD_TAG_TYPE_OF )
+		TS_ASSERT( r1.super_object() == "_relator" )
 		TS_ASSERT( r1.pos() == tagd::POS_RELATOR )
 
 		tagd::relator r2("can", "verb");
 		TS_ASSERT( r2.id() == "can" )
-		TS_ASSERT( r2.super() == "verb" )
+		TS_ASSERT( r2.super_object() == "verb" )
 		TS_ASSERT( r2.pos() == tagd::POS_RELATOR )
 	}
 
@@ -822,7 +832,7 @@ class Tester : public CxxTest::TestSuite {
         u.relation("has","links", "4");
         u.relation("about", "computer_security");
 		TS_ASSERT_EQUALS( u.hduri() , "com:hypermega:http" )
-		TS_ASSERT_EQUALS( u.super() , "_url" )
+		TS_ASSERT_EQUALS( u.super_object() , "_url" )
 		TS_ASSERT( u.pos() == tagd::POS_URL )
 		TS_ASSERT( u.related("has", "links") )
 		TS_ASSERT( u.related("about", "computer_security") )
@@ -830,25 +840,28 @@ class Tester : public CxxTest::TestSuite {
 
     void test_interrogator(void) {
 		tagd::interrogator a("what");
-		TS_ASSERT( a.id() == "what" )
-		TS_ASSERT( a.super().empty() )
+		TS_ASSERT_EQUALS( a.id() , "what" )
+		TS_ASSERT( a.super_object().empty() )
 		TS_ASSERT( a.pos() == tagd::POS_INTERROGATOR )
 
 		tagd::interrogator b("what", "mammal");
 		TS_ASSERT( b.id() == "what" )
-		TS_ASSERT( b.super() == "mammal" )
+		TS_ASSERT( b.super_relator() == HARD_TAG_TYPE_OF )
+		TS_ASSERT( b.super_object() == "mammal" )
 		TS_ASSERT( b.pos() == tagd::POS_INTERROGATOR )
 	}
 
 	void test_referent(void) {
 		tagd::referent a("is_a", "_is_a");
 		TS_ASSERT_EQUALS( a.refers() , "is_a" )
+		TS_ASSERT_EQUALS( a.super_relator() , HARD_TAG_REFERS_TO )
 		TS_ASSERT_EQUALS( a.refers_to() , "_is_a" )
 		TS_ASSERT( a.pos() == tagd::POS_REFERENT )
 		TS_ASSERT( a.context().empty() )
 
 		tagd::referent b("perro", "dog", "spanish");
 		TS_ASSERT_EQUALS( b.refers() , "perro" )
+		TS_ASSERT_EQUALS( a.super_relator() , HARD_TAG_REFERS_TO )
 		TS_ASSERT_EQUALS( b.refers_to() , "dog" )
 		TS_ASSERT( b.pos() == tagd::POS_REFERENT )
 		TS_ASSERT_EQUALS( b.context() , "spanish" )
@@ -871,7 +884,7 @@ class Tester : public CxxTest::TestSuite {
         tagd::error err(tagd::TAG_ILLEGAL);
 		TS_ASSERT_EQUALS( err.code(), tagd::TAG_ILLEGAL ) 
 		TS_ASSERT_EQUALS( err.id(), "TAG_ILLEGAL" ) 
-		TS_ASSERT_EQUALS( err.super(), HARD_TAG_ERROR ) 
+		TS_ASSERT_EQUALS( err.super_object(), HARD_TAG_ERROR ) 
     }
 
 };

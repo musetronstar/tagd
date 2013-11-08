@@ -81,14 +81,17 @@ uint32_t utf8_read(const std::string &s, size_t *pos) {
 }
 
 size_t utf8_pos_back(const std::string &s, size_t pos) {
+	if (s.size() == 0)
+		return std::string::npos;
+
 	if (pos == std::string::npos)
 		pos = s.size() - 1;
 
-	for (; pos>=0; --pos) {
+	do {
 		if ( (unsigned char)s[pos] < 0x80     // regular ASCII
 		  || (unsigned char)s[pos] >= 0xc0 )  // leading multibyte sequence
 			return pos;
-	}
+	} while (pos-- != 0);
 
 	return std::string::npos;
 }
