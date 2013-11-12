@@ -369,7 +369,7 @@ Results:
 	lemon _is_a color
 	refers_to yellow
 
-Example of a foreign language referent:
+Example of a Japanese referent:
 
 	put communication is_a _entity;
 	put language is_a communication;
@@ -404,27 +404,6 @@ Results:
 The context can be cleared by setting it to an empty string:
 
 	set context "";
-
-###### Foreign Language Predicates:
-
-Predicates can be defined in another language and be available in the universal
-context (English in this case).  To do so, let's define some spanish referents:
-
-	put spanish is_a language;
-	put perro refers_to dog context spanish;
-	put es_un refers_to is_a context spanish;
-	put mamífero refers_to mammal context spanish;
-	put puede refers_to can context spanish;
-	put ladrar refers_to bark context spanish;
-	put tiene refers_to has context spanish;
-	put patas refers_to legs context spanish;
-	put cola refers_to tail context spanish;
-
-	put fur is_a body_part;
-	put piel refers_to fur context spanish;
-	put perro tiene piel;
-
-
 
 ##### QUERY Referents:
 
@@ -497,6 +476,8 @@ Results:
 Through the use of referents, we can state predicates in other languages, and
 have those predicates immediately available in the context they refer to.
 
+###### Spanish Language Example:
+
 Let's set up referents that will allow us to express the definition of dog in
 Spanish:
 
@@ -529,7 +510,7 @@ Results:
 	can bark
 	has fur, legs = 4, tail
 
-We can se the Spanish predicate `tiene piel` is available in English as
+We can see the Spanish predicate `tiene piel` is available in English as
 `has fur`.
 
 Lets dump all the data we have entered so far to file so we can reuse it:
