@@ -15,10 +15,10 @@ bool TRACE_ON = false;
 class httagd_callback : public TAGL::callback {
 		TAGL::driver *_driver;
 		tagspace::tagspace *_TS;
-		evbuffer *_output;
+		evhtp_request_t *_req;
 
 	public:
-		httagd_callback(tagspace::tagspace*, evbuffer*);
+		httagd_callback(tagspace::tagspace*, evhtp_request_t*);
 		void cmd_get(const tagd::abstract_tag&);
 		void cmd_put(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&); 
@@ -26,8 +26,8 @@ class httagd_callback : public TAGL::callback {
         void driver(TAGL::driver *drvr) { _driver = drvr; }
 };
 
-httagd_callback::httagd_callback(tagspace::tagspace *ts, evbuffer *out) 
-	: _TS(ts), _output(out)
+httagd_callback::httagd_callback(tagspace::tagspace *ts, evhtp_request_t *req) 
+	: _driver{nullptr}, _TS{ts}, _req{req}
 {
 }
 
@@ -41,7 +41,18 @@ void httagd_callback::cmd_get(const tagd::abstract_tag& t) {
 	} else {
 		_driver->print_errors(ss);
 	}
-	evbuffer_add(_output, ss.str().c_str(), ss.str().size());
+	evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
+
+	switch (ts_rc) {
+		case tagd::TAGD_OK:
+			evhtp_send_reply(_req, EVHTP_RES_OK);
+			break;
+		case tagd::TS_NOT_FOUND:
+			evhtp_send_reply(_req, EVHTP_RES_NOTFOUND);
+			break;
+		default:
+			evhtp_send_reply(_req, EVHTP_RES_SERVERR);
+	}
 }
 
 void httagd_callback::cmd_put(const tagd::abstract_tag& t) {
@@ -49,7 +60,18 @@ void httagd_callback::cmd_put(const tagd::abstract_tag& t) {
 	if (ts_rc != tagd::TAGD_OK) {
 		std::stringstream ss;
 		_driver->print_errors(ss);
-		evbuffer_add(_output, ss.str().c_str(), ss.str().size());
+		evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
+	}
+
+	switch (ts_rc) {
+		case tagd::TAGD_OK:
+			evhtp_send_reply(_req, EVHTP_RES_OK);
+			break;
+		case tagd::TS_NOT_FOUND:
+			evhtp_send_reply(_req, EVHTP_RES_NOTFOUND);
+			break;
+		default:
+			evhtp_send_reply(_req, EVHTP_RES_SERVERR);
 	}
 }
 
@@ -64,13 +86,25 @@ void httagd_callback::cmd_query(const tagd::interrogator& q) {
 	} else {
 		_driver->print_errors(ss);
 	}
-	evbuffer_add(_output, ss.str().c_str(), ss.str().size());
+	evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
+
+	switch (ts_rc) {
+		case tagd::TAGD_OK:
+			evhtp_send_reply(_req, EVHTP_RES_OK);
+			break;
+		case tagd::TS_NOT_FOUND:
+			evhtp_send_reply(_req, EVHTP_RES_NOTFOUND);
+			break;
+		default:
+			evhtp_send_reply(_req, EVHTP_RES_SERVERR);
+	}
 }
 
 void httagd_callback::error(const TAGL::driver& D) {
 	std::stringstream ss;
 	_driver->print_errors(ss);
-	evbuffer_add(_output, ss.str().c_str(), ss.str().size());
+	evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
+	evhtp_send_reply(_req, EVHTP_RES_SERVERR);
 }
 
 
@@ -165,7 +199,7 @@ set_connection_handlers(evhtp_connection_t * conn, void *arg) {
 static void
 main_cb(evhtp_request_t *req, void *arg) {
 	tagspace::sqlite *TS = (tagspace::sqlite*)arg;
-	httagd_callback CB(TS, req->buffer_out);
+	httagd_callback CB(TS, req);
 	TAGL::driver tagl(TS, &CB);
 	CB.driver(&tagl);
 
@@ -210,14 +244,14 @@ main_cb(evhtp_request_t *req, void *arg) {
 			std::stringstream ss;
 			tagl.print_errors(ss);
 			evbuffer_add(req->buffer_out, ss.str().c_str(), ss.str().size());
+			// TODO 10.4.6 405 Method Not Allowed
+			// The method specified in the Request-Line is not allowed for the resource identified by the Request-URI.
+			// The response MUST include an Allow header containing a list of valid methods for the requested resource. 
+			evhtp_send_reply(req, EVHTP_RES_METHNALLOWED);
 	}
 
-	if (tagl.code() == tagd::TAGD_OK) {
-		evhtp_send_reply(req, EVHTP_RES_OK);
-	} else {
+	if (!TS->ok())
 		tagl.clear_errors();
-		evhtp_send_reply(req, EVHTP_RES_SERVERR);
-	}
 }
 
 // TODO put in a utility library
