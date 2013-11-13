@@ -778,6 +778,109 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.hduri(), "com:example::/a/b/c:?a=1&b=2:::joe::http" );
     }
 
+	void test_query_map(void) {
+		url_query_map_t qm, tm;
+		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, ""), 0 );
+		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?"), 0 );
+		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "&"), 0 );
+
+		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a"), 1 );
+		tm = {
+			{"a", ""}
+		};
+		TS_ASSERT_EQUALS( qm, tm );
+
+		qm.clear();
+		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a="), 1 );
+		tm = {
+			{"a", ""}
+		};
+		TS_ASSERT_EQUALS( qm, tm );
+
+		qm.clear();
+		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a&"), 1 );
+		tm = {
+			{"a", ""}
+		};
+		TS_ASSERT_EQUALS( qm, tm );
+
+		qm.clear();
+		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a&b"), 2 );
+		tm = {
+			{"a", ""},
+			{"b", ""}
+		};
+		TS_ASSERT_EQUALS( qm, tm );
+
+		qm.clear();
+		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a=&"), 1 );
+		tm = {
+			{"a", ""}
+		};
+		TS_ASSERT_EQUALS( qm, tm );
+
+		qm.clear();
+		tm = {
+			{"a", "1"},
+			{"b", "2"},
+			{"yo", "hey"}
+		};
+		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a=1&b=2&yo=hey"), 3 );
+		TS_ASSERT_EQUALS( qm, tm );
+
+		qm.clear();
+		// no leading '?'
+		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "a=1&b=2&yo=hey"), 3 );
+		tm = {
+			{"a", "1"},
+			{"b", "2"},
+			{"yo", "hey"}
+		};
+		TS_ASSERT_EQUALS( qm, tm );
+
+		qm.clear();
+		tm = {
+			{"a", "1"},
+			{"b", ""},
+			{"yo", "hey"}
+		};
+		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a=1&b=&yo=hey"), 3 );
+		TS_ASSERT_EQUALS( qm, tm );
+
+		// haven't decided how this should work
+		// qm.clear();
+		// TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a=1&b=?&yo=hey"), 3 );
+		// tm = {
+		// 	{"a", "1"},
+		// 	{"b", "?"},
+		// 	{"yo", "hey"}
+		// };
+		// TS_ASSERT_EQUALS( qm, tm );
+
+		qm.clear();
+		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a=1&b&yo=hey"), 3 );
+		tm = {
+			{"a", "1"},
+			{"b", ""},
+			{"yo", "hey"}
+		};
+		TS_ASSERT_EQUALS( qm, tm );
+	}
+
+	void test_query_find(void) {
+		url_query_map_t qm;
+		size_t n = tagd::url::parse_query(qm, "?a=1&b=2&yo=hey");
+		TS_ASSERT_EQUALS( n , 3 );
+		std::string val;
+		TS_ASSERT( tagd::url::query_find(qm, val, "a") );
+		TS_ASSERT_EQUALS( val , "1" );
+		TS_ASSERT( tagd::url::query_find(qm, val, "b") );
+		TS_ASSERT_EQUALS( val , "2" );
+		TS_ASSERT( tagd::url::query_find(qm, val, "yo") );
+		TS_ASSERT_EQUALS( val , "hey" );
+		TS_ASSERT( !tagd::url::query_find(qm, val, "caca") );
+	}
+
     void test_relations(void) {
 		tagd::url a("http://hypermega.com");
 		tagd::url::insert_url_part_relations(a.relations, a);
