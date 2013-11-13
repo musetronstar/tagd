@@ -523,6 +523,58 @@ void insert_host_parts(tagd::predicate_set& P, const url& u) {
 	return;
 }
 
+size_t url::parse_query(url_query_map_t& m, const std::string& s) {
+	size_t n = m.size();
+
+	//std::cerr << "parse_query: " << s << std::endl;
+	for(size_t i=0; i<s.size(); ++i) {
+		if ((s[i] == '?' || i==0 || s[i] == '&') && ((i+1)<s.size())) {
+			std::string k, v;
+			if (!(i == 0 && s[i] != '?')) {  // handle leading '?' or not
+				if (++i == s.size()-1) {
+					k = s.substr(i);
+					goto key_val;
+				}
+			}
+			for(size_t j=i; j<s.size(); ++j) {
+				if (s[j] == '=' || s[j] == '&' || (j == (s.size()-1))) {
+					k = s.substr(i, (j-i));
+					//std::cerr << "k: " << k << std::endl;
+					if (s[j] == '&') {
+						v.clear();
+						//std::cerr << "v: " << v << std::endl;
+						goto key_val;
+					}
+					if (s[j] == '=') {
+						if (++j<s.size()) {
+							size_t k = j;
+							for(; (k<s.size() && s[k] != '&'); ++k );
+							v = s.substr(j, (k-j));
+							//std::cerr << "v: " << v << std::endl;
+							goto key_val;
+						}
+					}
+				}
+			}
+key_val:
+			m[k] = v;
+			//std::cerr << "m[" << k << "] = " << v << std::endl;
+		}
+	}
+
+	return (m.size() - n);
+}
+
+bool url::query_find(const url_query_map_t& m, std::string& val, const std::string& key) {
+	auto it = m.find(key);
+	if (it != m.end()) {
+		val = it->second;
+		return true;
+	} else {
+		return false;
+	}
+}
+
 void url::insert_url_part_relations(tagd::predicate_set& P, const url& u) {
 	if (u._scheme_len > 0)
 		tagd::insert_predicate(P, HARD_TAG_HAS, HARD_TAG_SCHEME, u.scheme());

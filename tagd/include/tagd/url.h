@@ -2,7 +2,11 @@
 
 #include <iostream>
 #include <cstring>  // tolower
+#include <map>
 #include "tagd.h"
+
+
+typedef std::map<std::string, std::string> url_query_map_t;
 
 namespace tagd {
 
@@ -170,6 +174,10 @@ class url : public abstract_tag {
 
         inline void clear() { _id.clear(); _code = URL_EMPTY; }
         inline bool empty() const { return _id.empty(); }
+
+		// parse keys/vals from query string and populate map - returns num k/v pairs parsed
+		static size_t parse_query(url_query_map_t&, const std::string&);
+		static bool query_find(const url_query_map_t&, std::string& val, const std::string& key);
 
 		// insert url part relation into predicate_set
 		static void insert_url_part_relations(tagd::predicate_set&, const url&);
