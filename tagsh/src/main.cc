@@ -64,7 +64,7 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 		case tagd::TS_NOT_FOUND:
 			std::cout << "-- " << tagd_code_str(_TS->code()) << std::endl;
 			break;
-		default:	
+		default:
 			_TS->print_errors();
 			_TS->clear_errors();
 	}
@@ -252,7 +252,6 @@ void tagsh::command(const std::string& cmdline) {
 	error("no such command: %s", cmd.c_str());
 }
 
-/* returns err code */
 int tagsh::interpret(std::istream& ins) {
 	std::string line;
 
