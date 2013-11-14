@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <vector>
 #include <functional>
+#include <cstdio>
 #include <cstdarg>
 
 #include "tagspace/bootstrap.h"
@@ -2485,9 +2486,15 @@ tagd_code sqlite::error(tagd::code c, const char *errfmt, ...) {
 	va_start (args, errfmt);
 	va_end (args);
 
-	const char* errmsg = sqlite3_errmsg(_db);
-	if (strcmp(errmsg, "unknown error") != 0)
-		std::cerr << "sqlite3_errmsg: " << errmsg << std::endl;
+	if (_trace_on) {
+		std::cerr << tagd_code_str(c) << ": ";
+		vfprintf(stderr, errfmt, args);
+		std::cerr << std::endl;
+
+		const char* errmsg = sqlite3_errmsg(_db);
+		if (strcmp(errmsg, "unknown error") != 0)
+			std::cerr << "sqlite3_errmsg: " << errmsg << std::endl;
+	}
 
 	return tagd::errorable::error(c, errfmt, args);
 }
