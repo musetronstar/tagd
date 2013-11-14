@@ -91,38 +91,7 @@ statement ::= query_statement TERMINATOR .
 		}
 	}
 }
-
 statement ::= TERMINATOR .
-
-/*
-%type cmd { int 
-tagl_cmd ::= cmd(c) .
-{
-	tagl->_cmd = c;
-}
-tagl_cmd ::= .
-{
-	tagl->_cmd = tagl->_default_cmd;
-}
-
-pragma ::= CMD ASSIGNMENT cmd(c) .
-{
-	tagl->_default_cmd = c;
-}
-
-cmd(c) ::= CMD_GET .
-{
-	c = CMD_GET;
-}
-cmd(c) ::= CMD_PUT .
-{
-	c = CMD_PUT;
-}
-cmd(c) ::= CMD_TEST .
-{
-	c = CMD_TEST;
-}
-*/
 
 %type context { std::string * }
 set_statement ::= set_context .
