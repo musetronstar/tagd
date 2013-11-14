@@ -21,13 +21,14 @@ LIBEVHTP = $(LIBEVHTP_DIR)/build/libevhtp.a
 
 all : $(BIN)
 
-# TODO remove -fpermissive to solve error:
-# invalid conversion from ‘evhtp_res (*)(evhtp_request_t*, evhtp_path_t*, void*) {aka short unsigned int (*)(evhtp_request_s*, evhtp_path_s*, void*)}’ to ‘evhtp_hook {aka short unsigned int (*)()}’ [-fpermissive]
 main.o : main.cc
-	$(CXX) -fpermissive -c -o $@ $? $(LIBEVHTP_INC) $(INC) $(CXXFLAGS)
+	$(CXX) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
+
+httagd.o : httagd.cc
+	$(CXX) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
  
-$(BIN) : main.o
-	$(CXX) -o $@ $? $(CXXFLAGS) $(LIBEVHTP) $(LIBEVHTP_LFLAGS) $(LFLAGS)
+$(BIN) : main.o httagd.o
+	$(CXX) -o $@ $? $(LFLAGS) $(LIBEVHTP) $(LIBEVHTP_LFLAGS)
 
 clean :
 	rm -f *.o $(BIN)

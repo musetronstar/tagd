@@ -9,197 +9,13 @@
 #include "tagd.h"
 #include "tagl.h"
 #include "tagspace/sqlite.h"
+#include "httagd.h"
 
 bool TRACE_ON = false;
 
-class httagd_callback : public TAGL::callback {
-		TAGL::driver *_driver;
-		tagspace::tagspace *_TS;
-		evhtp_request_t *_req;
-
-	public:
-		httagd_callback(tagspace::tagspace*, evhtp_request_t*);
-		void cmd_get(const tagd::abstract_tag&);
-		void cmd_put(const tagd::abstract_tag&);
-		void cmd_query(const tagd::interrogator&); 
-        void error(const TAGL::driver&);
-        void driver(TAGL::driver *drvr) { _driver = drvr; }
-};
-
-httagd_callback::httagd_callback(tagspace::tagspace *ts, evhtp_request_t *req) 
-	: _driver{nullptr}, _TS{ts}, _req{req}
-{
-}
-
-void httagd_callback::cmd_get(const tagd::abstract_tag& t) {
-	tagd::abstract_tag T;
-	tagd::code ts_rc = _TS->get(T, t.id());
-
-	std::stringstream ss;
-	if (ts_rc == tagd::TAGD_OK) {
-		ss << T << std::endl;
-	} else {
-		_driver->print_errors(ss);
-	}
-	evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
-
-	switch (ts_rc) {
-		case tagd::TAGD_OK:
-			evhtp_send_reply(_req, EVHTP_RES_OK);
-			break;
-		case tagd::TS_NOT_FOUND:
-			evhtp_send_reply(_req, EVHTP_RES_NOTFOUND);
-			break;
-		default:
-			evhtp_send_reply(_req, EVHTP_RES_SERVERR);
-	}
-}
-
-void httagd_callback::cmd_put(const tagd::abstract_tag& t) {
-	tagd::code ts_rc = _TS->put(t);
-	if (ts_rc != tagd::TAGD_OK) {
-		std::stringstream ss;
-		_driver->print_errors(ss);
-		evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
-	}
-
-	switch (ts_rc) {
-		case tagd::TAGD_OK:
-			evhtp_send_reply(_req, EVHTP_RES_OK);
-			break;
-		case tagd::TS_NOT_FOUND:
-			evhtp_send_reply(_req, EVHTP_RES_NOTFOUND);
-			break;
-		default:
-			evhtp_send_reply(_req, EVHTP_RES_SERVERR);
-	}
-}
-
-void httagd_callback::cmd_query(const tagd::interrogator& q) {
-	tagd::tag_set T;
-	tagd::code ts_rc = _TS->query(T, q);
-
-	std::stringstream ss;
-	if (ts_rc == tagd::TAGD_OK) {
-		tagd::print_tag_ids(T, ss);
-		ss << std::endl;
-	} else {
-		_driver->print_errors(ss);
-	}
-	evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
-
-	switch (ts_rc) {
-		case tagd::TAGD_OK:
-			evhtp_send_reply(_req, EVHTP_RES_OK);
-			break;
-		case tagd::TS_NOT_FOUND:
-			evhtp_send_reply(_req, EVHTP_RES_NOTFOUND);
-			break;
-		default:
-			evhtp_send_reply(_req, EVHTP_RES_SERVERR);
-	}
-}
-
-void httagd_callback::error(const TAGL::driver& D) {
-	std::stringstream ss;
-	_driver->print_errors(ss);
-	evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
-	evhtp_send_reply(_req, EVHTP_RES_SERVERR);
-}
-
-
-/*
-static evhtp_res
-handle_path(evhtp_request_t *req, evhtp_path_t *path, void *arg) {
-	TAGL::driver *tagl = arg;
-
-	switch(evhtp_request_get_method(req)) {
-		case htp_method_GET:
-			tagl->tagdurl_get(path->full);			
-			break;
-		case htp_method_PUT:
-			tagl->tagdurl_put(path->full);			
-			break;
-		default:
-			evbuffer_add_printf(req->buffer_out, "Unsupported method: %d",
-					evhtp_request_get_method(req));
-			
-	}
-
-//    evbuffer_add_printf(req->buffer_out,
-//                        "handle_path() full        = '%s'\n"
-//                        "             path        = '%s'\n"
-//                        "             file        = '%s'\n"
-//                        "             match start = '%s'\n"
-//                        "             match_end   = '%s'\n"
-//                        "             methno      = '%d'\n",
-//                        path->full, path->path, path->file,
-//                        path->match_start, path->match_end,
-//                        evhtp_request_get_method(req));
-
-    return EVHTP_RES_OK;
-}
-*/
-
-/*
-static evhtp_res
-handle_request_fini(evhtp_request_t *req, void *arg) {
-	TAGL::driver *tagl = arg;
-	tagl->finish();
-	delete tagl->callback_ptr();
-	delete tagl;
-
-    return EVHTP_RES_OK;
-}
-*/
-
-/*
-static evhtp_res
-handle_data(evhtp_request_t *req, evbuf_t *input, void *arg) {
-    // size_t sz = evbuffer_get_length(input);
-    // evbuffer_add_printf(req->buffer_out,
-    //                     "got %zu bytes of data\n", sz);
-   
-    //char *data = (char *)evbuffer_pullup(input, sz);
-    //evbuffer_add_printf(req->buffer_out, "%s\n", data);
-
-	TAGL::driver *tagl = arg;
-	tagl->evbuffer_execute(input);
-
-    return EVHTP_RES_OK;
-}
-*/
-
-/*
-static evhtp_res
-set_connection_handlers(evhtp_connection_t * conn, void *arg) {
-		tagspace::sqlite *TS = arg;
-
-		// both deleted by handle_request_fini
-		httagd_callback *CB = new httagd_callback(TS);
-		CB->connection(conn);
-		TAGL::driver *tagl = new TAGL::driver(TS, CB);
-		TAGL::driver::trace_on("trace: ");
-
-
-//    evhtp_set_hook(&conn->hooks, evhtp_hook_on_header, print_kv, "foo");
-//    evhtp_set_hook(&conn->hooks, evhtp_hook_on_headers, print_kvs, "bar");
-	evhtp_set_hook(&conn->hooks, evhtp_hook_on_path, handle_path, (void*)tagl);
-	evhtp_set_hook(&conn->hooks, evhtp_hook_on_read, handle_data, (void*)tagl);
-//    evhtp_set_hook(&conn->hooks, evhtp_hook_on_new_chunk, print_new_chunk_len, NULL);
-//    evhtp_set_hook(&conn->hooks, evhtp_hook_on_chunk_complete, print_chunk_complete, NULL);
-//    evhtp_set_hook(&conn->hooks, evhtp_hook_on_chunks_complete, print_chunks_complete, NULL);
-    //evhtp_set_hook(&conn->hooks, evhtp_hook_on_hostname, print_hostname, NULL);
-    evhtp_set_hook(&conn->hooks, evhtp_hook_on_request_fini, handle_request_fini, (void*)tagl);
-    //evhtp_set_hook(&conn->hooks, evhtp_hook_on_connection_fini, handle_connection_fini, (void*)tagl);
-
-    return EVHTP_RES_OK;
-}  */
-
-static void
-main_cb(evhtp_request_t *req, void *arg) {
+static void main_cb(evhtp_request_t *req, void *arg) {
 	tagspace::sqlite *TS = (tagspace::sqlite*)arg;
-	httagd_callback CB(TS, req);
+	httagd::tagl_callback CB(TS, req);
 	TAGL::driver tagl(TS, &CB);
 	CB.driver(&tagl);
 
@@ -272,8 +88,7 @@ bool file_exists(const std::string& fname) {
   return (stat(fname.c_str(), &buff) == 0);
 }
 
-int
-main(int argc, char ** argv) {
+int main(int argc, char ** argv) {
 	std::string db_fname;
 
 	for(int i=1; i<argc; i++) {
@@ -312,9 +127,6 @@ main(int argc, char ** argv) {
 
     // general request handler
     evhtp_set_gencb(htp, main_cb, &TS);
-
-    /* set a callback to set per-connection hooks (via a post_accept cb) */
-    //evhtp_set_post_accept_cb(htp, set_connection_handlers, &TS);
 
     if (evhtp_bind_socket(htp, bind_addr, bind_port, 128) < 0) {
         fprintf(stderr, "failed to bind socket: %s\n", strerror(errno));
