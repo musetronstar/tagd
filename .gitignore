@@ -15,6 +15,7 @@ bin/
 
 # CxxTest output - note the ucase in test filenames (e.g. Tester.h)
 *tester*
+!tester.exp
 
 # vim leftovers
 *~

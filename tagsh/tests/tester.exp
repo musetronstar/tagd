@@ -1,0 +1,198 @@
+#!/usr/bin/expect
+
+# exp_internal 1   ;# diagnostics
+
+set spawn_tagsh "spawn ../bin/tagsh --db -"
+set bootstrap ../bootstrap.tagl
+
+set PROMPT "tagd> "
+set MAX_ERRORS 3
+set ERRORS 0
+set NL "\r\n"   ;# WTF
+set TIMEOUT 1
+
+set timeout $TIMEOUT
+set log_user 1  ;# log output to stdout, 0 disables
+
+# sends a tagls string and expects args
+# n = <test_name>, s = <tagl_string>, e = <expect_args>
+proc test {n s e} {
+	upvar 1 ERRORS errors
+	upvar 1 MAX_ERRORS max_errors
+	upvar 1 NL nl
+	upvar 1 PROMPT prompt
+
+	set match 0
+
+	send "$s$nl"
+	expect "$s$nl"	;# eat the echoed statement
+
+	expect {
+		-regexp $e  { 
+				puts "\n##########   $n passed   ##########\n"
+				set match 1
+			}
+	}
+
+	# eats output up to the next prompt
+	expect $prompt
+
+	if {$match} { return }
+
+	puts "\n**********   $n failed   **********\n"
+	incr errors
+
+	if {$errors >= $max_errors} {
+		puts "$errors errors. Exiting..."
+		exit $errors
+	}
+}
+
+# like test, but fails if the expect args are true
+# use sparingly because it has to timeout for success
+proc test_neg {n s e} {
+	upvar 1 ERRORS errors
+	upvar 1 MAX_ERRORS max_errors
+	upvar 1 NL nl
+	upvar 1 PROMPT prompt
+
+	set match 0	
+
+	send "$s$nl"
+	expect "$s$nl"	;# eat the echoed statement
+
+	expect {
+		-regexp $e  { 
+				puts "\n**********   $n failed   **********\n"
+				incr errors
+
+				if {$errors >= $max_errors} {
+					puts "$errors errors. Exiting..."
+					exit $errors
+				}
+
+				set match 1	
+			}
+		default		;# timeout,eof ok
+	}
+
+	# eats output up to the next prompt
+	expect $prompt
+
+	if {$match} { return }  ;# failed
+
+	puts "\n##########   $n passed   ##########\n"
+}
+
+
+eval $spawn_tagsh
+expect "use .show to list commands$NL"
+expect $PROMPT
+
+test "get_dog_not_exists" \
+	 "get dog;" \
+	 "TS_NOT_FOUND"
+
+# passes when output does not contain TAGL_ERR or "no such file"
+test_neg "bootstrap" \
+	     ".load $bootstrap" \
+	     "(TAGL_ERR)|(no such file)"
+
+test "get_dog" \
+	 "get dog;" \
+	 "dog is_a mammal"
+
+test "get_doggy_not_exists" \
+	 "get doggy;" \
+	 "TS_NOT_FOUND"
+
+test "refer_doggy" \
+	 "put doggy refers_to dog;" \
+	 "TAGD_OK"
+
+test "get_doggy" \
+	 "get doggy;" \
+	 "doggy is_a mammal(.*)refers_to dog"
+
+test "query_mammal_super" \
+	 "query what is_a mammal;" \
+	 "bat, cat, doggy, whale"
+
+test "query_parent_relator" \
+	 "query what is_a animal
+	  has blood = warm, tail
+	  can bark" \
+	 "dog"
+
+test "refer_japanese_dog" \
+     "put イヌ refers_to dog _context japanese" \
+	 "TAGD_OK"
+
+test "get_japanese_dog_ambiguous" \
+	 "get イヌ;" \
+	 "TS_AMBIGUOUS"
+
+test "set_context_not_found" \
+     "set _context caca" \
+	 "TAGL_ERR"
+
+test_neg "set_context_animal" \
+         "set _context animal" \
+	     "TAGL_ERR"
+
+test "get_japanese_dog_ambiguious" \
+	 "get イヌ;" \
+	 "TS_AMBIGUOUS"
+
+test_neg "set_context_japanese" \
+         "set _context japanese" \
+	     "TAGL_ERR"
+
+test "get_japanese_dog" \
+	 "get イヌ;" \
+	 "イヌ is_a mammal(.*)refers_to dog"
+
+test_neg "set_context_blank" \
+         "set _context \"\"" \
+	     "TAGL_ERR"
+
+test "put_url_dog" \
+     "put https://en.wikipedia.org/wiki/Dog about dog" \
+	 "TAGD_OK"
+
+test "get_url_dog" \
+     "get https://en.wikipedia.org/wiki/Dog ;" \
+	 "https://en.wikipedia.org/wiki/Dog is_a _url(.*)about dog"
+
+test "put_url_dog2" \
+    "put http://animal.discovery.com/breed-selector/dog-breeds.html about dog" \
+	"TAGD_OK"
+
+test "put_url_cat" \
+    "put https://en.wikipedia.org/wiki/Cat about cat" \
+	"TAGD_OK"
+
+test "query_url_dog" \
+     "query what is_a _url about dog" \
+"https://en.wikipedia.org/wiki/Dog, http://animal.discovery.com/breed-selector/dog-breeds.html"
+
+test "query_url_animal" \
+     "query what is_a _url * animal" \
+"https://en.wikipedia.org/wiki/Dog, http://animal.discovery.com/breed-selector/dog-breeds.html, https://en.wikipedia.org/wiki/Cat"
+
+test "query_url_animal_wikipedia" \
+"query what is_a _url * animal
+_has _private = wikipedia, _pub = org" \
+"https://en.wikipedia.org/wiki/Dog, https://en.wikipedia.org/wiki/Cat"
+
+send ".exit$NL"
+expect eof
+wait
+
+if {$ERRORS} {
+	puts "$ERRORS errors."
+} else {
+	puts "All tests passed."
+} 
+
+exit $ERRORS

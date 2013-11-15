@@ -1,0 +1,146 @@
+#!/usr/bin/expect
+
+# exp_internal 1   ;# diagnostics
+
+set spawn_httagd "spawn ../bin/httagd --db -"
+set bootstrap ../../tagsh/bootstrap.tagl
+
+set MAX_ERRORS 3
+set ERRORS 0
+set NL "\r\n"
+set TIMEOUT 1
+
+set timeout $TIMEOUT
+set log_user 1  ;# log output to stdout, 0 disables
+
+# launches curl using args and expects
+# n = <test_name>, m = method, u = url, d = <body_data>, e = <expect_args>
+proc test {n m u d e} {
+	upvar 1 ERRORS errors
+	upvar 1 MAX_ERRORS max_errors
+	upvar 1 NL nl
+
+	set match 0
+
+	if { [string length $d] == 0 } {
+		spawn curl -D - -X$m "http://localhost:8082$u"
+	} else {
+		spawn curl -D - -X$m "http://localhost:8082$u" --data $d
+	}
+
+	expect {
+		-regexp $e  { 
+				puts "\n##########   $n passed   ##########\n"
+				set match 1
+			}
+	}
+
+	if {$match} { return }
+
+	puts "\n**********   $n failed   **********\n"
+	incr errors
+
+	if {$errors >= $max_errors} {
+		puts "$errors errors. Exiting..."
+		exit $errors
+	}
+}
+
+# launches curl using args and expects
+# n = <test_name>, m = method, u = url, f = filename, e = <expect_args>
+proc test_file {n m u f e} {
+	upvar 1 ERRORS errors
+	upvar 1 MAX_ERRORS max_errors
+	upvar 1 NL nl
+
+	set match 0
+
+	if { [string length $f] == 0 } {
+		spawn curl -D - -X$m "http://localhost:8082$u"
+	} else {
+		spawn curl -D - -X$m "http://localhost:8082$u" --data-binary "@$f"
+	}
+
+	expect {
+		-regexp $e  { 
+				puts "\n##########   $n passed   ##########\n"
+				set match 1
+			}
+	}
+
+	if {$match} { return }
+
+	puts "\n**********   $n failed   **********\n"
+	incr errors
+
+	if {$errors >= $max_errors} {
+		puts "$errors errors. Exiting..."
+		exit $errors
+	}
+}
+
+
+eval $spawn_httagd
+
+# there must be a better way to wait for the server to start up
+sleep 1
+
+test "get_dog_not_exists" \
+	 "GET" "/dog" "" \
+	 "404 Not Found"
+
+test_file "bootstrap" \
+	      "POST" "/" $bootstrap \
+	      "200 OK"
+
+test "get_dog" \
+	 "GET" "/dog" "" \
+	 "dog is_a mammal"
+
+test "get_doggy_not_exists" \
+	 "GET" "/doggy" "" \
+	 "404 Not Found"
+
+test "refer_doggy" \
+	 "PUT" "/doggy" "refers_to dog" \
+	 "200 OK"
+
+test "get_doggy" \
+	 "GET" "/doggy" "" \
+	 "doggy is_a mammal(.*)refers_to dog"
+
+test "query_mammal_super" \
+	 "GET" "/mammal/" "" \
+	 "bat, cat, doggy, whale"
+
+test "query_parent_relator" \
+     "GET" "/animal/blood=warm,tail,bark" "" \
+	 "doggy"
+
+# this works, but it shouldn't
+# TODO encode utf8 urls
+test "refer_japanese_dog" \
+     "PUT" "/イヌ" "refers_to dog _context japanese" \
+	 "200 OK"
+
+test "get_japanese_dog_ambiguous" \
+	 "GET" "/イヌ" "" \
+	 "TS_AMBIGUOUS"
+
+# TODO context cannot be set because that would would imply
+# the service is stateful (though a context as part of a session might be ok),
+# but a context could be allowed as part of the query string
+# test "get_japanese_dog" \
+#	 "GET "/イヌ?_context=japanese" "" \
+#	 "イヌ is_a mammal(.*)refers_to dog"
+
+close
+wait
+
+if {$ERRORS} {
+	puts "$ERRORS errors."
+} else {
+	puts "All tests passed."
+} 
+
+exit $ERRORS
