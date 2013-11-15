@@ -119,6 +119,9 @@ int main(int argc, char ** argv) {
 		return 1;
 	}
 
+	if (TRACE_ON)
+		TS.trace_on();
+
     const char   * bind_addr   = "0.0.0.0";
     uint16_t bind_port   = 8082;
 

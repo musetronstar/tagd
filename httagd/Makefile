@@ -9,7 +9,7 @@ tagsh: force_look
 	make -C	$(SRC_DIR)
 
 tests: force_look tagsh
-	# make -C $(TEST_DIR)  # TODO
+	make -C $(TEST_DIR)
 
 force_look:
 	true
@@ -17,5 +17,3 @@ force_look:
 clean:
 	rm -rf  $(BUILD_DIR)
 	make -C $(SRC_DIR) clean
-	# make -C $(TEST_DIR) clean # TODO
-
