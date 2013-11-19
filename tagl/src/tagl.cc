@@ -61,12 +61,18 @@ void driver::do_callback() {
 
 	switch (_cmd) {
 		case CMD_GET:
+			if (_trace_on)
+				std::cerr << "callback::cmd_get: " << *_tag << std::endl;
 			_callback->cmd_get(*_tag);
 			break;
 		case CMD_PUT:
+			if (_trace_on)
+				std::cerr << "callback::cmd_put: " << *_tag << std::endl;
 			_callback->cmd_put(*_tag);
 			break;
 		case CMD_QUERY:
+			if (_trace_on)
+				std::cerr << "callback::cmd_query: " << *_tag << std::endl;
 			_callback->cmd_query((tagd::interrogator&) *_tag);
 			break;
 	// case CMD_TEST:
@@ -196,18 +202,18 @@ tagd_code driver::execute(const std::string& statement) {
 	return this->code();
 }
 
-tagd_code driver::tagdurl_get(const std::string& tagdurl) {
+tagd_code driver::tagdurl_get(const std::string& tagdurl, const url_query_map_t *qm) {
 	this->init();
 
-	_scanner.scan_tagdurl_path(CMD_GET, tagdurl);
+	_scanner.scan_tagdurl_path(CMD_GET, tagdurl, qm);
 
 	return this->code();
 }
 
-tagd_code driver::tagdurl_put(const std::string& tagdurl) {
+tagd_code driver::tagdurl_put(const std::string& tagdurl, const url_query_map_t *qm) {
 	this->init();
 
-	_scanner.scan_tagdurl_path(CMD_PUT, tagdurl);
+	_scanner.scan_tagdurl_path(CMD_PUT, tagdurl, qm);
 
 	return this->code();
 }

@@ -620,6 +620,8 @@ The TAGL query generated was:
 	QUERY _interrogator
 	* fins, hair, air, water 
 
+To browse your tagspace, fire up your favorite browser and go to `http://localhost:8082/mammal?t=tag.html`
+
 So far, that is all that httagd can do.  More features will be coming soon...
 
 ### Installation
@@ -638,10 +640,12 @@ platforms.
 	* Net::IDN::Encode CPAN module to parse the list
 * [re2c](http://re2c) for the lexer/scanner
 * [lemon](http://www.hwaci.com/sw/lemon/lemon.html) for the parser
-* [libevhtp](https://github.com/ellzey/libevhtp) for the http server
 * [CxxTest](http://cxxtest.com/) for unit tests
-* [Expect](http://www.tcl.tk/man/expect5.31/expect.1.html) for testing tagsh
+* [Expect](http://www.tcl.tk/man/expect5.31/expect.1.html) for testing tagsh and httagd
 * [SQLite v3](http://www.sqlite.org/) libs and development headers
+* For the httagd http server
+	* [libevhtp](https://github.com/ellzey/libevhtp)
+	* [ctemplate](https://code.google.com/p/ctemplate/) for html template
 
 Building and Testing:
 

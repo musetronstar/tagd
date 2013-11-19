@@ -15,20 +15,37 @@ bool TRACE_ON = false;
 
 static void main_cb(evhtp_request_t *req, void *arg) {
 	tagspace::sqlite *TS = (tagspace::sqlite*)arg;
-	httagd::tagl_callback CB(TS, req);
-	TAGL::driver tagl(TS, &CB);
-	CB.driver(&tagl);
 
-	if (TRACE_ON)
-		TAGL::driver::trace_on((char *)"trace: ");
+	// check for template id in query string
+	url_query_map_t qm;
+	std::string t_val;
+	std::string c_val;
+	if ( req->uri->query_raw != NULL &&
+		tagd::url::parse_query(qm, (char*)req->uri->query_raw))
+	{
+		tagd::url::query_find(qm, t_val, "t"); // t = template
+		tagd::url::query_find(qm, c_val, "c"); // c = context
+	}
+
+	if (!c_val.empty())
+		TS->push_context(c_val);
+
+	TAGL::driver tagl(TS);
+	TAGL::callback *CB;
+	if (t_val.empty()) {
+		CB = new httagd::tagl_callback(TS, &tagl, req);
+	} else {
+		CB = new httagd::template_callback(TS, &tagl, req, t_val, c_val);
+	}
+	tagl.callback_ptr(CB);
 
 	switch(evhtp_request_get_method(req)) {
 		case htp_method_GET:
-			tagl.tagdurl_get(req->uri->path->full);			
+			tagl.tagdurl_get(req->uri->path->full, &qm);			
 			tagl.finish();
 			break;
 		case htp_method_PUT:
-			tagl.tagdurl_put(req->uri->path->full);
+			tagl.tagdurl_put(req->uri->path->full, &qm);
 			tagl.evbuffer_execute(req->buffer_in);
 			tagl.finish();
 			break;
@@ -66,8 +83,15 @@ static void main_cb(evhtp_request_t *req, void *arg) {
 			evhtp_send_reply(req, EVHTP_RES_METHNALLOWED);
 	}
 
+	if (!c_val.empty())
+		TS->pop_context();
+
 	if (!TS->ok())
+		TS->clear_errors();
+	if (!tagl.ok())
 		tagl.clear_errors();
+
+	delete CB;
 }
 
 // TODO put in a utility library
@@ -119,8 +143,10 @@ int main(int argc, char ** argv) {
 		return 1;
 	}
 
-	if (TRACE_ON)
+	if (TRACE_ON) {
 		TS.trace_on();
+		TAGL::driver::trace_on((char *)"trace: ");
+	}
 
     const char   * bind_addr   = "0.0.0.0";
     uint16_t bind_port   = 8082;

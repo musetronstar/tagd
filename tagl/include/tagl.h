@@ -39,7 +39,7 @@ class scanner {
 		scanner(driver *d) : _driver(d) {}
 		~scanner() {}
 		void scan(const char*);
-		void scan_tagdurl_path(int cmd, const std::string&);
+		void scan_tagdurl_path(int cmd, const std::string&, const url_query_map_t* qm = nullptr);
 };
 
 class driver : public tagd::errorable {
@@ -71,11 +71,12 @@ class driver : public tagd::errorable {
 		driver(tagspace::tagspace *ts, callback *);
 		~driver();
 
+		void callback_ptr(callback * c) { _callback = c; }
 		callback *callback_ptr() { return _callback; }
 		tagd_code parseln(const std::string& = std::string());
 		tagd_code execute(const std::string&);
-		tagd_code tagdurl_get(const std::string&);
-		tagd_code tagdurl_put(const std::string&);
+		tagd_code tagdurl_get(const std::string&, const url_query_map_t* qm = nullptr);
+		tagd_code tagdurl_put(const std::string&, const url_query_map_t* qm = nullptr);
 		tagd_code evbuffer_execute(struct evbuffer*);
 		int token() const { return _token; }
 		int lookup_pos(const std::string&) const;

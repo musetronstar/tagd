@@ -263,9 +263,11 @@ class abstract_tag {
 
         tagd_code predicates(const predicate_set&);
 
-        // object, optional id if supplied will get set the relator of the relation (if related)
         bool has_relator(const id_type&) const;
-        bool related(const id_type&, id_type *how=NULL) const;
+		// related to object
+        bool related(const id_type& object) const;
+        // fill predicate set with predicates matching object, return num matches
+        size_t related(const id_type& object, predicate_set& how) const;
 
         // relator, object
         bool related(const id_type& relator, const id_type& object) const {
@@ -351,6 +353,10 @@ class referent : public abstract_tag {
 		{
 			_super_relator = HARD_TAG_REFERS_TO;
 		};
+
+        referent(const abstract_tag& t) :
+			abstract_tag(t.id(), t.super_relator(), t.super_object(), POS_REFERENT)
+		{ relations = t.relations; }
 
         referent(const id_type& refers, const id_type& refers_to) :
 			abstract_tag(refers, HARD_TAG_REFERS_TO, refers_to, POS_REFERENT)
@@ -450,6 +456,7 @@ class errorable {
 		tagd_code error(tagd::code c, const char *, ...);
 		tagd_code error(tagd::code c, const char *, const va_list&);
 
+		bool has_errors() const { return (_errors.size() > 0); }
 		void clear_errors() { _code = _init; _errors.clear(); }
 
 		void print_errors(std::ostream& os = std::cerr) const;

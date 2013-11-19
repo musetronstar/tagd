@@ -768,9 +768,17 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( dog.relation("has","legs", "4"), tagd::TAGD_OK )
 		TS_ASSERT( dog.related("has", "teeth")  )
 
-        tagd::id_type how;
-		TS_ASSERT( dog.related("legs", &how) )
-        TS_ASSERT_EQUALS( how, "has" )
+		TS_ASSERT( dog.related("legs") )
+
+        tagd::predicate_set how;
+		TS_ASSERT_EQUALS( dog.related("legs", how), 1 )
+		auto it = how.begin();
+		TS_ASSERT( it != how.end() );
+		if (it != how.end()) {
+			TS_ASSERT_EQUALS( it->relator, "has" )
+			TS_ASSERT_EQUALS( it->object, "legs" )
+			TS_ASSERT_EQUALS( it->modifier, "4" )
+		}
 
 		TS_ASSERT( !dog.related("has", "fins") )
 	}

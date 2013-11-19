@@ -66,7 +66,8 @@ sqlite::~sqlite() {
 }
 
 void sqlite::trace_on() {
-	sqlite3_trace(_db, trace_callback, NULL);
+	if (_db != nullptr)
+		sqlite3_trace(_db, trace_callback, NULL);
     dout << "### sqlite trace on ###" << std::endl;
 	_trace_on = true;
 }
@@ -97,6 +98,9 @@ tagd::code sqlite::_init(const std::string& fname) {
     this->close();	// won't fail if not open
 	this->open();	// open will create db if not exists
 	OK_OR_RET_ERR();
+
+	if (_trace_on) // run again now that _db set
+		this->trace_on();	
 
     this->exec("BEGIN");
 
@@ -290,7 +294,7 @@ tagd::code sqlite::create_tags_table() {
     // table exists
     if (s_rc == SQLITE_ROW) {
         tagd::tag t;
-        this->get(t, "_entity");
+        this->get(t, "_entity", NO_TRANSFORM_REFERENTS);
 		OK_OR_RET_ERR();
 
         if (t.id() == "_entity" && t.super_object() == "_entity")
@@ -385,16 +389,6 @@ tagd::code sqlite::create_referents_table() {
 	OK_OR_RET_ERR();
 
 	this->exec("CREATE INDEX idx_refers_to ON referents(refers_to)");
-
-	_f_encode_referent = [&](const tagd::id_type &from) -> tagd::id_type {
-		tagd::id_type to;
-
-		if (!from.empty())
-			this->refers(to, from); // to set on success
-
-		// refers will not populate 'to' unless there is a referent
-		return (to.empty() ? from : to);
-	};
 
     return _code;
 }
@@ -1747,7 +1741,7 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 			f_transform( (const char*) sqlite3_column_text(stmt, F_OBJECT) )
 		);
 		if (sqlite3_column_type(_get_relations_stmt, F_MODIFIER) != SQLITE_NULL) {
-			pred.modifier = f_transform( (const char*) sqlite3_column_text(stmt, F_OBJECT) );
+			pred.modifier = f_transform( (const char*) sqlite3_column_text(stmt, F_MODIFIER) );
 		}
 		t->relation(pred);
 
@@ -2010,7 +2004,8 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& intr, flags
 
 		// super_relator is not used for finding related tags (its not advantagious)
         this->related(S, *it, intr.super_object());
-		// tagd::print_tag_ids(S);
+		if (_trace_on)
+			std::cerr << "related: "; tagd::print_tag_ids(S);
 		OK_OR_RET_ERR();
 
 		n += merge_containing_tags(R, S);

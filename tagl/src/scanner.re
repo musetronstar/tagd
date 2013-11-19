@@ -99,7 +99,7 @@ lookup_parse:
 }
 
 
-void scanner::scan_tagdurl_path(int cmd, const std::string& path) {
+void scanner::scan_tagdurl_path(int cmd, const std::string& path, const url_query_map_t* qm) {
 	// path separator defs
 	const size_t max_seps = 2;
 	size_t sep_i = 0;
@@ -150,11 +150,11 @@ void scanner::scan_tagdurl_path(int cmd, const std::string& path) {
 		// first segment of "*" is a placeholder for super relation, so ignore it
 		if (segment != "*") {
 			_driver->parse_tok(SUPER_RELATOR, (new std::string(HARD_TAG_SUPER)));
-			this->scan(segment.c_str());
+			this->scan(tagd::uri_decode(segment).c_str());
 		}
 	} else {
 		_driver->parse_tok(cmd, NULL);
-		this->scan(segment.c_str());
+		this->scan(tagd::uri_decode(segment).c_str());
 	}
 
 	if (++sep_i >= num_seps)
@@ -165,7 +165,7 @@ void scanner::scan_tagdurl_path(int cmd, const std::string& path) {
 
 	if (!segment.empty()) {
 		_driver->parse_tok(WILDCARD, NULL);
-		this->scan(segment.c_str());
+		this->scan(tagd::uri_decode(segment).c_str());
 	}
 }
 

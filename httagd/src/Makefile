@@ -27,8 +27,11 @@ main.o : main.cc
 httagd.o : httagd.cc
 	$(CXX) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
  
-$(BIN) : main.o httagd.o
-	$(CXX) -o $@ $? $(LFLAGS) $(LIBEVHTP) $(LIBEVHTP_LFLAGS)
+template_callback.o : template_callback.cc
+	$(CXX) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
+
+$(BIN) : main.o httagd.o template_callback.o
+	$(CXX) -o $@ $? $(LFLAGS) $(LIBEVHTP) $(LIBEVHTP_LFLAGS) -lctemplate_nothreads
 
 clean :
 	rm -f *.o $(BIN)

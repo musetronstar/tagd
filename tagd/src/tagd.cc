@@ -276,20 +276,35 @@ bool abstract_tag::has_relator(const id_type &r) const {
    
     return false;
 }
-bool abstract_tag::related(const id_type &object, id_type *how) const {
+
+bool abstract_tag::related(const id_type &object) const {
     if (object.empty())
         return false;
 
     // WTF not sure if is the best way - propably more efficient methods
     for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
         if (it->object == object) {
-            if (how != NULL)
-                *how = it->relator;  // answers how it is related
             return true;
         }
     }
    
     return false;
+}
+
+size_t abstract_tag::related(const id_type &object, predicate_set& how) const {
+    if (object.empty())
+        return 0;
+
+	size_t matches = 0;
+    // WTF not sure if is the best way - propably more efficient methods
+    for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
+        if (it->object == object) {
+			how.insert(*it);
+            matches++;
+        }
+    }
+   
+    return matches;
 }
 
 // referents

@@ -105,7 +105,17 @@ class sqlite: public tagspace {
             _insert_uri_relations_stmt(NULL),
 			_doing_init(false),
 			_trace_on(false)
-        {}
+        {
+			_f_encode_referent = [&](const tagd::id_type &from) -> tagd::id_type {
+				tagd::id_type to;
+
+				if (!from.empty())
+					this->refers(to, from); // to set on success
+
+				// refers will not populate 'to' unless there is a referent
+				return (to.empty() ? from : to);
+			};
+		}
 
         virtual ~sqlite();
 

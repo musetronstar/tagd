@@ -200,5 +200,9 @@ class url : public abstract_tag {
 		}
 };
 
+
+std::string uri_decode(const std::string&);
+std::string uri_encode(const std::string&);
+
 } // namespace tagd
 

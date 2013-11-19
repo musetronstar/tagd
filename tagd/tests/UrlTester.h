@@ -2,6 +2,9 @@
 
 #include <cxxtest/TestSuite.h>
 
+#include <stdlib.h>
+#include <time.h>
+
 #include "tagd.h"
 
 // returns true if each of the url compenents were parsed identically 
@@ -879,6 +882,45 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagd::url::query_find(qm, val, "yo") );
 		TS_ASSERT_EQUALS( val , "hey" );
 		TS_ASSERT( !tagd::url::query_find(qm, val, "caca") );
+	}
+
+	void test_percent_encode(void) {
+		TS_ASSERT(tagd::uri_encode("ABC") == "ABC");
+   
+		std::string src1(u8"イヌ");
+		std::string enc1("%E3%82%A4%E3%83%8C");
+
+		TS_ASSERT_EQUALS(tagd::uri_encode(src1) , enc1);
+		TS_ASSERT_EQUALS(tagd::uri_decode(enc1) , src1);
+
+		const std::string src("\0\1\2", 3);
+		const std::string enc("%00%01%02");
+		TS_ASSERT_EQUALS(tagd::uri_encode(src) , enc);
+		TS_ASSERT_EQUALS(tagd::uri_decode(enc) , src);
+
+		TS_ASSERT_EQUALS(tagd::uri_encode("\xFF") , "%FF");
+		TS_ASSERT_EQUALS(tagd::uri_decode("%FF") , "\xFF");
+		TS_ASSERT_EQUALS(tagd::uri_decode("%ff") , "\xFF");
+
+		// unsafe chars test, RFC1738
+		const std::string UNSAFE(" <>#{}|\\^~[]`");
+		std::string unsafe_enc = tagd::uri_encode(UNSAFE);
+		TS_ASSERT_EQUALS(std::string::npos , unsafe_enc.find_first_of(UNSAFE));
+		TS_ASSERT_EQUALS(tagd::uri_decode(unsafe_enc) , UNSAFE);
+
+		// random test
+		const int MAX_LEN = 128;
+		char a[MAX_LEN];
+		srand((unsigned)time(NULL));
+		for (int i = 0; i < 100; i++)
+		{
+			for (int j = 0; j < MAX_LEN; j++)
+				a[j] = rand() % (1 << 8);
+			int l = rand() % MAX_LEN;
+			std::string o(a, l);
+			std::string e = tagd::uri_encode(o);
+			TS_ASSERT_EQUALS(o , tagd::uri_decode(e));
+		}
 	}
 
     void test_relations(void) {
