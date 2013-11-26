@@ -40,7 +40,7 @@ Whoah, we have an error:
 	TAGL_ERR _type_of _error
 	_caused_by _unknown_tag = mammal
 
-The object (animal in this case) of a super relation must also be defined. This
+The object (mammal in this case) of a super relation must also be defined. This
 requires a bit of abstract metaphysical thinking, but here we go:
 
 	put physical_object _is_a _entity;
