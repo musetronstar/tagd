@@ -374,6 +374,7 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 
 	evbuffer_add(_req->buffer_out, xpnd.c_str(), xpnd.size());
+	if (_trace_on) std::cerr << "cmd_get(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 	evhtp_send_reply(_req, res);
 }
 
@@ -385,16 +386,20 @@ void template_callback::cmd_put(const tagd::abstract_tag& t) {
 		evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
 	}
 
+	int res;
 	switch (ts_rc) {
 		case tagd::TAGD_OK:
-			evhtp_send_reply(_req, EVHTP_RES_OK);
+			res = EVHTP_RES_OK;
 			break;
 		case tagd::TS_NOT_FOUND:
-			evhtp_send_reply(_req, EVHTP_RES_NOTFOUND);
+			res = EVHTP_RES_NOTFOUND;
 			break;
 		default:
-			evhtp_send_reply(_req, EVHTP_RES_SERVERR);
+			res = EVHTP_RES_SERVERR;
 	}
+
+	if (_trace_on) std::cerr << "cmd_put(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
+	evhtp_send_reply(_req, res);
 }
 
 void template_callback::cmd_query(const tagd::interrogator& q) {
@@ -435,6 +440,7 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 	}
 
 	evbuffer_add(_req->buffer_out, xpnd.c_str(), xpnd.size());
+	if (_trace_on) std::cerr << "cmd_query(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 	evhtp_send_reply(_req, res);
 
 /*
@@ -465,6 +471,10 @@ void template_callback::error(const TAGL::driver& D) {
 	std::stringstream ss;
 	D.print_errors(ss);
 	evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
+	if (_trace_on) {
+		std::cerr << "template_callback::error: " <<  EVHTP_RES_SERVERR << std::endl;
+		D.print_errors(std::cerr);
+	}
 	evhtp_send_reply(_req, EVHTP_RES_SERVERR);
 }
 
