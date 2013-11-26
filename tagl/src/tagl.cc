@@ -260,7 +260,8 @@ tagd_code driver::evbuffer_execute(struct evbuffer *input) {
 			}
 		}
 
-		// std::cout << "scanning: " << buf << std::endl;
+		if (_trace_on)
+			std::cout << "scanning: " << buf << std::endl;
 		_scanner.scan(buf);
 	}
 

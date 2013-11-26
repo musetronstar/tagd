@@ -1995,6 +1995,7 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& intr, flags
             return this->get_children(R, intr.super_object(), flags);
     }
 
+
 	size_t n = 0;
     tagd::tag_set S;  // related per predicate
     for (tagd::predicate_set::const_iterator it = intr.relations.begin();
@@ -2004,8 +2005,10 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& intr, flags
 
 		// super_relator is not used for finding related tags (its not advantagious)
         this->related(S, *it, intr.super_object());
-		if (_trace_on)
-			std::cerr << "related: "; tagd::print_tag_ids(S);
+		if (_trace_on) {
+			std::cerr << "related: ";
+			tagd::print_tag_ids(S);
+		}
 		OK_OR_RET_ERR();
 
 		n += merge_containing_tags(R, S);

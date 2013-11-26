@@ -37,7 +37,10 @@ IMPORTANT: updates here must be reflected in tagspace::init_hard_tags()
 
 // errors
 #define HARD_TAG_ERROR "_error"
-#define HARD_TAG_ERROR_MSG "_error_msg"
+#define HARD_TAG_MESSAGE "_message"
+#define HARD_TAG_CAUSED_BY "_caused_by"
+#define HARD_TAG_UNKNOWN_TAG "_unknown_tag"
+#define HARD_TAG_BAD_TOKEN "_bad_token"
 
 // URIs
 // TODO #define HARD_TAG_URL "_uri"   // resources located by URIs

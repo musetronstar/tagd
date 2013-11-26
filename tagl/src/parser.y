@@ -23,15 +23,15 @@
 	switch(yymajor) { // token that caused error
 		case UNKNOWN:
 			if (TOKEN != NULL)
-				tagl->error(tagd::TAGL_ERR, "unknown tag: %s", TOKEN->c_str());
+				tagl->error(tagd::TAGL_ERR, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, TOKEN->c_str()));
 			else
-				tagl->error(tagd::TAGL_ERR, "bad token: %s", yyTokenName[yymajor]);
+				tagl->error(tagd::TAGL_ERR, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
 			break;
 		default:
 			if (TOKEN != NULL)
 				tagl->error(tagd::TAGL_ERR, "parse error near: %s", TOKEN->c_str());
 			else
-				tagl->error(tagd::TAGL_ERR, "bad token: %s", yyTokenName[yymajor]);
+				tagl->error(tagd::TAGL_ERR, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
 	}
 	tagl->do_callback();
 /*

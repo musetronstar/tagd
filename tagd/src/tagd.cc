@@ -219,49 +219,47 @@ void abstract_tag::clear() {
 
 tagd_code abstract_tag::relation(const tagd::predicate &p) {
     if (!valid_predicate(p))
-        return this->code(TAG_ILLEGAL);
+        return TAG_ILLEGAL;
 
     predicate_pair pr = relations.insert(p);
-    return this->code((pr.second ? TAGD_OK : TAG_DUPLICATE));
+    return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
 tagd_code abstract_tag::relation(const id_type &relator, const id_type &object) {
     if (!valid_predicate(object))
-        return this->code(TAG_ILLEGAL);
+        return TAG_ILLEGAL;
 
-    predicate_pair p = relations.insert(make_predicate(relator, object));
-    return this->code((p.second ? TAGD_OK : TAG_DUPLICATE));
+    predicate_pair pr = relations.insert(make_predicate(relator, object));
+    return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
 tagd_code abstract_tag::relation(
     const id_type &relator, const id_type &object, const id_type &modifier ) {
     if (!valid_predicate(object))
-        return this->code(TAG_ILLEGAL);
+        return TAG_ILLEGAL;
 
-    predicate_pair p = relations.insert(make_predicate(relator, object, modifier));
-    return this->code((p.second ? TAGD_OK : TAG_DUPLICATE));
+    predicate_pair pr = relations.insert(make_predicate(relator, object, modifier));
+    return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
 tagd_code abstract_tag::not_relation(const tagd::predicate &p) {
     if (!valid_predicate(p))
-        return this->code(TAG_ILLEGAL);
+        return TAG_ILLEGAL;
 
 	size_t erased = relations.erase(p);
-    return this->code((erased ? TAGD_OK : TAG_UNKNOWN));
+    return (erased ? TAGD_OK : TAG_UNKNOWN);
 }
 
 tagd_code abstract_tag::not_relation(const id_type &relator, const id_type &object) {
     if (!valid_predicate(object))
-        return this->code(TAG_ILLEGAL);
+        return TAG_ILLEGAL;
 
 	size_t erased = relations.erase(make_predicate(relator, object));
-    return this->code((erased ? TAGD_OK : TAG_UNKNOWN));
+    return (erased ? TAGD_OK : TAG_UNKNOWN);
 }
 
-tagd_code abstract_tag::predicates(const predicate_set &p) {
+void abstract_tag::predicates(const predicate_set &p) {
 	this->relations.insert(p.begin(), p.end());
-
-    return this->code(TAGD_OK);
 }
 
 bool abstract_tag::has_relator(const id_type &r) const {
@@ -410,6 +408,15 @@ char* util::csprintf(const char *fmt, const va_list& args) {
 	return CSPRINTF_BUF;
 }
 
+id_type error::message() const {
+    for (predicate_set::const_iterator it = relations.begin(); it != relations.end(); ++it) {
+        if (it->object == HARD_TAG_MESSAGE)
+            return it->modifier;
+    }
+   
+    return id_type();
+}
+
 // error helper class
 tagd_code errorable::error(tagd::code c, const char *errfmt, const va_list& args) {
 	_code = c;
@@ -417,8 +424,9 @@ tagd_code errorable::error(tagd::code c, const char *errfmt, const va_list& args
 	char *msg = util::csprintf(errfmt, args);
 	if (msg == NULL)
 		_errors.push_back(tagd::error(c, "errorable::error() failed"));
-	else
+	else {
 		_errors.push_back(tagd::error(c, msg));
+	}
 
 	return c;
 }
@@ -429,6 +437,18 @@ tagd_code errorable::error(tagd::code c, const char *errfmt, ...) {
 	va_end (args);
 
 	return this->error(c, errfmt, args);
+}
+
+tagd_code errorable::error(const tagd::error& err) {
+	_code = err.code();
+	_errors.push_back(err);
+	return _code;
+}
+
+tagd_code errorable::error(tagd::code c, const predicate& p) {
+	tagd::error err(c);
+	err.relation(p);
+	return this->error(err);
 }
 
 void errorable::print_errors(std::ostream& os) const {

@@ -889,10 +889,55 @@ class Tester : public CxxTest::TestSuite {
 	}
 
     void test_error(void) {
-        tagd::error err(tagd::TAG_ILLEGAL);
-		TS_ASSERT_EQUALS( err.code(), tagd::TAG_ILLEGAL ) 
-		TS_ASSERT_EQUALS( err.id(), "TAG_ILLEGAL" ) 
+        tagd::error err(tagd::TAGD_ERR);
+		TS_ASSERT_EQUALS( err.id(), "TAGD_ERR" ) 
 		TS_ASSERT_EQUALS( err.super_object(), HARD_TAG_ERROR ) 
     }
+
+    void test_error_msg(void) {
+        tagd::error err(tagd::TAGD_ERR, "bad tag: oops");
+		TS_ASSERT_EQUALS( err.id(), "TAGD_ERR" ) 
+		TS_ASSERT_EQUALS( err.super_object(), HARD_TAG_ERROR ) 
+		TS_ASSERT_EQUALS( err.message(), "bad tag: oops" ) 
+    }
+
+    void test_errorable(void) {
+		tagd::errorable R;
+		TS_ASSERT( R.ok() )
+		TS_ASSERT( !R.has_errors() )
+		TS_ASSERT( R.last_error().empty() )
+
+		TS_ASSERT_EQUALS( R.code(tagd::TS_NOT_FOUND) , tagd::TS_NOT_FOUND )
+		TS_ASSERT_EQUALS( R.code() , tagd::TS_NOT_FOUND )
+		TS_ASSERT( !R.ok() )
+		TS_ASSERT( !R.has_errors() )
+
+		TS_ASSERT_EQUALS( R.error(tagd::TAGD_ERR, "bad tag: oops") , tagd::TAGD_ERR );
+		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
+		TS_ASSERT( !R.ok() )
+		TS_ASSERT( R.has_errors() )
+		TS_ASSERT_EQUALS( R.last_error().id(), "TAGD_ERR" ) 
+		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR ) 
+
+        tagd::error err(tagd::TS_MISUSE);
+		err.relation(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah");
+		R.error(err);	
+		TS_ASSERT_EQUALS( R.code() , tagd::TS_MISUSE )
+		TS_ASSERT( !R.ok() )
+		TS_ASSERT( R.has_errors() )
+		TS_ASSERT_EQUALS( R.last_error().id(), "TS_MISUSE" ) 
+		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR ) 
+		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah") )
+
+		R.error( tagd::TAGD_ERR,
+			tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") );
+		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
+		TS_ASSERT( !R.ok() )
+		TS_ASSERT( R.has_errors() )
+		TS_ASSERT_EQUALS( R.last_error().id() , "TAGD_ERR" ) 
+		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR ) 
+		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") )
+    }
+
 
 };

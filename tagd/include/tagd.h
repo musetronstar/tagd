@@ -261,7 +261,7 @@ class abstract_tag {
 		// modifier not needed for negations (erasing)
         // tagd_code not_relation(const id_type&, const id_type&, const id_type&);
 
-        tagd_code predicates(const predicate_set&);
+        void predicates(const predicate_set&);
 
         bool has_relator(const id_type&) const;
 		// related to object
@@ -421,12 +421,20 @@ class error : public abstract_tag {
         error() : abstract_tag(POS_ERROR)
 		{}
 
-        error(const tagd_code c, const char *msg = NULL) :
+        error(const tagd_code c) :
 			abstract_tag(tagd_code_str(c), HARD_TAG_TYPE_OF, HARD_TAG_ERROR, POS_ERROR)
 		{
 			_code = c;
-			if (msg != NULL) this->relation(HARD_TAG_HAS, "_msg", msg);
 		}
+
+        error(const tagd_code c, const std::string& msg) :
+			abstract_tag(tagd_code_str(c), HARD_TAG_TYPE_OF, HARD_TAG_ERROR, POS_ERROR)
+		{
+			_code = c;
+			this->relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, msg);
+		}
+
+        id_type message() const;
 };
 
 typedef std::vector<tagd::error> errors_t;
@@ -438,23 +446,27 @@ class errorable {
 		errors_t _errors;
 
 	public:
-		errorable(tagd_code c) : _init(c), _code(c), _errors() {}
+		errorable() : _init{TAGD_OK}, _code{TAGD_OK}, _errors{} {}
+		errorable(tagd_code c) : _init{c}, _code{c}, _errors{} {}
 		virtual ~errorable() {}
 
-		bool ok() const { return _code == tagd::TAGD_OK; }
+		bool ok() const { return _code == TAGD_OK; }
 		tagd_code code() const { return _code; }
-		tagd::error& last_error() {
+		tagd::error last_error() const {
 			if (_errors.size() == 0)
-				_errors.push_back(tagd::error());
-			return _errors[_errors.size()-1];
+				return tagd::error();
+			else
+				return _errors[_errors.size()-1];
 		}
 
 		// set and return
         tagd_code code(tagd_code c) { if(_code != c) _code = c; return c; }
 
 		// set and return code, set err msg to printf style formatted list
-		tagd_code error(tagd::code c, const char *, ...);
-		tagd_code error(tagd::code c, const char *, const va_list&);
+		tagd_code error(tagd::code, const char *, ...);
+		tagd_code error(tagd::code, const char *, const va_list&);
+		tagd_code error(const tagd::error&);
+		tagd_code error(tagd::code, const predicate&);
 
 		bool has_errors() const { return (_errors.size() > 0); }
 		void clear_errors() { _code = _init; _errors.clear(); }
