@@ -38,7 +38,7 @@ you can think of and put into words.  To define a tag, you must define its
 Whoah, we have an error:
 
 	TAGL_ERR _type_of _error
-	_has _msg = "unknown tag: mammal"
+	_caused_by _unknown_tag = mammal
 
 The object (animal in this case) of a super relation must also be defined. This
 requires a bit of abstract metaphysical thinking, but here we go:
@@ -383,7 +383,7 @@ First, here is a gotcha:
 Results:
 
 	TS_AMBIGUOUS _type_of _error
-	_has _msg = "イヌ refers to a tag with no matching context"
+	_has _message = "イヌ refers to a tag with no matching context"
 
 Though there is currently only one referent of "イヌ", its not safe to resolve
 it in the universal context, as one could later define another referent of the
