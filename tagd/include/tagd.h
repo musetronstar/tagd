@@ -4,6 +4,7 @@
 #include <set>
 #include <vector>
 #include <iostream>
+#include <sstream>
 #include <cstdarg>
 
 #include "tagd/codes.h"
@@ -73,8 +74,6 @@ typedef std::set<abstract_tag> tag_set;
 
 void print_tags(const tagd::tag_set&, std::ostream&os = std::cout);
 void print_tag_ids(const tagd::tag_set&, std::ostream&os = std::cout);
-
-std::string tag_ids_str(const tagd::tag_set&);
 
 // Merges (in-place) tags into A from B
 // Upon merging, tag relations from B will be merged into tag relations in A
@@ -291,6 +290,21 @@ class abstract_tag {
         friend std::ostream& operator<<(std::ostream&, const abstract_tag&);
 };
 
+template <class T>
+std::string tag_ids_str(const T& t) {
+	if (t.size() == 0) return std::string();
+
+	std::stringstream ss;
+	auto it = t.begin();
+	ss << it->id();
+	++it;
+	for (; it != t.end(); ++it) {
+		ss << ", " << it->id();
+	}
+
+	return ss.str();
+}
+
 class tag : public abstract_tag {
     public:
         tag() : abstract_tag(POS_TAG) {};
@@ -462,16 +476,20 @@ class errorable {
 		// set and return
         tagd_code code(tagd_code c) { if(_code != c) _code = c; return c; }
 
-		// set and return code, set err msg to printf style formatted list
-		tagd_code error(tagd::code, const char *, ...);
-		tagd_code error(tagd::code, const char *, const va_list&);
 		tagd_code error(const tagd::error&);
 		tagd_code error(tagd::code, const predicate&);
+		tagd_code error(tagd::code, const std::string&);
+
+		// set and return code, set err msg to printf style formatted list
+		tagd_code ferror(tagd::code, const char *, ...);
+		tagd_code verror(tagd::code, const char *, const va_list&);
 
 		bool has_errors() const { return (_errors.size() > 0); }
 		void clear_errors() { _code = _init; _errors.clear(); }
 
 		void print_errors(std::ostream& os = std::cerr) const;
+
+		const errors_t& errors() const { return _errors; }
 };
 
 struct util {

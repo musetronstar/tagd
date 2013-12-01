@@ -39,7 +39,7 @@ class tagsh_callback : public TAGL::callback {
 		void cmd_get(const tagd::abstract_tag&);
 		void cmd_put(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&); 
-        void error(const TAGL::driver&);
+        void cmd_error(const TAGL::driver&);
 };
 
 tagsh_callback::tagsh_callback(space_type *ts) {
@@ -101,7 +101,7 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 	}
 }
 
-void tagsh_callback::error(const TAGL::driver& D) {
+void tagsh_callback::cmd_error(const TAGL::driver& D) {
 	D.print_errors();
 }
 

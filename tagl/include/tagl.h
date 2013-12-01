@@ -25,8 +25,7 @@ class callback {
         virtual void cmd_get(const tagd::abstract_tag&) = 0;
         virtual void cmd_put(const tagd::abstract_tag&) = 0;
         virtual void cmd_query(const tagd::interrogator&) = 0;
-        // virtual void cmd_test(const tagd::abstract_tag&) = 0;
-        virtual void error(const TAGL::driver&) = 0;
+        virtual void cmd_error(const TAGL::driver&) = 0;
 
 		// helper function
 		// static bool test_tag_ok(tagspace::tagspace&, const tagd::abstract_tag&);

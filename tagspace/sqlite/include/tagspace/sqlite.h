@@ -208,8 +208,10 @@ class sqlite: public tagspace {
         tagd_code bind_int(sqlite3_stmt**, int, int, const char*label=NULL);
         tagd_code bind_rowid(sqlite3_stmt**, int, rowid_t, const char*label=NULL);
         tagd_code bind_null(sqlite3_stmt**, int, const char*label=NULL);
-		tagd_code error(tagd::code, const char *, ...);
         virtual void finalize();
+
+		// overloaded errorable::ferror
+		tagd_code ferror(tagd::code, const char *, ...);
 
         // init db funcs
 		tagd_code create_terms_table();

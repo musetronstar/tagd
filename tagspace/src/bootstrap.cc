@@ -18,7 +18,7 @@ tagd::code bootstrap::put_hard_tag(
 }
 
 #define PUT_OR_DIE(id, super, pos)  if(put_hard_tag(TS, id, super, pos) != tagd::TAGD_OK) \
-										return TS.error(tagd::TS_INTERNAL_ERR, \
+										return TS.ferror(tagd::TS_INTERNAL_ERR, \
 												"put_hard_tag failed (id, super, pos): %s, %s, %s", \
 												id, super, pos_str(pos).c_str());
 

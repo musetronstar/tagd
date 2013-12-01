@@ -190,7 +190,7 @@ class callback_tester : public TAGL::callback {
 			last_code = _TS->query(last_tag_set, q);
 		}
 
-		void error(const TAGL::driver& D) {
+		void cmd_error(const TAGL::driver& D) {
 			cmd = D.cmd();
 
 			renew_last_tag();

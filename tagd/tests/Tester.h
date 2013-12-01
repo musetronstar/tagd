@@ -912,12 +912,14 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( !R.ok() )
 		TS_ASSERT( !R.has_errors() )
 
-		TS_ASSERT_EQUALS( R.error(tagd::TAGD_ERR, "bad tag: oops") , tagd::TAGD_ERR );
+		const char *oops = "oops";
+		TS_ASSERT_EQUALS( R.ferror(tagd::TAGD_ERR, "bad tag: %s", oops) , tagd::TAGD_ERR );
 		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
 		TS_ASSERT( !R.ok() )
 		TS_ASSERT( R.has_errors() )
 		TS_ASSERT_EQUALS( R.last_error().id(), "TAGD_ERR" ) 
 		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR ) 
+		TS_ASSERT_EQUALS( R.last_error().message(), std::string("bad tag: oops") ) 
 
         tagd::error err(tagd::TS_MISUSE);
 		err.relation(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah");

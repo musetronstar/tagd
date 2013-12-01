@@ -49,7 +49,7 @@ void driver::do_callback() {
 	if (_callback == NULL)  return;
 
 	if (_code != tagd::TAGD_OK) {
-		_callback->error(*this);
+		_callback->cmd_error(*this);
 		return;
 	}
 
@@ -79,8 +79,8 @@ void driver::do_callback() {
 		//	_callback->cmd_test(*_tag);
 		//	break;
 		default:
-			this->error(tagd::TAGL_ERR, "unknown command: %d", _cmd);
-			_callback->error(*this);
+			this->ferror(tagd::TAGL_ERR, "unknown command: %d", _cmd);
+			_callback->cmd_error(*this);
 			assert(false);
 	}
 }

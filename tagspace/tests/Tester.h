@@ -235,10 +235,6 @@ class Tester : public CxxTest::TestSuite {
 		tagd::referent d1("pictures", "photography", "event");
 		ts_rc = TS.put(d1);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_DUPLICATE");
-
-		//std::cout << "dump_terms: " << std::endl;
-		//if (TS.dump_terms() != tagd::TAGD_OK)
-		//	TS.print_errors();
     }
 
 	void test_put_refers_to_self(void) {
@@ -259,7 +255,6 @@ class Tester : public CxxTest::TestSuite {
         space_type TS;
         TS.init(db_fname);
         populate_tags(TS);
-		TS.print_errors();
 
         tagd::referent thing("thing", "physical_object");
         TS.put(thing);
@@ -267,7 +262,6 @@ class Tester : public CxxTest::TestSuite {
 
 		tagd::tag t;
 		TS.get(t, "thing");
-		TS.print_errors();
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
         TS_ASSERT_EQUALS( t.id(), "thing" )
         TS_ASSERT( t.related(HARD_TAG_REFERS_TO, "physical_object") )
@@ -575,7 +569,6 @@ class Tester : public CxxTest::TestSuite {
         //TS.init("test.db");
         populate_tags(TS);
 		tagd::part_of_speech pos = TS.pos("dog");
-		TS.print_errors();
         TS_ASSERT_EQUALS( pos_str(pos), "POS_TAG" )
 
 		pos = TS.pos("_has");

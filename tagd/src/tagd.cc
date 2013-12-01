@@ -57,20 +57,6 @@ void print_tag_ids(const tag_set& T, std::ostream& os) {
 	os << std::endl;
 }
 
-std::string tag_ids_str(const tag_set& T) {
-	if (T.size() == 0) return std::string();
-
-	std::stringstream ss;
-	tagd::tag_set::iterator it = T.begin();
-	ss << it->id();
-	++it;
-	for (; it != T.end(); ++it) {
-		ss << ", " << it->id();
-	}
-
-	return ss.str();
-}
-
 void merge_tags(tag_set& A, const tag_set& B) {
     if (A.empty()) {
         A.insert(B.begin(), B.end());
@@ -418,27 +404,6 @@ id_type error::message() const {
 }
 
 // error helper class
-tagd_code errorable::error(tagd::code c, const char *errfmt, const va_list& args) {
-	_code = c;
-
-	char *msg = util::csprintf(errfmt, args);
-	if (msg == NULL)
-		_errors.push_back(tagd::error(c, "errorable::error() failed"));
-	else {
-		_errors.push_back(tagd::error(c, msg));
-	}
-
-	return c;
-}
-
-tagd_code errorable::error(tagd::code c, const char *errfmt, ...) {
-	va_list args;
-	va_start (args, errfmt);
-	va_end (args);
-
-	return this->error(c, errfmt, args);
-}
-
 tagd_code errorable::error(const tagd::error& err) {
 	_code = err.code();
 	_errors.push_back(err);
@@ -449,6 +414,32 @@ tagd_code errorable::error(tagd::code c, const predicate& p) {
 	tagd::error err(c);
 	err.relation(p);
 	return this->error(err);
+}
+
+tagd_code errorable::error(tagd::code c, const std::string& s) {
+	tagd::error err(c, s);
+	return this->error(err);
+}
+
+tagd_code errorable::ferror(tagd::code c, const char *errfmt, ...) {
+	va_list args;
+	va_start (args, errfmt);
+	va_end (args);
+
+	return this->verror(c, errfmt, args);
+}
+
+tagd_code errorable::verror(tagd::code c, const char *errfmt, const va_list& args) {
+	_code = c;
+
+	char *msg = util::csprintf(errfmt, args);
+	if (msg == NULL)
+		_errors.push_back(tagd::error(c, "errorable::error() failed"));
+	else {
+		_errors.push_back(tagd::error(c, msg));
+	}
+
+	return c;
 }
 
 void errorable::print_errors(std::ostream& os) const {
