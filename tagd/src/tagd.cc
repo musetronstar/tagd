@@ -352,15 +352,14 @@ std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
 
 	id_type last_relator;
 	for (; it != t.relations.end(); ++it) {
-		// use wildcard for empty relators
-		id_type relator(it->relator.empty() ? "*" : it->relator);
-		if (last_relator == relator) {
+		if (last_relator == it->relator) {
 			os << ", ";
 			print_object(os, *it);
 		} else {
-			os << std::endl << relator << ' ';
+			// use wildcard for empty relators
+			os << std::endl << (it->relator.empty() ? "*" : it->relator) << ' ';
 			print_object(os, *it);
-			last_relator = relator;
+			last_relator = it->relator;
 		}
 	}
  
