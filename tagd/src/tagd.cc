@@ -335,7 +335,7 @@ void print_object (std::ostream& os, const predicate& p) {
 
 // note it is a tag friend function, not abstract_tag::operator<<
 std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
-	if (!t.super_object().empty())
+	if (!t.super_object().empty() && t.pos() != POS_URL)  // urls' super determined by nature of being a url
 		os << t.id() << ' ' << t.super_relator() << ' ' << t.super_object();
 	else
 		os << t.id();
@@ -352,15 +352,14 @@ std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
 
 	id_type last_relator;
 	for (; it != t.relations.end(); ++it) {
-		// use wildcard for empty relators
-		id_type relator(it->relator.empty() ? "*" : it->relator);
-		if (last_relator == relator) {
+		if (last_relator == it->relator) {
 			os << ", ";
 			print_object(os, *it);
 		} else {
-			os << std::endl << relator << ' ';
+			// use wildcard for empty relators
+			os << std::endl << (it->relator.empty() ? "*" : it->relator) << ' ';
 			print_object(os, *it);
-			last_relator = relator;
+			last_relator = it->relator;
 		}
 	}
  

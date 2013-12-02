@@ -73,7 +73,7 @@ static void main_cb(evhtp_request_t *req, void *arg) {
 
 		default:
 			// TODO use tagd::error
-			tagl.error(tagd::HTTP_ERR, "unsupported method: %d", evhtp_request_get_method(req));
+			tagl.ferror(tagd::HTTP_ERR, "unsupported method: %d", evhtp_request_get_method(req));
 			std::stringstream ss;
 			tagl.print_errors(ss);
 			evbuffer_add(req->buffer_out, ss.str().c_str(), ss.str().size());

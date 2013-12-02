@@ -1,4 +1,5 @@
 #include <sstream> 
+#include <exception> // std::terminate
 #include <ctemplate/template.h>
 #include "httagd.h"
 
@@ -8,43 +9,41 @@ typedef enum {
 	TPL_TAG,
 	TPL_QUERY,
 	TPL_NOT_FOUND,
-	TPL_ERR
+	TPL_ERROR
 } tpl_file;
 
-typedef std::pair<std::string, tpl_file> tpl_pair_t;
+struct tpl_t {
+	std::string fname;
+	tpl_file file;
+};
+
+const tpl_t error_tpl{"tpl/error.html.tpl", TPL_ERROR};
 
 class tagd_template {
 		tagspace::tagspace *_TS;
 		std::string _context;
 
 	public: 
-		tagd_template(tagspace::tagspace* ts, std::string c) : _TS{ts}, _context{c} {}
+		tagd_template(tagspace::tagspace* ts, std::string c) : _TS{ts}, _context{c}
+		{}
 
-		static tpl_pair_t tpl_file(const std::string& name) {
-			tpl_pair_t tpl{std::string(), TPL_NOT_FOUND};
-			switch (name[0]) {
+		// lookup a tpl_t given the tpl query string option 
+		// doesn't allow looking up error template
+		static tpl_t lookup_tpl(const std::string& opt_tpl) {
+			switch (opt_tpl[0]) {
 				case 't':
-					if (name == "tag.html") {
-						tpl.first = "tpl/tag.html.tpl";
-						tpl.second = TPL_TAG;
-					}
+					if (opt_tpl == "tag.html")
+						return {"tpl/tag.html.tpl", TPL_TAG};
 					break;	
 				case 'q':
-					if (name == "query.html") {
-						tpl.first = "tpl/query.html.tpl";
-						tpl.second = TPL_QUERY;
-					}
+					if (opt_tpl == "query.html")
+						return {"tpl/query.html.tpl", TPL_QUERY};
 					break;	
 				default:
-					; // TPL_NOT_FOUND
+					;
 			}
 
-			if (tpl.second != TPL_NOT_FOUND) {
-				if (!ctemplate::LoadTemplate(tpl.first, ctemplate::DO_NOT_STRIP))
-					tpl.second = TPL_ERR;
-			}
-
-			return tpl;
+			return {std::string(), TPL_NOT_FOUND};
 		}
 
 		bool looks_like_url(const std::string& s) {
@@ -87,6 +86,12 @@ class tagd_template {
 				const std::string& v,
 				const std::string *c = nullptr) {
 
+			if (v == "*") { // wildcard relator
+				// empty link	
+				d->SetValue(k, v);
+				return;
+			}
+
 			std::string context_lnk;
 			if (c!=nullptr && !c->empty()) {
 				context_lnk.append("&c=").append(tagd::uri_encode(*c));
@@ -112,21 +117,30 @@ class tagd_template {
 					std::string("/").append(tagd::uri_encode(v)).append("?t=tag.html").append(context_lnk) );
 				d->SetValue(k, v);
 			}
-		};
+		}
+
+		void set_relator_link (
+				ctemplate::TemplateDictionary* d,
+				const std::string& k,
+				const std::string& v,
+				const std::string *c = nullptr) {
+			if (v.empty())  // wildcard relator
+				set_tag_link(d, k, "*", c);
+			else
+				set_tag_link(d, k, v, c);
+		}
 
 		void set_query_link (ctemplate::TemplateDictionary* d, const std::string& k, const std::string& v) {
 			d->SetValue( std::string(k).append("_lnk"),
 				std::string("/").append(tagd::uri_encode(v)).append("/?t=query.html") );
-		};
+		}
 
 		void set_query_related_link (ctemplate::TemplateDictionary* d, const std::string& k, const std::string& v) {
 			d->SetValue( std::string(k).append("_lnk"),
 				std::string("/*/").append(tagd::uri_encode(v)).append("?t=query.html") );
-		};
+		}
 
 		void expand_tag(std::string& output, const std::string& tpl_file, const tagd::abstract_tag& t) {
-
-
 			ctemplate::TemplateDictionary dict("tag");
 			if (t.pos() == tagd::POS_URL) {
 				tagd::url u;
@@ -143,7 +157,7 @@ class tagd_template {
 				for (auto p : t.relations) {
 
 					ctemplate::TemplateDictionary* sub_dict = dict.AddSectionDictionary("relation");
-					set_tag_link(sub_dict, "relator", p.relator);
+					set_relator_link(sub_dict, "relator", p.relator);
 					set_tag_link(sub_dict, "object", p.object);
 					if (!p.modifier.empty()) {
 						sub_dict->ShowSection("has_modifier");
@@ -218,7 +232,7 @@ class tagd_template {
 					size_t n = s.related(t.id(), how);
 					for (auto p : how) {
 						ctemplate::TemplateDictionary* s2 = s1->AddSectionDictionary("related_predicate");
-						set_tag_link(s2, "related_relator", p.relator);
+						set_relator_link(s2, "related_relator", p.relator);
 						set_tag_link(s2, "related_object", p.object);
 
 						if (!p.modifier.empty()) {
@@ -264,11 +278,16 @@ class tagd_template {
 				dict.SetValue("errors", ss.str());
 			}
 
+			if (!ctemplate::LoadTemplate(tpl_file, ctemplate::DO_NOT_STRIP)) {
+				std::cerr << "failed to load template: " << tpl_file << std::endl;
+				std::terminate();
+			}
+
 			ctemplate::ExpandTemplate(tpl_file,
 							ctemplate::DO_NOT_STRIP, &dict, &output);
 		}
 
-		void expand_query(std::string& output, const std::string& tpl_file, const tagd::interrogator& q, const tagd::tag_set R) {
+		void expand_query(std::string& output, const std::string& tpl_file, const tagd::interrogator& q, const tagd::tag_set& R) {
 			ctemplate::TemplateDictionary dict("query");
 			std::stringstream ss;
 			ss << q;
@@ -281,7 +300,7 @@ class tagd_template {
 				dict.ShowSection("relations");
 				for (auto p : q.relations) {
 					ctemplate::TemplateDictionary* s1 = dict.AddSectionDictionary("relation");
-					set_tag_link(s1, "relator", p.relator);
+					set_relator_link(s1, "relator", p.relator);
 					set_tag_link(s1, "object", p.object);
 					if (!p.modifier.empty()) {
 						s1->ShowSection("has_modifier");
@@ -289,6 +308,8 @@ class tagd_template {
 					}
 				}
 			}
+
+			dict.SetIntValue("num_results", R.size());
 
 			if (R.size() > 0) {
 				dict.ShowSection("results");
@@ -307,8 +328,8 @@ class tagd_template {
 						s1->ShowSection("res_relations");
 						for (auto p : r.relations) {
 							ctemplate::TemplateDictionary* s2 = s1->AddSectionDictionary("res_relation");
-							set_tag_link(s1, "res_relator", p.relator);
-							set_tag_link(s1, "res_object", p.object);
+							set_relator_link(s2, "res_relator", p.relator);
+							set_tag_link(s2, "res_object", p.object);
 							if (!p.modifier.empty()) {
 								s2->ShowSection("res_has_modifier");
 								s2->SetValue("res_modifier", p.modifier);
@@ -322,6 +343,55 @@ class tagd_template {
 				std::stringstream ss;
 				_TS->print_errors(ss);
 				dict.SetValue("errors", ss.str());
+			}
+
+			if (!ctemplate::LoadTemplate(tpl_file, ctemplate::DO_NOT_STRIP)) {
+				std::cerr << "failed to load template: " << tpl_file << std::endl;
+				std::terminate();
+			}
+
+			ctemplate::ExpandTemplate(tpl_file,
+							ctemplate::DO_NOT_STRIP, &dict, &output);
+		}
+
+		void expand_error(std::string& output, const std::string& tpl_file, const tagd::errorable& E) {
+			ctemplate::TemplateDictionary dict("error");
+			dict.SetValue("err_ids", tagd::tag_ids_str(E.errors()));
+			const tagd::errors_t& R	= E.errors();
+			if (R.size() > 0) {
+				dict.ShowSection("errors");
+				for (auto r : R) {
+					ctemplate::TemplateDictionary* s1 = dict.AddSectionDictionary("error");
+					/*
+					if (r.has_relator(HARD_TAG_CONTEXT)) {
+						tagd::referent ref(r);
+						std::string context{ref.context()};
+						set_tag_link(s1, "err_id", r.id(), &context);
+					} else {
+						set_tag_link(s1, "err_id", r.id());
+					}
+					*/
+					s1->SetValue("err_id", r.id());
+					set_tag_link(s1, "err_super_relator", r.super_relator());
+					set_tag_link(s1, "err_super_object", r.super_object());
+					if (r.relations.size() > 0) {
+						s1->ShowSection("err_relations");
+						for (auto p : r.relations) {
+							ctemplate::TemplateDictionary* s2 = s1->AddSectionDictionary("err_relation");
+							set_tag_link(s2, "err_relator", p.relator);
+							set_tag_link(s2, "err_object", p.object);
+							if (!p.modifier.empty()) {
+								s2->ShowSection("err_has_modifier");
+								s2->SetValue("err_modifier", p.modifier);
+							}
+						}
+					}
+				}
+			}
+
+			if (!ctemplate::LoadTemplate(tpl_file, ctemplate::DO_NOT_STRIP)) {
+				std::cerr << "failed to load template: " << tpl_file << std::endl;
+				std::terminate();
 			}
 
 			ctemplate::ExpandTemplate(tpl_file,
@@ -339,52 +409,43 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 	int res;
 	std::string xpnd;
-	std::stringstream ss;
+	tagd_template tt(_TS, _context);
 	if (ts_rc == tagd::TAGD_OK) {
-		tagd_template tt(_TS, _context);
-		tpl_pair_t tpl = tagd_template::tpl_file(_tpl_file);
-		switch (tpl.second) {
+		tpl_t tpl = tagd_template::lookup_tpl(_opt_tpl);
+		switch (tpl.file) {
 			case TPL_NOT_FOUND:
-				// TODO create a not found html template
-				xpnd = "resource not found: ";
-				xpnd.append(_tpl_file).append("\n");
+				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _opt_tpl.c_str());
+				tt.expand_error(xpnd, error_tpl.fname, *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;
-			case TPL_ERR:
-				// TODO create an error html template
-				ss <<  "error expanding template: ";
-				ss << _tpl_file << std::endl;
-				_TS->print_errors(ss);
-				xpnd = ss.str();
-				res = EVHTP_RES_SERVERR;
-				break;
 			default:
-				tt.expand_tag(xpnd, tpl.first, T);
+				tt.expand_tag(xpnd, tpl.fname, T);
 				res = EVHTP_RES_OK;
 		}
-
-		evhtp_headers_add_header(_req->headers_out,
-				evhtp_header_new("Content-Type", "text/html", 0, 0));
 	} else {
-		// TODO create and err template
-		std::stringstream ss;
-		_TS->print_errors(ss);
-		xpnd = ss.str();
+		// TODO TS_NOT_FOUND does not set error
+		tt.expand_error(xpnd, error_tpl.fname, *_TS);
 		res = EVHTP_RES_SERVERR;
 	}
 
+	evhtp_headers_add_header(_req->headers_out,
+			evhtp_header_new("Content-Type", "text/html", 0, 0));
 	evbuffer_add(_req->buffer_out, xpnd.c_str(), xpnd.size());
-	if (_trace_on) std::cerr << "cmd_get(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 	evhtp_send_reply(_req, res);
+
+	if (_trace_on) std::cerr << "cmd_get(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 }
 
 void template_callback::cmd_put(const tagd::abstract_tag& t) {
 	tagd::code ts_rc = _TS->put(t);
 	if (ts_rc != tagd::TAGD_OK) {
-		std::stringstream ss;
-		_TS->print_errors(ss);
-		evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
+		std::string xpnd;
+		tagd_template tt(_TS, _context);
+		tt.expand_error(xpnd, error_tpl.fname, *_TS);
+		evbuffer_add(_req->buffer_out, xpnd.c_str(), xpnd.size());
 	}
+
+	// TODO decide how a successful PUT should be displayed via template
 
 	int res;
 	switch (ts_rc) {
@@ -398,8 +459,9 @@ void template_callback::cmd_put(const tagd::abstract_tag& t) {
 			res = EVHTP_RES_SERVERR;
 	}
 
-	if (_trace_on) std::cerr << "cmd_put(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 	evhtp_send_reply(_req, res);
+
+	if (_trace_on) std::cerr << "cmd_put(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 }
 
 void template_callback::cmd_query(const tagd::interrogator& q) {
@@ -408,74 +470,49 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 
 	int res;
 	std::string xpnd;
-	if (ts_rc == tagd::TAGD_OK) {
-		tagd_template tt(_TS, _context);
-		tpl_pair_t tpl = tagd_template::tpl_file(_tpl_file);
-		switch (tpl.second) {
+	tagd_template tt(_TS, _context);
+	if (ts_rc == tagd::TAGD_OK || ts_rc == tagd::TS_NOT_FOUND) {
+		tpl_t tpl = tagd_template::lookup_tpl(_opt_tpl);
+		switch (tpl.file) {
 			case TPL_NOT_FOUND:
-				// TODO create a not found html template
-				xpnd = "resource not found: ";
-				xpnd.append(_tpl_file).append("\n");
+				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _opt_tpl.c_str());
+				tt.expand_error(xpnd, error_tpl.fname, *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;
-			case TPL_ERR:
-				// TODO create an error html template
-				xpnd = "error expanding template: ";
-				xpnd.append(_tpl_file).append("\n");
-				res = EVHTP_RES_SERVERR;
-				break;
 			default:
-				tt.expand_query(xpnd, tpl.first, q, T);
+				tt.expand_query(xpnd, tpl.fname, q, T);
 				res = EVHTP_RES_OK;
 		}
-
-		evhtp_headers_add_header(_req->headers_out,
-				evhtp_header_new("Content-Type", "text/html", 0, 0));
 	} else {
-		// TODO create and err template
-		std::stringstream ss;
-		_TS->print_errors(ss);
-		xpnd = ss.str();
+		tt.expand_error(xpnd, error_tpl.fname, *_TS);
 		res = EVHTP_RES_SERVERR;
 	}
 
+	evhtp_headers_add_header(_req->headers_out,
+			evhtp_header_new("Content-Type", "text/html", 0, 0));
 	evbuffer_add(_req->buffer_out, xpnd.c_str(), xpnd.size());
-	if (_trace_on) std::cerr << "cmd_query(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 	evhtp_send_reply(_req, res);
 
-/*
-	std::stringstream ss;
-	if (ts_rc == tagd::TAGD_OK) {
-		tagd::print_tag_ids(T, ss);
-		ss << std::endl;
-	} else {
-		_TS->print_errors(ss);
-	}
-	if (ss.str().size())
-		evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
-
-	switch (ts_rc) {
-		case tagd::TAGD_OK:
-			evhtp_send_reply(_req, EVHTP_RES_OK);
-			break;
-		case tagd::TS_NOT_FOUND:
-			evhtp_send_reply(_req, EVHTP_RES_NOTFOUND);
-			break;
-		default:
-			evhtp_send_reply(_req, EVHTP_RES_SERVERR);
-	}
-*/
+	if (_trace_on) std::cerr << "cmd_query(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 }
 
-void template_callback::error(const TAGL::driver& D) {
-	std::stringstream ss;
-	D.print_errors(ss);
-	evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
-	if (_trace_on) {
-		std::cerr << "template_callback::error: " <<  EVHTP_RES_SERVERR << std::endl;
-		D.print_errors(std::cerr);
-	}
+void template_callback::cmd_error(const TAGL::driver& D) {
+	std::string xpnd;
+	tagd_template tt(_TS, _context);
+	tt.expand_error(xpnd, error_tpl.fname, D);
+
+	evhtp_headers_add_header(_req->headers_out,
+			evhtp_header_new("Content-Type", "text/html", 0, 0));
+	evbuffer_add(_req->buffer_out, xpnd.c_str(), xpnd.size());
 	evhtp_send_reply(_req, EVHTP_RES_SERVERR);
+
+	if (_trace_on) {
+		std::stringstream ss;
+		D.print_errors(ss);
+		std::cerr << "res(" << tagd_code_str(D.code()) << "): "
+			<< EVHTP_RES_SERVERR << " EVHTP_RES_SERVERR" << std::endl
+			<< ss.str() << std::endl;
+	}
 }
 
 }

@@ -20,6 +20,9 @@
 {{/relation}}{{/relations}}
  </ul>
 
+ <p><em>{{num_results}}</em> results</p>
+ <hr>
+
 {{#results}}
 <ol>
  {{#result}}
@@ -33,7 +36,7 @@
  {{#res_relation}}
   <li>
   <a href="{{res_relator_lnk}}">{{res_relator}}</a>
-  <a href="{{res_object_link}}">{{res_object}}</a>
+  <a href="{{res_object_lnk}}">{{res_object}}</a>
   {{#res_has_modifier}} = {{res_modifier}}{{/res_has_modifier}}</li>
  {{/res_relation}}
  </ul>
@@ -43,8 +46,6 @@
  </ol>
 {{/results}}
 
- <footer>{{errors}}</footer>
+ <footer><pre>{{errors}}</pre></footer>
 </body>
 </html>
-
-

@@ -96,7 +96,7 @@ void tagl_callback::cmd_query(const tagd::interrogator& q) {
 	}
 }
 
-void tagl_callback::error(const TAGL::driver& D) {
+void tagl_callback::cmd_error(const TAGL::driver& D) {
 	std::stringstream ss;
 	D.print_errors(ss);
 	evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());

@@ -81,7 +81,7 @@
 {{/children}}
  </ul>
 
- <footer>{{errors}}</footer>
+ <footer><pre>{{errors}}</pre></footer>
 </body>
 </html>
 
