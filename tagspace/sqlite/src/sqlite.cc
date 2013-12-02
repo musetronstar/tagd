@@ -2197,7 +2197,7 @@ tagd::code sqlite::dump(std::ostream& os) {
 	// all known by the time relations are added
     sqlite3_stmt *stmt = NULL;
     tagd::code ts_rc = this->prepare(&stmt,
-        "SELECT idt(tag), idt(super_relator), idt(super_object), idt(pos) "
+        "SELECT idt(tag), idt(super_relator), idt(super_object), pos "
         "FROM tags "
         "ORDER BY rank",
         "dump tags"
@@ -2207,36 +2207,26 @@ tagd::code sqlite::dump(std::ostream& os) {
     const int F_ID = 0;
     const int F_SUPER_REL = 1;
     const int F_SUPER_OBJ = 2;
-	const int F_POS = 3;
+	int F_POS = 3;
 
     int s_rc;
-	tagd::abstract_tag *t = NULL;
-	tagd::id_type id;
     while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-		id = (const char*) sqlite3_column_text(stmt, F_ID);
+		tagd::id_type id{(const char*) sqlite3_column_text(stmt, F_ID)};
+		tagd::part_of_speech pos{(tagd::part_of_speech) sqlite3_column_int(stmt, F_POS)};
 
-		// ignore hard tags for now
+		// ignore hard tags
 		if (id[0] == '_') continue;
 
-		if (t == NULL || t->id() != id) {
-			if (t != NULL) {
-				os << "PUT " << *t << std::endl << std::endl; 
-				delete t;
-			}
-
-			// TODO its not necessary to create this on the heap
-			t = new tagd::abstract_tag(
-					id,
-					(const char*) sqlite3_column_text(stmt, F_SUPER_REL),
-					(const char*) sqlite3_column_text(stmt, F_SUPER_OBJ),
-					(tagd::part_of_speech) sqlite3_column_int(_get_stmt, F_POS) );
-		}
+		// TAGL PUT url statements require a predicate (they will get ouput below with relations)
+		if (pos == tagd::POS_URL) continue;
+	
+		tagd::abstract_tag t(
+				id,
+				(const char*) sqlite3_column_text(stmt, F_SUPER_REL),
+				(const char*) sqlite3_column_text(stmt, F_SUPER_OBJ),
+				pos );
+		os << "PUT " << t << std::endl << std::endl;
     }
-
-	if (t != NULL) {
-		os << "PUT " << *t << std::endl << std::endl;
-		delete t;
-	}
 
     sqlite3_finalize(stmt);
 
@@ -2246,7 +2236,7 @@ tagd::code sqlite::dump(std::ostream& os) {
 	// dump relations
     stmt = NULL;
     ts_rc = this->prepare(&stmt,
-        "SELECT idt(subject), idt(relator), idt(object), idt(modifier) "
+        "SELECT idt(subject), idt(relator), idt(object), idt(modifier), pos "
         "FROM relations, tags "
         "WHERE subject = tag "
         "ORDER BY rank",
@@ -2258,38 +2248,47 @@ tagd::code sqlite::dump(std::ostream& os) {
     const int F_RELATOR = 1;
     const int F_OBJECT = 2;
     const int F_MODIFIER = 3;
+	F_POS = 4;
 
-	t = NULL;
-	id.clear();
+	tagd::abstract_tag *t = nullptr;
     while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-		id = (const char*) sqlite3_column_text(stmt, F_ID);
+		tagd::id_type id{(const char*) sqlite3_column_text(stmt, F_ID)};
+		tagd::part_of_speech pos{(tagd::part_of_speech) sqlite3_column_int(stmt, F_POS)};
+		tagd::id_type object{(const char*) sqlite3_column_text(stmt, F_OBJECT)};
 
-		// ignore hard tags for now
+		// ignore hard tags
 		if (id[0] == '_') continue;
 
-		if (t == NULL || t->id() != id) {
-			if (t != NULL) {
+		// ignore hard tag objects
+		if (object[0] == '_') continue;
+
+		if (t == nullptr || t->id() != id) {
+			if (t != nullptr) {
 				os << "PUT " << *t << std::endl << std::endl; 
 				delete t;
 			}
 
-			// TODO its not necessary to create this on the heap
-			t = new tagd::abstract_tag(id);
+			if (pos == tagd::POS_URL) {
+				t = new tagd::url;
+				((tagd::url*)t)->init_hduri(id);
+			} else {
+				t = new tagd::abstract_tag(id);
+			}
 		}
 
         if (sqlite3_column_type(stmt, F_MODIFIER) != SQLITE_NULL) {
 			t->relation(
 				(const char*) sqlite3_column_text(stmt, F_RELATOR),
-				(const char*) sqlite3_column_text(stmt, F_OBJECT),
+				object,
 				(const char*) sqlite3_column_text(stmt, F_MODIFIER) );
         } else {
 			t->relation(
 				(const char*) sqlite3_column_text(stmt, F_RELATOR),
-				(const char*) sqlite3_column_text(stmt, F_OBJECT) );
+				object );
 		}
     }
 
-	if (t != NULL) {
+	if (t != nullptr) {
 		os << "PUT " << *t << std::endl;
 		delete t;
 	}

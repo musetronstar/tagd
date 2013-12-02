@@ -335,7 +335,7 @@ void print_object (std::ostream& os, const predicate& p) {
 
 // note it is a tag friend function, not abstract_tag::operator<<
 std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
-	if (!t.super_object().empty())
+	if (!t.super_object().empty() && t.pos() != POS_URL)  // urls' super determined by nature of being a url
 		os << t.id() << ' ' << t.super_relator() << ' ' << t.super_object();
 	else
 		os << t.id();

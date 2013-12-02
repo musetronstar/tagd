@@ -901,7 +901,7 @@ class Tester : public CxxTest::TestSuite {
         // std::cout << "\n#################### test_put_uri ####################\n";
         space_type TS;
         tagd_code ts_rc = TS.init(db_fname);
-        //tagd_code ts_rc = TS.init("tagspace.db");
+        //tagd_code ts_rc = TS.init("test.db");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
         populate_tags(TS);

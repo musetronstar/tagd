@@ -162,7 +162,7 @@ test "put_url_dog" \
 
 test "get_url_dog" \
      "get https://en.wikipedia.org/wiki/Dog ;" \
-	 "https://en.wikipedia.org/wiki/Dog is_a _url(.*)about dog"
+	 "https://en.wikipedia.org/wiki/Dog(.*)about dog"
 
 test "put_url_dog2" \
     "put http://animal.discovery.com/breed-selector/dog-breeds.html about dog" \
