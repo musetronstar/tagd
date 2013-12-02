@@ -273,14 +273,21 @@ class abstract_tag {
             return ( relations.find(make_predicate(relator, object)) != relations.end() );
         }
 
+        bool related(const predicate& p) const {
+			auto it = relations.find(p);
+            if (it == relations.end())
+				return false;
+
+			if (!p.modifier.empty())
+				return (p.modifier == it->modifier);
+			else
+				return true;
+        }
+
         // relator, object, modifier
         bool related(const id_type& r, const id_type& o, const id_type& m) const {
-            return ( relations.find(make_predicate(r, o, m)) != relations.end() );
+            return this->related(make_predicate(r, o, m));
 		}
-
-        bool related(const predicate& p) const {
-            return ( relations.find(p) != relations.end() );
-        }
 
         // deep equality - every member is tested for equality
         bool operator==(const abstract_tag&) const;

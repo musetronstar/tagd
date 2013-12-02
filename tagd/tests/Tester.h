@@ -767,8 +767,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( dog.relation("has","teeth"), tagd::TAGD_OK )
         TS_ASSERT_EQUALS( dog.relation("has","legs", "4"), tagd::TAGD_OK )
 		TS_ASSERT( dog.related("has", "teeth")  )
-
 		TS_ASSERT( dog.related("legs") )
+		TS_ASSERT( dog.related("has", "legs", "4") )
+		TS_ASSERT( !dog.related("has", "legs", "5") )
+		TS_ASSERT( dog.related(tagd::make_predicate("has", "legs", "4")) )
+		TS_ASSERT( !dog.related(tagd::make_predicate("has", "legs", "5")) )
 
         tagd::predicate_set how;
 		TS_ASSERT_EQUALS( dog.related("legs", how), 1 )

@@ -940,7 +940,7 @@ class Tester : public CxxTest::TestSuite {
 
 		tagd::url b("http://www.hypermega.com#here");
 		tagd::url::insert_url_part_relations(b.relations, b);
-		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_HOST, "hypermega.com") )
+		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_HOST, "www.hypermega.com") )
 		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_PRIV_LABEL, "hypermega") )
 		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_PUB, "com") )
 		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_SUB, "www") )
@@ -954,7 +954,7 @@ class Tester : public CxxTest::TestSuite {
 
 		tagd::url c("http://en.wikipedia.org/wiki/Dog");
 		tagd::url::insert_url_part_relations(c.relations, c);
-		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_HOST, "wikipedia.org") )
+		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_HOST, "en.wikipedia.org") )
 		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_PRIV_LABEL, "wikipedia") )
 		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_PUB, "org") )
 		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_SUB, "en") )
