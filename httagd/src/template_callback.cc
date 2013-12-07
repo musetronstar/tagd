@@ -272,7 +272,7 @@ class tagd_template {
 				}
 			}
 
-			if (_TS->has_errors()) {
+			if (_TS->has_error()) {
 				std::stringstream ss;
 				_TS->print_errors(ss);
 				dict.SetValue("errors", ss.str());
@@ -339,7 +339,7 @@ class tagd_template {
 				}
 			}
 
-			if (_TS->has_errors()) {
+			if (_TS->has_error()) {
 				std::stringstream ss;
 				_TS->print_errors(ss);
 				dict.SetValue("errors", ss.str());
