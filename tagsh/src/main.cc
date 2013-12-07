@@ -38,6 +38,7 @@ class tagsh_callback : public TAGL::callback {
 		tagsh_callback(space_type*);
 		void cmd_get(const tagd::abstract_tag&);
 		void cmd_put(const tagd::abstract_tag&);
+		void cmd_del(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&); 
         void cmd_error(const TAGL::driver&);
 };
@@ -74,6 +75,16 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 
 void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 	tagd::code ts_rc = _TS->put(t);
+	if (ts_rc == tagd::TAGD_OK) {
+		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
+	} else {
+		_TS->print_errors();
+		_TS->clear_errors();
+	}
+}
+
+void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
+	tagd::code ts_rc = _TS->del(t);
 	if (ts_rc == tagd::TAGD_OK) {
 		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
 	} else {
