@@ -5,29 +5,24 @@ namespace tagd {
 typedef enum {	// TAGD_CODES_START  // marks automated processing
     TAGD_OK,
 
-    TAG_INSERTED,
+    TS_INIT,
+    TAGL_INIT,
 
-	TAGD_ERR,  // all tags >= to TAGD_ERR or considered errors
+	// all codes >= TAGD_ERR are considered errors
+	TAGD_ERR,
     TAG_UNKNOWN,
     TAG_DUPLICATE,
     TAG_ILLEGAL,
 
-    TS_INIT,
-    TAGL_INIT,
-
+	// rank errors
     RANK_ERR,
     RANK_EMPTY,
-    // 255 may be reserved for variable length rank strings in the future,
-    // so that the number of elements can be greater than UCHAR_MAX (our value type)
     RANK_MAX_VALUE,  // max value per rank level
     RANK_MAX_LEN = 255, // max bytes in _data string
 
-    // urls
-    // URL_OK uses TAGD_OK instead
+    // url errors
     URL_EMPTY,
     URL_MAX_LEN = 2112, /* We are the Priests of the Temples of Syrinx */
-
-    // url errors
     URL_ERR_SCHEME,
     URL_ERR_HOST,
     URL_ERR_PORT,
@@ -35,13 +30,12 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
     URL_ERR_USER,
 
 	// tagspace
-    // TS_OK uses TAGD_OK instead /* 200 */
-    TS_NOT_FOUND,   /* 404 */
+    TS_NOT_FOUND,
     TS_DUPLICATE,
-    TS_SUPER_UNK,  /* 400 */
-    TS_SUBJECT_UNK,  /* 400 */
-    TS_RELATOR_UNK,  /* 400 */
-    TS_OBJECT_UNK,  /* 400 */
+    TS_SUPER_UNK,
+    TS_SUBJECT_UNK,
+    TS_RELATOR_UNK,
+    TS_OBJECT_UNK,
 
     TS_REFERS_UNK, 
     TS_REFERS_TO_UNK,
@@ -49,10 +43,10 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
 	TS_AMBIGUOUS,
 	TS_FOREIGN_KEY,
 
-    TS_ERR_MAX_TAG_LEN, /* 400 */
-    TS_ERR,         /* general error due to caller input */
-    TS_MISUSE,      /* caller misusing class interface */
-    TS_INTERNAL_ERR, /* error not due to caller input  */ /* 500 */
+    TS_ERR_MAX_TAG_LEN,
+    TS_ERR,				// general error due to caller input
+    TS_MISUSE,			// caller misusing class interface
+    TS_INTERNAL_ERR,	// error not due to caller input
 
     TAGL_ERR,
 

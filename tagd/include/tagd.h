@@ -478,6 +478,7 @@ class errorable {
 		virtual ~errorable() {}
 
 		bool ok() const { return _code == TAGD_OK; }
+		bool has_error() const { return (_code >= TAGD_ERR || _errors.size() > 0); }
 		tagd_code code() const { return _code; }
 		tagd::error last_error() const {
 			if (_errors.size() == 0)
@@ -497,7 +498,6 @@ class errorable {
 		tagd_code ferror(tagd::code, const char *, ...);
 		tagd_code verror(tagd::code, const char *, const va_list&);
 
-		bool has_errors() const { return (_errors.size() > 0); }
 		void clear_errors() { _code = _init; _errors.clear(); }
 
 		void print_errors(std::ostream& os = std::cerr) const;
