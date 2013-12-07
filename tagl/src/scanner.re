@@ -44,10 +44,12 @@ next:
 	[a-zA-Z]+[a-zA-Z.+-]* "://" [^\000 \t\r\n'"]+
 	                     {  PARSE_VALUE(URL); }
 	
-	[Ss][Ee][Tt]         { PARSE(CMD_SET); }
-	[Gg][Ee][Tt]         { PARSE(CMD_GET); }
-	[Pp][Uu][Tt]         { PARSE(CMD_PUT); }
-	[Qq][Uu][Ee][Rr][Yy] { PARSE(CMD_QUERY); }
+	[Ss][Ee][Tt]             { PARSE(CMD_SET); }
+	[Gg][Ee][Tt]             { PARSE(CMD_GET); }
+	[Pp][Uu][Tt]             { PARSE(CMD_PUT); }
+	[Dd][Ee][Ll][Ee][Tt][Ee] { PARSE(CMD_DEL); }
+	[Dd][Ee][Ll]             { PARSE(CMD_DEL); }
+	[Qq][Uu][Ee][Rr][Yy]     { PARSE(CMD_QUERY); }
 
 	[0-9]+               {
 	                        // TODO NUM;

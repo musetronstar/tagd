@@ -70,14 +70,16 @@ void driver::do_callback() {
 				std::cerr << "callback::cmd_put: " << *_tag << std::endl;
 			_callback->cmd_put(*_tag);
 			break;
+		case CMD_DEL:
+			if (_trace_on)
+				std::cerr << "callback::cmd_del: " << *_tag << std::endl;
+			_callback->cmd_del(*_tag);
+			break;
 		case CMD_QUERY:
 			if (_trace_on)
 				std::cerr << "callback::cmd_query: " << *_tag << std::endl;
 			_callback->cmd_query((tagd::interrogator&) *_tag);
 			break;
-	// case CMD_TEST:
-		//	_callback->cmd_test(*_tag);
-		//	break;
 		default:
 			this->ferror(tagd::TAGL_ERR, "unknown command: %d", _cmd);
 			_callback->cmd_error(*this);

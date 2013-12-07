@@ -64,7 +64,6 @@ statement ::= get_statement TERMINATOR .
 	if (tagl->code() != tagd::TAGL_ERR) {
 		if (tagl->_tag != NULL) {
 			tagl->code(tagd::TAGD_OK);
-			// tagl->msg("statement success");
 			tagl->do_callback();
 		}
 	}
@@ -75,7 +74,16 @@ statement ::= put_statement TERMINATOR .
 	if (tagl->code() != tagd::TAGL_ERR) {
 		if (tagl->_tag != NULL) {
 			tagl->code(tagd::TAGD_OK);
-			// tagl->msg("statement success");
+			tagl->do_callback();
+		}
+	}
+}
+statement ::= del_statement TERMINATOR .
+{
+	tagl->_cmd = CMD_DEL;
+	if (tagl->code() != tagd::TAGL_ERR) {
+		if (tagl->_tag != NULL) {
+			tagl->code(tagd::TAGD_OK);
 			tagl->do_callback();
 		}
 	}
@@ -86,7 +94,6 @@ statement ::= query_statement TERMINATOR .
 	if (tagl->code() != tagd::TAGL_ERR) {
 		if (tagl->_tag != NULL) {
 			tagl->code(tagd::TAGD_OK);
-			// tagl->msg("statement success");
 			tagl->do_callback();
 		}
 	}
@@ -119,11 +126,14 @@ get_statement ::= CMD_GET REFERS(R) .
 	tagl->_tag = new tagd::abstract_tag(*R);
 }
 
-
 put_statement ::= CMD_PUT subject_super_relation relations .
 put_statement ::= CMD_PUT subject_super_relation .
 put_statement ::= CMD_PUT subject relations .
 put_statement ::= CMD_PUT referent_relation .
+
+del_statement ::= CMD_DEL subject .
+del_statement ::= CMD_DEL subject relations .
+del_statement ::= CMD_DEL referent_relation .
 
 query_statement ::= CMD_QUERY interrogator_super_relation relations .
 query_statement ::= CMD_QUERY interrogator_super_relation .
@@ -193,7 +203,6 @@ subject ::= CONTEXT(R) .
 		delete tagl->_tag;
 	tagl->_tag = new tagd::abstract_tag(*R);
 }
-
 
 unknown ::= UNKNOWN(U) .
 {

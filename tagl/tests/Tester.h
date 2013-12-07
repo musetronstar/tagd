@@ -44,7 +44,7 @@ class tagspace_tester : public tagspace::tagspace {
 			put_test_tag("action", "_entity", tagd::POS_TAG);
 			put_test_tag("fun", "action", tagd::POS_TAG);
 			put_test_tag("_is_a", "_entity", tagd::POS_SUPER_RELATOR);
-			put_test_tag("_about", "_entity", tagd::POS_RELATOR);
+			put_test_tag("about", "_entity", tagd::POS_RELATOR);
 			put_test_tag("_has", "_entity", tagd::POS_RELATOR);
 			put_test_tag("_can", "_entity", tagd::POS_RELATOR);
 			put_test_tag("_what", "_entity", tagd::POS_INTERROGATOR);
@@ -81,10 +81,10 @@ class tagspace_tester : public tagspace::tagspace {
 
 		tagd::code get(tagd::abstract_tag& t, const tagd::id_type& id, ts_flags_t flags = ts_flags_t()) {
 			tag_map::iterator it = db.find(id);
-			if (it == db.end()) return tagd::TS_NOT_FOUND;
+			if (it == db.end()) return this->ferror(tagd::TS_NOT_FOUND, "unknown tag: %s", id.c_str());
 
 			t = it->second;
-			return tagd::TAGD_OK;
+			return this->code(tagd::TAGD_OK);
 		}
 
 		tagd::code put(const tagd::abstract_tag& t, ts_flags_t flags = ts_flags_t()) {
@@ -93,7 +93,45 @@ class tagspace_tester : public tagspace::tagspace {
 
 			db[t.id()] = t;
 
-			return tagd::TAGD_OK;
+			return this->code(tagd::TAGD_OK);
+		}
+
+		tagd::code del(const tagd::abstract_tag& t, ts_flags_t flags = ts_flags_t()) {
+			if (t.pos() != tagd::POS_URL && !t.super_object().empty()) {
+				return this->ferror(tagd::TS_MISUSE,
+					"super must not be specified when deleting tag: %s", t.id().c_str());
+			}
+
+			tagd::abstract_tag existing;
+			this->get(existing, t.id(), flags);
+			if (this->code() != tagd::TAGD_OK)
+				return this->code();
+
+			if (t.relations.empty()) {
+				if ( !db.erase(t.id()) )
+					return this->ferror(tagd::TS_ERR, "del failed: %s", t.id().c_str());
+				else
+					return this->code(tagd::TAGD_OK);
+			} else {
+				for( auto p : t.relations ) {
+					if (existing.not_relation(p) == tagd::TAG_UNKNOWN) {
+						if (p.modifier.empty()) {
+							this->ferror(tagd::TS_NOT_FOUND,
+								"cannot delete non-existent relation: %s %s %s",
+									t.id().c_str(), p.relator.c_str(), p.object.c_str()); 
+						} else {
+							this->ferror(tagd::TS_NOT_FOUND,
+								"cannot delete non-existent relation: %s %s %s = %s",
+									t.id().c_str(), p.relator.c_str(), p.object.c_str(), p.modifier.c_str()); 
+						}
+					}
+				}
+
+				return this->put(existing, flags);
+			}
+
+			assert(false);  // shouldn't get here 
+			return this->error(tagd::TS_INTERNAL_ERR, "fix del() method");
 		}
 
 		tagd::code exists(const tagd::id_type& id) {
@@ -177,6 +215,19 @@ class callback_tester : public TAGL::callback {
 			if (t.pos() == tagd::POS_URL)
 				((tagd::url*)last_tag)->init(t.id());
 			last_code = _TS->put(*last_tag);
+		}
+
+		void cmd_del(const tagd::abstract_tag& t) {
+			if (t.id() == t.super_object()) {
+				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as super");
+				return;
+			}
+			cmd = CMD_DEL;
+			renew_last_tag(t.pos());
+			*last_tag = t;
+			if (t.pos() == tagd::POS_URL)
+				((tagd::url*)last_tag)->init(t.id());
+			last_code = _TS->del(*last_tag);
 		}
 
 		void cmd_query(const tagd::interrogator& q) {
@@ -368,19 +419,47 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related("_can", "bite") )
 	}
 
+	void test_delete_super_not_allowed(void) {
+		tagspace_tester TS;
+		TAGL::driver tagl(&TS);
+		tagd_code tc = tagl.execute(
+				"DEL dog _is_a animal\n"
+				"_can bite"
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
+	}
+
+	void test_delete(void) {
+		tagspace_tester TS;
+		TAGL::driver tagl(&TS);
+		tagd_code tc = tagl.execute(
+				"DELETE dog\n"
+				"_has legs, tail, fur\n"
+				"_can bark, bite"
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , CMD_DEL )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
+		TS_ASSERT( tagl.tag().related("_has", "legs") )
+		TS_ASSERT( tagl.tag().related("_has", "tail") )
+		TS_ASSERT( tagl.tag().related("_has", "fur") )
+		TS_ASSERT( tagl.tag().related("_can", "bark") )
+		TS_ASSERT( tagl.tag().related("_can", "bite") )
+	}
+
     void test_url(void) {
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
 		tagd_code tc = tagl.execute(
 				"PUT http://www.hypermega.com/a/b/c#here?x=1&y=2\n"
-				"_about internet_security"
+				"about internet_security"
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "http://www.hypermega.com/a/b/c#here?x=1&y=2" )
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , HARD_TAG_URL )
 		TS_ASSERT_EQUALS( tagl.tag().pos() , tagd::POS_URL )
-		TS_ASSERT( tagl.tag().related("_about", "internet_security") )
+		TS_ASSERT( tagl.tag().related("about", "internet_security") )
 	}
 
     void test_url_dot_dash_plus_scheme(void) {
@@ -388,20 +467,20 @@ class Tester : public CxxTest::TestSuite {
 		TAGL::driver tagl(&TS);
 		tagd_code tc = tagl.execute(
 				"PUT svn+ssh://www.hypermega.com\n"
-				"_about internet_security\n"
+				"about internet_security\n"
 				"\n"
 				"PUT git-svn-https://www.hypermega.com\n"
-				"_about internet_security\n"
+				"about internet_security\n"
 				"\n"
 				"PUT never.seen.a.dot.scheme://www.hypermega.com\n"
-				"_about internet_security"
+				"about internet_security"
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "never.seen.a.dot.scheme://www.hypermega.com" )
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , HARD_TAG_URL )
 		TS_ASSERT_EQUALS( tagl.tag().pos() , tagd::POS_URL )
-		TS_ASSERT( tagl.tag().related("_about", "internet_security") )
+		TS_ASSERT( tagl.tag().related("about", "internet_security") )
 	}
 
     void test_multiple_statements_whitespace(void) {
@@ -1035,7 +1114,7 @@ class Tester : public CxxTest::TestSuite {
 		TAGL::driver tagl(&TS, &cb);
 		tagd_code tc = tagl.execute(
 				"PUT http://hypermega.com\n"
-				"_about internet_security"
+				"about internet_security"
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT( tc == tagl.code() )
@@ -1043,7 +1122,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( cb.last_tag->id(), "http://hypermega.com" )
 		TS_ASSERT_EQUALS( ((tagd::url*)cb.last_tag)->hduri(), "com:hypermega:http" )
 		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "_url" )
-		TS_ASSERT( cb.last_tag->related("_about", "internet_security") )
+		TS_ASSERT( cb.last_tag->related("about", "internet_security") )
 	}
 
 	void test_put_get_url(void) {
@@ -1052,7 +1131,7 @@ class Tester : public CxxTest::TestSuite {
 		TAGL::driver tagl(&TS, &cb);
 		tagd_code tc = tagl.execute(
 				"PUT http://hypermega.com\n"
-				"_about internet_security"
+				"about internet_security"
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT( tc == tagl.code() )
@@ -1064,7 +1143,45 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( cb.last_tag->id(), "http://hypermega.com" )
 		TS_ASSERT_EQUALS( ((tagd::url*)cb.last_tag)->hduri(), "com:hypermega:http" )
 		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "_url" )
-		TS_ASSERT( cb.last_tag->related("_about", "internet_security") )
+		TS_ASSERT( cb.last_tag->related("about", "internet_security") )
+	}
+
+	void test_put_del_get_url(void) {
+		tagspace_tester TS;
+		callback_tester cb(&TS);
+		TAGL::driver tagl(&TS, &cb);
+		
+		TS.put(tagd::relator("powered_by","_entity"));
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" )
+		TS.put(tagd::tag("wikimedia","_entity"));
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" )
+
+		tagd_code tc = tagl.execute(
+				"PUT https://en.wikipedia.org/wiki/Dog\n"
+				"about dog, cat\n"
+				"powered_by wikimedia"
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		tc = tagl.execute(
+				"DELETE https://en.wikipedia.org/wiki/Dog\n"
+				"about cat"
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		tc = tagl.execute( "GET https://en.wikipedia.org/wiki/Dog ;" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		TS_ASSERT_EQUALS( cb.last_tag->id(), "https://en.wikipedia.org/wiki/Dog" )
+		TS_ASSERT( cb.last_tag->related("about", "dog") )
+		TS_ASSERT( !cb.last_tag->related("about", "cat") )
+		TS_ASSERT( cb.last_tag->related("powered_by", "wikimedia") )
+
+		tc = tagl.execute( "DELETE https://en.wikipedia.org/wiki/Dog" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		tc = tagl.execute( "GET https://en.wikipedia.org/wiki/Dog ;" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
 	}
 
     void test_evbuffer_scan(void) {

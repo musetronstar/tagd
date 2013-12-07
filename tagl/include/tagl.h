@@ -24,6 +24,7 @@ class callback {
         // pure virtuals - consumers must override
         virtual void cmd_get(const tagd::abstract_tag&) = 0;
         virtual void cmd_put(const tagd::abstract_tag&) = 0;
+        virtual void cmd_del(const tagd::abstract_tag&) = 0;
         virtual void cmd_query(const tagd::interrogator&) = 0;
         virtual void cmd_error(const TAGL::driver&) = 0;
 
