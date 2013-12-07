@@ -294,6 +294,12 @@ class abstract_tag {
         bool operator!=(const abstract_tag& rhs) const { return !(*this == rhs); }
         bool operator<(const abstract_tag&) const;
 
+		std::string str() const {
+			std::stringstream ss;
+			ss << *this;
+			return ss.str();
+		}
+
         friend std::ostream& operator<<(std::ostream&, const abstract_tag&);
 };
 
