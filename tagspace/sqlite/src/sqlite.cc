@@ -1005,11 +1005,7 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, flags_t flags) {
 	}
 
     tagd::abstract_tag existing;
-    tagd::code existing_rc = this->get(existing, del_tag.id(), (flags|NO_TRANSFORM_REFERENTS));
-
-    if (existing_rc == tagd::TS_NOT_FOUND) {
-        return existing_rc; // err set by get
-	}
+    this->get(existing, del_tag.id(), (flags|NO_TRANSFORM_REFERENTS));
 	OK_OR_RET_ERR();
 
 	// make a set off all terms affected, so we can update the term pos after deleting tag
