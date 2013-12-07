@@ -251,6 +251,95 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TS_MISUSE");
     }
 
+	void test_delete_tag(void) {
+        space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+        tagd::tag a;
+        tagd_code ts_rc = TS.get(a, "dog");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+        tagd::tag b("dog");
+        ts_rc = TS.del(b);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+        tagd::tag c;
+        ts_rc = TS.get(c, "dog");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_NOT_FOUND");
+		TS.clear_errors();
+
+		// delete tag that is a super_object and relations.object
+		ts_rc = TS.del(tagd::tag("teeth"));
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_FOREIGN_KEY");
+		TS_ASSERT_EQUALS( TS.errors().size() , 2 );
+		if (TS.errors().size() == 2) {
+			auto it = TS.errors().begin();
+			TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, "super_object", "teeth") );
+			it++;
+			TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, "object", "teeth") );
+		}
+		TS.clear_errors();
+
+		// delete failed, so tag still exists
+		tagd::tag d;
+		ts_rc = TS.get(d, "teeth");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+		TS.clear_errors();
+
+		// delete tag that is a super_object and has relations
+		ts_rc = TS.del(tagd::tag("mammal"));
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_FOREIGN_KEY");
+
+		// delete failed, so tag and relations still exists
+		tagd::tag e;
+		ts_rc = TS.get(e, "mammal");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+		TS_ASSERT_EQUALS( e.super_object() , "vertibrate" );
+		TS_ASSERT( e.related("has", "blood", "warm") );
+		TS_ASSERT( e.related("has", "teeth") );
+    }
+
+	void test_delete_relations(void) {
+        space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+        tagd::tag a;
+        tagd_code ts_rc = TS.get(a, "dog");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+        tagd::tag b("dog");
+		b.relation("has", "tail");
+		b.relation("can", "bark");
+        ts_rc = TS.del(b);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+		TS.clear_errors();
+
+        tagd::tag c;
+        ts_rc = TS.get(c, "dog");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+		TS_ASSERT( c.related("has", "legs", "4") )
+		TS_ASSERT( !c.related("has", "tail")  )
+		TS_ASSERT( !c.related("can", "bark")  )
+
+		// delete relation it doesn't have
+		tagd::tag d("dog");
+		d.relation("can", "meow");
+        ts_rc = TS.del(d);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_NOT_FOUND");
+		TS_ASSERT_EQUALS( std::string("cannot delete non-existent relation: dog can meow"), TS.last_error().message() )
+		TS.clear_errors();
+
+		// delete unknown tag
+		tagd::tag e("snarf");
+        ts_rc = TS.del(e);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_NOT_FOUND");
+    }
+
+	// TODO delete referent
+	// TODO delete url
+
 	void test_get_referent(void) {
         space_type TS;
         TS.init(db_fname);
@@ -549,6 +638,165 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
         TS_ASSERT_EQUALS( t.id(), "イヌ" )
         TS_ASSERT( t.related(HARD_TAG_REFERS_TO, "dog") )
+	}
+
+	void test_delete_referents(void) {
+        space_type TS;
+        TS.init(db_fname);
+        //TS.init("test.db");
+        populate_tags(TS);
+
+        TS.put( tagd::referent("thing", "physical_object") );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+        TS.put( tagd::referent("thing", "animal", "living_thing") );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+        TS.put( tagd::referent("creature", "animal", "living_thing") );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+		// non existant referent
+        TS.del( tagd::referent("snarf", "living_thing") );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TS_NOT_FOUND" );
+
+		// refers.empty() && refers_to.empty() && context.empty()
+        TS.del( tagd::referent() );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TS_MISUSE" );
+
+		// refers.empty() && refers_to.empty() && !context.empty()
+        TS.del( tagd::referent("", "", "living_thing") );
+        tagd::interrogator q_context("what", HARD_TAG_REFERENT);
+        q_context.relation(HARD_TAG_CONTEXT, "living_thing");
+		tagd::tag_set S;
+        TS.query(S, q_context);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TS_NOT_FOUND" );
+
+		// check that thing physical_object still exists
+		tagd::id_type what;
+        TS.refers_to(what, "thing");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+        TS_ASSERT_EQUALS( what , "physical_object" );
+
+        TS.put( tagd::referent("thing", "animal", "living_thing") );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+        TS.put( tagd::referent("creature", "animal", "living_thing") );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+		// refers.empty() && !refers_to.empty() && context.empty()
+		TS.del( tagd::referent("", "animal", "") );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
+
+		// already deleted - does not exist
+		TS.del( tagd::referent("", "animal", "") );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TS_NOT_FOUND" );
+		
+		TS.push_context("living_thing");
+		what.clear();
+		TS.refers(what, "thing");
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TS_NOT_FOUND" );
+		TS.clear_context();
+
+        TS.put( tagd::referent("thing", "animal", "living_thing") );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+        TS.put( tagd::referent("creature", "animal", "living_thing") );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+		// refers.empty() && !refers_to.empty() && !context.empty()
+		TS.del( tagd::referent("", "animal", "living_thing") );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
+
+        tagd::interrogator q_refers_to_context("what", HARD_TAG_REFERENT);
+        q_refers_to_context.relation(HARD_TAG_REFERS_TO, "animal");
+        q_refers_to_context.relation(HARD_TAG_CONTEXT, "living_thing");
+        S.clear();
+        TS.query(S, q_refers_to_context);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TS_NOT_FOUND" );
+
+        TS.put( tagd::referent("thing", "animal", "living_thing") );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+        TS.put( tagd::referent("creature", "animal", "living_thing") );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+		// !refers.empty() && refers_to.empty() && context.empty()
+		TS.del( tagd::referent("thing", "", "") );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
+
+        tagd::interrogator q_refers("what", HARD_TAG_REFERENT);
+        q_refers.relation(HARD_TAG_REFERS, "thing");
+        S.clear();
+        TS.query(S, q_refers);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TS_NOT_FOUND" );
+
+		// make sure the other referent to animal still exists
+		TS.push_context("living_thing");
+		what.clear();
+		TS.refers(what, "animal");
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
+        TS_ASSERT_EQUALS( what, "creature" );
+		TS.clear_context();
+
+        TS.put( tagd::referent("thing", "physical_object") );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+        TS.put( tagd::referent("thing", "animal", "living_thing") );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+		// !refers.empty() && refers_to.empty() && !context.empty()
+		TS.del( tagd::referent("thing", "", "living_thing") );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
+
+        tagd::interrogator q_refers_context("what", HARD_TAG_REFERENT);
+        q_refers_context.relation(HARD_TAG_REFERS, "thing");
+        q_refers_context.relation(HARD_TAG_CONTEXT, "living_thing");
+        S.clear();
+        TS.query(S, q_refers_context);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TS_NOT_FOUND" );
+
+		// make sure the other referent to animal still exists
+		TS.push_context("living_thing");
+		what.clear();
+		TS.refers(what, "animal");
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
+        TS_ASSERT_EQUALS( what, "creature" );
+		TS.clear_context();
+
+        TS.put( tagd::referent("thing", "animal", "living_thing") );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+		// !refers.empty() && !refers_to.empty() && context.empty()
+		TS.del( tagd::referent("thing", "animal") );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
+
+        tagd::interrogator q_refers_refers_to("what", HARD_TAG_REFERENT);
+        q_refers_refers_to.relation(HARD_TAG_REFERS, "thing");
+        q_refers_refers_to.relation(HARD_TAG_REFERS_TO, "animal");
+        S.clear();
+        TS.query(S, q_refers_refers_to);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TS_NOT_FOUND" );
+
+        TS.put( tagd::referent("thing", "animal", "living_thing") );
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
+
+		// !refers.empty() && !refers_to.empty() && !context.empty()
+		TS.del( tagd::referent("thing", "animal", "living_thing") );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
+
+		tagd::interrogator q_refers_refers_to_context("what", HARD_TAG_REFERENT);
+        q_refers_refers_to_context.relation(HARD_TAG_REFERS, "thing");
+        q_refers_refers_to_context.relation(HARD_TAG_REFERS_TO, "animal");
+        q_refers_refers_to_context.relation(HARD_TAG_CONTEXT, "living_thing");
+        S.clear();
+        TS.query(S, q_refers_refers_to_context);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TS_NOT_FOUND" );
+
+		// make sure other thing exists
+		what.clear();
+		TS.refers_to(what, "thing");
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
+        TS_ASSERT_EQUALS( what, "physical_object" );
 	}
 
     void test_exists(void) {
@@ -898,7 +1146,6 @@ class Tester : public CxxTest::TestSuite {
 /// URI TESTS ///
 
     void test_put_url(void) {
-        // std::cout << "\n#################### test_put_uri ####################\n";
         space_type TS;
         tagd_code ts_rc = TS.init(db_fname);
         //tagd_code ts_rc = TS.init("test.db");
@@ -1002,6 +1249,37 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( S.size(), 2 );
         TS_ASSERT( tag_set_exists(S, "http://en.wikipedia.org/wiki/Dog") );
         TS_ASSERT( tag_set_exists(S, "http://starwars.wikia.com/wiki/Dog") );
+    }
+
+	void test_delete_url(void) {
+        space_type TS;
+		tagd_code ts_rc;
+        TS.init(db_fname);
+        // TS.init("tagspace.sqlite");
+        populate_tags(TS);
+
+        tagd::url a("http://en.wikipedia.org/wiki/Dog");
+        a.relation("about", "dog");
+        ts_rc = TS.put(a);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+		// delete relation
+		ts_rc = TS.del(a);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+		tagd::url b;
+        ts_rc = TS.get(b, "http://en.wikipedia.org/wiki/Dog");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+		TS_ASSERT( !b.related("about", "dog") );
+
+		// delete url	
+        tagd::url c("http://en.wikipedia.org/wiki/Dog");
+		ts_rc = TS.del(c);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+		tagd::url d;
+        ts_rc = TS.get(d, "http://en.wikipedia.org/wiki/Dog");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_NOT_FOUND");
     }
 
     void test_util(void) {

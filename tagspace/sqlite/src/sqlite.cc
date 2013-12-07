@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <vector>
 #include <functional>
+#include <algorithm>
 #include <cstdio>
 #include <cstdarg>
 
@@ -58,6 +59,15 @@ void finalize_stmt(sqlite3_stmt **stmt) {
 }
 
 #define OK_OR_RET_ERR() if(_code != tagd::TAGD_OK) return _code;
+
+#define OK_OR_ROLLBACK_RET_ERR() if(_code != tagd::TAGD_OK) { \
+		this->finalize(); \
+		tagd::code c = _code; \
+		this->exec("ROLLBACK"); \
+		return c; \
+	}
+
+#define OK_OR_RET_POS_UNKNOWN() if(_code != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
 
 namespace tagspace {
 
@@ -450,7 +460,17 @@ tagd::code sqlite::create_relations_table() {
 	this->exec("CREATE INDEX idx_subject ON relations(subject)");
 	OK_OR_RET_ERR();
 
+	// relator index added because of use in _term_pos_occurence_stmt
+	// TODO look into optimizing
+	this->exec("CREATE INDEX idx_relator ON relations(relator)");
+	OK_OR_RET_ERR();
+
 	this->exec("CREATE INDEX idx_object ON relations(object)");
+	OK_OR_RET_ERR();
+
+	// relator index added because of use in _term_pos_occurence_stmt
+	// TODO look into optimizing
+	this->exec("CREATE INDEX idx_modifier ON relations(modifier)");
 
     return _code;
 }
@@ -487,8 +507,12 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t
 	// std::cerr << "term_pos(" << term << "): " << pos_list_str(term_pos) << std::endl;
 
 	if (term_pos == tagd::POS_UNKNOWN) {
-		return this->error(tagd::TS_NOT_FOUND,
-			tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, term) );
+		if (flags & NO_NOT_FOUND_ERROR) {
+			return this->code(tagd::TS_NOT_FOUND);
+		} else {
+			return this->error(tagd::TS_NOT_FOUND,
+				tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, term) );
+		}
 	}
 
 	tagd::id_type id;
@@ -546,8 +570,12 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t
 			return this->ferror(tagd::TS_AMBIGUOUS,
 				"%s refers to a tag with no matching context", term.c_str());
 		else {
-			return this->error(tagd::TS_NOT_FOUND,
-				tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, term) );
+			if (flags & NO_NOT_FOUND_ERROR) {
+				return this->code(tagd::TS_NOT_FOUND);
+			} else {
+				return this->error(tagd::TS_NOT_FOUND,
+					tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, term) );
+			}
 		}
 	}
 
@@ -866,7 +894,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
 		return this->ferror(tagd::TS_MISUSE, "_id == _super_object not allowed: %s", t.id().c_str()); 
 
     tagd::abstract_tag existing;
-    tagd::code existing_rc = this->get(existing, t.id(), (flags|NO_TRANSFORM_REFERENTS));
+    tagd::code existing_rc = this->get(existing, t.id(), (flags|NO_TRANSFORM_REFERENTS|NO_NOT_FOUND_ERROR));
 
     if (existing_rc != tagd::TAGD_OK && existing_rc != tagd::TS_NOT_FOUND)
         return existing_rc; // err set by get
@@ -943,6 +971,521 @@ tagd::code sqlite::put(const tagd::referent& r, flags_t flags) {
 	return this->insert_referent(r, flags);
 }
 
+tagd::code sqlite::del(const tagd::abstract_tag& t, flags_t flags) {
+    if (t.id().length() > tagd::MAX_TAG_LEN)
+        return this->ferror(tagd::TS_ERR_MAX_TAG_LEN, "tag exceeds MAX_TAG_LEN of %d", tagd::MAX_TAG_LEN);
+
+	if (t.id().empty())
+		return this->error(tagd::TS_ERR, "deleting empty tag not allowed");
+
+	if (t.id()[0] == '_' && !_doing_init)
+		return this->ferror(tagd::TS_MISUSE, "deleting hard tags not allowed: %s", t.id().c_str());
+
+	if (!(flags & NO_POS_CAST)) {
+		switch (t.pos()) {
+			case tagd::POS_URL:
+				return this->del((const tagd::url&)t, flags);
+			case tagd::POS_REFERENT:
+				return this->del((const tagd::referent&)t, flags);
+			default:
+				; // NOOP
+		}
+	}
+
+	if (!t.super_object().empty() /*TODO && !(flags && IGNORE_SUPER) */) {
+		return this->ferror(tagd::TS_MISUSE,
+			"super must not be specified when deleting tag: %s", t.id().c_str());
+	}
+
+	tagd::abstract_tag del_tag;
+	if (flags & NO_TRANSFORM_REFERENTS) {
+		del_tag = t;
+	} else {
+		this->decode_referents(del_tag, t);
+	}
+
+    tagd::abstract_tag existing;
+    tagd::code existing_rc = this->get(existing, del_tag.id(), (flags|NO_TRANSFORM_REFERENTS));
+
+    if (existing_rc == tagd::TS_NOT_FOUND) {
+        return existing_rc; // err set by get
+	}
+	OK_OR_RET_ERR();
+
+	// make a set off all terms affected, so we can update the term pos after deleting tag
+	std::set<tagd::id_type> terms_affected;
+
+	auto f_term_affected = [&terms_affected](const tagd::id_type& term) mutable {
+		if (!term.empty())
+			terms_affected.insert(term);
+	};
+
+	auto f_tag_affected = [&f_term_affected](const tagd::abstract_tag& t) {
+		f_term_affected(t.id());
+		f_term_affected(t.super_relator());
+		f_term_affected(t.super_object());
+		for ( auto p : t.relations ) {
+			f_term_affected(p.relator);
+			f_term_affected(p.object);
+			f_term_affected(p.modifier);
+		}
+	};
+
+    this->exec("BEGIN");
+
+	if (del_tag.relations.empty()) {
+		// delete referents, relations, and tag
+		this->delete_refers_to(del_tag.id());
+		OK_OR_ROLLBACK_RET_ERR();
+
+		this->delete_relations(del_tag.id());  // all relations given subject
+		OK_OR_ROLLBACK_RET_ERR();
+
+		this->delete_tag(del_tag.id());
+		OK_OR_ROLLBACK_RET_ERR();
+
+		// referents affected
+		tagd::tag_set R;
+        tagd::interrogator q_refers_to(HARD_TAG_INTERROGATOR, HARD_TAG_REFERENT);
+        q_refers_to.relation(HARD_TAG_REFERS_TO, del_tag.id());
+        this->query(R, q_refers_to);
+		if (_code != tagd::TS_NOT_FOUND) {
+			OK_OR_ROLLBACK_RET_ERR();
+			std::for_each(R.begin(), R.end(), f_tag_affected);
+		}
+
+		f_tag_affected(existing);
+	} else {
+		// delete only del_tag.relations
+		for( auto p : del_tag.relations ) {
+			if (!existing.related(p)) {
+				if (p.modifier.empty()) {
+					this->ferror(tagd::TS_NOT_FOUND,
+						"cannot delete non-existent relation: %s %s %s",
+							del_tag.id().c_str(), p.relator.c_str(), p.object.c_str()); 
+				} else {
+					this->ferror(tagd::TS_NOT_FOUND,
+						"cannot delete non-existent relation: %s %s %s = %s",
+							del_tag.id().c_str(), p.relator.c_str(), p.object.c_str(), p.modifier.c_str()); 
+				}
+			}
+		}
+		OK_OR_ROLLBACK_RET_ERR();
+
+		this->delete_relations(del_tag.id(), del_tag.relations);
+		OK_OR_ROLLBACK_RET_ERR();
+
+		f_tag_affected(del_tag);
+	}
+
+	for ( auto id : terms_affected ) {
+		this->update_pos_occurence(id);
+		OK_OR_ROLLBACK_RET_ERR();
+	}
+
+    this->exec("COMMIT");
+
+	return this->code(tagd::TAGD_OK);
+}
+
+tagd::code sqlite::del(const tagd::url& u, flags_t flags) {
+	if (!u.ok())
+		return this->ferror(u.code(), "del url not ok(%s): %s",  tagd_code_str(u.code()), u.id().c_str());
+
+	// url _id is the actual url, but we use the hduri
+	// internally, so we have to convert it
+	tagd::abstract_tag t = (tagd::abstract_tag) u;
+	t.id(u.hduri());
+	t.super_relator(tagd::id_type());
+	t.super_object(tagd::id_type());
+	// don't insert url part relations
+	return this->del(t, (flags|NO_POS_CAST));
+}
+
+tagd::code sqlite::del(const tagd::referent& r, flags_t flags) {
+	assert(!flags);  // suppress unused param warning for now
+
+    sqlite3_stmt *stmt = NULL;
+
+	if (r.refers().empty()) {
+		if (r.refers_to().empty()) {
+			if (r.context().empty()) {
+				// don't allow deleting all referents
+				return this->error(tagd::TS_MISUSE, "deleting all referents not allowed");
+			} else {
+				this->prepare(&stmt,
+					"DELETE FROM referents "
+					"WHERE context = tid(?)",
+					/* //TODO implement RECURSIVE flag to delete all contained contexts
+					"WHERE context IN("
+					 "SELECT tag FROM tags "
+					 "WHERE rank GLOB ("
+					  "SELECT rank FROM tags WHERE tag = tid(?)"
+					 ") || '*' " // all context <= {context}
+					")",
+					*/
+					"delete referent context"
+				);
+				OK_OR_RET_ERR();
+
+				this->bind_text(&stmt, 1, r.context().c_str(), "context");
+				OK_OR_RET_ERR();
+			}
+		} else {  // !refers_to.empty()
+			if (r.context().empty()) {
+				this->prepare(&stmt,
+					"DELETE FROM referents "
+					"WHERE refers_to = tid(?)",
+					"delete referent refers_to"
+				);
+				OK_OR_RET_ERR();
+
+				this->bind_text(&stmt, 1, r.refers_to().c_str(), "refers_to");
+				OK_OR_RET_ERR();
+			} else {
+				this->prepare(&stmt,
+					"DELETE FROM referents "
+					"WHERE refers_to = tid(?) "
+					"AND context = tid(?)",
+					/*
+					"AND context IN("
+					 "SELECT tag FROM tags "
+					 "WHERE rank GLOB ("
+					 "SELECT rank FROM tags WHERE tag = tid(?)"
+					 ") || '*' " // all context <= {context}
+					")",
+					*/
+					"delete referent refers_to, context"
+				);
+				OK_OR_RET_ERR();
+
+				this->bind_text(&stmt, 1, r.refers_to().c_str(), "refers_to");
+				OK_OR_RET_ERR();
+
+				this->bind_text(&stmt, 2, r.context().c_str(), "context");
+				OK_OR_RET_ERR();
+			}
+		}
+	} else {  // !refers.empty()
+		if (r.refers_to().empty()) {
+			if (r.context().empty()) {
+				this->prepare(&stmt,
+					"DELETE FROM referents "
+					"WHERE refers = tid(?)",
+					"delete referent refers"
+				);
+				OK_OR_RET_ERR();
+
+				this->bind_text(&stmt, 1, r.refers().c_str(), "refers");
+				OK_OR_RET_ERR();
+			} else {
+				this->prepare(&stmt,
+					"DELETE FROM referents "
+					"WHERE refers = tid(?) "
+					"AND context = tid(?)",
+					/*
+					"AND context IN("
+					 "SELECT tag FROM tags "
+					 "WHERE rank GLOB ("
+					 "SELECT rank FROM tags WHERE tag = tid(?)"
+					 ") || '*' " // all context <= {context}
+					")",
+					*/
+					"delete referent refers context"
+				);
+				OK_OR_RET_ERR();
+
+				this->bind_text(&stmt, 1, r.refers().c_str(), "refers");
+				OK_OR_RET_ERR();
+
+				this->bind_text(&stmt, 2, r.context().c_str(), "context");
+				OK_OR_RET_ERR();
+			}
+		} else {  // !refers_to.empty()
+			if (context().empty()) {
+				this->prepare(&stmt,
+					"DELETE FROM referents "
+					"WHERE refers = tid(?) "
+					"AND refers_to = tid(?)",
+					"delete referent refers, refers_to"
+				);
+				OK_OR_RET_ERR();
+
+				this->bind_text(&stmt, 1, r.refers().c_str(), "refers");
+				OK_OR_RET_ERR();
+
+				this->bind_text(&stmt, 2, r.refers_to().c_str(), "refers_to");
+				OK_OR_RET_ERR();
+			} else {
+				this->prepare(&stmt,
+					"DELETE FROM referents "
+					"WHERE refers = tid(?) "
+					"AND refers_to = tid(?) "
+					"AND context = tid(?)",
+					/*
+					"AND context IN("
+					 "SELECT tag FROM tags "
+					 "WHERE rank GLOB ("
+					 "SELECT rank FROM tags WHERE tag = tid(?)"
+					 ") || '*' " // all context <= {context}
+					")",
+					*/
+					"delete referent refers, refers_to, context"
+				);
+				OK_OR_RET_ERR();
+
+				this->bind_text(&stmt, 1, r.refers().c_str(), "refers");
+				OK_OR_RET_ERR();
+
+				this->bind_text(&stmt, 2, r.refers_to().c_str(), "refers_to");
+				OK_OR_RET_ERR();
+
+				this->bind_text(&stmt, 3, r.context().c_str(), "context");
+				OK_OR_RET_ERR();
+			}
+		}
+	}
+
+    int s_rc = sqlite3_step(stmt);
+ 	if (stmt != NULL)
+		sqlite3_finalize(stmt);
+    
+    if (s_rc != SQLITE_DONE)
+		return this->ferror(tagd::TS_ERR, "delete referent failed: %s", r.str().c_str());
+
+	if (sqlite3_changes(_db) == 0)
+		return this->ferror(tagd::TS_NOT_FOUND, "delete referent not found: %s", r.str().c_str());
+
+	return this->code(tagd::TAGD_OK);
+}
+
+tagd::part_of_speech sqlite::term_pos_occurence(const tagd::id_type& id, bool set_fk_err) {
+	if (_term_pos_occurence_stmt == NULL) {
+		// TODO there is probably a more optimal way of doing this
+		// I know, WTF, but when in doubt, use brute force
+		std::stringstream ss;
+		ss << "SELECT pos FROM tags WHERE tag = tid(?) "
+		   << "UNION "
+		   << "SELECT * FROM (SELECT " << tagd::POS_SUPER_RELATOR << " FROM tags WHERE super_relator = tid(?) LIMIT 1) "
+		   << "UNION "
+		   << "SELECT * FROM (SELECT " << tagd::POS_SUPER_OBJECT << " FROM tags WHERE super_object = tid(?) LIMIT 1) "
+		   << "UNION "
+		   << "SELECT * FROM (SELECT " << tagd::POS_SUBJECT << " FROM relations WHERE subject = tid(?) LIMIT 1) "
+		   << "UNION "
+		   << "SELECT * FROM (SELECT " << tagd::POS_RELATED << " FROM relations WHERE relator = tid(?) LIMIT 1) "
+		   << "UNION "
+		   << "SELECT * FROM (SELECT " << tagd::POS_OBJECT << " FROM relations WHERE object = tid(?) LIMIT 1) "
+		   << "UNION "
+		   << "SELECT * FROM (SELECT " << tagd::POS_MODIFIER << " FROM relations WHERE modifier = tid(?) LIMIT 1) "
+		   << "UNION "
+		   << "SELECT * FROM (SELECT " << tagd::POS_REFERS << " FROM referents WHERE refers = tid(?) LIMIT 1) "
+		   << "UNION "
+		   << "SELECT * FROM (SELECT " << tagd::POS_REFERS_TO << " FROM referents WHERE refers_to = tid(?) LIMIT 1) "
+		   << "UNION "
+		   << "SELECT * FROM (SELECT " << tagd::POS_CONTEXT << " FROM referents WHERE context = tid(?) LIMIT 1)";
+		this->prepare(&_term_pos_occurence_stmt, ss.str().c_str(), "pos occurence statement");
+	} else {
+		this->prepare(&_term_pos_occurence_stmt, NULL, "pos occurence statement");
+	}
+	OK_OR_RET_POS_UNKNOWN();
+
+	int i = 1;
+	this->bind_text(&_term_pos_occurence_stmt, i, id.c_str(), "tag pos occurence");
+	OK_OR_RET_POS_UNKNOWN();
+	this->bind_text(&_term_pos_occurence_stmt, ++i, id.c_str(), "super_relator pos occurence");
+	OK_OR_RET_POS_UNKNOWN();
+	this->bind_text(&_term_pos_occurence_stmt, ++i, id.c_str(), "super_object pos occurence");
+	OK_OR_RET_POS_UNKNOWN();
+	this->bind_text(&_term_pos_occurence_stmt, ++i, id.c_str(), "subject pos occurence");
+	OK_OR_RET_POS_UNKNOWN();
+	this->bind_text(&_term_pos_occurence_stmt, ++i, id.c_str(), "relator pos occurence");
+	OK_OR_RET_POS_UNKNOWN();
+	this->bind_text(&_term_pos_occurence_stmt, ++i, id.c_str(), "object pos occurence");
+	OK_OR_RET_POS_UNKNOWN();
+	this->bind_text(&_term_pos_occurence_stmt, ++i, id.c_str(), "modifier pos occurence");
+	OK_OR_RET_POS_UNKNOWN();
+	this->bind_text(&_term_pos_occurence_stmt, ++i, id.c_str(), "refers pos occurence");
+	OK_OR_RET_POS_UNKNOWN();
+	this->bind_text(&_term_pos_occurence_stmt, ++i, id.c_str(), "refers_to pos occurence");
+	OK_OR_RET_POS_UNKNOWN();
+	this->bind_text(&_term_pos_occurence_stmt, ++i, id.c_str(), "context pos occurence");
+	OK_OR_RET_POS_UNKNOWN();
+
+	const int F_POS = 0;
+
+	int s_rc;
+	tagd::part_of_speech occurence_pos = tagd::POS_UNKNOWN;
+	while ((s_rc = sqlite3_step(this->_term_pos_occurence_stmt)) == SQLITE_ROW) {
+		// occurence_pos |= pos is prettier, but give invalid conversion error
+		tagd::part_of_speech pos = (tagd::part_of_speech) sqlite3_column_int(this->_term_pos_occurence_stmt, F_POS);
+		//std::cerr << id << ": " << pos_list_str(occurence_pos) << " |= " << pos_str(pos) << std::endl;
+		occurence_pos = ((tagd::part_of_speech)(occurence_pos | pos));
+
+		// using this method to set error for the cause of FK constraint failures
+		if (set_fk_err) {
+			// TODO causes will need to be defined as hard tags
+			// if we ever want to insert errors in a tagspace
+			tagd::id_type cause;
+			switch(pos) {
+				case tagd::POS_SUPER_RELATOR:
+					cause = "super_relator";
+					break;
+				case tagd::POS_SUPER_OBJECT:
+					cause = "super_object";
+					break;
+				case tagd::POS_SUBJECT:
+					cause = "subject";
+					break;
+				case tagd::POS_RELATED:
+					cause = "related";
+					break;
+				case tagd::POS_OBJECT:
+					cause = "object";
+					break;
+				case tagd::POS_MODIFIER:
+					cause = "modifier";
+					break;
+				// no FK on refers
+				// case tagd::POS_REFERS:
+				// 	cause = "refers";
+				// 	break;
+				case tagd::POS_REFERS_TO:
+					cause = "refers_to";
+					break;
+				case tagd::POS_CONTEXT:
+					cause = "context";
+					break;
+				default:
+					; // not a cause of FK constraint
+			}
+
+			if (!cause.empty()) {
+				this->error(tagd::TS_FOREIGN_KEY,
+					tagd::make_predicate(HARD_TAG_CAUSED_BY, cause, id) );
+			}
+		}
+	}
+	//std::cerr << "occurence_pos(" << id << "): " << pos_list_str(occurence_pos) << std::endl;
+
+	if (s_rc == SQLITE_ERROR)
+		this->ferror(tagd::TS_ERR, "term pos occurence failed: %s", id.c_str());
+
+	return occurence_pos;
+}
+
+tagd_code sqlite::update_pos_occurence(const tagd::id_type& id) {
+	tagd::part_of_speech occurence_pos = this->term_pos_occurence(id);
+	OK_OR_RET_ERR();
+
+	return ( occurence_pos == tagd::POS_UNKNOWN
+		? this->delete_term(id) : this->update_term(id, occurence_pos) );
+}
+
+tagd::code sqlite::delete_refers_to(const tagd::id_type& id) {
+    assert( !id.empty() );
+
+    this->prepare(&_delete_refers_to_stmt,
+        "DELETE FROM referents WHERE refers_to = tid(?)",
+        "delete refers_to"
+    );
+    OK_OR_RET_ERR();
+
+    this->bind_text(&_delete_refers_to_stmt, 1, id.c_str(), "delete refers_to");
+    OK_OR_RET_ERR(); 
+ 
+    int s_rc = sqlite3_step(_delete_refers_to_stmt);
+    if (s_rc != SQLITE_DONE)
+        return this->ferror(tagd::TS_ERR, "delete refers_to failed: %s", id.c_str());
+
+    return this->code(tagd::TAGD_OK);
+}
+
+tagd::code sqlite::delete_relations(const tagd::id_type& subject) {
+    assert( !subject.empty() );
+
+    this->prepare(&_delete_subject_relations_stmt,
+        "DELETE FROM relations WHERE subject = tid(?)",
+        "delete relations"
+    );
+    OK_OR_RET_ERR();
+
+    this->bind_text(&_delete_subject_relations_stmt, 1, subject.c_str(), "delete subject relations");
+    OK_OR_RET_ERR(); 
+ 
+    int s_rc = sqlite3_step(_delete_subject_relations_stmt);
+    if (s_rc != SQLITE_DONE)
+        return this->ferror(tagd::TS_ERR, "delete subject relations failed: %s", subject.c_str());
+
+    return this->code(tagd::TAGD_OK);
+}
+
+tagd::code sqlite::delete_relations(const tagd::id_type& subject, const tagd::predicate_set& P) {
+    assert( !subject.empty() );
+    assert( !P.empty() );
+
+	for (auto p : P) {
+		this->prepare(&_delete_relation_stmt,
+			"DELETE FROM relations "
+			"WHERE subject = tid(?) "
+			"AND relator = tid(?) "
+			"AND object = tid(?)",
+			"delete relations"
+		);
+		OK_OR_RET_ERR();
+
+		this->bind_text(&_delete_relation_stmt, 1, subject.c_str(), "delete relation subject");
+		OK_OR_RET_ERR();
+
+		this->bind_text(&_delete_relation_stmt, 2, p.relator.c_str(), "delete relation relator");
+		OK_OR_RET_ERR();
+		
+		this->bind_text(&_delete_relation_stmt, 3, p.object.c_str(), "delete relation object");
+		OK_OR_RET_ERR();
+
+		if (sqlite3_step(_delete_relation_stmt) != SQLITE_DONE) {
+			return this->ferror(tagd::TS_ERR,
+				"delete relation failed: %s %s %s",
+					subject.c_str(), p.relator.c_str(), p.object.c_str()); 
+		}
+	}
+
+    return this->code(tagd::TAGD_OK);
+}
+
+tagd::code sqlite::delete_tag(const tagd::id_type& id) {
+    assert( !id.empty() );
+
+    this->prepare(&_delete_tag_stmt,
+        "DELETE FROM tags WHERE tag = tid(?)",
+        "delete tag"
+    );
+    OK_OR_RET_ERR();
+
+    this->bind_text(&_delete_tag_stmt, 1, id.c_str(), "delete tag");
+    OK_OR_RET_ERR(); 
+ 
+    int s_rc = sqlite3_step(_delete_tag_stmt);
+	if (s_rc == SQLITE_DONE) {
+		return this->code(tagd::TAGD_OK);
+	} else if (s_rc == SQLITE_CONSTRAINT) {
+		if (_trace_on) {
+			const char* errmsg = sqlite3_errmsg(_db);
+			std::cerr << "SQLITE_CONSTRAINT: " << errmsg << std::endl;
+		}
+		
+		// set error for cause of FK constraint failure
+		this->term_pos_occurence(id, true);
+
+		assert(_code == tagd::TS_FOREIGN_KEY);
+		if (!_code == tagd::TS_FOREIGN_KEY)  // unknown cause of FK constraint failure, should't happen
+			return this->ferror(tagd::TS_ERR, "delete tag unknown constraint failure: %s", id.c_str());
+		else  // error(s) set
+			return _code;
+	} else {
+        return this->ferror(tagd::TS_ERR, "delete tag failed: %s", id.c_str());
+	}
+}
+
 tagd::code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& super) {
     assert( !super.rank().empty() || (super.rank().empty() && super.id() == "_entity") );
 
@@ -1016,7 +1559,7 @@ tagd::code sqlite::update_term(const tagd::id_type& t, const tagd::part_of_speec
     assert( !t.empty() );
 
     this->prepare(&_update_term_stmt,
-        "UPDATE terms SET term_pos = ? WHERE term = ?",
+        "UPDATE terms SET term_pos = ? WHERE term = ? AND term_pos <> ?",
         "update term"
     );
     OK_OR_RET_ERR(); 
@@ -1027,9 +1570,29 @@ tagd::code sqlite::update_term(const tagd::id_type& t, const tagd::part_of_speec
     this->bind_text(&_update_term_stmt, 2, t.c_str(), "update term");
     OK_OR_RET_ERR(); 
 
+	this->bind_int(&_update_term_stmt, 3, pos, "update <> term_pos");
+    OK_OR_RET_ERR(); 
+
     int s_rc = sqlite3_step(_update_term_stmt);
     if (s_rc != SQLITE_DONE)
         return this->ferror(tagd::TS_ERR, "update term failed: %s", t.c_str());
+
+    return this->code(tagd::TAGD_OK);
+}
+
+tagd::code sqlite::delete_term(const tagd::id_type& id) {
+    assert( !id.empty() ); this->prepare(&_delete_term_stmt,
+        "DELETE FROM terms WHERE term = ?",
+        "delete term"
+    );
+    OK_OR_RET_ERR();
+
+    this->bind_text(&_delete_term_stmt, 1, id.c_str(), "delete term");
+    OK_OR_RET_ERR(); 
+ 
+    int s_rc = sqlite3_step(_delete_term_stmt);
+    if (s_rc != SQLITE_DONE)
+        return this->ferror(tagd::TS_ERR, "delete term failed: %s", id.c_str());
 
     return this->code(tagd::TAGD_OK);
 }
@@ -1806,10 +2369,8 @@ tagd::code sqlite::get_children(tagd::tag_set& R, const tagd::id_type& super_obj
 }
 
 tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& intr) {
-    sqlite3_stmt *stmt = NULL;
 	tagd::id_type refers, refers_to, context;
-
-    for (tagd::predicate_set::const_iterator it = intr.relations.begin(); it != intr.relations.end(); ++it) {
+    for (auto it = intr.relations.begin(); it != intr.relations.end(); ++it) {
         if (it->relator == HARD_TAG_REFERS)
             refers = it->object;
 		else if (it->relator == HARD_TAG_REFERS_TO)
@@ -1817,6 +2378,8 @@ tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& i
 		else if (it->relator == HARD_TAG_CONTEXT)
             context = it->object;
     }
+
+    sqlite3_stmt *stmt = NULL;
 
 	if (refers.empty()) {
 		if (refers_to.empty()) {
@@ -2448,9 +3011,10 @@ tagd::code sqlite::prepare(sqlite3_stmt **stmt, const char *sql, const char *lab
 }
 
 inline tagd::code sqlite::bind_text(sqlite3_stmt**stmt, int i, const char *text, const char*label) {
-    if (sqlite3_bind_text(*stmt, i, text, -1, SQLITE_TRANSIENT) != SQLITE_OK) {
+	int s_rc;
+    if ((s_rc = sqlite3_bind_text(*stmt, i, text, -1, SQLITE_TRANSIENT)) != SQLITE_OK) {
 		finalize_stmt(stmt);
-        return this->ferror(tagd::TS_INTERNAL_ERR, "bind failed: %s", label);
+        return this->ferror(tagd::TS_INTERNAL_ERR, "bind failed: %s: %s", sqlite_err_code_str(s_rc), label);
     }
 
     return this->code(tagd::TAGD_OK);
@@ -2514,6 +3078,7 @@ void sqlite::finalize() {
     sqlite3_finalize(_refers_stmt);
     sqlite3_finalize(_insert_term_stmt);
     sqlite3_finalize(_update_term_stmt);
+    sqlite3_finalize(_delete_term_stmt);
     sqlite3_finalize(_insert_stmt);
     sqlite3_finalize(_update_tag_stmt);
     sqlite3_finalize(_update_ranks_stmt);
@@ -2522,6 +3087,11 @@ void sqlite::finalize() {
     sqlite3_finalize(_insert_referents_stmt);
     sqlite3_finalize(_insert_context_stmt);
     sqlite3_finalize(_delete_context_stmt);
+    sqlite3_finalize(_delete_tag_stmt);
+    sqlite3_finalize(_delete_subject_relations_stmt);
+    sqlite3_finalize(_delete_relation_stmt);
+    sqlite3_finalize(_delete_refers_to_stmt);
+    sqlite3_finalize(_term_pos_occurence_stmt);
     sqlite3_finalize(_truncate_context_stmt);
     sqlite3_finalize(_get_relations_stmt);
     sqlite3_finalize(_related_stmt);
@@ -2549,15 +3119,21 @@ void sqlite::finalize() {
     _refers_stmt = NULL;
     _insert_term_stmt = NULL;
     _update_term_stmt = NULL;
+    _delete_term_stmt = NULL;
     _insert_stmt = NULL;
-    _update_tag_stmt = NULL;
+    _update_term_stmt = NULL;
     _update_ranks_stmt = NULL;
     _child_ranks_stmt = NULL;
     _insert_relations_stmt = NULL;
     _insert_referents_stmt = NULL;
     _insert_context_stmt = NULL;
     _delete_context_stmt = NULL;
-    _truncate_context_stmt = NULL;
+    _delete_tag_stmt = NULL;
+    _delete_subject_relations_stmt = NULL;
+    _delete_relation_stmt = NULL;
+    _delete_refers_to_stmt = NULL;
+    _term_pos_occurence_stmt = NULL;
+	_truncate_context_stmt = NULL;
     _get_relations_stmt = NULL;
     _related_stmt = NULL;
     _related_null_super_stmt = NULL;

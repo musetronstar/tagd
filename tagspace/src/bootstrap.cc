@@ -36,7 +36,7 @@ tagd::code bootstrap::init_hard_tags(tagspace& TS) {
 	PUT_OR_DIE(HARD_TAG_URL, "_entity", tagd::POS_TAG)
 	PUT_OR_DIE(HARD_TAG_INTERROGATOR, "_entity", tagd::POS_INTERROGATOR) 
 
-	PUT_OR_DIE(HARD_TAG_REFERENT,HARD_TAG_SUPER, tagd::POS_REFERENT)	  // super relation for token that refer to a tag in a context
+	PUT_OR_DIE(HARD_TAG_REFERENT, HARD_TAG_SUPER, tagd::POS_REFERENT)	  // super relation for token that refer to a tag in a context
 	PUT_OR_DIE(HARD_TAG_REFERS, HARD_TAG_RELATOR, tagd::POS_REFERS)       // relation that refers a _referent
 	PUT_OR_DIE(HARD_TAG_REFERS_TO, HARD_TAG_RELATOR, tagd::POS_REFERS_TO) // relation that refers the _referent to the tag
 	PUT_OR_DIE(HARD_TAG_CONTEXT, HARD_TAG_RELATOR, tagd::POS_CONTEXT)	  // relation that defines the context of a _referent
