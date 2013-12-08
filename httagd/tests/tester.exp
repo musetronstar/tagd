@@ -37,7 +37,7 @@ proc test {n m u d e} {
 
 	if {$match} { return }
 
-	puts "\n**********   $n failed   **********\n"
+	puts "\n!!!!!!!!!!   $n failed   !!!!!!!!!!\n"
 	incr errors
 
 	if {$errors >= $max_errors} {
@@ -109,13 +109,29 @@ test "get_doggy" \
 	 "GET" "/doggy" "" \
 	 "doggy is_a mammal(.*)refers_to dog"
 
+test "delete_refers_tag_err" \
+     "DELETE" "/doggy" "" \
+	 "TS_MISUSE"
+
+test "delete_refer_doggy" \
+	 "DELETE" "/doggy" "refers_to dog" \
+	 "200 OK"
+
+test "get_doggy_deleted_not_exists" \
+	 "GET" "/doggy" "" \
+	 "404 Not Found"
+
+test "delete_bat" \
+     "DELETE" "/bat" "" \
+	 "200 OK"
+
 test "query_mammal_super" \
 	 "GET" "/mammal/" "" \
-	 "bat, cat, doggy, whale"
+	 "cat, dog, whale"
 
 test "query_parent_relator" \
      "GET" "/animal/blood=warm,tail,bark" "" \
-	 "doggy"
+	 "dog"
 
 # this works, but it shouldn't
 # TODO encode utf8 urls

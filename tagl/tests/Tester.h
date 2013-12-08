@@ -426,7 +426,7 @@ class Tester : public CxxTest::TestSuite {
 				"DEL dog _is_a animal\n"
 				"_can bite"
 			);
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_MISUSE" )
 	}
 
 	void test_delete(void) {
@@ -1235,6 +1235,24 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagl.cmd() , CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT( tagl.tag().related("_has", "legs") )
+		TS_ASSERT( tagl.tag().related("_can", "bark") )
+	}
+
+	void test_del_tagdurl(void) {
+		tagspace_tester TS;
+		TAGL::driver tagl(&TS);
+
+		tagl.tagdurl_del("/dog");
+		tagl.execute("_is_a animal _has legs _can bark");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TS_MISUSE" )
+
+		tagl.clear_errors();
+		tagl.tagdurl_del("/dog");
+		tagl.execute("_has legs _can bark");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , CMD_DEL )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
 		TS_ASSERT( tagl.tag().related("_has", "legs") )
 		TS_ASSERT( tagl.tag().related("_can", "bark") )
 	}

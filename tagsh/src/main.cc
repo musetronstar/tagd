@@ -58,16 +58,11 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 		_TS->get(*T, t.id());
 	}
 
-	switch(_TS->code()) {
-		case tagd::TAGD_OK:
-			std::cout << *T << std::endl;
-			break;
-		case tagd::TS_NOT_FOUND:
-			std::cout << "-- " << tagd_code_str(_TS->code()) << std::endl;
-			break;
-		default:
-			_TS->print_errors();
-			_TS->clear_errors();
+	if(_TS->ok()) {
+		std::cout << *T << std::endl;
+	} else {	
+		_TS->print_errors();
+		_TS->clear_errors();
 	}
 
 	delete T;
@@ -75,7 +70,7 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 
 void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 	tagd::code ts_rc = _TS->put(t);
-	if (ts_rc == tagd::TAGD_OK) {
+	if (_TS->ok()) {
 		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
 	} else {
 		_TS->print_errors();
@@ -85,7 +80,7 @@ void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 
 void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 	tagd::code ts_rc = _TS->del(t);
-	if (ts_rc == tagd::TAGD_OK) {
+	if (_TS->ok()) {
 		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
 	} else {
 		_TS->print_errors();
@@ -103,7 +98,7 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 			else
 				tagd::print_tag_ids(T);
 			break;
-		case tagd::TS_NOT_FOUND:
+		case tagd::TS_NOT_FOUND:  // TS_NOT_FOUND not an error for queries
 			std::cout << "-- " << tagd_code_str(_TS->code()) << std::endl;
 			break;
 		default:	
@@ -273,15 +268,15 @@ int tagsh::interpret(std::istream& ins) {
 		if (line[0] == '.') {
 			command(line);
 		} else {
-			tagd_code tc = _driver.parseln(line);
+			_driver.parseln(line);
 
 			// force a reduce action when a terminator
 			// hanging on the end of the stack
 			// i.e. cmd_statement TERMINATOR
-			if (_driver.token() == TERMINATOR)
+			if (!_driver.has_error() && _driver.token() == TERMINATOR)
 				_driver.parse_tok(TERMINATOR, NULL);
 
-			if (tc == tagd::TAGL_ERR) {
+			if (_driver.has_error()) {
 				_driver.finish();
 				_driver.clear_errors();
 			}

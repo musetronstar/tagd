@@ -48,7 +48,7 @@ driver::~driver() {
 void driver::do_callback() {
 	if (_callback == NULL)  return;
 
-	if (_code != tagd::TAGD_OK) {
+	if (this->has_error()) {
 		_callback->cmd_error(*this);
 		return;
 	}
@@ -106,7 +106,7 @@ inline bool driver::is_setup() {
 
 void driver::finish() {
 	if (_parser != NULL) {
-		if (_token != TERMINATOR && _code != tagd::TAGL_ERR)
+		if (_token != TERMINATOR && !this->has_error())
 			Parse(_parser, TERMINATOR, NULL, this);
 		if (_token != -1 || _token != 0)
 			Parse(_parser, 0, NULL, this);
@@ -134,7 +134,16 @@ int driver::lookup_pos(const std::string& s) const {
 		return MODIFIER;
 
 	int token;
-	switch(_TS->pos(s)) {
+	tagd::part_of_speech pos = _TS->pos(s);
+
+	if (_trace_on) {
+		// TODO term_pos lookups
+		//tagd::part_of_speech term_pos = _TS->term_pos(s);
+		//std::cerr << "term_pos(" << s << "): " << pos_list_str(term_pos) << std::endl;
+		std::cerr << "pos(" << s << "): " << pos_str(pos) << std::endl;
+	}
+
+	switch(pos) {
 		case tagd::POS_TAG:
 			token = TAG;
 			break;
@@ -216,6 +225,14 @@ tagd_code driver::tagdurl_put(const std::string& tagdurl, const url_query_map_t 
 	this->init();
 
 	_scanner.scan_tagdurl_path(CMD_PUT, tagdurl, qm);
+
+	return this->code();
+}
+
+tagd_code driver::tagdurl_del(const std::string& tagdurl, const url_query_map_t *qm) {
+	this->init();
+
+	_scanner.scan_tagdurl_path(CMD_DEL, tagdurl, qm);
 
 	return this->code();
 }

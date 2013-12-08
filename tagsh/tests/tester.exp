@@ -39,7 +39,7 @@ proc test {n s e} {
 
 	if {$match} { return }
 
-	puts "\n**********   $n failed   **********\n"
+	puts "\n!!!!!!!!!!   $n failed   !!!!!!!!!!\n"
 	incr errors
 
 	if {$errors >= $max_errors} {
@@ -114,9 +114,25 @@ test "get_doggy" \
 	 "get doggy;" \
 	 "doggy is_a mammal(.*)refers_to dog"
 
+test "delete_refers_tag_err" \
+     "delete doggy;" \
+	 "TS_MISUSE"
+
+test "delete_refer_doggy" \
+	 "del doggy refers_to dog;" \
+	 "TAGD_OK"
+
+test "get_doggy_deleted_not_exists" \
+	 "get doggy;" \
+	 "TS_NOT_FOUND"
+
+test "delete_bat" \
+     "delete bat;" \
+	 "TAGD_OK"
+
 test "query_mammal_super" \
 	 "query what is_a mammal;" \
-	 "bat, cat, doggy, whale"
+	 "cat, dog, whale"
 
 test "query_parent_relator" \
 	 "query what is_a animal

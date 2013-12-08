@@ -141,6 +141,44 @@ Results should be:
 The definition will likely be expanded to allow for getting subject lists
 of more than one tag in the future.
 
+#### DELETE Statement
+
+Lets set up a nonsense tag and delete it:
+
+	put fangs _is_a body_part;
+
+	put turtle _is_a mammal
+	has legs, fangs;
+
+To delete a particular relation, use the `delete` or `del` command:
+
+	delete turtle has fangs;
+
+Now the tag will still exist, but the relation will have been deleted:
+
+	get turtle;
+
+Results should be:
+
+	turtle _is_a mammal
+	has legs
+
+But a turtle is not a mammal, so let's delete it:
+
+	delete turtle;
+
+And it should no longer exist:
+
+	get turtle;
+
+	TS_NOT_FOUND _type_of _error
+	_caused_by _unknown_tag = turtle
+
+##### DELETE Grammar:
+
+A `delete` statement has the same grammar as a `put` statement, except that it
+cannot have a super relation.
+
 #### QUERY Statement
 
 Tags (subjects) can be retrieved according to matching predicates using query

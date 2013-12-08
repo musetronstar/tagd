@@ -337,9 +337,6 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_NOT_FOUND");
     }
 
-	// TODO delete referent
-	// TODO delete url
-
 	void test_get_referent(void) {
         space_type TS;
         TS.init(db_fname);
@@ -797,6 +794,21 @@ class Tester : public CxxTest::TestSuite {
 		TS.refers_to(what, "thing");
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
         TS_ASSERT_EQUALS( what, "physical_object" );
+
+		// delete using refers that would delete refers_to
+		TS.del( tagd::tag("thing") );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TS_MISUSE" );
+
+		// test referent gets wiped out
+		TS.put( tagd::referent("thingy", "physical_object") );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
+
+		TS.del( tagd::referent("thingy", "physical_object") );
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
+
+		tagd::abstract_tag t;
+		TS.get(t, "thingy");
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TS_NOT_FOUND" );
 	}
 
     void test_exists(void) {

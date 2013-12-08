@@ -10,6 +10,7 @@
 namespace httagd {
 
 class tagl_callback : public TAGL::callback {
+	protected:
 		TAGL::driver *_driver;
 		tagspace::tagspace *_TS;
 		evhtp_request_t *_req;
@@ -27,17 +28,14 @@ class tagl_callback : public TAGL::callback {
 
 		void cmd_get(const tagd::abstract_tag&);
 		void cmd_put(const tagd::abstract_tag&);
+		void cmd_del(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&); 
         void cmd_error(const TAGL::driver&);
 };
 
-class template_callback : public TAGL::callback, public tagd::errorable {
-		TAGL::driver *_driver;
-		tagspace::tagspace *_TS;
-		evhtp_request_t *_req;
+class template_callback : public tagl_callback, public tagd::errorable {
 		std::string _opt_tpl;
 		std::string _context;
-		bool _trace_on;
 
 	public:
 		template_callback(
@@ -47,15 +45,15 @@ class template_callback : public TAGL::callback, public tagd::errorable {
 				const std::string& opt_tpl,
 				const std::string& context,
 				bool trace = false
-			) : _TS{ts}, _driver{drvr}, _req{req},
-			_opt_tpl{opt_tpl}, _context{context}, _trace_on{trace}
+			) : tagl_callback(ts, drvr, req, trace),
+			_opt_tpl{opt_tpl}, _context{context}
 		{}
 
 		void cmd_get(const tagd::abstract_tag&);
-		void cmd_put(const tagd::abstract_tag&);
+		// void cmd_put(const tagd::abstract_tag&);
+		// void cmd_del(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&); 
         void cmd_error(const TAGL::driver&);
 };
-
 
 } // namespace httagd

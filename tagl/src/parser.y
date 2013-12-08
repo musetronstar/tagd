@@ -12,9 +12,8 @@
 
 %parse_accept
 {
-	if (tagl->code() != tagd::TAGL_ERR) {
+	if (!tagl->has_error()) {
 		tagl->code(tagd::TAGD_OK);
-		// tagl->msg("parse success");
 	}
 }
 
@@ -54,49 +53,37 @@ statement_list ::= statement .
 statement ::= set_statement TERMINATOR .
 {
 	tagl->_cmd = CMD_SET;
-	if (tagl->code() != tagd::TAGL_ERR) {
+	if (!tagl->has_error()) {
 		tagl->code(tagd::TAGD_OK);
 	}
 }
 statement ::= get_statement TERMINATOR .
 {
 	tagl->_cmd = CMD_GET;
-	if (tagl->code() != tagd::TAGL_ERR) {
-		if (tagl->_tag != NULL) {
-			tagl->code(tagd::TAGD_OK);
-			tagl->do_callback();
-		}
-	}
+	if (!tagl->has_error()) 
+		tagl->code(tagd::TAGD_OK);
+	tagl->do_callback();
 }
 statement ::= put_statement TERMINATOR .
 {
 	tagl->_cmd = CMD_PUT;
-	if (tagl->code() != tagd::TAGL_ERR) {
-		if (tagl->_tag != NULL) {
-			tagl->code(tagd::TAGD_OK);
-			tagl->do_callback();
-		}
-	}
+	if (!tagl->has_error()) 
+		tagl->code(tagd::TAGD_OK);
+	tagl->do_callback();
 }
 statement ::= del_statement TERMINATOR .
 {
 	tagl->_cmd = CMD_DEL;
-	if (tagl->code() != tagd::TAGL_ERR) {
-		if (tagl->_tag != NULL) {
-			tagl->code(tagd::TAGD_OK);
-			tagl->do_callback();
-		}
-	}
+	if (!tagl->has_error()) 
+		tagl->code(tagd::TAGD_OK);
+	tagl->do_callback();
 }
 statement ::= query_statement TERMINATOR .
 {
 	tagl->_cmd = CMD_QUERY;
-	if (tagl->code() != tagd::TAGL_ERR) {
-		if (tagl->_tag != NULL) {
-			tagl->code(tagd::TAGD_OK);
-			tagl->do_callback();
-		}
-	}
+	if (!tagl->has_error()) 
+		tagl->code(tagd::TAGD_OK);
+	tagl->do_callback();
 }
 statement ::= TERMINATOR .
 
@@ -117,8 +104,20 @@ push_context ::= context(c) .
 }
 
 get_statement ::= CMD_GET subject .
-// let tagspace return unknown or do context disambiguation
 get_statement ::= CMD_GET unknown .
+/*
+// We can't set TS_NOT_FOUND as an error here
+// because lookup_pos will return UNKNOWN for
+// out of context referents, whereas tagspace::get()
+// will return TS_AMBIGUOUS, so we have to set
+// the tag so it makes it to tagspace::get via the callback
+// TODO have lookup_pos return REFERENT for out of context referents
+get_statement ::= CMD_GET UNKNOWN(U) .
+{
+	tagl->error(tagd::TS_NOT_FOUND,
+		tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *U));
+}
+*/
 get_statement ::= CMD_GET REFERS(R) .
 {
 	if (tagl->_tag != NULL)
@@ -132,8 +131,16 @@ put_statement ::= CMD_PUT subject relations .
 put_statement ::= CMD_PUT referent_relation .
 
 del_statement ::= CMD_DEL subject .
+del_statement ::= CMD_DEL del_subject_super_err .
+{
+	tagl->ferror(tagd::TS_MISUSE,
+		"super must not be specified when deleting tag: %s", tagl->_tag->id().c_str());
+}
 del_statement ::= CMD_DEL subject relations .
 del_statement ::= CMD_DEL referent_relation .
+
+del_subject_super_err ::= subject_super_relation .
+del_subject_super_err ::= subject_super_relation relations .
 
 query_statement ::= CMD_QUERY interrogator_super_relation relations .
 query_statement ::= CMD_QUERY interrogator_super_relation .

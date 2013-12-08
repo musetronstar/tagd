@@ -25,7 +25,7 @@ void scanner::scan(const char *cur) {
 
 next:
 
-	if (_driver->code() == tagd::TAGL_ERR) return;
+	if (_driver->has_error()) return;
 
 /*!re2c
 	re2c:define:YYCTYPE  = "unsigned char";

@@ -77,6 +77,7 @@ class driver : public tagd::errorable {
 		tagd_code execute(const std::string&);
 		tagd_code tagdurl_get(const std::string&, const url_query_map_t* qm = nullptr);
 		tagd_code tagdurl_put(const std::string&, const url_query_map_t* qm = nullptr);
+		tagd_code tagdurl_del(const std::string&, const url_query_map_t* qm = nullptr);
 		tagd_code evbuffer_execute(struct evbuffer*);
 		int token() const { return _token; }
 		int lookup_pos(const std::string&) const;

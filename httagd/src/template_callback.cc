@@ -436,34 +436,6 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 	if (_trace_on) std::cerr << "cmd_get(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 }
 
-void template_callback::cmd_put(const tagd::abstract_tag& t) {
-	tagd::code ts_rc = _TS->put(t);
-	if (ts_rc != tagd::TAGD_OK) {
-		std::string xpnd;
-		tagd_template tt(_TS, _context);
-		tt.expand_error(xpnd, error_tpl.fname, *_TS);
-		evbuffer_add(_req->buffer_out, xpnd.c_str(), xpnd.size());
-	}
-
-	// TODO decide how a successful PUT should be displayed via template
-
-	int res;
-	switch (ts_rc) {
-		case tagd::TAGD_OK:
-			res = EVHTP_RES_OK;
-			break;
-		case tagd::TS_NOT_FOUND:
-			res = EVHTP_RES_NOTFOUND;
-			break;
-		default:
-			res = EVHTP_RES_SERVERR;
-	}
-
-	evhtp_send_reply(_req, res);
-
-	if (_trace_on) std::cerr << "cmd_put(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
-}
-
 void template_callback::cmd_query(const tagd::interrogator& q) {
 	tagd::tag_set T;
 	tagd::code ts_rc = _TS->query(T, q);

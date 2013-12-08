@@ -5,7 +5,6 @@
 #include <assert.h>
 #include <vector>
 #include <functional>
-#include <algorithm>
 #include <cstdio>
 #include <cstdarg>
 
@@ -60,11 +59,12 @@ void finalize_stmt(sqlite3_stmt **stmt) {
 
 #define OK_OR_RET_ERR() if(_code != tagd::TAGD_OK) return _code;
 
+// set temp code because exec will set _code to TAGD_OK
 #define OK_OR_ROLLBACK_RET_ERR() if(_code != tagd::TAGD_OK) { \
 		this->finalize(); \
 		tagd::code c = _code; \
 		this->exec("ROLLBACK"); \
-		return c; \
+		return this->code(c); \
 	}
 
 #define OK_OR_RET_POS_UNKNOWN() if(_code != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
@@ -971,6 +971,25 @@ tagd::code sqlite::put(const tagd::referent& r, flags_t flags) {
 	return this->insert_referent(r, flags);
 }
 
+
+void tag_affected(std::set<tagd::id_type>& terms_affected, const tagd::abstract_tag& t) {
+	auto f_term_affected = [&terms_affected](const tagd::id_type& term) mutable {
+		if (!term.empty())
+			terms_affected.insert(term);
+	};
+
+	f_term_affected(t.id());
+	f_term_affected(t.super_relator());
+	f_term_affected(t.super_object());
+	for ( auto p : t.relations ) {
+		f_term_affected(p.relator);
+		f_term_affected(p.object);
+		f_term_affected(p.modifier);
+	}
+}
+
+
+
 tagd::code sqlite::del(const tagd::abstract_tag& t, flags_t flags) {
     if (t.id().length() > tagd::MAX_TAG_LEN)
         return this->ferror(tagd::TS_ERR_MAX_TAG_LEN, "tag exceeds MAX_TAG_LEN of %d", tagd::MAX_TAG_LEN);
@@ -1011,25 +1030,16 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, flags_t flags) {
 	// make a set off all terms affected, so we can update the term pos after deleting tag
 	std::set<tagd::id_type> terms_affected;
 
-	auto f_term_affected = [&terms_affected](const tagd::id_type& term) mutable {
-		if (!term.empty())
-			terms_affected.insert(term);
-	};
-
-	auto f_tag_affected = [&f_term_affected](const tagd::abstract_tag& t) {
-		f_term_affected(t.id());
-		f_term_affected(t.super_relator());
-		f_term_affected(t.super_object());
-		for ( auto p : t.relations ) {
-			f_term_affected(p.relator);
-			f_term_affected(p.object);
-			f_term_affected(p.modifier);
-		}
-	};
-
     this->exec("BEGIN");
 
 	if (del_tag.relations.empty()) {
+		// don't allow deleting tags having a referent as the id
+		if (t.id() != del_tag.id()) {   // referent was decoded
+			this->ferror(tagd::TS_MISUSE,
+				"will not delete `%s', refers_to `%s'", t.id().c_str(), del_tag.id().c_str());
+			OK_OR_ROLLBACK_RET_ERR();
+		}
+
 		// delete referents, relations, and tag
 		this->delete_refers_to(del_tag.id());
 		OK_OR_ROLLBACK_RET_ERR();
@@ -1047,10 +1057,11 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, flags_t flags) {
         this->query(R, q_refers_to);
 		if (_code != tagd::TS_NOT_FOUND) {
 			OK_OR_ROLLBACK_RET_ERR();
-			std::for_each(R.begin(), R.end(), f_tag_affected);
+			for ( auto r : R )
+				tag_affected(terms_affected, r);
 		}
 
-		f_tag_affected(existing);
+		tag_affected(terms_affected, existing);
 	} else {
 		// delete only del_tag.relations
 		for( auto p : del_tag.relations ) {
@@ -1071,7 +1082,7 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, flags_t flags) {
 		this->delete_relations(del_tag.id(), del_tag.relations);
 		OK_OR_ROLLBACK_RET_ERR();
 
-		f_tag_affected(del_tag);
+		tag_affected(terms_affected, del_tag);
 	}
 
 	for ( auto id : terms_affected ) {
@@ -1251,6 +1262,14 @@ tagd::code sqlite::del(const tagd::referent& r, flags_t flags) {
 
 	if (sqlite3_changes(_db) == 0)
 		return this->ferror(tagd::TS_NOT_FOUND, "delete referent not found: %s", r.str().c_str());
+
+	// make a set off all terms affected, so we can update the term pos after deleting tag
+	std::set<tagd::id_type> terms_affected;
+	tag_affected(terms_affected, r);
+	for ( auto id : terms_affected ) {
+		this->update_pos_occurence(id);
+		OK_OR_ROLLBACK_RET_ERR();
+	}
 
 	return this->code(tagd::TAGD_OK);
 }

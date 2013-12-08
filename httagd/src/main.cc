@@ -54,9 +54,13 @@ static void main_cb(evhtp_request_t *req, void *arg) {
 			tagl.evbuffer_execute(req->buffer_in);
 			tagl.finish();
 			break;
+		case htp_method_DELETE:
+			tagl.tagdurl_del(req->uri->path->full, &qm);
+			tagl.evbuffer_execute(req->buffer_in);
+			tagl.finish();
+			break;
 /*
 		htp_method_HEAD,
-		htp_method_DELETE,
 		htp_method_MKCOL,
 		htp_method_COPY,
 		htp_method_MOVE,
