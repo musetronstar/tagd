@@ -73,13 +73,13 @@ class domain {
 
         tld_code init(const std::string &domain);
 
-        inline tld_code code() const { return _tld_code; }
+        tld_code code() const { return _tld_code; }
 
         bool is_registrable() const;
 
         // will be empty after an unsuccessful init
         // regardless of the domain passed into init
-        inline std::string str() const { return _domain; }
+        std::string str() const { return _domain; }
 
         // the public suffix of a domain
         std::string pub() const;

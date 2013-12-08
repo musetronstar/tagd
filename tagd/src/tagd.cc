@@ -9,27 +9,9 @@
 
 namespace tagd {
 
-inline bool valid_predicate(const predicate &p) {
-    return !p.object.empty();
-}
-
-inline bool valid_predicate(const id_type &object) {
-    return !object.empty();
-}
-
-inline predicate make_predicate(const id_type& r, const id_type& o, const id_type& q) {
-    predicate p = { r, o, q };
-    return p;
-}
-
-inline predicate make_predicate(const id_type& r, const id_type& o) {
-    predicate p = { r, o, "" };
-    return p;
-}
-
 void insert_predicate(predicate_set& P,
     const id_type &relator, const id_type &object, const id_type &modifier ) {
-    if (!valid_predicate(object))
+    if (object.empty())
         return;
 
     P.insert(make_predicate(relator, object, modifier));
@@ -164,7 +146,7 @@ bool tag_set_equal(const tag_set A, const tag_set B) {
     return true;
 }
 
-inline bool abstract_tag::operator==(const abstract_tag& rhs) const {
+bool abstract_tag::operator==(const abstract_tag& rhs) const {
 	if (this->pos() == POS_REFERENT)
 		return (const referent&)*this == (const referent&)rhs;
 
@@ -181,7 +163,7 @@ inline bool abstract_tag::operator==(const abstract_tag& rhs) const {
 	);
 }
 
-inline bool abstract_tag::operator<(const abstract_tag& rhs) const {
+bool abstract_tag::operator<(const abstract_tag& rhs) const {
 	assert( !(_rank.empty() && !rhs._rank.empty()) );
 	assert( !(!_rank.empty() && rhs._rank.empty()) );
 
@@ -204,7 +186,7 @@ void abstract_tag::clear() {
 }
 
 tagd_code abstract_tag::relation(const tagd::predicate &p) {
-    if (!valid_predicate(p))
+    if (p.object.empty())
         return TAG_ILLEGAL;
 
     predicate_pair pr = relations.insert(p);
@@ -212,7 +194,7 @@ tagd_code abstract_tag::relation(const tagd::predicate &p) {
 }
 
 tagd_code abstract_tag::relation(const id_type &relator, const id_type &object) {
-    if (!valid_predicate(object))
+    if (object.empty())
         return TAG_ILLEGAL;
 
     predicate_pair pr = relations.insert(make_predicate(relator, object));
@@ -221,7 +203,7 @@ tagd_code abstract_tag::relation(const id_type &relator, const id_type &object) 
 
 tagd_code abstract_tag::relation(
     const id_type &relator, const id_type &object, const id_type &modifier ) {
-    if (!valid_predicate(object))
+    if (object.empty())
         return TAG_ILLEGAL;
 
     predicate_pair pr = relations.insert(make_predicate(relator, object, modifier));
@@ -229,7 +211,7 @@ tagd_code abstract_tag::relation(
 }
 
 tagd_code abstract_tag::not_relation(const tagd::predicate &p) {
-    if (!valid_predicate(p))
+    if (p.object.empty())
         return TAG_ILLEGAL;
 
 	size_t erased = relations.erase(p);
@@ -237,7 +219,7 @@ tagd_code abstract_tag::not_relation(const tagd::predicate &p) {
 }
 
 tagd_code abstract_tag::not_relation(const id_type &relator, const id_type &object) {
-    if (!valid_predicate(object))
+    if (object.empty())
         return TAG_ILLEGAL;
 
 	size_t erased = relations.erase(make_predicate(relator, object));
@@ -304,7 +286,7 @@ id_type referent::context() const {
 // tag output functions
 
 // whether a label should be quoted
-inline bool do_quotes(const id_type& s) {
+bool do_quotes(const id_type& s) {
 	for (size_t i=0; i<s.size(); i++) {
 		if (isspace(s[i]))
 			return true;

@@ -426,7 +426,7 @@ tagd_code url::init_hduri(const std::string &hduri) {
     return code(TAGD_OK);
 }
 
-inline void print_hduri_elem(std::ostream& os, const std::string& elem, int *dropped, bool rev_labels=false) {
+void print_hduri_elem(std::ostream& os, const std::string& elem, int *dropped, bool rev_labels=false) {
 	if (!elem.empty()) {
 		if (*dropped) {
 			os << std::string((*dropped), HDURI_DELIM);

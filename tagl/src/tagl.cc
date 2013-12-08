@@ -89,7 +89,7 @@ void driver::do_callback() {
 
 // sets up scanner and parser, wont init if already setup
 void driver::init() {
-	if (this->is_setup())
+	if (_parser != NULL)
 		return;
 
     // set up parser
@@ -98,10 +98,6 @@ void driver::init() {
 	_code = tagd::TAGL_INIT;
 	// TODO error clear
 	// _msg.clear(); 
-}
-
-inline bool driver::is_setup() {
-	return ( _parser != NULL );
 }
 
 void driver::finish() {

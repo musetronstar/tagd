@@ -3025,7 +3025,7 @@ tagd::code sqlite::prepare(sqlite3_stmt **stmt, const char *sql, const char *lab
     return this->code(tagd::TAGD_OK);
 }
 
-inline tagd::code sqlite::bind_text(sqlite3_stmt**stmt, int i, const char *text, const char*label) {
+tagd::code sqlite::bind_text(sqlite3_stmt**stmt, int i, const char *text, const char*label) {
 	int s_rc;
     if ((s_rc = sqlite3_bind_text(*stmt, i, text, -1, SQLITE_TRANSIENT)) != SQLITE_OK) {
 		finalize_stmt(stmt);
@@ -3035,7 +3035,7 @@ inline tagd::code sqlite::bind_text(sqlite3_stmt**stmt, int i, const char *text,
     return this->code(tagd::TAGD_OK);
 }
 
-inline tagd::code sqlite::bind_int(sqlite3_stmt**stmt, int i, int val, const char*label) {
+tagd::code sqlite::bind_int(sqlite3_stmt**stmt, int i, int val, const char*label) {
     if (sqlite3_bind_int(*stmt, i, val) != SQLITE_OK) {
 		finalize_stmt(stmt);
         return this->ferror(tagd::TS_INTERNAL_ERR, "bind failed: %s", label);
@@ -3044,7 +3044,7 @@ inline tagd::code sqlite::bind_int(sqlite3_stmt**stmt, int i, int val, const cha
     return this->code(tagd::TAGD_OK);
 }
 
-inline tagd::code sqlite::bind_rowid(sqlite3_stmt**stmt, int i, rowid_t id, const char*label) {
+tagd::code sqlite::bind_rowid(sqlite3_stmt**stmt, int i, rowid_t id, const char*label) {
     if (id <= 0)  // interpret as NULL
         return this->bind_null(stmt, i, label);
  
@@ -3056,7 +3056,7 @@ inline tagd::code sqlite::bind_rowid(sqlite3_stmt**stmt, int i, rowid_t id, cons
     return this->code(tagd::TAGD_OK);
 }
 
-inline tagd::code sqlite::bind_null(sqlite3_stmt**stmt, int i, const char*label) {
+tagd::code sqlite::bind_null(sqlite3_stmt**stmt, int i, const char*label) {
     if (sqlite3_bind_null(*stmt, i) != SQLITE_OK) {
 		finalize_stmt(stmt);
         return this->ferror(tagd::TS_INTERNAL_ERR, "bind failed: %s", label);

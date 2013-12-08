@@ -168,12 +168,12 @@ class url : public abstract_tag {
 		}
 
         // TODO this will need to be determined during parsing
-        inline authority_code authority_type() const { return AUTHORITY_HOST; }
+        authority_code authority_type() const { return AUTHORITY_HOST; }
 
         std::string hduri() const;
 
-        inline void clear() { _id.clear(); _code = URL_EMPTY; }
-        inline bool empty() const { return _id.empty(); }
+        void clear() { _id.clear(); _code = URL_EMPTY; }
+        bool empty() const { return _id.empty(); }
 
 		// parse keys/vals from query string and populate map - returns num k/v pairs parsed
 		static size_t parse_query(url_query_map_t&, const std::string&);
@@ -183,7 +183,7 @@ class url : public abstract_tag {
 		static void insert_url_part_relations(tagd::predicate_set&, const url&);
 
     private:
-        inline std::string url_substr(const url_size_t offset, const url_size_t len) const {
+        std::string url_substr(const url_size_t offset, const url_size_t len) const {
             if (len == 0 || this->empty()) return std::string();
             return _id.substr(offset, len);
         }
@@ -195,7 +195,7 @@ class url : public abstract_tag {
 
 		// we have to distinguish between "no password" and "blank password"
 		// empty pass will have non-zero offset and zero length
-		inline bool pass_empty() {
+		bool pass_empty() {
 			return (_pass_offset == 0 && _pass_len == 0);
 		}
 };
