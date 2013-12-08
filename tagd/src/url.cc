@@ -173,7 +173,6 @@ pass:
 host:
     _host_offset = i;
     for (; i < sz; i++) {
-        _id[i] = tolower(_id[i]);
 
         // I wish their were a more elegent way than repeating
         // the same two lines of code for each case
@@ -279,7 +278,7 @@ fragment:
 
 url_ok:
 	this->host_lower();
-    return code(TAGD_OK);
+    return this->code(TAGD_OK);
 }
 
 tagd_code url::init_hduri(const std::string &hduri) {
