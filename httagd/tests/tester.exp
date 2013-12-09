@@ -127,7 +127,7 @@ test "delete_bat" \
 
 test "query_mammal_super" \
 	 "GET" "/mammal/" "" \
-	 "cat, dog, whale"
+	 "dog, cat, whale"
 
 test "query_parent_relator" \
      "GET" "/animal/blood=warm,tail,bark" "" \

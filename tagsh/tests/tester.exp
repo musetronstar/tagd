@@ -132,7 +132,7 @@ test "delete_bat" \
 
 test "query_mammal_super" \
 	 "query what is_a mammal;" \
-	 "cat, dog, whale"
+	 "dog, cat, whale"
 
 test "query_parent_relator" \
 	 "query what is_a animal

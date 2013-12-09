@@ -2345,7 +2345,7 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 
 tagd::code sqlite::get_children(tagd::tag_set& R, const tagd::id_type& super_object, flags_t flags) {
 	this->prepare(&_get_children_stmt,
-        "SELECT idt(tag), idt(super_relator), idt(super_object), idt(pos), idt(rank) "
+        "SELECT idt(tag), idt(super_relator), idt(super_object), pos, rank "
         "FROM tags WHERE super_object = tid(?) "
 		"ORDER BY rank",
         "select children"
@@ -2369,15 +2369,29 @@ tagd::code sqlite::get_children(tagd::tag_set& R, const tagd::id_type& super_obj
     int s_rc;
 
     while ((s_rc = sqlite3_step(_get_children_stmt)) == SQLITE_ROW) {
-		tagd::abstract_tag t(
-			f_transform((const char*) sqlite3_column_text(_get_children_stmt, F_ID)),
-        	f_transform((const char*) sqlite3_column_text(_get_children_stmt, F_SUPER_REL)),
-        	f_transform((const char*) sqlite3_column_text(_get_children_stmt, F_SUPER_OBJ)),
-			(tagd::part_of_speech) sqlite3_column_int(_get_children_stmt, F_POS)
-		);
-        t.rank( (const char*) sqlite3_column_text(_get_children_stmt, F_RANK) );
+        tagd::abstract_tag *t;
+		tagd::part_of_speech pos = (tagd::part_of_speech) sqlite3_column_int(_get_children_stmt, F_POS);
+		if (pos != tagd::POS_URL) {
+			t = new tagd::abstract_tag(
+				f_transform((const char*) sqlite3_column_text(_get_children_stmt, F_ID))
+			);
+		} else {
+			t = new tagd::url();
+			((tagd::url*)t)->init_hduri( (const char*) sqlite3_column_text(_get_children_stmt, F_ID) );
+			if (t->code() != tagd::TAGD_OK) {
+				this->ferror( t->code(), "failed to init related url: %s",
+						(const char*) sqlite3_column_text(_get_children_stmt, F_ID) );
+				delete t;
+				return this->code();
+			}
+		}
+		t->super_relator( f_transform((const char*) sqlite3_column_text(_get_children_stmt, F_SUPER_REL)) );
+		t->super_object( f_transform((const char*) sqlite3_column_text(_get_children_stmt, F_SUPER_OBJ)) );
+		t->pos(pos);
+        t->rank( (const char*) sqlite3_column_text(_get_children_stmt, F_RANK) );
 
-        it = R.insert(it, t);
+        it = R.insert(it, *t);
+		delete t;
     }
 
     return this->code(R.size() == 0 ?  tagd::TS_NOT_FOUND : tagd::TAGD_OK);
