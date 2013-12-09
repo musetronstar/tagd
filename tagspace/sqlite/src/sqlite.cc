@@ -2089,7 +2089,7 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
     if (super_object == "_entity" || super_object.empty()) {
 		if (p.modifier.empty()) {
 			this->prepare(&_related_null_super_stmt,
-				"SELECT idt(subject), idt(super_object), pos, rank, "
+				"SELECT idt(subject), idt(super_relator), idt(super_object), pos, rank, "
 				"idt(relator), idt(object), idt(modifier) "
 				"FROM relations, tags "
 				"WHERE tag = subject "
@@ -2131,7 +2131,7 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 			stmt = _related_null_super_stmt;
 		} else {
 			this->prepare(&_related_null_super_modifier_stmt,
-				"SELECT idt(subject), idt(super_object), pos, rank, "
+				"SELECT idt(subject), idt(super_relator), idt(super_object), pos, rank, "
 				"idt(relator), idt(object), idt(modifier) "
 				"FROM relations, tags "
 				"WHERE tag = subject "
@@ -2179,7 +2179,7 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
     } else {
 		if (p.modifier.empty()) {
 			this->prepare(&_related_stmt,
-				"SELECT idt(subject), idt(super_object), pos, rank, "
+				"SELECT idt(subject), idt(super_relator), idt(super_object), pos, rank, "
 				"idt(relator), idt(object), idt(modifier) "
 				"FROM relations, tags "
 				"WHERE tag = subject "
@@ -2229,7 +2229,7 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 			stmt = _related_stmt;
 		} else {
 			this->prepare(&_related_modifier_stmt,
-				"SELECT idt(subject), idt(super_object), pos, rank, "
+				"SELECT idt(subject), idt(super_relator), idt(super_object), pos, rank, "
 				"idt(relator), idt(object), idt(modifier) "
 				"FROM relations, tags "
 				"WHERE tag = subject "
@@ -2285,12 +2285,13 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
     }
 
     const int F_SUBJECT = 0;
-    const int F_SUPER = 1;
-    const int F_POS = 2;
-    const int F_RANK = 3;
-    const int F_RELATOR = 4;
-    const int F_OBJECT = 5;
-    const int F_MODIFIER = 6;
+    const int F_SUPER_REL = 1;
+    const int F_SUPER_OBJ = 2;
+    const int F_POS = 3;
+    const int F_RANK = 4;
+    const int F_RELATOR = 5;
+    const int F_OBJECT = 6;
+    const int F_MODIFIER = 7;
 
 	id_transform_func_t f_transform =
 		((flags & NO_TRANSFORM_REFERENTS) ?  f_passthrough : _f_encode_referent);
@@ -2318,7 +2319,8 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 			}
 		}
 
-		t->super_object( f_transform((const char*) sqlite3_column_text(stmt, F_SUPER)) );
+		t->super_relator( f_transform((const char*) sqlite3_column_text(stmt, F_SUPER_REL)) );
+		t->super_object( f_transform((const char*) sqlite3_column_text(stmt, F_SUPER_OBJ)) );
 		t->pos(pos);
 		t->rank(rank);
 
