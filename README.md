@@ -143,7 +143,7 @@ of more than one tag in the future.
 
 #### DELETE Statement
 
-Lets set up a nonsense tag and delete it:
+Let's set up a nonsense tag and delete it:
 
 	put fangs _is_a body_part;
 
@@ -553,7 +553,7 @@ Results:
 We can see the Spanish predicate `tiene piel` is available in English as
 `has fur`.
 
-Lets dump all the data we have entered so far to file so we can reuse it:
+Let's dump all the data we have entered so far to file so we can reuse it:
 
 	.dump /tmp/tutorial.tagl
 
@@ -575,14 +575,14 @@ First, fire up the webserver:
 
 httagd should now be listening on port 8082 and using an in-memory database.
 
-You can post valid TAGL to httagd. Lets load the data we just dumped previously:
+You can post valid TAGL to httagd. Let's load the data we just dumped previously:
 
 	curl -XPOST http://localhost:8082/ --data-binary @/tmp/tutorial.tagl
 
 Note, though the .tagl file is UTF-8 text data, the --data-binary option
 prevents curl from messing with the new line characters.
 
-Lets put some data:
+Let's put some data:
 
 	curl -XPUT http://localhost:8082/meow --data 'is_a utterance'
 	curl -XPUT http://localhost:8082/cat --data 'is_a mammal can meow has legs = 4, tail'
