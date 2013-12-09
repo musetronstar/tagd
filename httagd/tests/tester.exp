@@ -143,12 +143,10 @@ test "get_japanese_dog_ambiguous" \
 	 "GET" "/イヌ" "" \
 	 "TS_AMBIGUOUS"
 
-# TODO context cannot be set because that would would imply
-# the service is stateful (though a context as part of a session might be ok),
-# but a context could be allowed as part of the query string
-# test "get_japanese_dog" \
-#	 "GET "/イヌ?_context=japanese" "" \
-#	 "イヌ is_a mammal(.*)refers_to dog"
+# contextual get
+test "get_japanese_dog" \
+	 "GET" "/イヌ?c=japanese" "" \
+	 "イヌ is_a mammal(.*)refers_to dog"
 
 close
 wait
