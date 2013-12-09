@@ -164,6 +164,9 @@ int driver::lookup_pos(const std::string& s) const {
 		case tagd::POS_CONTEXT:
 			token = CONTEXT;
 			break;
+		case tagd::POS_URL:
+			token = URL;
+			break;
 		default:  // POS_UNKNOWN
 			token = UNKNOWN;
 	}

@@ -22,7 +22,7 @@
 	switch(yymajor) { // token that caused error
 		case UNKNOWN:
 			if (TOKEN != NULL)
-				tagl->error(tagd::TAGL_ERR, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *TOKEN));
+				tagl->error(tagd::TS_NOT_FOUND, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *TOKEN));
 			else
 				tagl->error(tagd::TAGL_ERR, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
 			break;
@@ -382,4 +382,8 @@ object ::= TAG(T) EQUALS MODIFIER(M) .
 object ::= TAG(T) .
 {
 	tagl->_tag->relation(tagl->_relator, *T);
+}
+object ::= URL(U) .
+{
+	tagl->_tag->relation(tagl->_relator, *U);
 }

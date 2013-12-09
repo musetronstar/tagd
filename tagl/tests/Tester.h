@@ -292,14 +292,14 @@ class Tester : public CxxTest::TestSuite {
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
 		tagd_code tc = tagl.execute("PUT dog snarfs animal");
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
 	}
 
     void test_unknown_super_object(void) {
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
 		tagd_code tc = tagl.execute("PUT dog _is_a snarfadoodle");
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
 	}
 
     void test_subject_predicate(void) {
@@ -671,7 +671,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd_code tc = tagl.execute(
 		  "PUT dog _is_a snarf _has legs"
 		);
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
 	}
 
     void test_ignore_newline_eof_error(void) {

@@ -150,7 +150,7 @@ test "get_japanese_dog_ambiguous" \
 
 test "set_context_not_found" \
      "set _context caca" \
-	 "TAGL_ERR"
+	 "TS_NOT_FOUND"
 
 test_neg "set_context_animal" \
          "set _context animal" \
