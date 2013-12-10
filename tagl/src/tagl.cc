@@ -197,8 +197,7 @@ tagd_code driver::parseln(const std::string& line) {
 		return this->code();
 	}
 
-	scanner scnr(this);
-	scnr.scan(line.c_str());
+	_scanner.scan(line.c_str());
 
 	return this->code();
 }
