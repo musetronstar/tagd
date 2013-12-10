@@ -145,6 +145,10 @@ del_subject_super_err ::= subject_super_relation relations .
 query_statement ::= CMD_QUERY interrogator_super_relation relations .
 query_statement ::= CMD_QUERY interrogator_super_relation .
 query_statement ::= CMD_QUERY interrogator relations .
+query_statement ::= CMD_QUERY interrogator super_relator REFERENT(R) query_referent_relations .
+{
+	tagl->_tag->super_object(*R);
+}
 query_statement ::= CMD_QUERY interrogator query_referent_relations .
 {
 	tagl->_tag->super_object(HARD_TAG_REFERENT);
