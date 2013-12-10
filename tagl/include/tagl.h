@@ -34,7 +34,7 @@ class callback {
 
 class scanner {
 		driver *_driver;
-		int lookup_pos(const std::string&);
+		size_t process_block_comment(const char *);
 	public:
 		scanner(driver *d) : _driver(d) {}
 		~scanner() {}
@@ -43,12 +43,13 @@ class scanner {
 };
 
 class driver : public tagd::errorable {
+		friend void ::yy_reduce(yyParser *, int);
+		friend class TAGL::scanner;
+
 		scanner _scanner;
-
-		// lemon parser context
-		void* _parser;
-
-		int _token;  // last token scanned
+		void* _parser;	// lemon parser context
+		int _token;		// last token scanned
+		bool _block_comment_open;
 
 		static bool _trace_on;
 
@@ -58,10 +59,6 @@ class driver : public tagd::errorable {
 
 		tagspace::tagspace *_TS;
 		callback *_callback;
-
-		friend void ::yy_reduce(yyParser *, int);
-		friend class TAGL::scanner;
-
 		int _cmd;
 		tagd::abstract_tag *_tag;  // tag of the current statement
 		tagd::id_type _relator;    // current relator

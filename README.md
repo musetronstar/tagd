@@ -122,6 +122,13 @@ Where TAG and MODIFIER are UTF-8 labels composed of alphanumeric characters and
 underscores and a QUANTIFIER is a number.  The `SUPER TAG` predicate defines
 the subject as being subordinate to (i.e. "is a" or child relation) another tag.
 
+##### Comments:
+
+Comments can be used in TAGL like this:
+
+	-- this is a comment until the end of line
+	-* this is a block comment *-	
+
 #### GET Statement
 
 Now we can get the tag we've defined:

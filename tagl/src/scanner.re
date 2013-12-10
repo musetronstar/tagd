@@ -9,6 +9,21 @@
 
 namespace TAGL {
 
+size_t scanner::process_block_comment(const char *cur) {
+	const char *start = cur;
+	this->_driver->_block_comment_open = true;
+
+	while(*cur != '\0') {
+		// close of block comment "*-"
+		if (*(cur++) == '*' && *(cur++) == '-') {
+			this->_driver->_block_comment_open = false;
+			break;
+		}
+	}
+
+	return (cur - start);
+}
+
 void scanner::scan(const char *cur) {
 
 	const char *beg = cur;
@@ -23,6 +38,15 @@ void scanner::scan(const char *cur) {
 
 #define YYMARKER        mark
 
+	// this may be a continuation of the last scan,
+	// which may have ended in the middle of a block comment
+	if (this->_driver->_block_comment_open) {
+		cur += this->process_block_comment(cur);
+		if (_driver->_trace_on)
+			std::cerr << "comment: " << std::string(beg, (cur-beg)) << std::endl;
+		beg = cur;
+	}
+
 next:
 
 	if (_driver->has_error()) return;
@@ -34,16 +58,35 @@ next:
 	re2c:yych:conversion = 1;
 	re2c:indent:top      = 1;
 
-	([ \t\r]*[\n]){2,}   { PARSE(TERMINATOR); }
+	"--" .* ("\n"|[\000])
+	{	// comment
+		if (_driver->_trace_on)
+			std::cerr << "comment: " << std::string(beg, (cur-beg)) << std::endl;
+		beg = cur;
+		goto next;
+	}
 
-	[ \t\n\r]            {  // SPACE
-	                        beg = cur;
-	                        goto next;
-	                     }
-	
+	"-*"
+	{	// block comment
+		cur += 2;
+		cur += this->process_block_comment(cur);
+		if (_driver->_trace_on)
+			std::cerr << "comment: " << std::string(beg, (cur-beg)) << std::endl;
+		beg = cur;
+		goto next;
+	}
+
+	([ \t\r]*[\n]){2,}       { PARSE(TERMINATOR); }
+
+	[ \t\n\r]
+	{  // whitespace
+		beg = cur;
+		goto next;
+	}
+
 	[a-zA-Z]+[a-zA-Z.+-]* "://" [^\000 \t\r\n'"]+
-	                     {  PARSE_VALUE(URL); }
-	
+	                         {  PARSE_VALUE(URL); }
+		
 	[Ss][Ee][Tt]             { PARSE(CMD_SET); }
 	[Gg][Ee][Tt]             { PARSE(CMD_GET); }
 	[Pp][Uu][Tt]             { PARSE(CMD_PUT); }
@@ -51,8 +94,7 @@ next:
 	[Dd][Ee][Ll]             { PARSE(CMD_DEL); }
 	[Qq][Uu][Ee][Rr][Yy]     { PARSE(CMD_QUERY); }
 
-	[0-9]+               {
-	                        // TODO NUM;
+	[0-9]+               { // TODO NUM;
 	                        PARSE_VALUE(QUANTIFIER);
 	                     }
 
@@ -62,14 +104,11 @@ next:
 	"="                  { PARSE(EQUALS); }
 	";"                  { PARSE(TERMINATOR); }
 
-	[^\000 \t\r\n;,='"]+  { goto lookup_parse; }
+	[^\000 \t\r\n;,='"-]+  { goto lookup_parse; }
 
-	[\000]               {
-	                        return;
-	                     }
+	[\000]               { return; }
 
-	[^]                  {
-	                        // ANY
+	[^]                  { // ANY
 	                        return;
 	                     }
 

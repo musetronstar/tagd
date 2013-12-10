@@ -21,20 +21,17 @@ bool driver::_trace_on = false;
 
 driver::driver(tagspace::tagspace *ts) :
 		tagd::errorable(tagd::TAGL_INIT), _scanner(this), _parser(NULL),
-		_token(-1), _TS(NULL), _callback(NULL),
+		_token(-1), _block_comment_open(false), _TS(ts), _callback(NULL),
 		_cmd(), _tag(NULL), _relator()
 {
-	_TS = ts;
 	this->init();
 }
 
 driver::driver(tagspace::tagspace *ts, callback *cb) :
 		tagd::errorable(tagd::TAGL_INIT), _scanner(this), _parser(NULL),
-		_token(-1), _TS(NULL), _callback(NULL),
+		_token(-1), _block_comment_open(false), _TS(ts), _callback(cb),
 		_cmd(), _tag(NULL), _relator()
 {
-	_TS = ts;
-	_callback = cb;
 	this->init();
 }
 
@@ -101,6 +98,11 @@ void driver::init() {
 }
 
 void driver::finish() {
+	if (_block_comment_open) {
+		this->error(tagd::TAGL_ERR, "unclosed block comment");
+		_block_comment_open = false;
+	}
+
 	if (_parser != NULL) {
 		if (_token != TERMINATOR && !this->has_error())
 			Parse(_parser, TERMINATOR, NULL, this);

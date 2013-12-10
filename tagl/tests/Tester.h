@@ -714,6 +714,35 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( d.tag().related("_can", "bite") )
 	}
 
+	void test_comment(void) {
+		tagspace_tester TS;
+		tagd_code tc;
+
+		TAGL::driver d(&TS);
+		tc = d.execute(
+				"-- this is a comment\n"
+				"PUT dog _is_a animal --so is this\n"
+				"_has legs, tail, fur-- no space between token and comment\n"
+				"-* i'm a block comment *-\n"
+				"--_can bark, bite\n"
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( d.cmd() , CMD_PUT )
+		TS_ASSERT_EQUALS( d.tag().id() , "dog" )
+		TS_ASSERT_EQUALS( d.tag().super_object() , "animal" )
+		TS_ASSERT( d.tag().related("_has", "legs") )
+		TS_ASSERT( d.tag().related("_has", "tail") )
+		TS_ASSERT( d.tag().related("_has", "fur") )
+		TS_ASSERT( !d.tag().related("_can", "bark") )
+		TS_ASSERT( !d.tag().related("_can", "bite") )
+
+		tc = d.execute(
+				"PUT dog _is_a animal -* i'm a block comment\n"
+				"and I dont' end"
+		);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
+	}
+
     void test_parseln_terminator(void) {
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
