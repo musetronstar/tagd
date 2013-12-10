@@ -502,6 +502,8 @@ void sqlite::close() {
 }
 
 tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t flags) {
+	if (_trace_on)
+		std::cerr << "sqlite::get: " << term << std::endl;
 
 	tagd::part_of_speech term_pos = this->term_pos(term);
 	// std::cerr << "term_pos(" << term << "): " << pos_list_str(term_pos) << std::endl;
@@ -857,6 +859,9 @@ tagd::code sqlite::exists(const tagd::id_type& id) {
 
 // tagd::TS_NOT_FOUND returned if destination undefined
 tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
+	if (_trace_on)
+		std::cerr << "sqlite::put: " << put_tag << std::endl;
+
     if (put_tag.id().length() > tagd::MAX_TAG_LEN)
         return this->ferror(tagd::TS_ERR_MAX_TAG_LEN, "tag exceeds MAX_TAG_LEN of %d", tagd::MAX_TAG_LEN);
 
@@ -991,6 +996,9 @@ void tag_affected(std::set<tagd::id_type>& terms_affected, const tagd::abstract_
 
 
 tagd::code sqlite::del(const tagd::abstract_tag& t, flags_t flags) {
+	if (_trace_on)
+		std::cerr << "sqlite::del: " << t << std::endl;
+
     if (t.id().length() > tagd::MAX_TAG_LEN)
         return this->ferror(tagd::TS_ERR_MAX_TAG_LEN, "tag exceeds MAX_TAG_LEN of %d", tagd::MAX_TAG_LEN);
 
@@ -2400,6 +2408,9 @@ tagd::code sqlite::get_children(tagd::tag_set& R, const tagd::id_type& super_obj
 }
 
 tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& intr) {
+	if (_trace_on)
+		std::cerr << "sqlite::query: " << intr << std::endl;
+
 	tagd::id_type refers, refers_to, context;
     for (auto it = intr.relations.begin(); it != intr.relations.end(); ++it) {
         if (it->relator == HARD_TAG_REFERS)
