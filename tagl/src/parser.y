@@ -358,7 +358,7 @@ relations ::= predicate_list .
 predicate_list ::= relator object_list .
 {
 	// clear the relator so we can tell between a
-	// quantifier following an object vs the next relator
+	// modifier following an object vs the next relator
 	tagl->_relator.clear();
 }
 
@@ -383,6 +383,12 @@ object ::= TAG(T) EQUALS MODIFIER(M) .
 {
 	tagl->_tag->relation(tagl->_relator, *T, *M);
 }
+object ::= TAG(T) EQUALS QUOTED_STR .
+{
+	tagl->_tag->relation(tagl->_relator, *T, tagl->_scanner._quoted_str);
+	tagl->_scanner._quoted_str.clear();
+}
+
 object ::= TAG(T) .
 {
 	tagl->_tag->relation(tagl->_relator, *T);

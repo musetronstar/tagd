@@ -9,20 +9,57 @@
 
 namespace TAGL {
 
+inline size_t eat_until_eol(const char *cur) {
+	const char *start = cur;
+
+	while(*cur != '\0' && *cur != '\n')
+		++cur;	
+
+	return (cur - start);
+}
+
+
 size_t scanner::process_block_comment(const char *cur) {
 	const char *start = cur;
-	this->_driver->_block_comment_open = true;
+	_block_comment_open = true;
 
 	while(*cur != '\0') {
 		// close of block comment "*-"
 		if (*(cur++) == '*' && *(cur++) == '-') {
-			this->_driver->_block_comment_open = false;
+			_block_comment_open = false;
 			break;
 		}
 	}
 
 	return (cur - start);
 }
+
+size_t scanner::process_double_quotes(const char *cur) {
+	const char *start = cur;
+	_double_quotes_open = true;
+
+	while(*cur != '\0') {
+		if (*cur == '\\' && *(cur+1) == '"')  { // escaped double quote
+			cur += 2;
+			continue;
+		}
+		if (*(cur++) == '"') {
+			_double_quotes_open = false;
+			break;
+		}
+	}
+
+	size_t sz = (cur - start);
+	if (sz > 0) {
+		if (_double_quotes_open)
+			_quoted_str.append(start, sz);
+		else	// nip the '"' off the end
+			_quoted_str.append(start, (sz-1));
+	}
+
+	return sz;
+}
+
 
 void scanner::scan(const char *cur) {
 
@@ -40,11 +77,18 @@ void scanner::scan(const char *cur) {
 
 	// this may be a continuation of the last scan,
 	// which may have ended in the middle of a block comment
-	if (this->_driver->_block_comment_open) {
+	if (_block_comment_open) {
 		cur += this->process_block_comment(cur);
 		if (_driver->_trace_on)
-			std::cerr << "comment: " << std::string(beg, (cur-beg)) << std::endl;
+			std::cerr << "comment: `" << std::string(beg, (cur-beg)) << "'" << std::endl;
 		beg = cur;
+	}
+
+	// last scan may have ended in the middle of a double quoted string
+	if (_double_quotes_open) {
+		cur += this->process_double_quotes(cur);
+		if (!_double_quotes_open)
+			goto parse_quoted_str;
 	}
 
 next:
@@ -58,22 +102,29 @@ next:
 	re2c:yych:conversion = 1;
 	re2c:indent:top      = 1;
 
-	"--" .* ("\n"|[\000])
+	"--"
 	{	// comment
-		if (_driver->_trace_on)
-			std::cerr << "comment: " << std::string(beg, (cur-beg)) << std::endl;
+		cur += eat_until_eol(cur);
+		if (_driver->_trace_on) 
+			std::cerr << "comment: `" << std::string(beg, (cur-beg)) << "'" << std::endl;
 		beg = cur;
 		goto next;
 	}
 
 	"-*"
 	{	// block comment
-		cur += 2;
 		cur += this->process_block_comment(cur);
 		if (_driver->_trace_on)
-			std::cerr << "comment: " << std::string(beg, (cur-beg)) << std::endl;
+			std::cerr << "comment: `" << std::string(beg, (cur-beg)) << "'" << std::endl;
 		beg = cur;
 		goto next;
+	}
+
+	"\""
+	{	// double quoted string
+		cur += this->process_double_quotes(cur);
+		if (!_double_quotes_open)
+			goto parse_quoted_str;
 	}
 
 	([ \t\r]*[\n]){2,}       { PARSE(TERMINATOR); }
@@ -118,6 +169,12 @@ next:
 
 parse:
 	_driver->parse_tok(tok, NULL);
+	beg = cur;
+	goto next;
+
+parse_quoted_str:
+	// _quoted_str uses by parser instead of new string pointer - parser clears
+	_driver->parse_tok(QUOTED_STR, NULL);
 	beg = cur;
 	goto next;
 

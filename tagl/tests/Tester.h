@@ -30,6 +30,7 @@ class tagspace_tester : public tagspace::tagspace {
 	public:
 
 		tagspace_tester() {
+			put_test_tag("_entity", "_entity", tagd::POS_TAG);
 			put_test_tag("living_thing", "_entity", tagd::POS_TAG);
 			put_test_tag("animal", "_entity", tagd::POS_TAG);
 			put_test_tag("legs", "_entity", tagd::POS_TAG);
@@ -91,7 +92,18 @@ class tagspace_tester : public tagspace::tagspace {
 			if (t.id() == t.super_object())
 				return this->error(tagd::TS_MISUSE, "_id == _super not allowed!"); 
 
-			db[t.id()] = t;
+			if (t.pos() == tagd::POS_UNKNOWN) {
+				tagd::abstract_tag parent;
+				if (this->get(parent, t.super_object()) == tagd::TAGD_OK) {
+					tagd::abstract_tag cpy = t;
+					cpy.pos(parent.pos());	
+					db[cpy.id()] = cpy;
+				} else {
+					return this->code();
+				}
+			} else {
+				db[t.id()] = t;
+			}
 
 			return this->code(tagd::TAGD_OK);
 		}
@@ -722,9 +734,9 @@ class Tester : public CxxTest::TestSuite {
 		tc = d.execute(
 				"-- this is a comment\n"
 				"PUT dog _is_a animal --so is this\n"
-				"_has legs, tail, fur-- no space between token and comment\n"
-				"-* i'm a block comment *-\n"
-				"--_can bark, bite\n"
+				"_has legs, tail-- no space between token and comment\n"
+				"_has-* i'm a block comment *-fur\n"
+				"--_can bark, bite"
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( d.cmd() , CMD_PUT )
@@ -738,7 +750,7 @@ class Tester : public CxxTest::TestSuite {
 
 		tc = d.execute(
 				"PUT dog _is_a animal -* i'm a block comment\n"
-				"and I dont' end"
+				"and I don't end"
 		);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 	}
@@ -821,6 +833,70 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related("_has", "fur") )
 		TS_ASSERT( tagl.tag().related("_can", "meow") )
 		TS_ASSERT( tagl.tag().related("_can", "bite") )
+	}
+
+	void test_quotes(void) {
+		tagspace_tester TS;
+		callback_tester cb(&TS);
+		TAGL::driver tagl(&TS, &cb);
+		tagd_code tc = tagl.execute(
+			"PUT communication _is_a _entity;\n"
+			"PUT information _is_a communication;\n"
+			"PUT content _is_a information;\n"
+			"PUT message _is_a information;\n"
+			"PUT title _is_a content;"
+		);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		tc = tagl.execute(
+				"PUT my_title _is_a title\n"
+				"_has message = \"my title!\";"
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( cb.last_tag->id(), "my_title" )
+		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "title" )
+		TS_ASSERT( cb.last_tag->related("_has", "message", "my title!") )
+
+		tc = tagl.execute(
+				"PUT my_quoted_title _is_a title\n"
+				"_has message = \"my \\\"quoted\\\" title!\";"
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( cb.last_tag->id(), "my_quoted_title" )
+		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "title" )
+		TS_ASSERT( cb.last_tag->related("_has", "message", "my \\\"quoted\\\" title!") )
+	}
+
+	void test_quotes_parseln(void) {
+		tagspace_tester TS;
+		callback_tester cb(&TS);
+		TAGL::driver tagl(&TS, &cb);
+		tagd_code tc = tagl.execute(
+			"PUT communication _is_a _entity;\n"
+			"PUT information _is_a communication;\n"
+			"PUT content _is_a information;\n"
+			"PUT message _is_a information;\n"
+			"PUT title _is_a content;"
+		);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		tagl.parseln("PUT my_title _is_a title");
+		tagl.parseln("_has message = \"my title!\";");
+		tagl.finish();
+		TS_ASSERT( !tagl.has_error() )
+		if (tagl.has_error()) tagl.print_errors();
+		TS_ASSERT_EQUALS( cb.last_tag->id(), "my_title" )
+		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "title" )
+		TS_ASSERT( cb.last_tag->related("_has", "message", "my title!") )
+
+		tagl.parseln("PUT my_quoted_title _is_a title");
+		tagl.parseln("_has message = \"my \\\"quoted\\\" title!\";");
+		tagl.finish();
+		TS_ASSERT( !tagl.has_error() )
+		if (tagl.has_error()) tagl.print_errors();
+		TS_ASSERT_EQUALS( cb.last_tag->id(), "my_quoted_title" )
+		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "title" )
+		TS_ASSERT( cb.last_tag->related("_has", "message", "my \\\"quoted\\\" title!") )
 	}
 
 	void test_callback(void) {

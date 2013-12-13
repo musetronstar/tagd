@@ -1,22 +1,10 @@
-PUT what _is_a _interrogator
-
-PUT refers_to _refers_to _refers_to
-
-PUT is_a refers_to _is_a
-
-PUT has refers_to _has
-
 PUT can _is_a _relator
 
 PUT about _is_a _relator
 
+PUT what _is_a _interrogator
+
 PUT physical_object _is_a _entity
-
-PUT substance _is_a _entity
-
-PUT body_fluid _is_a substance
-
-PUT blood _is_a body_fluid
 
 PUT living_thing _is_a physical_object
 
@@ -68,6 +56,12 @@ PUT feathers _is_a body_part
 
 PUT fins _is_a body_part
 
+PUT substance _is_a _entity
+
+PUT body_fluid _is_a substance
+
+PUT blood _is_a body_fluid
+
 PUT mind _is_a _entity
 
 PUT knowledge _is_a mind
@@ -94,6 +88,14 @@ PUT language _is_a communication
 
 PUT japanese _is_a language
 
+PUT information _is_a communication
+
+PUT content _is_a information
+
+PUT title _is_a content
+
+PUT message _is_a information
+
 PUT event _is_a _entity
 
 PUT sound _is_a event
@@ -113,31 +115,34 @@ PUT fly _is_a move
 PUT swim _is_a move
 
 PUT mammal
-has blood = warm, teeth
+_has blood = warm, teeth
 
 PUT dog
+_has legs = 4, tail
 can bark
-has legs = 4, tail
 
 PUT cat
+_has legs = 4, tail
 can meow
-has legs = 4, tail
 
 PUT whale
+_has fins
 can swim
-has fins
 
 PUT bat
+_has wings
 can fly
-has wings
 
-PUT snake
-has fangs
+PUT snake _has fangs
 
 PUT bird
+_has feathers, wings
 can fly
-has feathers, wings
 
-PUT spider
-has fangs
+PUT spider _has fangs
 
+PUT refers_to _refers_to _refers_to
+
+PUT is_a _refers_to _is_a
+
+PUT has _refers_to _has

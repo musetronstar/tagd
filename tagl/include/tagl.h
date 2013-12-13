@@ -27,19 +27,32 @@ class callback {
         virtual void cmd_del(const tagd::abstract_tag&) = 0;
         virtual void cmd_query(const tagd::interrogator&) = 0;
         virtual void cmd_error(const TAGL::driver&) = 0;
-
-		// helper function
-		// static bool test_tag_ok(tagspace::tagspace&, const tagd::abstract_tag&);
 };
 
+class driver;
+
 class scanner {
+		friend void ::yy_reduce(yyParser *, int);
+		friend class TAGL::driver;
+
 		driver *_driver;
 		size_t process_block_comment(const char *);
+		size_t process_double_quotes(const char *);
+		bool _block_comment_open;
+		bool _double_quotes_open;
+		std::string _quoted_str;
+
 	public:
-		scanner(driver *d) : _driver(d) {}
+		scanner(driver *d) :
+			_driver(d), _block_comment_open(false), _double_quotes_open(false), _quoted_str() {}
 		~scanner() {}
 		void scan(const char*);
 		void scan_tagdurl_path(int cmd, const std::string&, const url_query_map_t* qm = nullptr);
+		void reset() {
+			_block_comment_open = false;
+			_double_quotes_open = false;
+			_quoted_str.clear();
+		}
 };
 
 class driver : public tagd::errorable {
@@ -49,7 +62,6 @@ class driver : public tagd::errorable {
 		scanner _scanner;
 		void* _parser;	// lemon parser context
 		int _token;		// last token scanned
-		bool _block_comment_open;
 
 		static bool _trace_on;
 

@@ -116,11 +116,15 @@ Now is a good time to define a put statement more formally...
 
 	object ::= TAG EQUALS QUANTIFIER
 	object ::= TAG EQUALS MODIFIER
+	object ::= TAG EQUALS QUOTED_STR
 	object ::= TAG
 
 Where TAG and MODIFIER are UTF-8 labels composed of alphanumeric characters and
-underscores and a QUANTIFIER is a number.  The `SUPER TAG` predicate defines
-the subject as being subordinate to (i.e. "is a" or child relation) another tag.
+underscores and a QUANTIFIER is a number. A modifier can hold spaces and other
+special characters if it is enclosed in double quotes.  Double quotes as part
+of the modifier value must be escaped (i.e. `"my \"quoted\" modifier"`).
+The `SUPER TAG` predicate defines the subject as being subordinate to
+(i.e. "is a" or child relation) another tag.
 
 ##### Comments:
 

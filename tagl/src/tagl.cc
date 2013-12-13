@@ -21,7 +21,7 @@ bool driver::_trace_on = false;
 
 driver::driver(tagspace::tagspace *ts) :
 		tagd::errorable(tagd::TAGL_INIT), _scanner(this), _parser(NULL),
-		_token(-1), _block_comment_open(false), _TS(ts), _callback(NULL),
+		_token(-1), _TS(ts), _callback(NULL),
 		_cmd(), _tag(NULL), _relator()
 {
 	this->init();
@@ -29,7 +29,7 @@ driver::driver(tagspace::tagspace *ts) :
 
 driver::driver(tagspace::tagspace *ts, callback *cb) :
 		tagd::errorable(tagd::TAGL_INIT), _scanner(this), _parser(NULL),
-		_token(-1), _block_comment_open(false), _TS(ts), _callback(cb),
+		_token(-1), _TS(ts), _callback(cb),
 		_cmd(), _tag(NULL), _relator()
 {
 	this->init();
@@ -98,10 +98,11 @@ void driver::init() {
 }
 
 void driver::finish() {
-	if (_block_comment_open) {
+	if (_scanner._block_comment_open)
 		this->error(tagd::TAGL_ERR, "unclosed block comment");
-		_block_comment_open = false;
-	}
+
+	if (_scanner._double_quotes_open)
+		this->error(tagd::TAGL_ERR, "unclosed double quotes");
 
 	if (_parser != NULL) {
 		if (_token != TERMINATOR && !this->has_error())
@@ -112,6 +113,7 @@ void driver::finish() {
 		_parser = NULL;
 	}
 
+	_scanner.reset();
 	_token = -1;
 }
 
