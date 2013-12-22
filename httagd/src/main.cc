@@ -90,10 +90,17 @@ static void main_cb(evhtp_request_t *req, void *arg) {
 	if (!c_val.empty())
 		TS->pop_context();
 
-	if (!TS->ok())
+	if (TS->has_error()) {
+		if (TRACE_ON)
+			TS->print_errors();
 		TS->clear_errors();
-	if (!tagl.ok())
+	}
+
+	if (tagl.has_error()) {
+		if (TRACE_ON)
+			tagl.print_errors();
 		tagl.clear_errors();
+	}
 
 	delete CB;
 }
