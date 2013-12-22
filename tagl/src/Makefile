@@ -4,27 +4,33 @@ YACC =
 
 INC =  -I../include -I../../tagd/include -I../../tagspace/include
 CXXFLAGS += $(INC)
+PARSER_H = ../include/parser.h
 
 all: tagl.o parser.o scanner.o
 
 scanner.o: lemonfiles
 	re2c scanner.re | $(CXX) -c -o $@  -x c++ - $(CXXFLAGS)
 
-tagl.o: tagl.cc parser.cc parser.h
-	$(CXX) -c -o $@ tagl.cc $(CXXFLAGS) $(WFLAGS)
- 
 parser.cc: lemonfiles
  
-parser.h: lemonfiles
+$(PARSER_H): lemonfiles
  
 .PHONY: lemonfiles
 lemonfiles: parser.y
 	lemon parser.y -s
 	mv parser.c parser.cc  # or make will launch bison as a prereq
-	mv parser.h ../include
+	mv parser.h $(PARSER_H)
+
+# token to string case statements
+tokens.inc: $(PARSER_H)
+	grep '#define' $? | awk '{printf "case %s: return \"%s\";\n", $$2, $$2;}' > $@
+
+tagl.o: tokens.inc tagl.cc parser.cc $(PARSER_H)
+	$(CXX) -c -o $@ tagl.cc $(CXXFLAGS) $(WFLAGS)
  
 .PHONY: clean
 clean:
 	rm -f *.o
-	rm -f parser.cc parser.out ../include/parser.h 
+	rm -f *.inc
+	rm -f parser.cc parser.out $(PARSER_H)
 

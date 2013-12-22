@@ -15,6 +15,13 @@ void* ParseFree(void*, void(*freeProc)(void*));
 // debug
 void* ParseTrace(FILE *stream, char *zPrefix);
 
+const char* token_str(int tok) {
+	switch (tok) {
+#include "tokens.inc"
+		default: return "UNKNOWN_TOKEN";
+	}
+}
+
 namespace TAGL {
 
 bool driver::_trace_on = false;
@@ -181,7 +188,7 @@ int driver::lookup_pos(const std::string& s) const {
 void driver::parse_tok(int tok, std::string *s) {
 		_token = tok;
 		if (_trace_on)
-			std::cerr << _token << ": " << (s == NULL ? "NULL" : *s) << std::endl;
+			std::cerr << "line " << _scanner._line_number << ", token " << token_str(_token) << ": " << (s == NULL ? "NULL" : *s) << std::endl;
 		Parse(_parser, _token, s, this);
 }
 
