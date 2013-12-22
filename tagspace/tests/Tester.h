@@ -18,8 +18,8 @@ typedef tagspace::sqlite space_type;
 size_t populate_tags(space_type& TS) {
 	size_t num_referents = 0;
 
-    TS.put( tagd::tag("substance", "_entity") );
-    TS.put( tagd::tag("physical_object", "_entity") );
+    TS.put( tagd::tag("substance", HARD_TAG_ENTITY) );
+    TS.put( tagd::tag("physical_object", HARD_TAG_ENTITY) );
     TS.put( tagd::tag("living_thing", "physical_object") );
     // TODO change plural referents when referents in place
     TS.put( tagd::tag("body_part","physical_object") );
@@ -36,9 +36,9 @@ size_t populate_tags(space_type& TS) {
 	TS.put( tagd::tag("machine", "physical_object") );
 	TS.put( tagd::tag("computer", "machine") );
 
-    TS.put( tagd::tag("mind", "_entity") );
+    TS.put( tagd::tag("mind", HARD_TAG_ENTITY) );
 
-    TS.put( tagd::tag("communication", "_entity") );
+    TS.put( tagd::tag("communication", HARD_TAG_ENTITY) );
     TS.put( tagd::tag("language", "communication") );
 	TS.put( tagd::tag("instruction", "language") );
 	TS.put( tagd::tag("program", "instruction") );
@@ -54,7 +54,7 @@ size_t populate_tags(space_type& TS) {
 	TS.put( tagd::tag("movie", "visual_art") );
 	TS.put( tagd::tag("tv_show", "visual_art") );
 
-    TS.put( tagd::tag("event","_entity") );
+    TS.put( tagd::tag("event",HARD_TAG_ENTITY) );
     TS.put( tagd::tag("sound","event") );
     TS.put( tagd::tag("action","event") );
     TS.put( tagd::tag("utterance","sound") );
@@ -156,24 +156,24 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
         tagd::tag t;
-        ts_rc = TS.get(t, "_entity");
+        ts_rc = TS.get(t, HARD_TAG_ENTITY);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
-        TS_ASSERT_EQUALS(t.id(), "_entity");
-        TS_ASSERT_EQUALS(t.super_object(), "_entity");
+        TS_ASSERT_EQUALS(t.id(), HARD_TAG_ENTITY);
+        TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_ENTITY);
     }
 
     void test_put_get_rank(void) {
         space_type TS;
         TS.init(db_fname);
 
-        tagd::tag a("physical_object", "_entity");
+        tagd::tag a("physical_object", HARD_TAG_ENTITY);
         tagd_code ts_rc = TS.put(a);
 
         tagd::tag b;
         ts_rc = TS.get(b, "physical_object");
         TS_ASSERT_EQUALS(ts_rc, tagd::TAGD_OK);
         TS_ASSERT_EQUALS(b.id(), "physical_object");
-        TS_ASSERT_EQUALS(b.super_object(), "_entity");
+        TS_ASSERT_EQUALS(b.super_object(), HARD_TAG_ENTITY);
 
 		std::string r_dotted = b.rank().dotted_str();
 		// living_thing will be first child
@@ -398,7 +398,7 @@ class Tester : public CxxTest::TestSuite {
         TS.init(db_fname);
         populate_tags(TS);
 
-        tagd::referent thing1("thing", "physical_object", "_entity");
+        tagd::referent thing1("thing", "physical_object", HARD_TAG_ENTITY);
         TS.put(thing1);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
 
@@ -940,11 +940,11 @@ class Tester : public CxxTest::TestSuite {
     void test_move_entity(void) {
         space_type TS;
         TS.init(db_fname);
-        tagd::tag a("animal", "_entity");
+        tagd::tag a("animal", HARD_TAG_ENTITY);
         tagd_code ts_rc = TS.put(a);
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 
-        tagd::tag b("dog", "_entity");
+        tagd::tag b("dog", HARD_TAG_ENTITY);
         ts_rc = TS.put(b);
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 
@@ -1102,7 +1102,7 @@ class Tester : public CxxTest::TestSuite {
         TS.init(db_fname);
         populate_tags(TS);
 
-        tagd::tag t("_caca", "_entity");
+        tagd::tag t("_caca", HARD_TAG_ENTITY);
         tagd_code ts_rc = TS.put(t);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_MISUSE");
 	}

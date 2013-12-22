@@ -267,7 +267,7 @@ tagd::code sqlite::create_terms_table() {
     
     // table exists
     if (s_rc == SQLITE_ROW) {
-        if (this->term_pos("_entity") != tagd::POS_UNKNOWN)
+        if (this->term_pos(HARD_TAG_ENTITY) != tagd::POS_UNKNOWN)
             return tagd::TAGD_OK; // db already initialized
     }
 
@@ -304,10 +304,10 @@ tagd::code sqlite::create_tags_table() {
     // table exists
     if (s_rc == SQLITE_ROW) {
         tagd::tag t;
-        this->get(t, "_entity", NO_TRANSFORM_REFERENTS);
+        this->get(t, HARD_TAG_ENTITY, NO_TRANSFORM_REFERENTS);
 		OK_OR_RET_ERR();
 
-        if (t.id() == "_entity" && t.super_object() == "_entity")
+        if (t.id() == HARD_TAG_ENTITY && t.super_object() == HARD_TAG_ENTITY)
             return tagd::TAGD_OK; // db already initialized
     
         return this->error(tagd::TS_INTERNAL_ERR, "tag table exists but has no _entity row; database corrupt");
@@ -895,7 +895,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
 	}
 */
 
-	if (t.id() == t.super_object() && t.id() != "_entity")
+	if (t.id() == t.super_object() && t.id() != HARD_TAG_ENTITY)
 		return this->ferror(tagd::TS_MISUSE, "_id == _super_object not allowed: %s", t.id().c_str()); 
 
     tagd::abstract_tag existing;
@@ -1510,7 +1510,7 @@ tagd::code sqlite::delete_tag(const tagd::id_type& id) {
 }
 
 tagd::code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& super) {
-    assert( !super.rank().empty() || (super.rank().empty() && super.id() == "_entity") );
+    assert( !super.rank().empty() || (super.rank().empty() && super.id() == HARD_TAG_ENTITY) );
 
     tagd::rank_set R;
 	// TODO, this will be extremely wasteful for large set
@@ -2094,7 +2094,7 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 
     // _entity rank is NULL, so we have to treat it differently
     // subjects will not be filtered according to rank (as _entity is all enpcompassing)
-    if (super_object == "_entity" || super_object.empty()) {
+    if (super_object == HARD_TAG_ENTITY || super_object.empty()) {
 		if (p.modifier.empty()) {
 			this->prepare(&_related_null_super_stmt,
 				"SELECT idt(subject), idt(super_relator), idt(super_object), pos, rank, "
@@ -2976,7 +2976,7 @@ tagd::code sqlite::child_ranks(tagd::rank_set& R, const tagd::id_type& super_obj
             case tagd::TAGD_OK:
                 break;
             case tagd::RANK_EMPTY:
-                if (super_object == "_entity") {
+                if (super_object == HARD_TAG_ENTITY) {
                     // _entity is the only tag having NULL rank
                     // don't insert _entity in the rank_set,
                     // only its children

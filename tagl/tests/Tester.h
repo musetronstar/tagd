@@ -30,29 +30,29 @@ class tagspace_tester : public tagspace::tagspace {
 	public:
 
 		tagspace_tester() {
-			put_test_tag("_entity", "_entity", tagd::POS_TAG);
-			put_test_tag("living_thing", "_entity", tagd::POS_TAG);
-			put_test_tag("animal", "_entity", tagd::POS_TAG);
-			put_test_tag("legs", "_entity", tagd::POS_TAG);
-			put_test_tag("tail", "_entity", tagd::POS_TAG);
-			put_test_tag("fur", "_entity", tagd::POS_TAG);
-			put_test_tag("bark", "_entity", tagd::POS_TAG);
-			put_test_tag("meow", "_entity", tagd::POS_TAG);
-			put_test_tag("bite", "_entity", tagd::POS_TAG);
-			put_test_tag("swim", "_entity", tagd::POS_TAG);
-			put_test_tag("internet_security", "_entity", tagd::POS_TAG);
-			put_test_tag("child", "_entity", tagd::POS_TAG);
-			put_test_tag("action", "_entity", tagd::POS_TAG);
+			put_test_tag(HARD_TAG_ENTITY, HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("living_thing", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("animal", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("legs", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("tail", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("fur", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("bark", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("meow", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("bite", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("swim", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("internet_security", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("child", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("fun", "action", tagd::POS_TAG);
-			put_test_tag("_is_a", "_entity", tagd::POS_SUPER_RELATOR);
-			put_test_tag("about", "_entity", tagd::POS_RELATOR);
-			put_test_tag("_has", "_entity", tagd::POS_RELATOR);
-			put_test_tag("_can", "_entity", tagd::POS_RELATOR);
-			put_test_tag("_what", "_entity", tagd::POS_INTERROGATOR);
+			put_test_tag("_is_a", HARD_TAG_ENTITY, tagd::POS_SUPER_RELATOR);
+			put_test_tag("about", HARD_TAG_ENTITY, tagd::POS_RELATOR);
+			put_test_tag("_has", HARD_TAG_ENTITY, tagd::POS_RELATOR);
+			put_test_tag("_can", HARD_TAG_ENTITY, tagd::POS_RELATOR);
+			put_test_tag("_what", HARD_TAG_ENTITY, tagd::POS_INTERROGATOR);
 			put_test_tag("_referent", "_super", tagd::POS_REFERENT);
-			put_test_tag("_refers", "_entity", tagd::POS_REFERS);
-			put_test_tag("_refers_to", "_entity", tagd::POS_REFERS_TO);
-			put_test_tag("_context", "_entity", tagd::POS_CONTEXT);
+			put_test_tag("_refers", HARD_TAG_ENTITY, tagd::POS_REFERS);
+			put_test_tag("_refers_to", HARD_TAG_ENTITY, tagd::POS_REFERS_TO);
+			put_test_tag("_context", HARD_TAG_ENTITY, tagd::POS_CONTEXT);
 
 			tagd::abstract_tag dog("dog", "animal", tagd::POS_TAG);
 			dog.relation("_has", "legs");
@@ -1256,9 +1256,9 @@ class Tester : public CxxTest::TestSuite {
 		callback_tester cb(&TS);
 		TAGL::driver tagl(&TS, &cb);
 		
-		TS.put(tagd::relator("powered_by","_entity"));
+		TS.put(tagd::relator("powered_by",HARD_TAG_ENTITY));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" )
-		TS.put(tagd::tag("wikimedia","_entity"));
+		TS.put(tagd::tag("wikimedia",HARD_TAG_ENTITY));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" )
 
 		tagd_code tc = tagl.execute(

@@ -879,7 +879,7 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_referent_set(void) {
-		tagd::referent a("thing", "_entity");
+		tagd::referent a("thing", HARD_TAG_ENTITY);
 		tagd::referent b("thing", "monster", "movies");
 		tagd::referent c("thing", "physical_object", "substance");
 

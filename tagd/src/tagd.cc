@@ -164,9 +164,9 @@ bool abstract_tag::operator==(const abstract_tag& rhs) const {
 }
 
 bool abstract_tag::operator<(const abstract_tag& rhs) const {
-	if (_rank.empty() && _id == "_entity")
+	if (_rank.empty() && _id == HARD_TAG_ENTITY)
 		return true;
-	if (rhs._rank.empty() && rhs._id == "_entity")
+	if (rhs._rank.empty() && rhs._id == HARD_TAG_ENTITY)
 		return false;
 
 	assert( !(_rank.empty() && !rhs._rank.empty()) );
