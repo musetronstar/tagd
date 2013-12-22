@@ -942,7 +942,9 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( R.last_error().id() , "TAGD_ERR" ) 
 		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR ) 
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") )
-    }
 
+		R.last_error_relation(tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23"));
+		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23") )
+    }
 
 };

@@ -38,17 +38,23 @@ class scanner {
 		driver *_driver;
 		size_t process_block_comment(const char *);
 		size_t process_double_quotes(const char *);
+		size_t _line_number;
 		bool _block_comment_open;
 		bool _double_quotes_open;
 		std::string _quoted_str;
 
 	public:
 		scanner(driver *d) :
-			_driver(d), _block_comment_open(false), _double_quotes_open(false), _quoted_str() {}
+			_driver(d), _line_number(1), _block_comment_open(false),
+			_double_quotes_open(false), _quoted_str() {}
 		~scanner() {}
+
 		void scan(const char*);
+
 		void scan_tagdurl_path(int cmd, const std::string&, const url_query_map_t* qm = nullptr);
+
 		void reset() {
+			_line_number = 1;
 			_block_comment_open = false;
 			_double_quotes_open = false;
 			_quoted_str.clear();
@@ -75,6 +81,7 @@ class driver : public tagd::errorable {
 		tagd::abstract_tag *_tag;  // tag of the current statement
 		tagd::id_type _relator;    // current relator
 
+		typedef scanner scanner_t;	// for scanner() below
 	public:
 		driver(tagspace::tagspace *ts);
 		driver(tagspace::tagspace *ts, callback *);
@@ -93,6 +100,10 @@ class driver : public tagd::errorable {
 		void parse_tok(int, std::string*);
 
 		int cmd() const { return _cmd; }
+
+		size_t line_number() const {
+			return _scanner._line_number;
+		}
 
 		const tagd::abstract_tag& tag() const {
 			static const tagd::abstract_tag empty_tag;

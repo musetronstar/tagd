@@ -32,6 +32,8 @@
 			else
 				tagl->error(tagd::TAGL_ERR, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
 	}
+	tagl->last_error_relation(
+		tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
 	tagl->do_callback();
 /*
 	std::cerr << "syntax_error stack: " << std::endl;

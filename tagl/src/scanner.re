@@ -24,6 +24,8 @@ size_t scanner::process_block_comment(const char *cur) {
 	_block_comment_open = true;
 
 	while(*cur != '\0') {
+		if (*cur == '\n')
+			_line_number++;
 		// close of block comment "*-"
 		if (*(cur++) == '*' && *(cur++) == '-') {
 			_block_comment_open = false;
@@ -39,6 +41,8 @@ size_t scanner::process_double_quotes(const char *cur) {
 	_double_quotes_open = true;
 
 	while(*cur != '\0') {
+		if (*cur == '\n')
+			_line_number++;
 		if (*cur == '\\' && *(cur+1) == '"')  { // escaped double quote
 			cur += 2;
 			continue;
@@ -107,6 +111,10 @@ next:
 		cur += eat_until_eol(cur);
 		if (_driver->_trace_on) 
 			std::cerr << "comment: `" << std::string(beg, (cur-beg)) << "'" << std::endl;
+		if (*cur == '\n') {
+			cur++;
+			_line_number++;
+		}
 		beg = cur;
 		goto next;
 	}
@@ -127,10 +135,25 @@ next:
 			goto parse_quoted_str;
 	}
 
-	([ \t\r]*[\n]){2,}       { PARSE(TERMINATOR); }
+	([ \t\r]*[\n]){2,}
+	{   // TERMINATOR
+		// increment line_number
+		for (const char *p = beg; p <= cur; ++p) {
+			if (*p == '\n')
+				_line_number++;
+		}
+		PARSE(TERMINATOR);
+	}
 
-	[ \t\n\r]
+	[ \t\r]
 	{  // whitespace
+		beg = cur;
+		goto next;
+	}
+
+	"\n"
+	{	// newline
+		_line_number++;
 		beg = cur;
 		goto next;
 	}

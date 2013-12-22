@@ -492,6 +492,13 @@ class errorable {
 				return _errors[_errors.size()-1];
 		}
 
+		tagd_code last_error_relation(predicate p) {
+			if (_errors.size() == 0)
+				return tagd::TS_NOT_FOUND;
+
+			return _errors[_errors.size()-1].relation(p);
+		}
+
 		// set and return
         tagd_code code(tagd_code c) { if(_code != c) _code = c; return c; }
 

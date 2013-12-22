@@ -59,6 +59,7 @@ tagd::code bootstrap::init_hard_tags(tagspace& TS) {
 	PUT_OR_DIE(HARD_TAG_CAUSED_BY, HARD_TAG_RELATOR, tagd::POS_RELATOR)
 	PUT_OR_DIE(HARD_TAG_UNKNOWN_TAG, "_entity", tagd::POS_TAG)
 	PUT_OR_DIE(HARD_TAG_BAD_TOKEN, "_entity", tagd::POS_TAG)
+	PUT_OR_DIE(HARD_TAG_LINE_NUMBER, "_entity", tagd::POS_TAG)
 
 	return TS.code();
 }

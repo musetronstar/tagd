@@ -732,12 +732,12 @@ class Tester : public CxxTest::TestSuite {
 
 		TAGL::driver d(&TS);
 		tc = d.execute(
-				"-- this is a comment\n"
-				"PUT dog _is_a animal --so is this\n"
-				"_has legs, tail-- no space between token and comment\n"
-				"_has-* i'm a block comment *-fur\n"
-				"--_can bark, bite"
-			);
+			"-- this is a comment\n"
+			"PUT dog _is_a animal --so is this\n"
+			"_has legs, tail-- no space between token and comment\n"
+			"_has-* i'm a block comment *-fur\n"
+			"--_can bark, bite"
+		);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( d.cmd() , CMD_PUT )
 		TS_ASSERT_EQUALS( d.tag().id() , "dog" )

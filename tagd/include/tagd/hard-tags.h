@@ -41,6 +41,7 @@ IMPORTANT: updates here must be reflected in tagspace::init_hard_tags()
 #define HARD_TAG_CAUSED_BY "_caused_by"
 #define HARD_TAG_UNKNOWN_TAG "_unknown_tag"
 #define HARD_TAG_BAD_TOKEN "_bad_token"
+#define HARD_TAG_LINE_NUMBER "_line_number"
 
 // URIs
 // TODO #define HARD_TAG_URL "_uri"   // resources located by URIs
