@@ -244,7 +244,7 @@ tagd_code driver::evbuffer_execute(struct evbuffer *input) {
 
 	size_t sz = evbuffer_get_length(input);
 
-	const size_t buf_sz = 1024 * 4; // 4k
+	const size_t buf_sz = 1024 * 16; // 16k
 	size_t read_sz;
     char buf[buf_sz];
 	size_t offset = 0;
