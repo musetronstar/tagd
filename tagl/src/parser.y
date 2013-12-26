@@ -32,8 +32,12 @@
 			else
 				tagl->error(tagd::TAGL_ERR, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
 	}
-	tagl->last_error_relation(
-		tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
+
+	if (tagl->line_number()) {
+		tagl->last_error_relation(
+			tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
+	}
+
 	tagl->do_callback();
 /*
 	std::cerr << "syntax_error stack: " << std::endl;
@@ -133,10 +137,23 @@ put_statement ::= CMD_PUT subject relations .
 put_statement ::= CMD_PUT referent_relation .
 
 del_statement ::= CMD_DEL subject .
+get_statement ::= CMD_DEL UNKNOWN(U) .
+{
+	tagl->error(tagd::TS_NOT_FOUND,
+		tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *U));
+	if (tagl->line_number()) {
+		tagl->last_error_relation(
+			tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
+	}
+}
 del_statement ::= CMD_DEL del_subject_super_err .
 {
 	tagl->ferror(tagd::TS_MISUSE,
 		"super must not be specified when deleting tag: %s", tagl->_tag->id().c_str());
+	if (tagl->line_number()) {
+		tagl->last_error_relation(
+			tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
+	}
 }
 del_statement ::= CMD_DEL subject relations .
 del_statement ::= CMD_DEL referent_relation .

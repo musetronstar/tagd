@@ -7,6 +7,8 @@
 #include "tagspace.h"
 #include <ctemplate/template.h>
 
+const char* evhtp_res_str(int);
+
 namespace httagd {
 
 class tagl_callback : public TAGL::callback {
@@ -31,6 +33,7 @@ class tagl_callback : public TAGL::callback {
 		void cmd_del(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&); 
         void cmd_error(const TAGL::driver&);
+        void finish(const TAGL::driver&);
 };
 
 class template_callback : public tagl_callback, public tagd::errorable {

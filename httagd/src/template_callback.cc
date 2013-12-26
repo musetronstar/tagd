@@ -476,14 +476,21 @@ void template_callback::cmd_error(const TAGL::driver& D) {
 	evhtp_headers_add_header(_req->headers_out,
 			evhtp_header_new("Content-Type", "text/html", 0, 0));
 	evbuffer_add(_req->buffer_out, xpnd.c_str(), xpnd.size());
-	evhtp_send_reply(_req, EVHTP_RES_SERVERR);
 
-	if (_trace_on) {
-		std::stringstream ss;
+	std::stringstream ss;
+	if (_trace_on)
 		D.print_errors(ss);
-		std::cerr << "res(" << tagd_code_str(D.code()) << "): "
-			<< EVHTP_RES_SERVERR << " EVHTP_RES_SERVERR" << std::endl
-			<< ss.str() << std::endl;
+
+	switch (D.code()) {
+		case tagd::TS_NOT_FOUND:
+			if (_trace_on)
+				std::cerr << "res(" << tagd_code_str(D.code()) << "): " << EVHTP_RES_NOTFOUND << " EVHTP_RES_NOTFOUND" << std::endl << ss.str() << std::endl;
+			evhtp_send_reply(_req, EVHTP_RES_NOTFOUND);
+			break;
+		default:
+			if (_trace_on)
+				std::cerr << "res(" << tagd_code_str(D.code()) << "): " << EVHTP_RES_SERVERR << " EVHTP_RES_SERVERR" << std::endl << ss.str() << std::endl;
+			evhtp_send_reply(_req, EVHTP_RES_SERVERR);
 	}
 }
 

@@ -24,7 +24,11 @@ all : $(BIN)
 main.o : main.cc
 	$(CXX) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
 
-httagd.o : httagd.cc
+# token to string case statements
+evhtp-results.inc: $(LIBEVHTP_DIR)/evhtp.h
+	grep '#define EVHTP_RES_[A-Z]' $? | awk '{printf "case %s: return \"%s\";\n", $$2, $$2;}' > $@
+
+httagd.o : evhtp-results.inc httagd.cc
 	$(CXX) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
  
 template_callback.o : template_callback.cc
@@ -34,4 +38,6 @@ $(BIN) : main.o httagd.o template_callback.o
 	$(CXX) -o $@ $? $(LFLAGS) $(LIBEVHTP) $(LIBEVHTP_LFLAGS) -lctemplate_nothreads
 
 clean :
-	rm -f *.o $(BIN)
+	rm -f *.o
+	rm -f *.inc
+	rm -f $(BIN)

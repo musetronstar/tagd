@@ -27,6 +27,8 @@ class callback {
         virtual void cmd_del(const tagd::abstract_tag&) = 0;
         virtual void cmd_query(const tagd::interrogator&) = 0;
         virtual void cmd_error(const TAGL::driver&) = 0;
+		// does nothing by default, but optionally can be overridden
+        virtual void finish(__attribute__((unused)) const TAGL::driver& D) {}
 };
 
 class driver;

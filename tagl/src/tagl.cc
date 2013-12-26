@@ -45,8 +45,6 @@ driver::driver(tagspace::tagspace *ts, callback *cb) :
 driver::~driver() {
 	if (_tag != NULL)
 		delete _tag;
-
-	this->finish();
 }
 
 void driver::do_callback() {
@@ -122,6 +120,9 @@ void driver::finish() {
 
 	_scanner.reset();
 	_token = -1;
+
+	if (_callback != NULL)
+		_callback->finish(*this);
 }
 
 void driver::trace_on(char* prefix) {
@@ -256,7 +257,7 @@ tagd_code driver::evbuffer_execute(struct evbuffer *input) {
     char buf[buf_sz];
 	size_t offset = 0;
 	std::string leftover;
-	while (1) {
+	while (!this->has_error()) {
 		if (!leftover.empty()) {
 			strncpy(&buf[0], leftover.c_str(), leftover.size());
 			offset = leftover.size();
