@@ -94,10 +94,31 @@ statement ::= query_statement TERMINATOR .
 statement ::= TERMINATOR .
 
 %type context { std::string * }
-set_statement ::= set_context .
-set_context ::= cmd_set_context context_list .
-set_context ::= cmd_set_context EMPTY_STR .
-cmd_set_context ::= CMD_SET CONTEXT .
+set_statement ::= CMD_SET set_context .
+set_statement ::= CMD_SET set_flag .
+%type boolean_value { bool }
+set_flag ::= FLAG(F) boolean_value(b) .
+{
+	// TODO hard tag flags will need to have a flag_value relation holding
+	// the value of the tagspace::flag_t
+	if (*F == HARD_TAG_IGNORE_DUPLICATES) {
+		if (b) {
+			tagl->_flags |= tagspace::F_IGNORE_DUPLICATES;
+		} else {
+			tagl->_flags &= ~(tagspace::F_IGNORE_DUPLICATES);
+		}
+	} else {
+		tagl->ferror(tagd::TAGL_ERR, "bad flag: %s", F->c_str());
+	}
+}
+boolean_value(b) ::= QUANTIFIER(Q) .
+{
+	b = (*Q != "0");
+}
+
+set_context ::= set_context context_list .
+set_context ::= set_context EMPTY_STR .
+set_context ::= CONTEXT .
 {
 	// clear context before pushing, or errors occur if not empty
 	tagl->_TS->clear_context();
@@ -282,6 +303,10 @@ refers(r) ::= SUPER_RELATOR(S) .
 	r = S;
 }
 refers(r) ::= RELATOR(R) .
+{
+	r = R;
+}
+refers(r) ::= REFERS_TO(R) .
 {
 	r = R;
 }

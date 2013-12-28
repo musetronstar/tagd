@@ -17,6 +17,11 @@ namespace TAGL {
 class driver; 
 
 class callback {
+	friend class TAGL::driver;
+
+	protected:
+		driver *_driver;
+
     public:
         callback() {}
         virtual ~callback() {}
@@ -26,12 +31,9 @@ class callback {
         virtual void cmd_put(const tagd::abstract_tag&) = 0;
         virtual void cmd_del(const tagd::abstract_tag&) = 0;
         virtual void cmd_query(const tagd::interrogator&) = 0;
-        virtual void cmd_error(const TAGL::driver&) = 0;
-		// does nothing by default, but optionally can be overridden
-        virtual void finish(__attribute__((unused)) const TAGL::driver& D) {}
+        virtual void cmd_error() = 0;
+        virtual void finish() {} // optionally, can be overridden
 };
-
-class driver;
 
 class scanner {
 		friend void ::yy_reduce(yyParser *, int);
@@ -70,6 +72,7 @@ class driver : public tagd::errorable {
 		scanner _scanner;
 		void* _parser;	// lemon parser context
 		int _token;		// last token scanned
+		tagspace::flags_t _flags;
 
 		static bool _trace_on;
 
@@ -84,12 +87,13 @@ class driver : public tagd::errorable {
 		tagd::id_type _relator;    // current relator
 
 		typedef scanner scanner_t;	// for scanner() below
+
 	public:
 		driver(tagspace::tagspace *ts);
 		driver(tagspace::tagspace *ts, callback *);
 		~driver();
 
-		void callback_ptr(callback * c) { _callback = c; }
+		void callback_ptr(callback * c) { _callback = c; c->_driver = this; }
 		callback *callback_ptr() { return _callback; }
 		tagd_code parseln(const std::string& = std::string());
 		tagd_code execute(const std::string&);
@@ -98,6 +102,7 @@ class driver : public tagd::errorable {
 		tagd_code tagdurl_del(const std::string&, const url_query_map_t* qm = nullptr);
 		tagd_code evbuffer_execute(struct evbuffer*);
 		int token() const { return _token; }
+		tagspace::flags_t flags() const { return _flags; }
 		int lookup_pos(const std::string&) const;
 		void parse_tok(int, std::string*);
 

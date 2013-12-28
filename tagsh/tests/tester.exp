@@ -114,6 +114,18 @@ test "get_doggy" \
 	 "get doggy;" \
 	 "doggy is_a mammal(.*)refers_to dog"
 
+test "put_duplicate" \
+     "put cat _is_a mammal;" \
+	 "TS_DUPLICATE"
+
+test "put_ignore_duplicate" \
+     "set _ignore_duplicates 1;\nput cat _is_a mammal;" \
+	 "TAGD_OK"
+
+test "put_unignore_duplicate" \
+     "set _ignore_duplicates 0;\nput cat _is_a mammal;" \
+	 "TS_DUPLICATE"
+
 test "delete_refers_tag_err" \
      "delete doggy;" \
 	 "TS_MISUSE"

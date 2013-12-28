@@ -8,7 +8,7 @@ tagd::code bootstrap::put_hard_tag(
 		tagspace& TS, const tagd::id_type& id,
 		const tagd::id_type& super, const tagd::part_of_speech& pos) {
 	tagd::abstract_tag t(id, super, pos);
-	tagd::code rs = TS.put(t, (NO_POS_CAST|NO_TRANSFORM_REFERENTS));
+	tagd::code rs = TS.put(t, (F_NO_POS_CAST|F_NO_TRANSFORM_REFERENTS));
 	if (!((rs == tagd::TAGD_OK)||(rs == tagd::TS_DUPLICATE))) {
 		std::cerr << "bootstrap err put_hard_tag: id, pos: " << pos_str(pos) << std::endl;
 		TS.print_errors();
@@ -40,6 +40,9 @@ tagd::code bootstrap::init_hard_tags(tagspace& TS) {
 	PUT_OR_DIE(HARD_TAG_REFERS, HARD_TAG_RELATOR, tagd::POS_REFERS)       // relation that refers a _referent
 	PUT_OR_DIE(HARD_TAG_REFERS_TO, HARD_TAG_RELATOR, tagd::POS_REFERS_TO) // relation that refers the _referent to the tag
 	PUT_OR_DIE(HARD_TAG_CONTEXT, HARD_TAG_RELATOR, tagd::POS_CONTEXT)	  // relation that defines the context of a _referent
+
+	PUT_OR_DIE(HARD_TAG_FLAG, HARD_TAG_ENTITY, tagd::POS_FLAG)
+	PUT_OR_DIE(HARD_TAG_IGNORE_DUPLICATES, HARD_TAG_FLAG, tagd::POS_FLAG)
 
 	PUT_OR_DIE(HARD_TAG_URL_PART, HARD_TAG_ENTITY, tagd::POS_TAG) 
 	PUT_OR_DIE(HARD_TAG_HOST, HARD_TAG_URL_PART, tagd::POS_TAG) 

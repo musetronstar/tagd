@@ -203,7 +203,7 @@ class sqlite: public tagspace {
         // update - updated, new destination
         tagd_code update(const tagd::abstract_tag&, const tagd::abstract_tag&);
 
-        tagd_code insert_relations(const tagd::abstract_tag&);
+        tagd_code insert_relations(const tagd::abstract_tag&, const flags_t& = flags_t());
 		tagd_code insert_referent(const tagd::referent&, const flags_t& = flags_t());
 
 		void encode_referent(tagd::id_type&, const tagd::id_type&);

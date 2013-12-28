@@ -304,7 +304,7 @@ tagd::code sqlite::create_tags_table() {
     // table exists
     if (s_rc == SQLITE_ROW) {
         tagd::tag t;
-        this->get(t, HARD_TAG_ENTITY, NO_TRANSFORM_REFERENTS);
+        this->get(t, HARD_TAG_ENTITY, F_NO_TRANSFORM_REFERENTS);
 		OK_OR_RET_ERR();
 
         if (t.id() == HARD_TAG_ENTITY && t.super_object() == HARD_TAG_ENTITY)
@@ -509,7 +509,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t
 	// std::cerr << "term_pos(" << term << "): " << pos_list_str(term_pos) << std::endl;
 
 	if (term_pos == tagd::POS_UNKNOWN) {
-		if (flags & NO_NOT_FOUND_ERROR) {
+		if (flags & F_NO_NOT_FOUND_ERROR) {
 			return this->code(tagd::TS_NOT_FOUND);
 		} else {
 			return this->error(tagd::TS_NOT_FOUND,
@@ -518,7 +518,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t
 	}
 
 	tagd::id_type id;
-	if (flags & NO_TRANSFORM_REFERENTS) {
+	if (flags & F_NO_TRANSFORM_REFERENTS) {
 		id = term;
 	} else if (term_pos & tagd::POS_REFERS) {
 		this->decode_referent(id, term);
@@ -543,7 +543,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t
     const int F_RANK = 4;
 
 	id_transform_func_t f_transform =
-		((flags & NO_TRANSFORM_REFERENTS) ?  f_passthrough : _f_encode_referent);
+		((flags & F_NO_TRANSFORM_REFERENTS) ?  f_passthrough : _f_encode_referent);
 
     int s_rc = sqlite3_step(_get_stmt);
     if (s_rc == SQLITE_ROW) {
@@ -560,7 +560,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t
 		// don't transform _refers_to because it we want it to be accessible
 		// universally and programmatically (the id will be easily recognizable
 		// as a referent due to the presence of a _refers_to predicate)
-		if (!(flags & NO_TRANSFORM_REFERENTS)) {
+		if (!(flags & F_NO_TRANSFORM_REFERENTS)) {
 			if (id != t.id())
 				t.relation(HARD_TAG_REFERS_TO, id);
 		} 
@@ -572,7 +572,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t
 			return this->ferror(tagd::TS_AMBIGUOUS,
 				"%s refers to a tag with no matching context", term.c_str());
 		else {
-			if (flags & NO_NOT_FOUND_ERROR) {
+			if (flags & F_NO_NOT_FOUND_ERROR) {
 				return this->code(tagd::TS_NOT_FOUND);
 			} else {
 				return this->error(tagd::TS_NOT_FOUND,
@@ -619,7 +619,7 @@ tagd::code sqlite::get_relations(tagd::predicate_set& P, const tagd::id_type& id
     const int F_MODIFIER = 2;
 
 	id_transform_func_t f_transform =
-		((flags & NO_TRANSFORM_REFERENTS) ?  f_passthrough : _f_encode_referent);
+		((flags & F_NO_TRANSFORM_REFERENTS) ?  f_passthrough : _f_encode_referent);
 
     int s_rc;
     while ((s_rc = sqlite3_step(_get_relations_stmt)) == SQLITE_ROW) {
@@ -710,7 +710,7 @@ tagd::part_of_speech sqlite::pos(const tagd::id_type& id, flags_t flags) {
 
 
 	tagd::id_type refers_to;
-	if (flags & NO_TRANSFORM_REFERENTS)
+	if (flags & F_NO_TRANSFORM_REFERENTS)
 		refers_to = id;
 	else
 		this->refers_to(refers_to, id);  // refers_to set if id refers to it (in context)
@@ -871,7 +871,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
 	if (put_tag.id()[0] == '_' && !_doing_init)
 		return this->ferror(tagd::TS_MISUSE, "inserting hard tags not allowed: %s", put_tag.id().c_str());
 
-	if (!(flags & NO_POS_CAST)) {
+	if (!(flags & F_NO_POS_CAST)) {
 		switch (put_tag.pos()) {
 			case tagd::POS_URL:
 				return this->put((const tagd::url&)put_tag, flags);
@@ -883,7 +883,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
 	}
 
 	tagd::abstract_tag t;
-	if (flags & NO_TRANSFORM_REFERENTS) {
+	if (flags & F_NO_TRANSFORM_REFERENTS) {
 		t = put_tag;
 	} else {
 		this->decode_referents(t, put_tag);
@@ -899,7 +899,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
 		return this->ferror(tagd::TS_MISUSE, "_id == _super_object not allowed: %s", t.id().c_str()); 
 
     tagd::abstract_tag existing;
-    tagd::code existing_rc = this->get(existing, t.id(), (flags|NO_TRANSFORM_REFERENTS|NO_NOT_FOUND_ERROR));
+    tagd::code existing_rc = this->get(existing, t.id(), (flags|F_NO_TRANSFORM_REFERENTS|F_NO_NOT_FOUND_ERROR));
 
     if (existing_rc != tagd::TAGD_OK && existing_rc != tagd::TS_NOT_FOUND)
         return existing_rc; // err set by get
@@ -913,12 +913,12 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
             if (t.relations.empty())  // duplicate tag and no relations to insert 
                 return this->ferror(tagd::TS_MISUSE, "cannot put a tag without relations: %s", t.id().c_str());
             else // insert relations
-                return this->insert_relations(t);
+                return this->insert_relations(t, flags);
         }
     }
 
     tagd::abstract_tag destination;
-    tagd::code dest_rc = this->get(destination, t.super_object(), (flags|NO_TRANSFORM_REFERENTS));
+    tagd::code dest_rc = this->get(destination, t.super_object(), (flags|F_NO_TRANSFORM_REFERENTS));
 
     if (dest_rc != tagd::TAGD_OK) {
         if (dest_rc == tagd::TS_NOT_FOUND)
@@ -933,10 +933,14 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
         if ( t.super_relator() == existing.super_relator() &&
 		     t.super_object() == existing.super_object() )
 		{  // same location
-            if (t.relations.empty())  // duplicate tag and no relations to insert 
-                return this->ferror(tagd::TS_DUPLICATE, "duplicate tag: %s", t.id().c_str());
-            else // insert relations
-                return this->insert_relations(t);
+            if (t.relations.empty()) {  // duplicate tag and no relations to insert 
+				if (flags & F_IGNORE_DUPLICATES)
+					return this->code(tagd::TAGD_OK);
+				else
+					return this->ferror(tagd::TS_DUPLICATE, "duplicate tag: %s", t.id().c_str());
+			} else { // insert relations
+                return this->insert_relations(t, flags);
+			}
         }
 
 		// use existing because it has the rank
@@ -954,7 +958,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
     }
 
     if (ins_upd_rc == tagd::TAGD_OK && !t.relations.empty())
-        return this->insert_relations(t);
+        return this->insert_relations(t, flags);
 
     // res from insert/update, (errors will have been set)
     return this->code(ins_upd_rc);
@@ -969,7 +973,7 @@ tagd::code sqlite::put(const tagd::url& u, flags_t flags) {
 	tagd::abstract_tag t = (tagd::abstract_tag) u;
 	t.id(u.hduri());
 	tagd::url::insert_url_part_relations(t.relations, u);
-	return this->put(t, (flags|NO_POS_CAST));
+	return this->put(t, (flags|F_NO_POS_CAST));
 }
 
 tagd::code sqlite::put(const tagd::referent& r, flags_t flags) {
@@ -1008,7 +1012,7 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, flags_t flags) {
 	if (t.id()[0] == '_' && !_doing_init)
 		return this->ferror(tagd::TS_MISUSE, "deleting hard tags not allowed: %s", t.id().c_str());
 
-	if (!(flags & NO_POS_CAST)) {
+	if (!(flags & F_NO_POS_CAST)) {
 		switch (t.pos()) {
 			case tagd::POS_URL:
 				return this->del((const tagd::url&)t, flags);
@@ -1025,14 +1029,14 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, flags_t flags) {
 	}
 
 	tagd::abstract_tag del_tag;
-	if (flags & NO_TRANSFORM_REFERENTS) {
+	if (flags & F_NO_TRANSFORM_REFERENTS) {
 		del_tag = t;
 	} else {
 		this->decode_referents(del_tag, t);
 	}
 
     tagd::abstract_tag existing;
-    this->get(existing, del_tag.id(), (flags|NO_TRANSFORM_REFERENTS));
+    this->get(existing, del_tag.id(), (flags|F_NO_TRANSFORM_REFERENTS));
 	OK_OR_RET_ERR();
 
 	// make a set off all terms affected, so we can update the term pos after deleting tag
@@ -1114,7 +1118,7 @@ tagd::code sqlite::del(const tagd::url& u, flags_t flags) {
 	t.super_relator(tagd::id_type());
 	t.super_object(tagd::id_type());
 	// don't insert url part relations
-	return this->del(t, (flags|NO_POS_CAST));
+	return this->del(t, (flags|F_NO_POS_CAST));
 }
 
 tagd::code sqlite::del(const tagd::referent& r, flags_t flags) {
@@ -1548,7 +1552,6 @@ tagd::part_of_speech sqlite::put_term(const tagd::id_type& t, const tagd::part_o
 		this->insert_term(t, pos);
 		return (this->ok() ? pos : tagd::POS_UNKNOWN);
 	} else if (p == pos) {
-		this->code(tagd::TS_DUPLICATE);
 		return pos;
 	} else {
 		this->update_term(t, (tagd::part_of_speech)(p | pos));
@@ -1735,7 +1738,7 @@ tagd::code sqlite::update(const tagd::abstract_tag& t,
     return this->code(tagd::TAGD_OK);
 }
 
-tagd::code sqlite::insert_relations(const tagd::abstract_tag& t) {
+tagd::code sqlite::insert_relations(const tagd::abstract_tag& t, const flags_t& flags) {
     assert( !t.id().empty() );
     assert( !t.relations.empty() );
 
@@ -1818,10 +1821,14 @@ tagd::code sqlite::insert_relations(const tagd::abstract_tag& t) {
         }
     }  // while
 
-	if (num_inserted == 0)
-		return this->ferror(tagd::TS_DUPLICATE, "duplicate tag: %s", t.id().c_str());
-	else
+	if (num_inserted == 0) {
+		if (flags & F_IGNORE_DUPLICATES)
+			return this->code(tagd::TAGD_OK);
+		else
+			return this->ferror(tagd::TS_DUPLICATE, "duplicate tag: %s", t.id().c_str());
+	} else {
 		return this->code(tagd::TAGD_OK);
+	}
 }
 
 tagd::code sqlite::insert_referent(const tagd::referent& put_ref, const flags_t& flags) {
@@ -1830,7 +1837,7 @@ tagd::code sqlite::insert_referent(const tagd::referent& put_ref, const flags_t&
 	assert( flags < 32 );  // use flags here to suppress unused param warning
 
 	tagd::referent t;
-	if (flags & NO_TRANSFORM_REFERENTS) {
+	if (flags & F_NO_TRANSFORM_REFERENTS) {
 		t = put_ref;
 	} else {
 		this->decode_referents(t, put_ref);
@@ -1882,8 +1889,12 @@ tagd::code sqlite::insert_referent(const tagd::referent& put_ref, const flags_t&
 		std::cerr << "SQLITE_CONSTRAINT: " << errmsg << std::endl;
 
 	ts_sqlite_code ts_sql_rc = sqlite_constraint_type(errmsg);
-	if (ts_sql_rc == TS_SQLITE_UNIQUE) // referents UNIQUE violation
-		return this->ferror(tagd::TS_DUPLICATE, "duplicate referent: %s", t.refers().c_str());
+	if (ts_sql_rc == TS_SQLITE_UNIQUE) { // referents UNIQUE violation
+		if (flags & F_IGNORE_DUPLICATES)
+			return this->code(tagd::TAGD_OK);
+		else
+			return this->ferror(tagd::TS_DUPLICATE, "duplicate referent: %s", t.refers().c_str());
+	}
 
 	if (ts_sql_rc == TS_SQLITE_FK) {
 		this->exists(t.refers_to());
@@ -2080,7 +2091,7 @@ tagd::code sqlite::delete_context(const tagd::id_type& id) {
 tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const tagd::id_type& sup, flags_t flags) {
 	tagd::predicate p;
 	tagd::id_type super_object;
-	if (flags & NO_TRANSFORM_REFERENTS) {
+	if (flags & F_NO_TRANSFORM_REFERENTS) {
 		p = rel;
 		super_object = sup;
 	} else {
@@ -2302,7 +2313,7 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
     const int F_MODIFIER = 7;
 
 	id_transform_func_t f_transform =
-		((flags & NO_TRANSFORM_REFERENTS) ?  f_passthrough : _f_encode_referent);
+		((flags & F_NO_TRANSFORM_REFERENTS) ?  f_passthrough : _f_encode_referent);
 
     R.clear();
     tagd::tag_set::iterator it = R.begin();
@@ -2372,7 +2383,7 @@ tagd::code sqlite::get_children(tagd::tag_set& R, const tagd::id_type& super_obj
     const int F_RANK = 4;
 
 	id_transform_func_t f_transform =
-		((flags & NO_TRANSFORM_REFERENTS) ?  f_passthrough : _f_encode_referent);
+		((flags & F_NO_TRANSFORM_REFERENTS) ?  f_passthrough : _f_encode_referent);
 
 	R.clear();
     tagd::tag_set::iterator it = R.begin();

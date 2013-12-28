@@ -11,7 +11,7 @@ namespace httagd {
 
 void tagl_callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag T;
-	tagd::code ts_rc = _TS->get(T, t.id());
+	tagd::code ts_rc = _TS->get(T, t.id(), _driver->flags());
 
 	std::stringstream ss;
 	if (ts_rc == tagd::TAGD_OK) {
@@ -24,7 +24,7 @@ void tagl_callback::cmd_get(const tagd::abstract_tag& t) {
 }
 
 void tagl_callback::cmd_put(const tagd::abstract_tag& t) {
-	tagd::code ts_rc = _TS->put(t);
+	tagd::code ts_rc = _TS->put(t, _driver->flags());
 	std::stringstream ss;
 	if (_TS->has_error()) {
 		_TS->print_errors(ss);
@@ -33,7 +33,7 @@ void tagl_callback::cmd_put(const tagd::abstract_tag& t) {
 }
 
 void tagl_callback::cmd_del(const tagd::abstract_tag& t) {
-	tagd::code ts_rc = _TS->del(t);
+	tagd::code ts_rc = _TS->del(t, _driver->flags());
 	std::stringstream ss;
 	if (_TS->has_error()) {
 		_TS->print_errors(ss);
@@ -43,7 +43,7 @@ void tagl_callback::cmd_del(const tagd::abstract_tag& t) {
 
 void tagl_callback::cmd_query(const tagd::interrogator& q) {
 	tagd::tag_set T;
-	tagd::code ts_rc = _TS->query(T, q);
+	tagd::code ts_rc = _TS->query(T, q, _driver->flags());
 
 	std::stringstream ss;
 	if (ts_rc == tagd::TAGD_OK) {
@@ -56,16 +56,16 @@ void tagl_callback::cmd_query(const tagd::interrogator& q) {
 		evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
 }
 
-void tagl_callback::cmd_error(const TAGL::driver& D) {
+void tagl_callback::cmd_error() {
 	std::stringstream ss;
-	D.print_errors(ss);
+	_driver->print_errors(ss);
 	evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
 }
 
-void tagl_callback::finish(const TAGL::driver& D) {
-	tagd::code most_severe = D.code();
+void tagl_callback::finish() {
+	tagd::code most_severe = _driver->code();
 
-	for (auto e : D.errors() ) {
+	for (auto e : _driver->errors() ) {
 		if (e.code() > most_severe)
 			most_severe = e.code();
 	}

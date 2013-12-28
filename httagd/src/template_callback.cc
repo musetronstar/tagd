@@ -468,10 +468,10 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 	if (_trace_on) std::cerr << "cmd_query(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 }
 
-void template_callback::cmd_error(const TAGL::driver& D) {
+void template_callback::cmd_error() {
 	std::string xpnd;
 	tagd_template tt(_TS, _context);
-	tt.expand_error(xpnd, error_tpl.fname, D);
+	tt.expand_error(xpnd, error_tpl.fname, *_driver);
 
 	evhtp_headers_add_header(_req->headers_out,
 			evhtp_header_new("Content-Type", "text/html", 0, 0));
@@ -479,17 +479,17 @@ void template_callback::cmd_error(const TAGL::driver& D) {
 
 	std::stringstream ss;
 	if (_trace_on)
-		D.print_errors(ss);
+		_driver->print_errors(ss);
 
-	switch (D.code()) {
+	switch (_driver->code()) {
 		case tagd::TS_NOT_FOUND:
 			if (_trace_on)
-				std::cerr << "res(" << tagd_code_str(D.code()) << "): " << EVHTP_RES_NOTFOUND << " EVHTP_RES_NOTFOUND" << std::endl << ss.str() << std::endl;
+				std::cerr << "res(" << tagd_code_str(_driver->code()) << "): " << EVHTP_RES_NOTFOUND << " EVHTP_RES_NOTFOUND" << std::endl << ss.str() << std::endl;
 			evhtp_send_reply(_req, EVHTP_RES_NOTFOUND);
 			break;
 		default:
 			if (_trace_on)
-				std::cerr << "res(" << tagd_code_str(D.code()) << "): " << EVHTP_RES_SERVERR << " EVHTP_RES_SERVERR" << std::endl << ss.str() << std::endl;
+				std::cerr << "res(" << tagd_code_str(_driver->code()) << "): " << EVHTP_RES_SERVERR << " EVHTP_RES_SERVERR" << std::endl << ss.str() << std::endl;
 			evhtp_send_reply(_req, EVHTP_RES_SERVERR);
 	}
 }

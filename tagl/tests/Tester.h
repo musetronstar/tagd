@@ -53,6 +53,8 @@ class tagspace_tester : public tagspace::tagspace {
 			put_test_tag("_refers", HARD_TAG_ENTITY, tagd::POS_REFERS);
 			put_test_tag("_refers_to", HARD_TAG_ENTITY, tagd::POS_REFERS_TO);
 			put_test_tag("_context", HARD_TAG_ENTITY, tagd::POS_CONTEXT);
+			put_test_tag(HARD_TAG_FLAG, HARD_TAG_ENTITY, tagd::POS_FLAG);
+			put_test_tag("_ignore_duplicates", HARD_TAG_FLAG, tagd::POS_FLAG);
 
 			tagd::abstract_tag dog("dog", "animal", tagd::POS_TAG);
 			dog.relation("_has", "legs");
@@ -253,12 +255,12 @@ class callback_tester : public TAGL::callback {
 			last_code = _TS->query(last_tag_set, q);
 		}
 
-		void cmd_error(const TAGL::driver& D) {
-			cmd = D.cmd();
+		void cmd_error() {
+			cmd = _driver->cmd();
 
 			renew_last_tag();
-			if (!D.tag().empty())
-				*last_tag = D.tag();
+			if (!_driver->tag().empty())
+				*last_tag = _driver->tag();
 		}
 };
 
@@ -1034,6 +1036,24 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TS.context().size() , 1 )
 		tc = tagl.execute("SET _context \"\"");
 		TS_ASSERT_EQUALS( TS.context().size() , 0 )
+	}
+
+	void test_set_ignore_duplicates(void) {
+		tagspace_tester TS;
+		TAGL::driver tagl(&TS);
+		TS_ASSERT( tagl.flags() != tagspace::F_IGNORE_DUPLICATES )
+
+		tagd_code tc = tagl.execute("SET _ignore_duplicates 1");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT( tagl.flags() == tagspace::F_IGNORE_DUPLICATES )
+
+		tc = tagl.execute("SET _ignore_duplicates 0");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT( tagl.flags() != tagspace::F_IGNORE_DUPLICATES )
+
+		tc = tagl.execute("SET _ignore_duplicates 5");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT( tagl.flags() == tagspace::F_IGNORE_DUPLICATES )
 	}
 
 	void test_set_context_list(void) {

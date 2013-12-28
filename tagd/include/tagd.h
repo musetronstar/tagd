@@ -121,10 +121,10 @@ typedef enum {
     POS_REFERENT      = 1 << 11,
     POS_REFERS        = 1 << 12,
     POS_REFERS_TO     = 1 << 13,
-    POS_CONTEXT       = 1 << 14
+    POS_CONTEXT       = 1 << 14,
+    POS_FLAG          = 1 << 15
 } part_of_speech;
-const int POS_BEGIN   = 0;
-const int POS_END     = 1 << 15;
+const int POS_END     = 1 << 16;
 
 // wrap in struct so we can define here
 struct tag_util {

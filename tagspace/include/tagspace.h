@@ -7,14 +7,51 @@
 namespace tagspace {
 
 typedef enum {
-	NO_POS_CAST	           = 1 << 0, // don't cast a tag according to its pos (i.e. url, referent...)
-	NO_TRANSFORM_REFERENTS = 1 << 1, // don't transform to/from referent to tag when putting/getting
-	NO_NOT_FOUND_ERROR     = 1 << 2  // don't set error when get() is TS_NOT_FOUND
+	F_NO_POS_CAST	         = 1 << 0, // don't cast a tag according to its pos (i.e. url, referent...)
+	F_NO_TRANSFORM_REFERENTS = 1 << 1, // don't transform to/from referent to tag when putting/getting
+	F_NO_NOT_FOUND_ERROR     = 1 << 2, // don't set error when get() is TS_NOT_FOUND
+	F_IGNORE_DUPLICATES      = 1 << 3  // don't set error when TS_DUPLICATE would be set 
 	// ...
 	//          	= 1 << 31,
 } ts_flags;
+const int TS_FLAGS_END     = 1 << 4;
 
 typedef uint32_t flags_t;
+
+struct flag_util {
+	static std::string flag_str(flags_t f) {
+		if (f == 0)
+			return "EMPTY_FLAGS";
+
+        switch (f) {
+			case F_NO_POS_CAST: return "F_NO_POS_CAST";
+			case F_NO_TRANSFORM_REFERENTS: return "F_NO_TRANSFORM_REFERENTS";
+			case F_NO_NOT_FOUND_ERROR: return "F_NO_NOT_FOUND_ERROR";
+			case F_IGNORE_DUPLICATES: return "F_IGNORE_DUPLICATES";
+            default:          return "FLAG_UNKNOWN";
+        }
+    }
+
+	static std::string flag_list_str(flags_t f) {
+		if (f == 0)
+			return "EMPTY_FLAGS";
+
+		std::string s;
+		int i = 0;
+		ts_flags flag = (ts_flags)(1 << i);
+		if ((f & flag) == flag)
+			s.append( flag_str(flag) );
+		while ((flag=(ts_flags)(1<<(++i))) < TS_FLAGS_END) {
+			if ((f & flag) == flag) {
+				if (s.size() > 0)
+					s.append(",");
+				s.append(flag_str(flag));
+			}
+		}
+
+		return s;
+	}
+};
 
 // pure virtual interface
 class tagspace : public tagd::errorable {

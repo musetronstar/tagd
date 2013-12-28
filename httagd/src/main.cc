@@ -33,9 +33,9 @@ static void main_cb(evhtp_request_t *req, void *arg) {
 	TAGL::driver tagl(TS);
 	TAGL::callback *CB;
 	if (t_val.empty()) {
-		CB = new httagd::tagl_callback(TS, &tagl, req, TRACE_ON);
+		CB = new httagd::tagl_callback(TS, req, TRACE_ON);
 	} else {
-		CB = new httagd::template_callback(TS, &tagl, req, t_val, c_val, TRACE_ON);
+		CB = new httagd::template_callback(TS, req, t_val, c_val, TRACE_ON);
 	}
 	tagl.callback_ptr(CB);
 

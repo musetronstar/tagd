@@ -28,7 +28,7 @@ bool driver::_trace_on = false;
 
 driver::driver(tagspace::tagspace *ts) :
 		tagd::errorable(tagd::TAGL_INIT), _scanner(this), _parser(NULL),
-		_token(-1), _TS(ts), _callback(NULL),
+		_token(-1), _flags(0), _TS(ts), _callback(NULL),
 		_cmd(), _tag(NULL), _relator()
 {
 	this->init();
@@ -36,9 +36,10 @@ driver::driver(tagspace::tagspace *ts) :
 
 driver::driver(tagspace::tagspace *ts, callback *cb) :
 		tagd::errorable(tagd::TAGL_INIT), _scanner(this), _parser(NULL),
-		_token(-1), _TS(ts), _callback(cb),
+		_token(-1), _flags(0), _TS(ts), _callback(cb),
 		_cmd(), _tag(NULL), _relator()
 {
+	cb->_driver = this;
 	this->init();
 }
 
@@ -51,7 +52,7 @@ void driver::do_callback() {
 	if (_callback == NULL)  return;
 
 	if (this->has_error()) {
-		_callback->cmd_error(*this);
+		_callback->cmd_error();
 		return;
 	}
 
@@ -84,7 +85,7 @@ void driver::do_callback() {
 			break;
 		default:
 			this->ferror(tagd::TAGL_ERR, "unknown command: %d", _cmd);
-			_callback->cmd_error(*this);
+			_callback->cmd_error();
 			assert(false);
 	}
 }
@@ -122,7 +123,7 @@ void driver::finish() {
 	_token = -1;
 
 	if (_callback != NULL)
-		_callback->finish(*this);
+		_callback->finish();
 }
 
 void driver::trace_on(char* prefix) {
@@ -178,6 +179,9 @@ int driver::lookup_pos(const std::string& s) const {
 			break;
 		case tagd::POS_URL:
 			token = URL;
+			break;
+		case tagd::POS_FLAG:
+			token = FLAG;
 			break;
 		default:  // POS_UNKNOWN
 			token = UNKNOWN;

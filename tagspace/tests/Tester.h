@@ -916,6 +916,41 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
     }
 
+    void test_ignore_duplicate(void) {
+        space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+        tagd::tag dog("dog", "mammal");
+        tagd_code ts_rc = TS.put(dog, tagspace::F_IGNORE_DUPLICATES); // duplicate tag, no relations
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+        dog.relation("has", "fur");
+        ts_rc = TS.put(dog, tagspace::F_IGNORE_DUPLICATES); // not duplicate, relation was inserted
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+        ts_rc = TS.put(dog, tagspace::F_IGNORE_DUPLICATES); // tag duplicate, relations duplicate
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+		TS.put( tagd::tag("bite", "action") );
+        dog.relation("can", "bite");
+        ts_rc = TS.put(dog, tagspace::F_IGNORE_DUPLICATES); // one duplicate (has tail), one insert (can bite)
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+
+		TS.put(tagd::relator("wags", "move"));
+		dog.relation("wags", "tail");
+        ts_rc = TS.put(dog, tagspace::F_IGNORE_DUPLICATES); // relator makes unique
+
+        tagd::tag a("dog");
+        a.relation("has", "tail");
+        ts_rc = TS.put(a, tagspace::F_IGNORE_DUPLICATES);  // existing tag, empty super, existing relation
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+
+        a.relation("has", "teeth");
+        ts_rc = TS.put(a, tagspace::F_IGNORE_DUPLICATES);  // existing tag, empty super, one new relation
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+    }
+
     void test_move(void) {
         space_type TS;
         TS.init(db_fname);

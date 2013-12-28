@@ -35,6 +35,10 @@ IMPORTANT: updates here must be reflected in tagspace::init_hard_tags()
 #define HARD_TAG_REFERS_TO "_refers_to"	// relation that refers_to a tag
 #define HARD_TAG_CONTEXT   "_context"	// relation that defines the context of a _referent
 
+// flags
+#define HARD_TAG_FLAG "_flag"
+#define HARD_TAG_IGNORE_DUPLICATES "_ignore_duplicates"  // ignore TS_DUPLICATE errors
+
 // errors
 #define HARD_TAG_ERROR "_error"
 #define HARD_TAG_MESSAGE "_message"

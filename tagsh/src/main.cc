@@ -40,7 +40,7 @@ class tagsh_callback : public TAGL::callback {
 		void cmd_put(const tagd::abstract_tag&);
 		void cmd_del(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&); 
-        void cmd_error(const TAGL::driver&);
+        void cmd_error();
 };
 
 tagsh_callback::tagsh_callback(space_type *ts) {
@@ -51,11 +51,11 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag *T;
 	if (t.pos() == tagd::POS_URL) {
 		T = new tagd::url();
-		_TS->get((tagd::url&)*T, t.id());
+		_TS->get((tagd::url&)*T, t.id(), _driver->flags());
 	}
 	else {
 		T = new tagd::abstract_tag();
-		_TS->get(*T, t.id());
+		_TS->get(*T, t.id(), _driver->flags());
 	}
 
 	if(_TS->ok()) {
@@ -69,7 +69,7 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 }
 
 void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
-	tagd::code ts_rc = _TS->put(t);
+	tagd::code ts_rc = _TS->put(t, _driver->flags());
 	if (_TS->ok()) {
 		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
 	} else {
@@ -79,7 +79,7 @@ void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 }
 
 void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
-	tagd::code ts_rc = _TS->del(t);
+	tagd::code ts_rc = _TS->del(t, _driver->flags());
 	if (_TS->ok()) {
 		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
 	} else {
@@ -90,7 +90,7 @@ void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 
 void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 	tagd::tag_set T;
-	_TS->query(T, q);
+	_TS->query(T, q, _driver->flags());
 	switch(_TS->code()) {
 		case tagd::TAGD_OK:
 			if (q.super_object() == HARD_TAG_REFERENT)
@@ -107,8 +107,8 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 	}
 }
 
-void tagsh_callback::cmd_error(const TAGL::driver& D) {
-	D.print_errors();
+void tagsh_callback::cmd_error() {
+	_driver->print_errors();
 }
 
 class tagsh {
@@ -180,6 +180,7 @@ void cmd_show() {
 	std::cout << ".dump [-f] <filename>\t# dump tagspace to file, [-f] forces overwrite existing" << std::endl;
 	std::cout << ".dump_grid\t# dump tagspace to stdout as a grid (specific to sqlite)" << std::endl;
 	std::cout << ".dump_terms\t# dump tagspace terms and part_of_speech lists to stdout" << std::endl;
+	std::cout << ".print_flags\t# print TAGL flags set" << std::endl;
 	std::cout << ".trace_on\t# trace tagl lexer and parser execution path and sql statements" << std::endl;
 	std::cout << ".trace_off\t# turn trace off" << std::endl;
 	std::cout << ".exit\t# exit this shell" << std::endl;
@@ -230,8 +231,14 @@ void tagsh::command(const std::string& cmdline) {
 		return;
 	
 	}
+
 	if ( cmd == ".dump_terms" ) {
 		_TS->dump_terms();
+		return;
+	}
+
+	if ( cmd == ".print_flags" ) {
+		std::cout << tagspace::flag_util::flag_list_str(_driver.flags()) << std::endl;
 		return;
 	}
 
