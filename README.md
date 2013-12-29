@@ -691,8 +691,10 @@ platforms.
 	* Net::IDN::Encode CPAN module to parse the list
 * [re2c](http://re2c) for the lexer/scanner
 * [lemon](http://www.hwaci.com/sw/lemon/lemon.html) for the parser
-* [CxxTest](http://cxxtest.com/) for unit tests
-* [Expect](http://www.tcl.tk/man/expect5.31/expect.1.html) for testing tagsh and httagd
+* For testing
+	* [CxxTest](http://cxxtest.com/) for unit tests
+	* [Expect](http://www.tcl.tk/man/expect5.31/expect.1.html) for testing tagsh and httagd
+	* [Curl](http://curl.haxx.se/) for testing httagd
 * [SQLite v3](http://www.sqlite.org/) libs and development headers
 * For the httagd http server
 	* [libevhtp](https://github.com/ellzey/libevhtp)
