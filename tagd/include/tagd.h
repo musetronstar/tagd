@@ -508,7 +508,7 @@ class errorable {
 
 		// set and return code, set err msg to printf style formatted list
 		tagd_code ferror(tagd::code, const char *, ...);
-		tagd_code verror(tagd::code, const char *, const va_list&);
+		tagd_code verror(tagd::code, const char *, va_list&);
 
 		void clear_errors() { _code = _init; _errors.clear(); }
 
@@ -520,7 +520,7 @@ class errorable {
 struct util {
 	// returns c string of formatted printf string, or NULL on failure
 	static char* csprintf(const char *, ...);
-	static char* csprintf(const char *, const va_list&);
+	static char* csprintf(const char *, va_list&);
 };
 
 }  // namespace tagd

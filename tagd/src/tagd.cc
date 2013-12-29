@@ -357,14 +357,15 @@ std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
 char* util::csprintf(const char *fmt, ...) {
 	va_list args;
 	va_start (args, fmt);
+	char *s = util::csprintf(fmt, args);
 	va_end (args);
 
-	return util::csprintf(fmt, args);
+	return s;
 }
 
 static const size_t CSPRINTF_MAX_SZ = 255;
 static char CSPRINTF_BUF[CSPRINTF_MAX_SZ+1];
-char* util::csprintf(const char *fmt, const va_list& args) {
+char* util::csprintf(const char *fmt, va_list& args) {
 	int sz = vsnprintf(CSPRINTF_BUF, CSPRINTF_MAX_SZ, fmt, args);
 	if (sz <= 0) {
 		std::cerr << "error vsnprintf failed: " << fmt << std::endl;
@@ -410,12 +411,13 @@ tagd_code errorable::error(tagd::code c, const std::string& s) {
 tagd_code errorable::ferror(tagd::code c, const char *errfmt, ...) {
 	va_list args;
 	va_start (args, errfmt);
+	tagd::code tc = this->verror(c, errfmt, args);
 	va_end (args);
 
-	return this->verror(c, errfmt, args);
+	return tc;
 }
 
-tagd_code errorable::verror(tagd::code c, const char *errfmt, const va_list& args) {
+tagd_code errorable::verror(tagd::code c, const char *errfmt, va_list& args) {
 	_code = c;
 
 	char *msg = util::csprintf(errfmt, args);

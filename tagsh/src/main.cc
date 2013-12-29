@@ -23,11 +23,12 @@ typedef tagspace::sqlite space_type;
 int error(const char *errfmt, ...) {
 	va_list args;
 	va_start (args, errfmt);
+	char *err = tagd::util::csprintf(errfmt, args);
 	va_end (args);
 
-	char *err = tagd::util::csprintf(errfmt, args);
 	if (err != NULL)
 		std::perror(err);
+
 	return 1;
 }
 
