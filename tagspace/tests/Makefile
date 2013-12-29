@@ -1,10 +1,10 @@
 TAGD_DIR = ../../tagd
 LIBTAGD = $(TAGD_DIR)/lib/libtagd.a
 PRG_DIR = ../sqlite
-INC = -I../include -I$(TAGD_DIR)/include -I$(PRG_DIR)/include -I $(HOME)/cxxtest
+INC = -I../include -I$(TAGD_DIR)/include -I$(PRG_DIR)/include -I $(HOME)/src/cxxtest
 
 CXX = g++ -std=c++0x
-CXXTEST = $(HOME)/cxxtest/bin/cxxtestgen --error-printer
+CXXTEST = $(HOME)/src/cxxtest/bin/cxxtestgen --error-printer
 CXXFLAGS = -DDEBUG -ggdb
 LFLAGS = -L../lib -ltagspace-sqlite -L$(TAGD_DIR)/lib -ltagd -lsqlite3 
 

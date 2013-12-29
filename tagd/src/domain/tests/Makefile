@@ -1,7 +1,7 @@
 CXX = g++ -std=c++0x
-CXXTEST = $(HOME)/cxxtest/bin/cxxtestgen --error-printer
+CXXTEST = $(HOME)/src/cxxtest/bin/cxxtestgen --error-printer
 CFLAGS = -DDEBUG -ggdb
-INC = -I $(HOME)/cxxtest -I../ -I../../../include
+INC = -I $(HOME)/src/cxxtest -I../ -I../../../include
 OBJS = ../*.o
 
 TESTER_CPP = tester.cpp
