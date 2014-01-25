@@ -43,13 +43,14 @@ class scanner {
 		size_t process_block_comment(const char *);
 		size_t process_double_quotes(const char *);
 		size_t _line_number;
+		bool _comment_open;
 		bool _block_comment_open;
 		bool _double_quotes_open;
 		std::string _quoted_str;
 
 	public:
 		scanner(driver *d) :
-			_driver(d), _line_number(1), _block_comment_open(false),
+			_driver(d), _line_number(1), _comment_open(false), _block_comment_open(false),
 			_double_quotes_open(false), _quoted_str() {}
 		~scanner() {}
 
@@ -59,6 +60,7 @@ class scanner {
 
 		void reset() {
 			_line_number = 1;
+			_comment_open = false;
 			_block_comment_open = false;
 			_double_quotes_open = false;
 			_quoted_str.clear();

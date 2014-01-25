@@ -254,6 +254,12 @@ subject ::= CONTEXT(R) .
 		delete tagl->_tag;
 	tagl->_tag = new tagd::abstract_tag(*R);
 }
+subject ::= FLAG(F) .
+{
+	if (tagl->_tag != NULL)
+		delete tagl->_tag;
+	tagl->_tag = new tagd::abstract_tag(*F);
+}
 
 unknown ::= UNKNOWN(U) .
 {
@@ -439,5 +445,10 @@ object ::= TAG(T) .
 }
 object ::= URL(U) .
 {
-	tagl->_tag->relation(tagl->_relator, *U);
+	tagd::url u(*U);
+	if (u.code() == tagd::TAGD_OK) {
+		tagl->_tag->relation(tagl->_relator, u.hduri());
+	} else {
+		tagl->ferror(u.code(), "bad url: %s", U->c_str());
+	}
 }
