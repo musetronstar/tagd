@@ -18,7 +18,7 @@ namespace tagd {
 
 const size_t MAX_TAG_LEN = 2112;  // We are the Priests of the Temples of Syrinx 
 typedef std::string id_type;
-
+typedef long long int rowid_t;
 struct predicate {
     id_type relator;
     id_type object;
@@ -268,6 +268,7 @@ class abstract_tag {
         void predicates(const predicate_set&);
 
         bool has_relator(const id_type&) const;
+        bool has_relator(const id_type&, predicate_set& how) const;
 		// related to object
         bool related(const id_type& object) const;
         // fill predicate set with predicates matching object, return num matches
@@ -521,6 +522,13 @@ struct util {
 	// returns c string of formatted printf string, or NULL on failure
 	static char* csprintf(const char *, ...);
 	static char* csprintf(const char *, const va_list&);
+};
+
+
+struct hard_tag {
+	static part_of_speech pos(const std::string &id);
+	static tagd_code get(abstract_tag&, const std::string &id);
+	static part_of_speech term_pos(const id_type&, rowid_t*);
 };
 
 }  // namespace tagd

@@ -204,10 +204,16 @@ tagd::code sqlite::create_terms_table() {
 			sqlite3_value_bytes(argv[0])
 		);
 
+		rowid_t term_id;
+		/*
+		tagd::part_of_speech pos = tagd::hard_tag::term_pos(term, &term_id);
+		if (pos != tagd::POS_UNKNOWN) {
+			sqlite3_result_int64(context, term_id);
+			return;
+		}*/
 		// sqlite3 *db = sqlite3_context_db_handle(context);
 
 		sqlite *ts = (sqlite*)sqlite3_user_data(context);
-		rowid_t term_id;
 		tagd::part_of_speech pos = ts->term_pos(term, &term_id);
 		if (pos == tagd::POS_UNKNOWN) {
 			sqlite3_result_null(context);
@@ -505,6 +511,13 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t
 	if (_trace_on)
 		std::cerr << "sqlite::get: " << term << std::endl;
 
+	tagd_code tc = tagd::hard_tag::get(t, term);
+	if (tc != tagd::TS_NOT_FOUND) {
+		// TODO
+		//std::cerr << "hard_tag: " << t << std::endl;
+		//return this->code(tc);
+	}
+
 	tagd::part_of_speech term_pos = this->term_pos(term);
 	// std::cerr << "term_pos(" << term << "): " << pos_list_str(term_pos) << std::endl;
 
@@ -708,6 +721,11 @@ tagd::part_of_speech sqlite::term_id_pos(rowid_t term_id, std::string *term) {
 tagd::part_of_speech sqlite::pos(const tagd::id_type& id, flags_t flags) {
 	assert(id.length() <= tagd::MAX_TAG_LEN);
 
+	tagd::part_of_speech pos = tagd::hard_tag::pos(id);
+	if (pos != tagd::POS_UNKNOWN) {
+		//std::cerr << "hard_tag pos(" << pos_str(pos) << "): " << id << std::endl;
+		return pos;
+	}
 
 	tagd::id_type refers_to;
 	if (flags & F_NO_TRANSFORM_REFERENTS)
@@ -2120,10 +2138,13 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 				  ") || '*'" // all relators <= p.relator
 				 ") "
 				") "
-				"AND object IN ( "
-				 "SELECT tag FROM tags WHERE rank GLOB ( "
-				  "SELECT rank FROM tags WHERE tag = tid(?) "
-				 ") || '*'" // all objects <= p.object
+				"AND ("
+				 "? IS NULL OR "
+				  "object IN ( "
+				   "SELECT tag FROM tags WHERE rank GLOB ( "
+				   "SELECT rank FROM tags WHERE tag = tid(?) "
+				  ") || '*'" // all objects <= p.object
+				 ") "
 				") "
 				"ORDER BY rank",
 				"select related"
@@ -2144,8 +2165,19 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 				OK_OR_RET_ERR();
 			}
 
-			this->bind_text(&_related_null_super_stmt, 3, p.object.c_str(), "object");
-			OK_OR_RET_ERR();
+			if (p.object.empty()) {
+				this->bind_null(&_related_null_super_stmt, 3, "null object");
+				OK_OR_RET_ERR();
+
+				this->bind_null(&_related_null_super_stmt, 4, "object");
+				OK_OR_RET_ERR();
+			} else {
+				this->bind_text(&_related_null_super_stmt, 3, p.object.c_str(), "null object");
+				OK_OR_RET_ERR();
+
+				this->bind_text(&_related_null_super_stmt, 4, p.object.c_str(), "object");
+				OK_OR_RET_ERR();
+			}
 
 			stmt = _related_null_super_stmt;
 		} else {
@@ -2215,10 +2247,13 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 				  ") || '*'" // all relators <= p.relator
 				 ") "
 				") "
-				"AND object IN ( "
-				"SELECT tag FROM tags WHERE rank GLOB ( "
-				"SELECT rank FROM tags WHERE tag = tid(?) "
-				") || '*'" // all objects <= p.object
+				"AND ("
+				 "? IS NULL OR "
+				 "object IN ( "
+				   "SELECT tag FROM tags WHERE rank GLOB ( "
+				    "SELECT rank FROM tags WHERE tag = tid(?) "
+				  ") || '*'" // all objects <= p.object
+				 ") "
 				") "
 				"ORDER BY rank",
 				"select related"
@@ -2242,8 +2277,19 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 				OK_OR_RET_ERR();
 			}
 
-			this->bind_text(&_related_stmt, 4, p.object.c_str(), "object");
-			OK_OR_RET_ERR();
+			if (p.object.empty()) {
+				this->bind_null(&_related_stmt, 4, "null test object");
+				OK_OR_RET_ERR();
+
+				this->bind_null(&_related_stmt, 5, "null object");
+				OK_OR_RET_ERR();
+			} else {
+				this->bind_text(&_related_stmt, 4, p.object.c_str(), "test object");
+				OK_OR_RET_ERR();
+
+				this->bind_text(&_related_stmt, 5, p.object.c_str(), "object");
+				OK_OR_RET_ERR();
+			}
 
 			stmt = _related_stmt;
 		} else {

@@ -11,6 +11,47 @@
 class Tester : public CxxTest::TestSuite {
 	public:
 
+	void test_hard_tag_pos(void) {
+		std::string id(HARD_TAG_ENTITY);
+		tagd::part_of_speech pos = tagd::hard_tag::pos(id);
+		TS_ASSERT_EQUALS(pos, tagd::POS_TAG);
+
+		id = "caca";
+		pos = tagd::hard_tag::pos(id);
+		TS_ASSERT_EQUALS(pos, tagd::POS_UNKNOWN);
+	}
+
+	void test_hard_tag_get(void) {
+		std::string id(HARD_TAG_ENTITY);
+		tagd::abstract_tag t;
+		tagd::code tc = tagd::hard_tag::get(t, id);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(t.id(), HARD_TAG_ENTITY);
+		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
+		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_ENTITY);
+
+		t.clear();
+		id = HARD_TAG_IS_A;
+		tc = tagd::hard_tag::get(t, id);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(t.id(), HARD_TAG_IS_A);
+		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
+		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_SUPER);
+
+		t.clear();
+		id = HARD_TAG_HAS;
+		tc = tagd::hard_tag::get(t, id);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(t.id(), HARD_TAG_HAS);
+		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
+		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_RELATOR);
+
+		t.clear();
+		id = "caca";
+		tc = tagd::hard_tag::get(t, id);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
+	}
+
     void test_utf8_read(void) {
 		std::string str;
 		size_t pos = 0;
@@ -802,6 +843,37 @@ class Tester : public CxxTest::TestSuite {
 
 		TS_ASSERT( fish.related("has", "fins") )
 		TS_ASSERT( fish.related("breaths", "water") )
+    }
+
+	void test_insert_relation_relator(void) {
+        tagd::predicate_set P;
+        tagd::predicate_pair pr;
+        tagd::interrogator q(HARD_TAG_INTERROGATOR);
+		tagd::code tc = q.relation(tagd::make_predicate("has",""));
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+        tc = q.relation(tagd::make_predicate("breaths",""));
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS( q.relations.size() , 2 );
+
+		TS_ASSERT( q.has_relator("has") )
+		TS_ASSERT( q.has_relator("breaths") )
+    }
+
+	void test_insert_predicate_set_relator(void) {
+        tagd::predicate_set P;
+        tagd::predicate_pair pr;
+        pr = P.insert(tagd::make_predicate("has",""));
+		TS_ASSERT( pr.second )
+        pr = P.insert(tagd::make_predicate("breaths",""));
+		TS_ASSERT( pr.second )
+		TS_ASSERT_EQUALS( P.size() , 2 )
+
+        tagd::interrogator q(HARD_TAG_INTERROGATOR);
+        q.predicates(P);
+		TS_ASSERT_EQUALS( q.relations.size() , 2 );
+
+		TS_ASSERT( q.has_relator("has") )
+		TS_ASSERT( q.has_relator("breaths") )
     }
 
     void test_tag_copy(void) {

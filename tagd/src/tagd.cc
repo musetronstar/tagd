@@ -191,7 +191,7 @@ void abstract_tag::clear() {
 }
 
 tagd_code abstract_tag::relation(const tagd::predicate &p) {
-    if (p.object.empty())
+    if (p.empty())
         return TAG_ILLEGAL;
 
     predicate_pair pr = relations.insert(p);
@@ -199,7 +199,7 @@ tagd_code abstract_tag::relation(const tagd::predicate &p) {
 }
 
 tagd_code abstract_tag::relation(const id_type &relator, const id_type &object) {
-    if (object.empty())
+    if (relator.empty() && object.empty())
         return TAG_ILLEGAL;
 
     predicate_pair pr = relations.insert(make_predicate(relator, object));
@@ -208,7 +208,7 @@ tagd_code abstract_tag::relation(const id_type &relator, const id_type &object) 
 
 tagd_code abstract_tag::relation(
     const id_type &relator, const id_type &object, const id_type &modifier ) {
-    if (object.empty())
+    if (relator.empty() && object.empty())
         return TAG_ILLEGAL;
 
     predicate_pair pr = relations.insert(make_predicate(relator, object, modifier));
@@ -216,7 +216,7 @@ tagd_code abstract_tag::relation(
 }
 
 tagd_code abstract_tag::not_relation(const tagd::predicate &p) {
-    if (p.object.empty())
+    if (p.empty())
         return TAG_ILLEGAL;
 
 	size_t erased = relations.erase(p);
@@ -224,7 +224,7 @@ tagd_code abstract_tag::not_relation(const tagd::predicate &p) {
 }
 
 tagd_code abstract_tag::not_relation(const id_type &relator, const id_type &object) {
-    if (object.empty())
+    if (relator.empty() && object.empty())
         return TAG_ILLEGAL;
 
 	size_t erased = relations.erase(make_predicate(relator, object));
@@ -246,6 +246,21 @@ bool abstract_tag::has_relator(const id_type &r) const {
     }
    
     return false;
+}
+
+bool abstract_tag::has_relator(const id_type &r, predicate_set& P) const {
+    if (r.empty())
+        return false;
+
+	bool match = false;
+    for (auto it = relations.begin(); it != relations.end(); ++it) {
+        if (it->relator == r) {
+            match = true;
+			P.insert(*it);
+        }
+    }
+   
+    return match;
 }
 
 bool abstract_tag::related(const id_type &object) const {
