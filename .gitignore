@@ -26,6 +26,6 @@ bin/
 
 # generated files
 *.inc
+*.out
 parser.h
 parser.cc
-parser.out
