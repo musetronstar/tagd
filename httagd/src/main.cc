@@ -109,11 +109,13 @@ static void main_cb(evhtp_request_t *req, void *arg) {
 int error(const char *errfmt, ...) {
 	va_list args;
 	va_start (args, errfmt);
-	va_end (args);
 
 	char *err = tagd::util::csprintf(errfmt, args);
 	if (err != NULL)
 		std::perror(err);
+
+	va_end (args);
+
 	return 1;
 }
 

@@ -1,8 +1,7 @@
-&larr;<a href="{{browse_id_lnk}}">browse</a>
-<p>
+<!--p>
 <h1>{{id}}</h1>
 &rarr;<a href="{{super_relator_lnk}}">{{super_relator}}</a> <a href="{{super_object_lnk}}">{{super_object}}</a>
-</p>
+</p-->
 {{#image_jpeg}}<img src="{{img_src}}">{{/image_jpeg}}
 {{#relations}}
 <ul>
