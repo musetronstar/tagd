@@ -79,6 +79,17 @@ void scanner::scan(const char *cur) {
 
 #define YYMARKER        mark
 
+	if (_comment_open) {
+		cur += eat_until_eol(cur);
+		if (_driver->_trace_on) 
+			std::cerr << "comment: `" << std::string(beg, (cur-beg)) << "'" << std::endl;
+		if (*cur == '\n') {
+			cur++;
+			_line_number++;
+			_comment_open = false;
+		}
+	}
+
 	// this may be a continuation of the last scan,
 	// which may have ended in the middle of a block comment
 	if (_block_comment_open) {
@@ -108,12 +119,14 @@ next:
 
 	"--"
 	{	// comment
+		_comment_open = true;
 		cur += eat_until_eol(cur);
 		if (_driver->_trace_on) 
 			std::cerr << "comment: `" << std::string(beg, (cur-beg)) << "'" << std::endl;
 		if (*cur == '\n') {
 			cur++;
 			_line_number++;
+			_comment_open = false;
 		}
 		beg = cur;
 		goto next;

@@ -1042,6 +1042,11 @@ class Tester : public CxxTest::TestSuite {
         ts_rc = TS.related(S, tagd::make_predicate("snarfs", "cockamamy")); 
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_NOT_FOUND" );
         TS_ASSERT_EQUALS( S.size(), 0 );
+
+        S.clear();
+        ts_rc = TS.related(S, tagd::make_predicate("can", "")); 
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 5 )
     }
 
     void test_query(void) {
@@ -1296,6 +1301,18 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( S.size(), 2 );
         TS_ASSERT( tag_set_exists(S, "http://en.wikipedia.org/wiki/Dog") );
         TS_ASSERT( tag_set_exists(S, "http://starwars.wikia.com/wiki/Dog") );
+
+        // what is 'about' something
+        tagd::interrogator what_about(HARD_TAG_INTERROGATOR);
+        what_about.relation(tagd::make_predicate("about", ""));
+
+        S.clear();
+        ts_rc = TS.query(S, what_about);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 3 );
+        TS_ASSERT( tag_set_exists(S, "http://en.wikipedia.org/wiki/Dog") );
+        TS_ASSERT( tag_set_exists(S, "http://starwars.wikia.com/wiki/Dog") );
+        TS_ASSERT( tag_set_exists(S, "http://animal.discovery.com/tv-shows/dogs-101") );
     }
 
 	void test_delete_url(void) {

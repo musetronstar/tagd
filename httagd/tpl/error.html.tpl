@@ -1,11 +1,3 @@
-<!DOCTYPE HTML>
-<html>
-<head>
-<meta charset='utf-8'>
-<title>{{err_ids}}</title>
-</head>
-<body>
-
 {{#errors}}
 <ol>
  {{#error}}
@@ -28,8 +20,3 @@
  {{/error}}
  </ol>
 {{/errors}}
-
-</body>
-</html>
-
-
