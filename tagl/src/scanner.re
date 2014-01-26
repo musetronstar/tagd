@@ -208,17 +208,21 @@ parse:
 	beg = cur;
 	goto next;
 
-parse_quoted_str:
-	// _quoted_str uses by parser instead of new string pointer - parser clears
-	_driver->parse_tok(QUOTED_STR, NULL);
-	beg = cur;
-	goto next;
-
 parse_value:
 	_driver->parse_tok(
 		tok,
 		new std::string(beg, (cur-beg))  // parser deletes
 	);
+	beg = cur;
+	goto next;
+
+parse_quoted_str:
+	// _quoted_str uses by parser instead of new string pointer - parser clears
+	_driver->parse_tok(
+		_driver->lookup_pos(_quoted_str),
+		new std::string(_quoted_str)  // parser deletes
+	);
+	_quoted_str.clear();
 	beg = cur;
 	goto next;
 

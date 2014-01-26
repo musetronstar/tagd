@@ -329,6 +329,11 @@ refers(r) ::= UNKNOWN(U) .
 {
 	r = U;
 }
+refers(r) ::= QUOTED_STR(Q) .
+{
+	r = Q;
+}
+
 
 refers_to(rt) ::= TAG(T) .
 {
@@ -433,10 +438,9 @@ object ::= TAG(T) EQUALS MODIFIER(M) .
 {
 	tagl->_tag->relation(tagl->_relator, *T, *M);
 }
-object ::= TAG(T) EQUALS QUOTED_STR .
+object ::= TAG(T) EQUALS QUOTED_STR(Q) .
 {
-	tagl->_tag->relation(tagl->_relator, *T, tagl->_scanner._quoted_str);
-	tagl->_scanner._quoted_str.clear();
+	tagl->_tag->relation(tagl->_relator, *T, *Q);
 }
 
 object ::= TAG(T) .

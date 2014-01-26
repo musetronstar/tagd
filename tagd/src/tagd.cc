@@ -312,8 +312,13 @@ bool do_quotes(const id_type& s) {
 			return true;
 
 		switch (s[i]) {
-			case ';':
 			case ':':
+				if ((s.size()-i) > 2 && s[i+1] == '/' && s[i+2] == '/')
+					return false;	// don't quote urls
+				else
+					return true;
+			case '/':
+			case ';':
 			case '=':
 				return true;
 			default:
@@ -324,30 +329,41 @@ bool do_quotes(const id_type& s) {
 	return false;
 }
 
+void print_quotable(std::ostream& os, const id_type& s) {
+	if (do_quotes(s))
+			os << '"' << s << '"';
+		else
+			os << s;
+}
+
 void print_object (std::ostream& os, const predicate& p) {
-	os << p.object;
+	print_quotable(os, p.object);
 	if (!p.modifier.empty()) {
 		os << " = ";
-		if (do_quotes(p.modifier))
-			os << '"' << p.modifier << '"';
-		else
-			os << p.modifier;
+		print_quotable(os, p.modifier);
 	} 
 }
 
 // note it is a tag friend function, not abstract_tag::operator<<
 std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
-	if (!t.super_object().empty() && t.pos() != POS_URL)  // urls' super determined by nature of being a url
-		os << t.id() << ' ' << t.super_relator() << ' ' << t.super_object();
-	else
+	if (!t.super_object().empty() && t.pos() != POS_URL) {  // urls' super determined by nature of being a url
+		print_quotable(os, t.id());
+		os << ' ';
+		print_quotable(os, t.super_relator());
+		os << ' ';
+		print_quotable(os, t.super_object());
+	} else {
 		os << t.id();
+	}
 
 	predicate_set::const_iterator it = t.relations.begin();
 	if (it == t.relations.end())
 		return os;
 
 	if (t.relations.size() == 1 && t.super_object().empty()) {
-		os << ' ' << it->relator << ' ';
+		os << ' ';
+		print_quotable(os, it->relator);
+		os << ' ';
 		print_object(os, *it);
 		return os;
 	} 
@@ -359,7 +375,12 @@ std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
 			print_object(os, *it);
 		} else {
 			// use wildcard for empty relators
-			os << std::endl << (it->relator.empty() ? "*" : it->relator) << ' ';
+			os << std::endl;
+			if (it->relator.empty())
+				os << '*';
+			else
+				print_quotable(os, it->relator);
+			os << ' ';
 			print_object(os, *it);
 			last_relator = it->relator;
 		}
