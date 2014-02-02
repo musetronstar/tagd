@@ -1,18 +1,15 @@
-<style>
-aside {
-	float: left;
-}
-</style>
-<h1>{{id}}</h1>
-<aside>
+<aside id="sidebar">
 <nav>
 {{>tree_html_tpl}}
 </nav>
-<section>
-{{>relations_html_tpl}}
-</section>
 </aside>
-<article>
+<article id="content">
+<section>
+{{>tag_html_tpl}}
+</section>
+<hr>
+<section>
 {{>results_html_tpl}}
+</section>
 </article>
 

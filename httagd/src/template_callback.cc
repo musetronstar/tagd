@@ -145,7 +145,7 @@ class tagd_template {
 				d->SetValue(k, u.id());
 			} else {
 				d->SetValue( std::string(k).append("_lnk"),
-					std::string("/").append(tagd::uri_encode(v)).append("?t=").append(tpl.opt_t).append(context_lnk) );
+					std::string("/").append((tagd::util::do_quotes(v) ? tagd::uri_encode(std::string("\"").append(v).append("\"")) : tagd::uri_encode(v))).append("?t=").append(tpl.opt_t).append(context_lnk) );
 				d->SetValue(k, v);
 			}
 		}
@@ -197,9 +197,6 @@ class tagd_template {
 
 
 		int expand_tag(const tpl_t& tpl, const tagd::abstract_tag& t, ctemplate::TemplateDictionary& D) {
-			//ctemplate::TemplateDictionary D("tag");
-			set_tag_link(BROWSE_TPL, &D, "browse_id", t.id());
-
 			if (t.pos() == tagd::POS_URL) {
 				tagd::url u;
 				u.init_hduri(t.id());
@@ -234,15 +231,20 @@ class tagd_template {
 			tagd::interrogator q_refers_to(HARD_TAG_INTERROGATOR, HARD_TAG_REFERENT);
 			q_refers_to.relation(HARD_TAG_REFERS_TO, t.id());
 			tagd::code tc = _TS->query(S, q_refers_to);
+
+			/*
 			std::cerr << "q_refers_to: " << q_refers_to << std::endl;
 			for (auto s : S) {
 				std::cerr << "\t" << s << std::endl;
 			}
+			*/
+
 			if (tc == tagd::TAGD_OK) {
 				if (S.size() > 0)
 					this->expand_query(QUERY_TPL, q_refers_to, S, D);
 			}
 
+			/*
 			S.clear();
 			tagd::interrogator q_refers(HARD_TAG_INTERROGATOR, HARD_TAG_REFERENT);
 			q_refers.relation(HARD_TAG_REFERS, t.id());
@@ -264,7 +266,7 @@ class tagd_template {
 					this->expand_query(QUERY_TPL, q_related, S, D);
 				}
 			}
-/*
+
 			S.clear();
 			tagd::interrogator q_siblings(HARD_TAG_INTERROGATOR, t.super_object());
 			tc = _TS->query(S, q_siblings);
@@ -274,7 +276,7 @@ class tagd_template {
 				if (S.size() > 0)
 					this->expand_query(QUERY_TPL, q_siblings, S, D);
 			}
-  */
+
 			S.clear();
 			tagd::interrogator q_children(HARD_TAG_INTERROGATOR, t.id());
 			tc = _TS->query(S, q_children);
@@ -283,7 +285,7 @@ class tagd_template {
 				if (S.size() > 0)
 					this->expand_query(QUERY_TPL, q_children, S, D);
 			}
-
+  */
 			if (_TS->has_error()) {
 				std::stringstream ss;
 				_TS->print_errors(ss);
@@ -305,11 +307,13 @@ class tagd_template {
 
 			ctemplate::TemplateDictionary* tree = D.AddIncludeDictionary("tree_html_tpl");
 			tree->SetFilename(TREE_TPL.fname);
-			this->expand_tree(tpl, t, *tree);
+			size_t num_children = 0;
+			this->expand_tree(tpl, t, *tree, &num_children);
+			// std::cerr << "num_children: " << num_children << std::endl;
 
-			ctemplate::TemplateDictionary* relations = D.AddIncludeDictionary("relations_html_tpl");
-			relations->SetFilename(RELATIONS_TPL.fname);
-			this->expand_relations(TAG_TPL, t, *relations);
+			ctemplate::TemplateDictionary* tag = D.AddIncludeDictionary("tag_html_tpl");
+			tag->SetFilename(TAG_TPL.fname);
+			this->expand_tag(BROWSE_TPL, t, *tag);
 
 			tagd::tag_set S;
 			tagd::interrogator q_related(HARD_TAG_INTERROGATOR);
@@ -319,7 +323,7 @@ class tagd_template {
 				q_related.relation("", t.id());
 			tagd::code tc = _TS->query(S, q_related);
 
-			std::cerr << "q_related(" << S.size() << "): " << q_related << std::endl;
+			// std::cerr << "q_related(" << S.size() << "): " << q_related << std::endl;
 
 			ctemplate::TemplateDictionary* results = D.AddIncludeDictionary("results_html_tpl");
 			results->SetFilename(QUERY_TPL.fname);
@@ -428,7 +432,7 @@ class tagd_template {
 			return EVHTP_RES_OK;
 		}
 		
-		int expand_tree(const tpl_t& tpl, const tagd::abstract_tag& t, ctemplate::TemplateDictionary& D) {
+		int expand_tree(const tpl_t& tpl, const tagd::abstract_tag& t, ctemplate::TemplateDictionary& D, size_t *num_children=nullptr) {
 			if (t.pos() == tagd::POS_URL) {
 				tagd::url u;
 				u.init_hduri(t.id());
@@ -462,9 +466,13 @@ class tagd_template {
 				}
 			}
 
+			// query children
 			S.clear();
 			tc = _TS->query(S,
 					tagd::interrogator(HARD_TAG_INTERROGATOR, t.id()));
+
+			if (num_children != nullptr)
+				*num_children = S.size();
 
 			if (tc == tagd::TAGD_OK) {
 				set_query_link(&D, "query_children", t.id());
@@ -521,9 +529,9 @@ class tagd_template {
 					if (r.has_relator(HARD_TAG_CONTEXT)) {
 						tagd::referent ref(r);
 						std::string context{ref.context()};
-						set_tag_link(TAG_TPL, s1, "res_id", r.id(), &context);
+						set_tag_link(BROWSE_TPL, s1, "res_id", r.id(), &context);
 					} else {
-						set_tag_link(TAG_TPL, s1, "res_id", r.id());
+						set_tag_link(BROWSE_TPL, s1, "res_id", r.id());
 					}
 					set_tag_link(TAG_TPL, s1, "res_super_relator", r.super_relator());
 					set_tag_link(TAG_TPL, s1, "res_super_object", r.super_object());
@@ -531,8 +539,8 @@ class tagd_template {
 						s1->ShowSection("res_relations");
 						for (auto p : r.relations) {
 							ctemplate::TemplateDictionary* s2 = s1->AddSectionDictionary("res_relation");
-							set_relator_link(TAG_TPL, s2, "res_relator", p.relator);
-							set_tag_link(TAG_TPL, s2, "res_object", p.object);
+							set_relator_link(BROWSE_TPL, s2, "res_relator", p.relator);
+							set_tag_link(BROWSE_TPL, s2, "res_object", p.object);
 							if (!p.modifier.empty()) {
 								s2->ShowSection("res_has_modifier");
 								s2->SetValue("res_modifier", p.modifier);

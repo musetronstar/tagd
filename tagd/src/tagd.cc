@@ -306,7 +306,7 @@ id_type referent::context() const {
 // tag output functions
 
 // whether a label should be quoted
-bool do_quotes(const id_type& s) {
+bool util::do_quotes(const id_type& s) {
 	for (size_t i=0; i<s.size(); i++) {
 		if (isspace(s[i]))
 			return true;
@@ -330,7 +330,7 @@ bool do_quotes(const id_type& s) {
 }
 
 void print_quotable(std::ostream& os, const id_type& s) {
-	if (do_quotes(s))
+	if (util::do_quotes(s))
 			os << '"' << s << '"';
 		else
 			os << s;

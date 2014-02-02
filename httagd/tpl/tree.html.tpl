@@ -24,13 +24,13 @@ li.id:before {
  <ul>
  {{#has_prev}}<li class="prev"><a href="{{prev_lnk}}">{{prev}}</a></li>{{/has_prev}}
   <li class="id"><a href="{{id_lnk}}">{{id}}</a>
-    {{#has_children}}
+  {{#has_children}}
    <ul>
   	{{#children}}
       <li class="child"><a href="{{child_lnk}}">{{child}}</a></li>
   	{{/children}}
     </ul>
-    {{/has_children}}
+  {{/has_children}}
    </li>
   {{#has_next}}<li class="next"><a href="{{next_lnk}}">{{next}}</a></li>{{/has_next}}
  </ul>
