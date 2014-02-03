@@ -2,11 +2,12 @@
 <h1>{{id}}</h1>
 &rarr;<a href="{{super_relator_lnk}}">{{super_relator}}</a> <a href="{{super_object_lnk}}">{{super_object}}</a>
 </p>
-{{#image_jpeg}}<img src="{{img_src}}">{{/image_jpeg}}
+{{#has_img}}<img src="{{img_src}}">{{/has_img}}
 {{#relations}}
 <ul>
  {{#relation}}
  <li>
+{{#has_img}}<img src="{{img_src}}"><br>{{/has_img}}
   <a href="{{relator_lnk}}">{{relator}}</a>
   <a href="{{object_lnk}}">{{object}}</a>
    {{#has_modifier}} = {{modifier}}{{/has_modifier}}

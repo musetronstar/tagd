@@ -201,12 +201,8 @@ class tagd_template {
 				tagd::url u;
 				u.init_hduri(t.id());
 				D.SetValue("id", u.id());
-				if (t.related("type", "image_jpeg")) {
-					std::cerr << "related(type, jpeg): " << u.id() << std::endl;
+				if (t.related("type", "image_jpeg"))
 					D.SetValueAndShowSection("img_src", u.id(), "has_img");
-				} else {
-					std::cerr << "not related(type, jpeg): " << t << std::endl;
-				}
 			} else {
 				D.SetValue("id", t.id());
 			}
@@ -218,6 +214,11 @@ class tagd_template {
 				D.ShowSection("relations");
 				for (auto p : t.relations) {
 					ctemplate::TemplateDictionary* sub_dict = D.AddSectionDictionary("relation");
+					if (p.relator == "img_src" && looks_like_hduri(p.object)) {
+						tagd::url u;
+						u.init_hduri(p.object);
+						sub_dict->SetValueAndShowSection("img_src", u.id(), "has_img");
+					}
 					set_relator_link(tpl, sub_dict, "relator", p.relator);
 					set_tag_link(tpl, sub_dict, "object", p.object);
 					if (!p.modifier.empty()) {
