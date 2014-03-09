@@ -210,21 +210,32 @@ class tagd_template {
 			set_tag_link(tpl, &D, "super_relator", t.super_relator());
 			set_tag_link(tpl, &D, "super_object", t.super_object());
 
+			tagd::tag_set img_urls;
 			if (t.relations.size() > 0) {
 				D.ShowSection("relations");
 				for (auto p : t.relations) {
-					ctemplate::TemplateDictionary* sub_dict = D.AddSectionDictionary("relation");
 					if (p.relator == "img_src" && looks_like_hduri(p.object)) {
 						tagd::url u;
 						u.init_hduri(p.object);
-						sub_dict->SetValueAndShowSection("img_src", u.id(), "has_img");
+						img_urls.insert(u);
+						continue;
 					}
+					ctemplate::TemplateDictionary* sub_dict = D.AddSectionDictionary("relation");
 					set_relator_link(tpl, sub_dict, "relator", p.relator);
 					set_tag_link(tpl, sub_dict, "object", p.object);
 					if (!p.modifier.empty()) {
 						sub_dict->ShowSection("has_modifier");
 						sub_dict->SetValue("modifier", p.modifier);
 					}
+				}
+			}
+
+			if (img_urls.size() > 0) {
+				D.ShowSection("gallery");
+				int i = 0;
+				ctemplate::TemplateDictionary* sub_dict;
+				for (auto u : img_urls) {
+					D.SetValueAndShowSection("rel_img_src", u.id(), "gallery_item");
 				}
 			}
 

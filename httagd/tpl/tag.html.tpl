@@ -1,13 +1,13 @@
 <p>
 <h1>{{id}}</h1>
-&rarr;<a href="{{super_relator_lnk}}">{{super_relator}}</a> <a href="{{super_object_lnk}}">{{super_object}}</a>
+&rarr;<a href="{{super_relator_lnk}}">{{super_relator}}</a>
+<a href="{{super_object_lnk}}">{{super_object}}</a>
 </p>
 {{#has_img}}<img src="{{img_src}}">{{/has_img}}
 {{#relations}}
 <ul>
  {{#relation}}
  <li>
-{{#has_img}}<img src="{{img_src}}"><br>{{/has_img}}
   <a href="{{relator_lnk}}">{{relator}}</a>
   <a href="{{object_lnk}}">{{object}}</a>
    {{#has_modifier}} = {{modifier}}{{/has_modifier}}
@@ -46,7 +46,7 @@
    </li>
  </ul>
 {{/referents_refers}}
-
+<!--
 {{#objects_related}}
 <h3><a href="{{query_related_lnk}}">Related</a></h3>
 <ul>
@@ -75,3 +75,33 @@
  <li><a href="{{child_lnk}}">{{child}}</a></li>
 {{/children}}
 </ul>
+-->
+
+{{#gallery}}
+  <div id="gallery">
+    {{#gallery_item}}
+    <a class="gallery_item" href="{{rel_img_src}}"><img class="thumbnail" width="140" src="{{rel_img_src}}"></a>
+    {{/gallery_item}}
+  </div>
+{{/gallery}}
+
+<script>
+$(document).ready(function(){
+	function enable_colorbox() {
+		if ($(window).width() >= 680) {
+			$('.gallery_item').colorbox({rel:'gallery_item', slideshow:true});
+		}
+	}
+
+    enable_colorbox();
+    $(window).resize(enable_colorbox);
+});
+
+if (window.matchMedia) {
+	// media check
+	if (window.matchMedia("(max-width: 700px)").matches){
+		$.colorbox.remove();
+	}
+}
+</script>
+

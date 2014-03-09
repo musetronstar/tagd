@@ -36,7 +36,6 @@ li.id:before {
  </ul>
 </li>
 </ul>
-<script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js"></script>
 <script type="text/javascript">
 
 var tree = {
