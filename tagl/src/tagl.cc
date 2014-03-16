@@ -104,12 +104,6 @@ void driver::init() {
 }
 
 void driver::finish() {
-	if (_scanner._block_comment_open)
-		this->error(tagd::TAGL_ERR, "unclosed block comment");
-
-	if (_scanner._double_quotes_open)
-		this->error(tagd::TAGL_ERR, "unclosed double quotes");
-
 	if (_parser != NULL) {
 		if (_token != TERMINATOR && !this->has_error())
 			Parse(_parser, TERMINATOR, NULL, this);
@@ -254,48 +248,16 @@ tagd_code driver::tagdurl_del(const std::string& tagdurl, const url_query_map_t 
 tagd_code driver::evbuffer_execute(struct evbuffer *input) {
 	this->init();
 
-	size_t sz = evbuffer_get_length(input);
+	size_t sz, read_sz;
 
-	const size_t buf_sz = 1024 * 16; // 16k
-	size_t read_sz;
-    char buf[buf_sz];
-	size_t offset = 0;
-	std::string leftover;
-	while (!this->has_error()) {
-		if (!leftover.empty()) {
-			strncpy(&buf[0], leftover.c_str(), leftover.size());
-			offset = leftover.size();
-			buf[offset] = '\0';	
-			// std::cout << "buf leftover: '" << buf << "'" << std::endl;
-			// std::cout << "offset: " << offset << std::endl;
-			leftover.clear();
-		} else {
-			offset = 0;
-		}
-
-		read_sz = buf_sz - offset - 1;
-        if ((sz = evbuffer_remove(input, &buf[offset], read_sz)) == 0)
-			break;
-
-		sz += offset;
-		buf[sz] = '\0';
-		// std::cout << "buf: " <<  buf << std::endl;
-
-		// overflow, find partial last token
-		if (evbuffer_get_length(input) > 0) {
-			for (size_t z=sz; z>0; --z) {
-				if(isspace(buf[z])) {
-					leftover = &buf[z+1];
-					buf[z+1] = '\0';
-					// std::cout << "leftover: '" << leftover << "'" << std::endl;
-					break;
-				}
-			}
-		}
-
+	read_sz = buf_sz - 1;
+	if ((sz = evbuffer_remove(input, _scanner._buf, read_sz)) > 0) {
 		if (_trace_on)
-			std::cout << "scanning: " << buf << std::endl;
-		_scanner.scan(buf);
+			std::cout << "scanning: " << std::string(_scanner._buf, sz) << std::endl;
+		if (sz < read_sz && _scanner._buf[sz] != '\0')
+			_scanner._buf[sz] = '\0';
+		_scanner.evbuf(input);
+		_scanner.scan(_scanner._buf, sz);
 	}
 
 	this->finish();

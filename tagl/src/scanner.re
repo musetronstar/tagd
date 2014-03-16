@@ -6,152 +6,128 @@
 #include <stdio.h>
 
 #include "tagl.h"
+#include <event2/buffer.h>
 
 namespace TAGL {
 
-inline size_t eat_until_eol(const char *cur) {
-	const char *start = cur;
-
-	while(*cur != '\0' && *cur != '\n')
-		++cur;	
-
-	return (cur - start);
-}
-
-
-size_t scanner::process_block_comment(const char *cur) {
-	const char *start = cur;
-	_block_comment_open = true;
-
-	while(*cur != '\0') {
-		if (*cur == '\n')
-			_line_number++;
-		// close of block comment "*-"
-		if (*(cur++) == '*' && *(cur++) == '-') {
-			_block_comment_open = false;
-			break;
-		}
+const char* scanner::fill() {
+// YYFILL(n)  should adjust YYCURSOR, YYLIMIT, YYMARKER and YYCTXMARKER as needed.
+	if (_cur == '\0') {
+		_eof = _cur;
+		if (driver::_trace_on)
+			std::cout << "fill eof. " << std::endl;
 	}
 
-	return (cur - start);
-}
+	if (_eof) return _cur;
 
-size_t scanner::process_double_quotes(const char *cur) {
-	const char *start = cur;
-	_double_quotes_open = true;
+	size_t sz, offset;
+	sz = _lim - _beg;
+	if (sz > (buf_sz/2)) {
+		std::cerr << "append(" << sz << ")" << std::endl;
+		if (!_ignore)
+			_val.append(_beg, sz);
+		_beg = _cur = &_buf[0];
+		offset = 0;
+	} else {
+		strncpy(&_buf[0], _beg, sz);
+		_cur = &_buf[_cur-_beg];
+		_beg = &_buf[0];
+		offset = sz;
+	}
+	_buf[sz] = '\0';
 
-	while(*cur != '\0') {
-		if (*cur == '\n')
-			_line_number++;
-		if (*cur == '\\' && *(cur+1) == '"')  { // escaped double quote
-			cur += 2;
-			continue;
-		}
-		if (*(cur++) == '"') {
-			_double_quotes_open = false;
-			break;
-		}
+	if (driver::_trace_on) {
+		if (!_val.empty())
+			std::cout << "val: `" << _val << "'" << std::endl;
+		std::cout << "buf(" << sz << "): `" << std::string(_buf, sz) << "'" << std::endl;
 	}
 
-	size_t sz = (cur - start);
-	if (sz > 0) {
-		if (_double_quotes_open)
-			_quoted_str.append(start, sz);
-		else	// nip the '"' off the end
-			_quoted_str.append(start, (sz-1));
+	size_t read_sz = buf_sz - offset;
+	if (driver::_trace_on) {
+		std::cout << "sz: " << sz << std::endl;
+		std::cout << "offset: " << offset << std::endl;
+		std::cout << "read_sz: " << read_sz << std::endl;
 	}
 
-	return sz;
+	if ((sz = evbuffer_remove(_evbuf, &_buf[offset], read_sz)) != 0) {
+		if (sz < read_sz) {
+			sz += offset;
+			if (_buf[sz] != '\0')
+				_buf[sz] = '\0';
+			_eof = &_buf[sz];
+		} else {
+			sz += offset;
+		}
+		_lim = &_buf[sz];
+		if (driver::_trace_on)
+			std::cout << "filled(" << sz << "): `" << std::string(_beg, sz) << "'" << std::endl;
+	} else {
+		_eof = _lim = &_buf[offset];
+	}
+
+	return _cur;
 }
 
+void scanner::scan(const char *cur, size_t sz) {
+	
+	const char *mark; 
+	_beg = _cur = cur;
+	if (!_do_fill)
+		_eof = &_cur[sz];
 
-void scanner::scan(const char *cur) {
-
-	const char *beg = cur;
-	const char *mark;
-	int tok;
+	_lim = &_cur[sz];
 
 // parse token, value not needed
-#define PARSE(t) tok = t; goto parse
+#define PARSE(t) _tok = t; goto parse
 
 // parse token and value
-#define PARSE_VALUE(t) tok = t; goto parse_value
+#define PARSE_VALUE(t) _tok = t; goto parse_value
 
+#define YYCURSOR _cur
+#define YYLIMIT	_lim
+#define YYGETSTATE()    _state
+#define YYSETSTATE(x)   { _state = (x);  }
+#define	YYFILL(n)	{ if(_do_fill && _evbuf && !_eof){this->fill();} }
 #define YYMARKER        mark
-
-	if (_comment_open) {
-		cur += eat_until_eol(cur);
-		if (_driver->_trace_on) 
-			std::cerr << "comment: `" << std::string(beg, (cur-beg)) << "'" << std::endl;
-		if (*cur == '\n') {
-			cur++;
-			_line_number++;
-			_comment_open = false;
-		}
-	}
-
-	// this may be a continuation of the last scan,
-	// which may have ended in the middle of a block comment
-	if (_block_comment_open) {
-		cur += this->process_block_comment(cur);
-		if (_driver->_trace_on)
-			std::cerr << "comment: `" << std::string(beg, (cur-beg)) << "'" << std::endl;
-		beg = cur;
-	}
-
-	// last scan may have ended in the middle of a double quoted string
-	if (_double_quotes_open) {
-		cur += this->process_double_quotes(cur);
-		if (!_double_quotes_open)
-			goto parse_quoted_str;
-	}
 
 next:
 
 	if (_driver->has_error()) return;
 
 /*!re2c
-	re2c:define:YYCTYPE  = "unsigned char";
-	re2c:define:YYCURSOR = cur;
-	re2c:yyfill:enable   = 0;
-	re2c:yych:conversion = 1;
-	re2c:indent:top      = 1;
+	re2c:define:YYCTYPE  = "char";
+	re2c:yyfill:enable   = 1;
+
+	NL			= "\r"? "\n" ;
+	ANY			= [^] ;
 
 	"--"
-	{	// comment
-		_comment_open = true;
-		cur += eat_until_eol(cur);
-		if (_driver->_trace_on) 
-			std::cerr << "comment: `" << std::string(beg, (cur-beg)) << "'" << std::endl;
-		if (*cur == '\n') {
-			cur++;
-			_line_number++;
-			_comment_open = false;
-		}
-		beg = cur;
-		goto next;
+	{
+		_ignore = true;
+		goto comment;
 	}
 
 	"-*"
-	{	// block comment
-		cur += this->process_block_comment(cur);
-		if (_driver->_trace_on)
-			std::cerr << "comment: `" << std::string(beg, (cur-beg)) << "'" << std::endl;
-		beg = cur;
-		goto next;
+	{
+		_ignore = true;
+		goto block_comment;
+	}
+
+	"\\\""
+	{
+		_driver->error(tagd::TAGL_ERR, "escaped double quote");
+		return;
 	}
 
 	"\""
-	{	// double quoted string
-		cur += this->process_double_quotes(cur);
-		if (!_double_quotes_open)
-			goto parse_quoted_str;
+	{
+		goto quoted_str;
 	}
-
+	
 	([ \t\r]*[\n]){2,}
 	{   // TERMINATOR
 		// increment line_number
-		for (const char *p = beg; p <= cur; ++p) {
+		for (const char *p = _beg; p <= _cur; ++p) {
 			if (*p == '\n')
 				_line_number++;
 		}
@@ -160,14 +136,14 @@ next:
 
 	[ \t\r]
 	{  // whitespace
-		beg = cur;
+		_beg = _cur;
 		goto next;
 	}
 
 	"\n"
 	{	// newline
 		_line_number++;
-		beg = cur;
+		_beg = _cur;
 		goto next;
 	}
 
@@ -203,36 +179,83 @@ next:
 
 	return;
 
+comment:
+/*!re2c
+	NL			{
+					_ignore = false;
+					/*if (driver::_trace_on) {
+						tok = "COMMENT";
+						goto parse;
+					} else {*/
+						_beg = _cur;
+						goto next;
+					//}
+				}
+	ANY			{ goto comment; }
+*/
+
+block_comment:
+/*!re2c
+	"*-"		{
+					_ignore = false;
+					/*if (driver::_trace_on) {
+						tok = "BLOCK_COMMENT";
+						goto parse;
+					} */
+					_beg = _cur;
+					goto next;
+				}
+	[\000]      { _driver->error(tagd::TAGL_ERR, "unclosed block comment"); return; }
+	ANY			{ goto block_comment; }
+*/
+
 parse:
-	_driver->parse_tok(tok, NULL);
-	beg = cur;
+	_driver->parse_tok(_tok, NULL);
+	_beg = _cur;
 	goto next;
 
 parse_value:
 	_driver->parse_tok(
-		tok,
-		new std::string(beg, (cur-beg))  // parser deletes
+		_tok,
+		( _val.empty()
+		 ? new std::string(_beg, (_cur-_beg))
+		 : new std::string(_val.append(_beg, (_cur-_beg)))
+		)  // parser deletes
 	);
-	beg = cur;
+	_val.clear();
+	_beg = _cur;
 	goto next;
+
+quoted_str:
+/*!re2c
+	"\\\""		{ goto quoted_str; /* escaped */ }
+	"\""		{ goto parse_quoted_str; }
+	ANY			{ goto quoted_str; }
+*/
 
 parse_quoted_str:
 	// _quoted_str uses by parser instead of new string pointer - parser clears
+	_beg++;
+	sz = (_cur-_beg)-1;
+	_val.append(_beg, sz);
 	_driver->parse_tok(
-		_driver->lookup_pos(_quoted_str),
-		new std::string(_quoted_str)  // parser deletes
+		_driver->lookup_pos(_val),
+		new std::string(_val)  // parser deletes
 	);
-	_quoted_str.clear();
-	beg = cur;
+	_val.clear();
+	_beg = _cur;
 	goto next;
 
 lookup_parse:
 	{
 		// parser deletes value
-		std::string *value = new std::string(beg, (cur-beg));
+		std::string *value = ( _val.empty()
+		 ? new std::string(_beg, (_cur-_beg))
+		 : new std::string(_val.append(_beg, (_cur-_beg)))
+		);  // parser deletes
 		_driver->parse_tok(_driver->lookup_pos(*value), value);
 	}
-	beg = cur;
+	_beg = _cur;
 	goto next;
 }
 

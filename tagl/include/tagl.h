@@ -35,35 +35,47 @@ class callback {
         virtual void finish() {} // optionally, can be overridden
 };
 
+const size_t buf_sz = 1024 * 16; // 16k
+
 class scanner {
 		friend void ::yy_reduce(yyParser *, int);
 		friend class TAGL::driver;
-
+	
 		driver *_driver;
-		size_t process_block_comment(const char *);
-		size_t process_double_quotes(const char *);
 		size_t _line_number;
-		bool _comment_open;
-		bool _block_comment_open;
-		bool _double_quotes_open;
-		std::string _quoted_str;
+
+		const char *_beg, *_cur, *_lim, *_eof;	
+		char _buf[buf_sz];
+		int _tok;
+		int32_t _state;
+		std::string _val;
+		bool _ignore, _debug;
+		bool _do_fill;
+		evbuffer *_evbuf;
+
 
 	public:
 		scanner(driver *d) :
-			_driver(d), _line_number(1), _comment_open(false), _block_comment_open(false),
-			_double_quotes_open(false), _quoted_str() {}
+			_driver(d), _line_number(1),
+			_beg{nullptr}, _cur{nullptr}, _lim{nullptr}, _eof{nullptr}, _tok{-1}, _state{-1},
+			_ignore{false}, _debug{false}, _do_fill{false}, _evbuf{nullptr} {}
 		~scanner() {}
 
-		void scan(const char*);
+		const char* fill();
+		void scan(const std::string& s) { this->scan(s.c_str(), s.size()); }
+		void scan(const char*, size_t);
+		void evbuf(evbuffer *ev) { _evbuf = ev; _do_fill = true; }
 
 		void scan_tagdurl_path(int cmd, const std::string&, const url_query_map_t* qm = nullptr);
 
 		void reset() {
 			_line_number = 1;
-			_comment_open = false;
-			_block_comment_open = false;
-			_double_quotes_open = false;
-			_quoted_str.clear();
+
+			_beg = _cur = _lim = _eof = nullptr;
+			_val.clear();
+			_evbuf = nullptr;
+			_state = -1;
+			_tok = -1;
 		}
 };
 
