@@ -164,10 +164,14 @@ next:
 	"*"                  { PARSE(WILDCARD); }
 	"\"\""               { PARSE(EMPTY_STR); }
 	","                  { PARSE(COMMA); }
-	"="                  { PARSE(EQUALS); }
+	"="                  { PARSE(EQ); }
+	">"                  { PARSE(GT); }
+	">="                 { PARSE(GT_EQ); }
+	"<"                  { PARSE(LT); }
+	"<="                 { PARSE(LT_EQ); }
 	";"                  { PARSE(TERMINATOR); }
 
-	[^\000 \t\r\n;,='"-]+  { goto lookup_parse; }
+	[^\000 \t\r\n;,=><'"-]+  { goto lookup_parse; }
 
 	[\000]               { return; }
 

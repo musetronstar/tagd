@@ -133,7 +133,7 @@ void driver::trace_off() {
 // looks up a pos type for a tag and returns
 // its equivalent token
 int driver::lookup_pos(const std::string& s) const {
-	if ( _token == EQUALS ) // '=' separates object and modifier
+	if ( _token == EQ ) // '=' separates object and modifier
 		return MODIFIER;
 
 	int token;

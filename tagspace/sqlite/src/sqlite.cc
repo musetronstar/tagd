@@ -2,6 +2,7 @@
 #include <sstream>
 #include <iomanip> // setw
 #include <cstring> // strcmp
+#include <cstdlib> // atoi
 #include <assert.h>
 #include <vector>
 #include <functional>
@@ -279,7 +280,7 @@ tagd::code sqlite::create_terms_table() {
 
     this->exec(
     "CREATE TABLE terms ( "
-        "term TEXT PRIMARY KEY NOT NULL, "
+        "term PRIMARY KEY NOT NULL, "
         "term_pos INTEGER NOT NULL"
     ")" 
     );
@@ -2117,237 +2118,86 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 		this->decode_referent(p.relator, rel.relator);
 		this->decode_referent(p.object, rel.object);
 		this->decode_referent(p.modifier, rel.modifier);
+		p.opr8r = rel.opr8r;
 	}
 
-    sqlite3_stmt *stmt;
-
-    // _entity rank is NULL, so we have to treat it differently
-    // subjects will not be filtered according to rank (as _entity is all enpcompassing)
-    if (super_object == HARD_TAG_ENTITY || super_object.empty()) {
-		if (p.modifier.empty()) {
-			this->prepare(&_related_null_super_stmt,
-				"SELECT idt(subject), idt(super_relator), idt(super_object), pos, rank, "
-				"idt(relator), idt(object), idt(modifier) "
-				"FROM relations, tags "
-				"WHERE tag = subject "
-				"AND ("
-				 "? IS NULL OR "
-				 "relator IN ( "
-				  "SELECT tag FROM tags WHERE rank GLOB ( "
-				   "SELECT rank FROM tags WHERE tag = tid(?) "
-				  ") || '*'" // all relators <= p.relator
-				 ") "
-				") "
-				"AND ("
-				 "? IS NULL OR "
-				  "object IN ( "
-				   "SELECT tag FROM tags WHERE rank GLOB ( "
-				   "SELECT rank FROM tags WHERE tag = tid(?) "
-				  ") || '*'" // all objects <= p.object
-				 ") "
-				") "
-				"ORDER BY rank",
-				"select related"
-			);
-			OK_OR_RET_ERR();
-
-			if (p.relator.empty()) {
-				this->bind_null(&_related_null_super_stmt, 1, "null relator");
-				OK_OR_RET_ERR();
-
-				this->bind_null(&_related_null_super_stmt, 2, "relator");
-				OK_OR_RET_ERR();
+	auto f_bind_null_text = [this](bool is_text, const tagd::id_type &id, int num) {
+			if (is_text) {
+				this->bind_text(&_related_stmt, num, id.c_str(), "test");
+				this->bind_text(&_related_stmt, ++num, id.c_str(), "value");
 			} else {
-				this->bind_text(&_related_null_super_stmt, 1, p.relator.c_str(), "null relator");
-				OK_OR_RET_ERR();
-
-				this->bind_text(&_related_null_super_stmt, 2, p.relator.c_str(), "relator");
-				OK_OR_RET_ERR();
+				this->bind_null(&_related_stmt, num, "null test");
+				this->bind_null(&_related_stmt, ++num, "null");
 			}
+	};
 
-			if (p.object.empty()) {
-				this->bind_null(&_related_null_super_stmt, 3, "null object");
-				OK_OR_RET_ERR();
-
-				this->bind_null(&_related_null_super_stmt, 4, "object");
-				OK_OR_RET_ERR();
+	auto f_bind_null_int_text = [this](bool is_text, const tagd::predicate &p, int num) {
+			if (is_text) {
+				if (p.modifier_type == tagd::TYPE_TEXT) {
+					this->bind_text(&_related_stmt, num, p.modifier.c_str(), "test");
+					this->bind_text(&_related_stmt, ++num, p.modifier.c_str(), "value");
+				} else {
+					this->bind_int(&_related_stmt, num, atoi(p.modifier.c_str()), "test");
+					this->bind_int(&_related_stmt, ++num, atoi(p.modifier.c_str()), "value");
+				}
 			} else {
-				this->bind_text(&_related_null_super_stmt, 3, p.object.c_str(), "null object");
-				OK_OR_RET_ERR();
-
-				this->bind_text(&_related_null_super_stmt, 4, p.object.c_str(), "object");
-				OK_OR_RET_ERR();
+				this->bind_null(&_related_stmt, num, "null test");
+				this->bind_null(&_related_stmt, ++num, "null");
 			}
+	};
 
-			stmt = _related_null_super_stmt;
-		} else {
-			this->prepare(&_related_null_super_modifier_stmt,
-				"SELECT idt(subject), idt(super_relator), idt(super_object), pos, rank, "
-				"idt(relator), idt(object), idt(modifier) "
-				"FROM relations, tags "
-				"WHERE tag = subject "
-				"AND ("
-				 "? IS NULL OR "
-				 "relator IN ( "
-				  "SELECT tag FROM tags WHERE rank GLOB ( "
-				   "SELECT rank FROM tags WHERE tag = tid(?) "
-				  ") || '*'" // all relators <= p.relator
-				 ") "
-				") "
-				"AND object IN ( "
-				 "SELECT tag FROM tags WHERE rank GLOB ( "
-				  "SELECT rank FROM tags WHERE tag = tid(?) "
-				 ") || '*'" // all objects <= p.object
-				") "
-				"AND modifier = tid(?) "
-				"ORDER BY rank",
-				"select related"
-			);
-			OK_OR_RET_ERR();
-	
-			if (p.relator.empty()) {
-				this->bind_null(&_related_null_super_modifier_stmt, 1, "null relator");
-				OK_OR_RET_ERR();
+	this->prepare(&_related_stmt, 
+		"SELECT idt(subject), idt(super_relator), idt(super_object), pos, rank, "
+	    "idt(relator), idt(object), idt(modifier) "
+		"FROM relations, tags "
+		"WHERE tag = subject "
+		"AND ("
+			"? IS NULL OR subject IN ( "
+			"SELECT tag FROM tags WHERE rank GLOB ( "
+			"SELECT rank FROM tags WHERE tag = tid(?) "
+			") || '*'"
+			") "
+		") "
+		"AND ("
+			"? IS NULL OR relator IN ( "
+			"SELECT tag FROM tags WHERE rank GLOB ( "
+			"SELECT rank FROM tags WHERE tag = tid(?) "
+			") || '*'"
+			") "
+		") "
+		"AND ("
+			"? IS NULL OR object IN ( "
+			"SELECT tag FROM tags WHERE rank GLOB ( "
+			"SELECT rank FROM tags WHERE tag = tid(?) "
+			") || '*'"
+			") "
+		") "
+		"AND (? IS NULL OR modifier = tid(?)) "
+		"AND (? IS NULL OR modifier IN(SELECT ROWID FROM terms WHERE CAST(term AS INTEGER) > ?)) "
+		"AND (? IS NULL OR modifier IN(SELECT ROWID FROM terms WHERE CAST(term AS INTEGER) >= ?)) "
+		"AND (? IS NULL OR modifier IN(SELECT ROWID FROM terms WHERE CAST(term AS INTEGER) < ?)) "
+		"AND (? IS NULL OR modifier IN(SELECT ROWID FROM terms WHERE CAST(term AS INTEGER) <= ?)) "
+		"ORDER BY rank",
+		"select related"
+	);
+	OK_OR_RET_ERR();
 
-				this->bind_null(&_related_null_super_modifier_stmt, 2, "relator");
-				OK_OR_RET_ERR();
-			} else {
-				this->bind_text(&_related_null_super_modifier_stmt, 1, p.relator.c_str(), "null relator");
-				OK_OR_RET_ERR();
-
-				this->bind_text(&_related_null_super_modifier_stmt, 2, p.relator.c_str(), "relator");
-				OK_OR_RET_ERR();
-			}
-
-			this->bind_text(&_related_null_super_modifier_stmt, 3, p.object.c_str(), "object");
-			OK_OR_RET_ERR();
-
-			this->bind_text(&_related_null_super_modifier_stmt, 4, p.modifier.c_str(), "modifier");
-			OK_OR_RET_ERR();
-
-			stmt = _related_null_super_modifier_stmt;
-		}
-    } else {
-		if (p.modifier.empty()) {
-			this->prepare(&_related_stmt,
-				"SELECT idt(subject), idt(super_relator), idt(super_object), pos, rank, "
-				"idt(relator), idt(object), idt(modifier) "
-				"FROM relations, tags "
-				"WHERE tag = subject "
-				"AND subject IN ( "
-				"SELECT tag FROM tags WHERE rank GLOB ( "
-				"SELECT rank FROM tags WHERE tag = tid(?) "
-				") || '*'" // all subjects <= super_object
-				") "
-				"AND ("
-				 "? IS NULL OR "
-				 "relator IN ( "
-				  "SELECT tag FROM tags WHERE rank GLOB ( "
-				   "SELECT rank FROM tags WHERE tag = tid(?) "
-				  ") || '*'" // all relators <= p.relator
-				 ") "
-				") "
-				"AND ("
-				 "? IS NULL OR "
-				 "object IN ( "
-				   "SELECT tag FROM tags WHERE rank GLOB ( "
-				    "SELECT rank FROM tags WHERE tag = tid(?) "
-				  ") || '*'" // all objects <= p.object
-				 ") "
-				") "
-				"ORDER BY rank",
-				"select related"
-			);
-			OK_OR_RET_ERR();
-	
-			this->bind_text(&_related_stmt, 1, super_object.c_str(), "super_object");
-			OK_OR_RET_ERR();
-
-			if (p.relator.empty()) {
-				this->bind_null(&_related_stmt, 2, "null test relator");
-				OK_OR_RET_ERR();
-
-				this->bind_null(&_related_stmt, 3, "null relator");
-				OK_OR_RET_ERR();
-			} else {
-				this->bind_text(&_related_stmt, 2, p.relator.c_str(), "test relator");
-				OK_OR_RET_ERR();
-
-				this->bind_text(&_related_stmt, 3, p.relator.c_str(), "relator");
-				OK_OR_RET_ERR();
-			}
-
-			if (p.object.empty()) {
-				this->bind_null(&_related_stmt, 4, "null test object");
-				OK_OR_RET_ERR();
-
-				this->bind_null(&_related_stmt, 5, "null object");
-				OK_OR_RET_ERR();
-			} else {
-				this->bind_text(&_related_stmt, 4, p.object.c_str(), "test object");
-				OK_OR_RET_ERR();
-
-				this->bind_text(&_related_stmt, 5, p.object.c_str(), "object");
-				OK_OR_RET_ERR();
-			}
-
-			stmt = _related_stmt;
-		} else {
-			this->prepare(&_related_modifier_stmt,
-				"SELECT idt(subject), idt(super_relator), idt(super_object), pos, rank, "
-				"idt(relator), idt(object), idt(modifier) "
-				"FROM relations, tags "
-				"WHERE tag = subject "
-				"AND subject IN ( "
-				"SELECT tag FROM tags WHERE rank GLOB ( "
-				"SELECT rank FROM tags WHERE tag = tid(?) "
-				") || '*'" // all subjects <= super_object
-				") "
-				"AND ("
-				 "? IS NULL OR "
-				 "relator IN ( "
-				  "SELECT tag FROM tags WHERE rank GLOB ( "
-				   "SELECT rank FROM tags WHERE tag = tid(?) "
-				  ") || '*'" // all relators <= p.relator
-				 ") "
-				") "
-				"AND object IN ( "
-				"SELECT tag FROM tags WHERE rank GLOB ( "
-				"SELECT rank FROM tags WHERE tag = tid(?) "
-				") || '*'" // all objects <= p.object
-				") "
-				"AND modifier = tid(?) "
-				"ORDER BY rank",
-				"select related"
-			);
-			OK_OR_RET_ERR();
-	
-			this->bind_text(&_related_modifier_stmt, 1, super_object.c_str(), "super_object");
-			OK_OR_RET_ERR();
-
-			if (p.relator.empty()) {
-				this->bind_null(&_related_modifier_stmt, 2, "null relator");
-				OK_OR_RET_ERR();
-
-				this->bind_null(&_related_modifier_stmt, 3, "relator");
-				OK_OR_RET_ERR();
-			} else {
-				this->bind_text(&_related_modifier_stmt, 2, p.relator.c_str(), "null relator");
-				OK_OR_RET_ERR();
-
-				this->bind_text(&_related_modifier_stmt, 3, p.relator.c_str(), "relator");
-				OK_OR_RET_ERR();
-			}
-
-			this->bind_text(&_related_modifier_stmt, 4, p.object.c_str(), "object");
-			OK_OR_RET_ERR();
-
-			this->bind_text(&_related_modifier_stmt, 5, p.modifier.c_str(), "modifier");
-			OK_OR_RET_ERR();
-
-			stmt = _related_modifier_stmt;
-		}
-    }
+	f_bind_null_text(!super_object.empty(), super_object, 1); 
+	OK_OR_RET_ERR();
+	f_bind_null_text(!p.relator.empty(), p.relator, 3); 
+	OK_OR_RET_ERR();
+	f_bind_null_text(!p.object.empty(), p.object, 5); 
+	OK_OR_RET_ERR();
+	f_bind_null_text((!p.modifier.empty() && p.opr8r == tagd::OP_EQ), p.modifier, 7); 
+	OK_OR_RET_ERR();
+	f_bind_null_int_text((!p.modifier.empty() && p.opr8r == tagd::OP_GT), p, 9); 
+	OK_OR_RET_ERR();
+	f_bind_null_int_text((!p.modifier.empty() && p.opr8r == tagd::OP_GT_EQ), p, 11); 
+	OK_OR_RET_ERR();
+	f_bind_null_int_text((!p.modifier.empty() && p.opr8r == tagd::OP_LT), p, 13); 
+	OK_OR_RET_ERR();
+	f_bind_null_int_text((!p.modifier.empty() && p.opr8r == tagd::OP_LT_EQ), p, 15); 
+	OK_OR_RET_ERR();
 
     const int F_SUBJECT = 0;
     const int F_SUPER_REL = 1;
@@ -2366,35 +2216,35 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
     tagd::rank rank;
     int s_rc;
 
-    while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        rank.init( (const char*) sqlite3_column_text(stmt, F_RANK));
-		tagd::part_of_speech pos = (tagd::part_of_speech) sqlite3_column_int(stmt, F_POS);
+    while ((s_rc = sqlite3_step(_related_stmt)) == SQLITE_ROW) {
+        rank.init( (const char*) sqlite3_column_text(_related_stmt, F_RANK));
+		tagd::part_of_speech pos = (tagd::part_of_speech) sqlite3_column_int(_related_stmt, F_POS);
 
         tagd::abstract_tag *t;
 		if (pos != tagd::POS_URL) {
-			t = new tagd::abstract_tag( f_transform((const char*) sqlite3_column_text(stmt, F_SUBJECT)) );
+			t = new tagd::abstract_tag( f_transform((const char*) sqlite3_column_text(_related_stmt, F_SUBJECT)) );
 		} else {
 			t = new tagd::url();
-			((tagd::url*)t)->init_hduri( (const char*) sqlite3_column_text(stmt, F_SUBJECT) );
+			((tagd::url*)t)->init_hduri( (const char*) sqlite3_column_text(_related_stmt, F_SUBJECT) );
 			if (t->code() != tagd::TAGD_OK) {
 				this->ferror( t->code(), "failed to init related url: %s",
-						(const char*) sqlite3_column_text(stmt, F_SUBJECT) );
+						(const char*) sqlite3_column_text(_related_stmt, F_SUBJECT) );
 				delete t;
 				return this->code();
 			}
 		}
 
-		t->super_relator( f_transform((const char*) sqlite3_column_text(stmt, F_SUPER_REL)) );
-		t->super_object( f_transform((const char*) sqlite3_column_text(stmt, F_SUPER_OBJ)) );
+		t->super_relator( f_transform((const char*) sqlite3_column_text(_related_stmt, F_SUPER_REL)) );
+		t->super_object( f_transform((const char*) sqlite3_column_text(_related_stmt, F_SUPER_OBJ)) );
 		t->pos(pos);
 		t->rank(rank);
 
 		auto pred = tagd::make_predicate(
-			f_transform( (const char*) sqlite3_column_text(stmt, F_RELATOR) ),
-			f_transform( (const char*) sqlite3_column_text(stmt, F_OBJECT) )
+			f_transform( (const char*) sqlite3_column_text(_related_stmt, F_RELATOR) ),
+			f_transform( (const char*) sqlite3_column_text(_related_stmt, F_OBJECT) )
 		);
 		if (sqlite3_column_type(_get_relations_stmt, F_MODIFIER) != SQLITE_NULL) {
-			pred.modifier = f_transform( (const char*) sqlite3_column_text(stmt, F_MODIFIER) );
+			pred.modifier = f_transform( (const char*) sqlite3_column_text(_related_stmt, F_MODIFIER) );
 		}
 		t->relation(pred);
 
@@ -2403,8 +2253,8 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
     }
 
     if (s_rc == SQLITE_ERROR) {
-		return this->ferror(tagd::TS_ERR, "related failed(super_object, relator, object, modifier): %s, %s, %s, %s",
-							super_object.c_str(), p.relator.c_str(), p.object.c_str(), p.modifier.c_str());
+		return this->ferror(tagd::TS_ERR, "related failed(super_object, relator, object, modifier, opr8r): %s, %s, %s, %s, %s",
+							super_object.c_str(), p.relator.c_str(), p.object.c_str(), p.modifier.c_str(), p.op_c_str());
     }
 
     return this->code(R.size() == 0 ?  tagd::TS_NOT_FOUND : tagd::TAGD_OK);

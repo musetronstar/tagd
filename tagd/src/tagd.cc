@@ -215,6 +215,24 @@ tagd_code abstract_tag::relation(
     return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
+tagd_code abstract_tag::relation(
+    const id_type &relator, const id_type &object, const id_type &modifier, operator_t op ) {
+    if (relator.empty() && object.empty())
+        return TAG_ILLEGAL;
+
+    predicate_pair pr = relations.insert(make_predicate(relator, object, modifier, op));
+    return (pr.second ? TAGD_OK : TAG_DUPLICATE);
+}
+
+tagd_code abstract_tag::relation(
+    const id_type &relator, const id_type &object, const id_type &modifier, operator_t op, data_t d) {
+    if (relator.empty() && object.empty())
+        return TAG_ILLEGAL;
+
+    predicate_pair pr = relations.insert(make_predicate(relator, object, modifier, op, d));
+    return (pr.second ? TAGD_OK : TAG_DUPLICATE);
+}
+
 tagd_code abstract_tag::not_relation(const tagd::predicate &p) {
     if (p.empty())
         return TAG_ILLEGAL;
@@ -269,12 +287,20 @@ bool abstract_tag::related(const id_type &object) const {
 
     // WTF not sure if is the best way - propably more efficient methods
     for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
-        if (it->object == object) {
+        if (it->object == object)
             return true;
-        }
     }
    
     return false;
+}
+
+bool abstract_tag::related(const id_type &relator, const id_type &object) const {
+    for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
+        if (it->relator == relator && it->object == object)
+            return true;
+    }
+
+	return false;
 }
 
 size_t abstract_tag::related(const id_type &object, predicate_set& how) const {
@@ -339,7 +365,7 @@ void print_quotable(std::ostream& os, const id_type& s) {
 void print_object (std::ostream& os, const predicate& p) {
 	print_quotable(os, p.object);
 	if (!p.modifier.empty()) {
-		os << " = ";
+		os << ' ' << p.op_c_str() << ' ';
 		print_quotable(os, p.modifier);
 	} 
 }

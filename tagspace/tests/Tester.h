@@ -122,6 +122,7 @@ size_t populate_tags(space_type& TS) {
 
     tagd::tag spider("spider", "insect");
     spider.relation("has", "fangs");
+    spider.relation("has", "legs", "8");
     TS.put(spider);
 
     tagd::tag snake("snake", "reptile");
@@ -1027,7 +1028,17 @@ class Tester : public CxxTest::TestSuite {
         tagd::tag_set S;
         ts_rc = TS.related(S, tagd::make_predicate("has", "legs")); 
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
-        TS_ASSERT_EQUALS( S.size(), 2 );
+        TS_ASSERT_EQUALS( S.size(), 3 );
+
+        S.empty();
+        ts_rc = TS.related(S, tagd::make_predicate("has", "legs", "3", tagd::OP_GT)); 
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 3 );
+
+        S.empty();
+        ts_rc = TS.related(S, tagd::make_predicate("has", "legs", "30", tagd::OP_GT, tagd::TYPE_INTEGER)); 
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_NOT_FOUND" );
+        TS_ASSERT_EQUALS( S.size(), 0 );
 
         S.empty();
         ts_rc = TS.related(S, tagd::make_predicate("_relator", "body_part")); 
@@ -1085,6 +1096,16 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tag_set_exists(S, "spider") );  // fangs are teeth
         TS_ASSERT( tag_set_exists(S, "snake") );
 
+        S.clear();
+        tagd::interrogator q1("what");
+        q1.relation("has", "legs", "2", tagd::OP_GT);
+        q1.relation("has", "legs", "8", tagd::OP_LT);
+        ts_rc = TS.query(S, q1);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 2 );
+        TS_ASSERT( tag_set_exists(S, "dog") );
+        TS_ASSERT( tag_set_exists(S, "cat") );
+
         // for(tagd::tag_set::iterator it = S.begin(); it != S.end(); ++it) {
         //    std::cout << *it << std::endl;
         // }
@@ -1121,6 +1142,9 @@ class Tester : public CxxTest::TestSuite {
 
         tagd::tag_set S;
         tagd_code ts_rc = TS.query(S, q);
+		if (!TS.ok()) {
+			TS.print_errors();
+		}
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 1 );
         TS_ASSERT( tag_set_exists(S, "whale") );

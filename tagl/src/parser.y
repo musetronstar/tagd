@@ -430,19 +430,19 @@ relator ::= WILDCARD .
 object_list ::= object_list COMMA object .
 object_list ::= object .
 
-object ::= TAG(T) EQUALS QUANTIFIER(Q) .
+%type op { tagd::operator_t }
+object ::= TAG(T) op(o) QUANTIFIER(Q) .
 {
-	tagl->_tag->relation(tagl->_relator, *T, *Q);
+	tagl->_tag->relation(tagl->_relator, *T, *Q, o);
 }
-object ::= TAG(T) EQUALS MODIFIER(M) .
+object ::= TAG(T) op(o) MODIFIER(M) .
 {
-	tagl->_tag->relation(tagl->_relator, *T, *M);
+	tagl->_tag->relation(tagl->_relator, *T, *M, o);
 }
-object ::= TAG(T) EQUALS QUOTED_STR(Q) .
+object ::= TAG(T) op(o) QUOTED_STR(Q) .
 {
-	tagl->_tag->relation(tagl->_relator, *T, *Q);
+	tagl->_tag->relation(tagl->_relator, *T, *Q, o);
 }
-
 object ::= TAG(T) .
 {
 	tagl->_tag->relation(tagl->_relator, *T);
@@ -456,3 +456,26 @@ object ::= URL(U) .
 		tagl->ferror(u.code(), "bad url: %s", U->c_str());
 	}
 }
+
+op(o) ::= EQ .
+{
+	o = tagd::OP_EQ;
+}
+op(o) ::= GT .
+{
+	o = tagd::OP_GT;
+}
+op(o) ::= GT_EQ .
+{
+	o = tagd::OP_GT_EQ;
+}
+op(o) ::= LT .
+{
+	o = tagd::OP_LT;
+}
+op(o) ::= LT_EQ .
+{
+	o = tagd::OP_LT_EQ;
+}
+
+

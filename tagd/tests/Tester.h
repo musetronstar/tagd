@@ -932,6 +932,14 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( b.super_relator() == HARD_TAG_TYPE_OF )
 		TS_ASSERT( b.super_object() == "mammal" )
 		TS_ASSERT( b.pos() == tagd::POS_INTERROGATOR )
+
+		tagd::interrogator c("what");
+		c.relation("has", "legs", "2", tagd::OP_GT);
+		c.relation("has", "legs", "8", tagd::OP_LT);
+		TS_ASSERT( b.id() == "what" )
+		TS_ASSERT_EQUALS( c.relations.size() , 2 )
+		TS_ASSERT( b.pos() == tagd::POS_INTERROGATOR )
+
 	}
 
 	void test_referent(void) {

@@ -19,18 +19,59 @@ namespace tagd {
 const size_t MAX_TAG_LEN = 2112;  // We are the Priests of the Temples of Syrinx 
 typedef std::string id_type;
 typedef long long int rowid_t;
+
+typedef enum {
+	OP_EQ,		// =
+	OP_GT,  	// >
+	OP_GT_EQ,	// >=
+	OP_LT,		// <
+	OP_LT_EQ	// <=
+} operator_t;
+
+typedef enum {
+	TYPE_TEXT,
+	TYPE_INTEGER,
+	TYPE_FLOAT
+} data_t;
+	
 struct predicate {
-    id_type relator;
-    id_type object;
-    id_type modifier;
+	public:
+		id_type relator;
+		id_type object;
+		id_type modifier;
+		operator_t opr8r; // operates on the modifier
+		data_t modifier_type;
 
-    // modifier not used in comparisions
+	predicate() : opr8r{OP_EQ}, modifier_type{TYPE_TEXT} {}
+	predicate(const id_type &r, const id_type &o) :
+		relator(r), object(o), opr8r{OP_EQ}, modifier_type{TYPE_TEXT} {}
+	predicate(const id_type &r, const id_type &o, const id_type &m) :
+		relator(r), object(o), modifier(m), opr8r{OP_EQ}, modifier_type{TYPE_TEXT} {}
+	predicate(const id_type &r, const id_type &o, const id_type &m, operator_t op) :
+		relator(r), object(o), modifier(m), opr8r{op}, modifier_type{TYPE_TEXT} {}
+	predicate(const id_type &r, const id_type &o, const id_type &m, operator_t op, data_t d) :
+		relator(r), object(o), modifier(m), opr8r{op}, modifier_type{d} {}
+
+	const char* op_c_str() const {
+		switch (opr8r) {
+			case OP_EQ:		return "=";
+			case OP_GT:		return ">";
+			case OP_GT_EQ:	return ">=";
+			case OP_LT:		return "<";
+			case OP_LT_EQ:	return "<=";
+			default:		return "=";
+		}
+	}
+
+	// modifier not used in comparisions
     // relator and object make a predicate unique - modifier is incendental
-
     bool operator<(const predicate& p) const {
         return ( relator < p.relator 
                 || ( relator == p.relator
                      && object < p.object )
+                || ( relator == p.relator
+                     && object == p.object
+                     && modifier < p.modifier )
         );
     }
 
@@ -51,6 +92,7 @@ struct predicate {
 			relator.empty()
 			&& object.empty()
 			&& modifier.empty()
+			&& opr8r == OP_EQ
 		);
 	}
 };
@@ -58,14 +100,23 @@ struct predicate {
 typedef std::set<predicate> predicate_set;
 typedef std::pair<predicate_set::iterator,bool> predicate_pair;
 
+// relator, object, modifier, opr8r, modifier_type
+inline predicate make_predicate(const id_type& r, const id_type& o, const id_type& q, operator_t op, data_t d) {
+    return predicate( r, o, q, op, d );
+}
+
+// relator, object, modifier, opr8r
+inline predicate make_predicate(const id_type& r, const id_type& o, const id_type& q, operator_t op) {
+    return predicate( r, o, q, op );
+}
 // relator, object, modifier
 inline predicate make_predicate(const id_type& r, const id_type& o, const id_type& q) {
-    return predicate{ r, o, q };
+    return predicate( r, o, q );
 }
 
 // relator, object
 inline predicate make_predicate(const id_type& r, const id_type& o) {
-    return predicate{ r, o, "" };
+    return predicate( r, o );
 }
 
 // make predicate and insert relator, object, modifier
@@ -257,6 +308,10 @@ class abstract_tag {
         tagd_code relation(const id_type&, const id_type&);
                             // relator, object, modifier
         tagd_code relation(const id_type&, const id_type&, const id_type&);
+                            // relator, object, modifier, opr8r
+        tagd_code relation(const id_type&, const id_type&, const id_type&, operator_t);
+                            // relator, object, modifier, opr8r, modifier_type
+        tagd_code relation(const id_type&, const id_type&, const id_type&, operator_t, data_t);
 
         tagd_code not_relation(const predicate&);
                             // relator, object
@@ -275,10 +330,7 @@ class abstract_tag {
         size_t related(const id_type& object, predicate_set& how) const;
 
         // relator, object
-        bool related(const id_type& relator, const id_type& object) const {
-            return ( relations.find(make_predicate(relator, object)) != relations.end() );
-        }
-
+        bool related(const id_type& relator, const id_type& object) const;
         bool related(const predicate& p) const {
 			auto it = relations.find(p);
             if (it == relations.end())

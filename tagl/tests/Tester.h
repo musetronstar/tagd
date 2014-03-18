@@ -1108,6 +1108,13 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( it->super_object(), "animal" )
 		TS_ASSERT( it->related("_has", "legs") )
 		TS_ASSERT( it->related("_has", "tail") )
+
+		tc = tagl.execute("QUERY _what _is_a animal _has legs > 3, tail");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
+		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "animal" )
+		TS_ASSERT( cb.last_tag->related("_has", "legs") )
+		TS_ASSERT( cb.last_tag->related("_has", "tail") )
 	}
 
     void test_query_wildcard_relator(void) {
