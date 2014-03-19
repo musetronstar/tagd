@@ -29,5 +29,8 @@ class tagsh {
 		int interpret(const std::string&);  // tagl statement
 		int interpret_fname(const std::string&);  // filename
 		void dump_file(const std::string&, bool = true);
+		static int error(const char *errfmt, ...);
+		static bool file_exists(const std::string&);
+		static void cmd_show();
 };
 

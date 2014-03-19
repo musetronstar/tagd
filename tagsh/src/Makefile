@@ -16,10 +16,13 @@ LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagspace-sqlite -L $(TAGL_DIR)/lib -ltagl -L $
 
 all : $(BIN)
 
+tagsh.o : tagsh.cc
+	$(CXX) -c -o $@ $? $(INC) $(CXXFLAGS)
+
 main.o : main.cc
 	$(CXX) -c -o $@ $? $(INC) $(CXXFLAGS)
  
-$(BIN) : main.o
+$(BIN) : tagsh.o main.o
 	$(CXX) -o $@ $? $(INC) $(CXXFLAGS) $(LFLAGS)
 
 clean :
