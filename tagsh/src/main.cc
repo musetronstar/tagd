@@ -14,10 +14,9 @@
 #include "tagd.h"
 #include "tagl.h"
 #include "tagspace/sqlite.h"
+#include "tagsh.h"
 
 #define PRG "tagsh"
-
-typedef tagspace::sqlite space_type;
 
 // TODO put in a utility library
 int error(const char *errfmt, ...) {
@@ -32,17 +31,6 @@ int error(const char *errfmt, ...) {
 	return 1;
 }
 
-class tagsh_callback : public TAGL::callback {
-		space_type *_TS;
-
-	public:
-		tagsh_callback(space_type*);
-		void cmd_get(const tagd::abstract_tag&);
-		void cmd_put(const tagd::abstract_tag&);
-		void cmd_del(const tagd::abstract_tag&);
-		void cmd_query(const tagd::interrogator&); 
-        void cmd_error();
-};
 
 tagsh_callback::tagsh_callback(space_type *ts) {
 	_TS = ts;
@@ -112,18 +100,6 @@ void tagsh_callback::cmd_error() {
 	_driver->print_errors();
 }
 
-class tagsh {
-		space_type *_TS;
-		TAGL::callback *_CB;
-		TAGL::driver _driver;
-	public:
-		std::string prompt;
-		tagsh(space_type*, TAGL::callback*);
-		void command(const std::string&);
-		int interpret(std::istream&);
-		int interpret(const std::string&);  // filename
-		void dump_file(const std::string&, bool = true);
-};
 
 tagsh::tagsh(space_type *ts, TAGL::callback *cb) :
 	_TS(ts), _CB(cb), _driver(ts, cb), prompt("tagd> ")
@@ -205,7 +181,7 @@ void tagsh::command(const std::string& cmdline) {
 			return;
 		}
 
-		this->interpret(V[1]);
+		this->interpret_fname(V[1]);
 		return;
 	}
 
@@ -266,6 +242,26 @@ void tagsh::command(const std::string& cmdline) {
 	error("no such command: %s", cmd.c_str());
 }
 
+int tagsh::interpret(const std::string &line) {
+	_driver.parseln(line);
+
+	// force a reduce action when a terminator
+	// hanging on the end of the stack
+	// i.e. cmd_statement TERMINATOR
+	if (!_driver.has_error() && _driver.token() == TERMINATOR)
+		_driver.parse_tok(TERMINATOR, NULL);
+
+	if (_driver.has_error()) {
+		_driver.finish();
+		_driver.clear_errors();
+		return _driver.code();
+	}
+
+	_driver.finish();
+
+	return 0;
+}
+
 int tagsh::interpret(std::istream& ins) {
 	std::string line;
 
@@ -299,7 +295,7 @@ int tagsh::interpret(std::istream& ins) {
 	return 0;
 }
 
-int tagsh::interpret(const  std::string& fname) {
+int tagsh::interpret_fname(const  std::string& fname) {
 	int fd = open(fname.c_str(), O_RDONLY);
 	
 	if (fd < 0) 
@@ -337,7 +333,7 @@ int tagsh::interpret(const  std::string& fname) {
 int main(int argc, char **argv) {
 	typedef std::vector<std::string> str_vec_t; 
 	str_vec_t tagl_files;
-	std::string db_fname;
+	std::string db_fname, tagl_statement;
 	bool opt_trace = false;
 
 	for(int i=1; i<argc; i++) {
@@ -354,7 +350,11 @@ int main(int argc, char **argv) {
 			}
 		} else if (strcmp(argv[i], "--trace_on") == 0) {
 			opt_trace = true;
+		} else if (strcmp(argv[i], "--tagl") == 0) {
+			if (++i <= argc)
+				tagl_statement = argv[i];
 		} else {
+
 			tagl_files.push_back(argv[i]);
 		}
 	}
@@ -373,12 +373,18 @@ int main(int argc, char **argv) {
 	tagsh_callback CB(&TS);
 	tagsh shell(&TS,&CB);
 
-	if (tagl_files.size() == 0) {
+	if (tagl_statement.empty() && tagl_files.size() == 0) {
 		std::cout << "use .show to list commands" << std::endl;
 		return shell.interpret(std::cin);
 	}
 
 	int err;
+	if (!tagl_statement.empty()) {
+		shell.prompt.clear();
+		err = shell.interpret(tagl_statement);
+		if (err) return err;
+	}
+	
 	// input file(s) 
 	for(str_vec_t::iterator it = tagl_files.begin(); it != tagl_files.end(); ++it) {
 		if (*it == "-") {  // fname == "-", use interpret stdin
@@ -386,7 +392,7 @@ int main(int argc, char **argv) {
 			shell.prompt.clear();
 			err = shell.interpret(std::cin);
 		} else {
-			err = shell.interpret(*it);
+			err = shell.interpret_fname(*it);
 		}
 
 		if ( err ) {
