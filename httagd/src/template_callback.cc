@@ -213,6 +213,8 @@ class tagd_template {
 			tagd::tag_set img_urls;
 			if (t.relations.size() > 0) {
 				D.ShowSection("relations");
+				tagd::id_type last_relator;
+				ctemplate::TemplateDictionary* relator_dict;
 				for (auto p : t.relations) {
 					if (p.relator == "img_src" && looks_like_hduri(p.object)) {
 						tagd::url u;
@@ -220,8 +222,14 @@ class tagd_template {
 						img_urls.insert(u);
 						continue;
 					}
-					ctemplate::TemplateDictionary* sub_dict = D.AddSectionDictionary("relation");
-					set_relator_link(tpl, sub_dict, "relator", p.relator);
+
+					if (p.relator != last_relator) {
+						last_relator = p.relator;
+						relator_dict = D.AddSectionDictionary("relation_set");
+						set_relator_link(tpl, relator_dict, "relator", p.relator);
+					}
+
+					ctemplate::TemplateDictionary* sub_dict = relator_dict->AddSectionDictionary("relation");
 					set_tag_link(tpl, sub_dict, "object", p.object);
 					if (!p.modifier.empty()) {
 						sub_dict->ShowSection("has_modifier");

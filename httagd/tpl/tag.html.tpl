@@ -5,15 +5,17 @@
 </p>
 {{#has_img}}<img src="{{img_src}}">{{/has_img}}
 {{#relations}}
-<ul>
+ {{#relation_set}}
+<dl>
+ <dt><a href="{{relator_lnk}}">{{relator}}</a></dt>
  {{#relation}}
- <li>
-  <a href="{{relator_lnk}}">{{relator}}</a>
+ <dd>
   <a href="{{object_lnk}}">{{object}}</a>
    {{#has_modifier}} = {{modifier}}{{/has_modifier}}
- </li>
+ </dd>
  {{/relation}}
-</ul>
+</dl>
+ {{/relation_set}}
 {{/relations}}
 
 {{#referents_refers_to}}
