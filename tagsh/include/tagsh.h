@@ -1,5 +1,8 @@
 #pragma once
 
+#include "tagl.h"
+#include "tagspace/sqlite.h"
+
 // TODO use a template
 typedef tagspace::sqlite space_type;
 
