@@ -271,6 +271,34 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "RANK_MAX_VALUE");
     }
 
+	void test_rank_set_next(void) {
+        char a1[4] = {1, 2, 1, '\0'};
+        tagd::rank r1;
+        tagd::code rc = r1.init(a1);
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "TAGD_OK");
+
+        tagd::rank_set R;
+        R.insert(r1);
+		int i = 0;
+        while (++i < 127) {
+            rc = r1.increment();
+            if (rc != tagd::TAGD_OK)
+                break;
+			R.insert(r1);
+		}
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "TAGD_OK");
+        TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.127" );
+
+        tagd::rank next;
+        tagd::rank::next(next, R);
+        TS_ASSERT_EQUALS( next.dotted_str() , "1.2.128" );
+        R.insert(next);
+
+		next.clear();
+        tagd::rank::next(next, R);
+        TS_ASSERT_EQUALS( next.dotted_str() , "1.2.129" );
+    }
+
 	void test_rank_increment(void) {
         char a1[4] = {1, 2, 125, '\0'};
         tagd::rank r1;

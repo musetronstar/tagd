@@ -152,9 +152,7 @@ tagd::code rank::next(rank& next, const rank_set& R) {
 	// otherwise, the beginning could be a single byte and the end a multibyte
 	uint32_t back = it->back();
 
-	// next rank cannot fit in leading utf8 byte
-	// so increment from the last rank in the set
-	if (back > (0x80 - 2)) {
+	auto f_increment_end = [&]() -> tagd::code {
 		it = R.end();
 		--it;
 		if (it->_data.empty()) {
@@ -163,6 +161,12 @@ tagd::code rank::next(rank& next, const rank_set& R) {
 		}
 		next = *it;
 		return next.increment();
+	};
+
+	// next rank cannot fit in leading utf8 byte
+	// so increment from the last rank in the set
+	if (back > (0x80 - 2)) {
+		return f_increment_end();
 	}
 
 	// rank can fit in leading utf8 byte, so fill holes if there are any
@@ -182,14 +186,13 @@ tagd::code rank::next(rank& next, const rank_set& R) {
     rank_set::const_iterator prev = it;
     ++it;
 
-    /* check for holes in the last byte of each rank element
-       e.g. 1.2.1 , 1.2.2 , 1.2.4
-                          ^ hole 1.2.3
-    */
+    // check for holes in the last byte of each rank element
+    // e.g. 1.2.1 , 1.2.2 , 1.2.4
+    //                    ^ hole 1.2.3
     while (it != R.end()) {
         if (it->size() != sz) {
-            std::cerr << "mismatched sizes in rank set" << std::endl;
-            return RANK_ERR;
+            // mismatched sizes in rank set
+			return f_increment_end();
         }
 
         if (prev->_data.empty() || it->_data.empty()) {
