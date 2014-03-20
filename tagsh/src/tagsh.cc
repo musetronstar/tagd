@@ -23,8 +23,10 @@ int tagsh::error(const char *errfmt, ...) {
 	char *err = tagd::util::csprintf(errfmt, args);
 	va_end (args);
 
-	if (err != NULL)
-		std::perror(err);
+	if (err == NULL)
+		std::perror("error: ");
+	else
+		std::cerr << err << std::endl;
 
 	return 1;
 }

@@ -21,6 +21,7 @@ int main(int argc, char **argv) {
 	typedef std::vector<std::string> str_vec_t; 
 	str_vec_t tagl_files;
 	std::string db_fname, tagl_statement;
+	bool opt_create = false;
 	bool opt_trace = false;
 
 	for(int i=1; i<argc; i++) {
@@ -28,15 +29,18 @@ int main(int argc, char **argv) {
 			if (++i < argc) {
 				if (argv[i][0] == '-')
 					db_fname = ":memory:";
-				else if (tagsh::file_exists(argv[i]))
+				else {
+					if (!opt_create && !tagsh::file_exists(argv[i]))
+						return tagsh::error("no such file: %s", argv[i]);
 					db_fname = argv[i];
-				else
-					return tagsh::error("no such file: %s", argv[i]);
+				}
 			} else {
-				return tagsh::error("--db option requires database file");
+				return tagsh::error("usage: --db <database file>");
 			}
 		} else if (strcmp(argv[i], "--trace_on") == 0) {
 			opt_trace = true;
+		} else if (strcmp(argv[i], "--create") == 0) {
+			opt_create = true;
 		} else if (strcmp(argv[i], "--tagl") == 0) {
 			if (++i <= argc)
 				tagl_statement = argv[i];
