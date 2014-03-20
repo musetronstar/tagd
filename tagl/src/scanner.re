@@ -140,7 +140,7 @@ next:
 		goto next;
 	}
 
-	"\n"
+	NL
 	{	// newline
 		_line_number++;
 		_beg = _cur;
@@ -186,6 +186,7 @@ next:
 comment:
 /*!re2c
 	NL			{
+					_line_number++;
 					_ignore = false;
 					/*if (driver::_trace_on) {
 						tok = "COMMENT";
@@ -209,6 +210,7 @@ block_comment:
 					_beg = _cur;
 					goto next;
 				}
+	NL			{ _line_number++; goto block_comment; }
 	[\000]      { _driver->error(tagd::TAGL_ERR, "unclosed block comment"); return; }
 	ANY			{ goto block_comment; }
 */
@@ -234,6 +236,7 @@ quoted_str:
 /*!re2c
 	"\\\""		{ goto quoted_str; /* escaped */ }
 	"\""		{ goto parse_quoted_str; }
+	NL			{ _line_number++; goto quoted_str; }
 	ANY			{ goto quoted_str; }
 */
 
