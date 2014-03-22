@@ -1,6 +1,5 @@
-CXX = g++ -g -std=c++0x
+CXX = g++ -std=c++0x -O3
 #DFLAGS =
-FLAGS = -DDEBUG
 # -Wno-write-strings suppress const char * to char * warnings
 CXXFLAGS = -Wall -Wextra -pedantic -Wno-write-strings $(DFLAGS)
 BUILD_DIR = ../bin
@@ -14,7 +13,13 @@ TAGSPACE_DIR = ../../tagspace
 INC = -I../include -I$(TAGD_DIR)/include -I$(TAGL_DIR)/include -I$(TAGSPACE_DIR)/include -I$(TAGSPACE_DIR)/sqlite/include -I$(TAGSH_DIR)/include
 LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagspace-sqlite -L $(TAGL_DIR)/lib -ltagl -L $(TAGD_DIR)/lib -ltagd -lsqlite3 -levent
 
-all : $(BIN)
+DEBUG=
+debug: DEBUG=debug
+debug: build
+
+all: build
+
+build : $(BIN)
 
 tagsh.o : tagsh.cc
 	$(CXX) -c -o $@ $? $(INC) $(CXXFLAGS)

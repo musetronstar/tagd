@@ -1,6 +1,5 @@
-CXX = g++ -g -std=c++0x -pg
+CXX = g++ -std=c++0x -O3
 WFLAGS = -Wall
-DFLAGS = -DNDEBUG
 CFLAGS = -fno-strict-aliasing
 
 TAGD_DIR = ../../tagd
@@ -19,7 +18,13 @@ LIBEVHTP_INC = -I$(LIBEVHTP_DIR) -I$(LIBEVHTP_DIR)/build -I$(LIBEVHTP_DIR)/build
 LIBEVHTP_LFLAGS = -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
 LIBEVHTP = $(LIBEVHTP_DIR)/build/libevhtp.a
 
-all : $(BIN)
+DEBUG=
+debug: DEBUG=debug
+debug: build
+
+all: build
+
+build : $(BIN)
 
 main.o : main.cc
 	$(CXX) -c -o $@ $? $(INC) $(LIBEVHTP_INC)

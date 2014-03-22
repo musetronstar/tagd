@@ -4,19 +4,25 @@ TEST_DIR = ./tests
 
 LIB = $(BUILD_DIR)/libtagl.a
 
-all: libtagl
+DEBUG=
+debug: DEBUG=debug
+debug: build
+
+all: build
+
+build: libtagl
 
 libtagl: tagl $(LIB)
 
 tagl: force_look
-	make -C	$(SRC_DIR)
+	make -C	$(SRC_DIR) $(DEBUG)
 
 $(LIB):
 	[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
 	ar rcs $(LIB) $(SRC_DIR)/*.o
 
 tests: libtagl force_look 
-	make -C $(TEST_DIR)
+	make -C $(TEST_DIR) $(DEBUG)
 
 force_look:
 	true

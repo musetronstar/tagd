@@ -1,5 +1,5 @@
-CXX = g++ -std=c++0x
-CXXFLAGS = -Wall -Wextra -g -DDEBUG
+CXX = g++ -std=c++0x -O3
+CXXFLAGS = -Wall -Wextra
 
 TAGDDIR =../../tagd
 INC = -I../include -I$(TAGDDIR)/include
@@ -7,7 +7,14 @@ SRCS = tagspace.cc bootstrap.cc
 HDRS = ../include/tagspace.h ../include/tagspace/bootstrap.h
 OBJS=$(SRCS:.cc=.o)
 
-all: $(HDRS) $(SRCS) $(OBJS)
+DEBUG=
+debug: DEBUG=debug
+#debug: CXXFLAGS += -g -DDEBUG
+debug: build
+
+all: build
+
+build: $(HDRS) $(SRCS) $(OBJS)
 
 .cc.o :
 	$(CXX) -c -o $@ $< $(INC) $(CXXFLAGS)

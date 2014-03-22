@@ -1,4 +1,4 @@
-CXX = g++ -g -std=c++0x
+CXX = g++ -std=c++0x -O3
 WFLAGS = -Wall -Wextra
 YACC = 
 
@@ -6,7 +6,13 @@ INC =  -I../include -I../../tagd/include -I../../tagspace/include
 CXXFLAGS += $(INC)
 PARSER_H = ../include/parser.h
 
-all: tagl.o parser.o scanner.o
+DEBUG=
+debug: DEBUG=debug
+debug: build
+
+all: build
+
+build: tagl.o parser.o scanner.o
 
 scanner.o: lemonfiles
 	re2c scanner.re | $(CXX) -c -o $@  -x c++ - $(CXXFLAGS)

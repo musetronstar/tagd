@@ -1,13 +1,22 @@
 MAKE_DIRS = tagd tagspace tagl tagsh httagd
 
-all: force_look
+DEBUG=
+
+.PHONY: debug build all
+
+debug: DEBUG = debug
+debug: build
+
+all: build
+
+build: force_look
 	for dir in $(MAKE_DIRS) ; do \
-		make -C $$dir ; \
+		make -C $$dir $(DEBUG) ; \
 	done
 
 tests: force_look
 	for dir in $(MAKE_DIRS) ; do \
-		make -C $$dir tests; \
+		make -C $$dir tests $(DEBUG) ; \
 	done
 
 clean: force_look
