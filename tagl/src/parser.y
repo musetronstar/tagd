@@ -38,17 +38,18 @@
 			tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
 	}
 
-	tagl->do_callback();
-/*
-	std::cerr << "syntax_error stack: " << std::endl;
-	fprintf(stderr,"yymajor: %s\n",yyTokenName[yymajor]);
-	if( yypParser->yyidx>0 ){
-		int i;
-		for(i=1; i<=yypParser->yyidx; i++)
-			fprintf(stderr," %s",yyTokenName[yypParser->yystack[i].major]);
-		fprintf(stderr,"\n");
+	if (tagl->is_trace_on()) {
+		std::cerr << "syntax_error stack: " << std::endl;
+		fprintf(stderr,"yymajor: %s\n",yyTokenName[yymajor]);
+		if( yypParser->yyidx>0 ){
+			int i;
+			for(i=1; i<=yypParser->yyidx; i++)
+				fprintf(stderr," %s",yyTokenName[yypParser->yystack[i].major]);
+			fprintf(stderr,"\n");
+		}
 	}
-*/
+
+	tagl->do_callback();
 }
 
 start ::= statement_list .

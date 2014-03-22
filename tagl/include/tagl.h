@@ -35,7 +35,7 @@ class callback {
         virtual void finish() {} // optionally, can be overridden
 };
 
-const size_t buf_sz = 1024 * 16; // 16k
+const size_t buf_sz = 256;
 
 class scanner {
 		friend void ::yy_reduce(yyParser *, int);
@@ -65,6 +65,7 @@ class scanner {
 		void scan(const std::string& s) { this->scan(s.c_str(), s.size()); }
 		void scan(const char*, size_t);
 		void evbuf(evbuffer *ev) { _evbuf = ev; _do_fill = true; }
+		void print_buf();
 
 		void scan_tagdurl_path(int cmd, const std::string&, const url_query_map_t* qm = nullptr);
 
@@ -116,6 +117,7 @@ class driver : public tagd::errorable {
 		tagd_code tagdurl_del(const std::string&, const url_query_map_t* qm = nullptr);
 		tagd_code evbuffer_execute(struct evbuffer*);
 		int token() const { return _token; }
+		bool is_trace_on() const { return _trace_on; }
 		tagspace::flags_t flags() const { return _flags; }
 		int lookup_pos(const std::string&) const;
 		void parse_tok(int, std::string*);

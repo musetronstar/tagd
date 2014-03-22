@@ -254,7 +254,7 @@ tagd_code driver::evbuffer_execute(struct evbuffer *input) {
 	if ((sz = evbuffer_remove(input, _scanner._buf, read_sz)) > 0) {
 		if (_trace_on)
 			std::cout << "scanning: " << std::string(_scanner._buf, sz) << std::endl;
-		if (sz < read_sz && _scanner._buf[sz] != '\0')
+		if (sz < buf_sz && _scanner._buf[sz] != '\0')
 			_scanner._buf[sz] = '\0';
 		_scanner.evbuf(input);
 		_scanner.scan(_scanner._buf, sz);

@@ -4,49 +4,71 @@
 #include <cstring>
 #include <unistd.h>
 #include <stdio.h>
+#include <cassert>
 
 #include "tagl.h"
 #include <event2/buffer.h>
 
 namespace TAGL {
 
+void scanner::print_buf() {
+	std::cerr << std::endl;
+	for(size_t i=0; i<buf_sz; ++i) {
+		std::cerr << (i % 10);
+	}
+	std::cerr << std::endl;
+	for(size_t i=0; i<buf_sz; ++i) {
+		std::cerr << _buf[i];
+	}
+	std::cerr << std::endl;
+	std::cerr << "_beg(" << (_beg-_buf) << "): " << ((int)*_beg) << ", " << *_beg << std::endl;
+	std::cerr << "_cur(" << (_cur-_buf) << "): " << ((int)*_cur) << ", " << *_cur << std::endl;
+	std::cerr << "_lim(" << (_lim-_buf) << "): " << ((int)*_lim) << ", " << *_lim << std::endl;
+	if (_eof == nullptr)
+		std::cerr << "_eof: NULL" << std::endl;
+	else
+		std::cerr << "_eof(" << (_eof-_buf) << "): " << ((int)*_eof) << ", " << *_eof << std::endl;
+	std::cerr << "_val(" << _val.size() << "): `" << _val << "'" << std::endl;
+}
+
 const char* scanner::fill() {
+	if (driver::_trace_on)
+		std::cerr << "ln: " << _line_number << " ,fill() _cur: `" << *_cur << "'" << std::endl;
+
 // YYFILL(n)  should adjust YYCURSOR, YYLIMIT, YYMARKER and YYCTXMARKER as needed.
 	if (_cur == '\0') {
 		_eof = _cur;
 		if (driver::_trace_on)
-			std::cout << "fill eof. " << std::endl;
+			std::cerr << "fill eof. " << std::endl;
 	}
 
-	if (_eof) return _cur;
-
 	size_t sz, offset;
+	assert(_lim > _beg);
 	sz = _lim - _beg;
-	if (sz > (buf_sz/2)) {
-		std::cerr << "append(" << sz << ")" << std::endl;
-		if (!_ignore)
-			_val.append(_beg, sz);
+
+	if (sz >= buf_sz) {
+		_val.append(_buf, buf_sz);
 		_beg = _cur = &_buf[0];
-		offset = 0;
+		sz = offset = 0;
 	} else {
 		strncpy(&_buf[0], _beg, sz);
 		_cur = &_buf[_cur-_beg];
 		_beg = &_buf[0];
 		offset = sz;
+		_buf[sz] = '\0';
 	}
-	_buf[sz] = '\0';
 
 	if (driver::_trace_on) {
 		if (!_val.empty())
-			std::cout << "val: `" << _val << "'" << std::endl;
-		std::cout << "buf(" << sz << "): `" << std::string(_buf, sz) << "'" << std::endl;
+			std::cerr << "val: `" << _val << "'" << std::endl;
+		std::cerr << "buf(" << sz << "): `" << std::string(_buf, sz) << "'" << std::endl;
 	}
 
 	size_t read_sz = buf_sz - offset;
 	if (driver::_trace_on) {
-		std::cout << "sz: " << sz << std::endl;
-		std::cout << "offset: " << offset << std::endl;
-		std::cout << "read_sz: " << read_sz << std::endl;
+		std::cerr << "sz: " << sz << std::endl;
+		std::cerr << "offset: " << offset << std::endl;
+		std::cerr << "read_sz: " << read_sz << std::endl;
 	}
 
 	if ((sz = evbuffer_remove(_evbuf, &_buf[offset], read_sz)) != 0) {
@@ -60,7 +82,7 @@ const char* scanner::fill() {
 		}
 		_lim = &_buf[sz];
 		if (driver::_trace_on)
-			std::cout << "filled(" << sz << "): `" << std::string(_beg, sz) << "'" << std::endl;
+			std::cerr << "filled(" << sz << "): `" << std::string(_beg, sz) << "'" << std::endl;
 	} else {
 		_eof = _lim = &_buf[offset];
 	}
@@ -72,8 +94,8 @@ void scanner::scan(const char *cur, size_t sz) {
 	
 	const char *mark; 
 	_beg = _cur = cur;
-	if (!_do_fill)
-		_eof = &_cur[sz];
+	//if (!_do_fill)
+	//	_eof = &_cur[sz];
 
 	_lim = &_cur[sz];
 
@@ -87,7 +109,7 @@ void scanner::scan(const char *cur, size_t sz) {
 #define YYLIMIT	_lim
 #define YYGETSTATE()    _state
 #define YYSETSTATE(x)   { _state = (x);  }
-#define	YYFILL(n)	{ if(_do_fill && _evbuf && !_eof){this->fill();} }
+#define	YYFILL(n)	{ if(_do_fill && _evbuf && !_eof){ this->fill(); if(_driver->has_error()) return; } }
 #define YYMARKER        mark
 
 next:
@@ -157,7 +179,8 @@ next:
 	[Dd][Ee][Ll]             { PARSE(CMD_DEL); }
 	[Qq][Uu][Ee][Rr][Yy]     { PARSE(CMD_QUERY); }
 
-	[0-9]+               { // TODO NUM;
+	"-"? [0-9]+ ("." [0-9]+)?
+						{ 
 	                        PARSE_VALUE(QUANTIFIER);
 	                     }
 
@@ -196,7 +219,7 @@ comment:
 						goto next;
 					//}
 				}
-	ANY			{ goto comment; }
+	ANY			{ 	_beg = _cur; goto comment; }
 */
 
 block_comment:
@@ -210,14 +233,15 @@ block_comment:
 					_beg = _cur;
 					goto next;
 				}
-	NL			{ _line_number++; goto block_comment; }
+	NL			{ 	_beg = _cur; _line_number++; goto block_comment; }
 	[\000]      { _driver->error(tagd::TAGL_ERR, "unclosed block comment"); return; }
-	ANY			{ goto block_comment; }
+	ANY			{ 	_beg = _cur; goto block_comment; }
 */
 
 parse:
 	_driver->parse_tok(_tok, NULL);
 	_beg = _cur;
+	if(!_val.empty()) _val.clear();
 	goto next;
 
 parse_value:
@@ -228,7 +252,7 @@ parse_value:
 		 : new std::string(_val.append(_beg, (_cur-_beg)))
 		)  // parser deletes
 	);
-	_val.clear();
+	if(!_val.empty()) _val.clear();
 	_beg = _cur;
 	goto next;
 
@@ -242,12 +266,12 @@ quoted_str:
 
 parse_quoted_str:
 	// _quoted_str uses by parser instead of new string pointer - parser clears
-	_beg++;
-	sz = (_cur-_beg)-1;
+	sz = (_cur-_beg);
 	_val.append(_beg, sz);
+	// parse the value in quotes, not the quotes themselves
 	_driver->parse_tok(
-		_driver->lookup_pos(_val),
-		new std::string(_val)  // parser deletes
+		_driver->lookup_pos(_val.substr(1, sz-2)),
+		new std::string(_val.substr(1, sz-2))  // parser deletes
 	);
 	_val.clear();
 	_beg = _cur;
