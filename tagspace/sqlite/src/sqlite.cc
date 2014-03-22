@@ -1535,6 +1535,7 @@ tagd::code sqlite::delete_tag(const tagd::id_type& id) {
 tagd::code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& super) {
     assert( !super.rank().empty() || (super.rank().empty() && super.id() == HARD_TAG_ENTITY) );
 
+	/*
     tagd::rank_set R;
 	// TODO, this will be extremely wasteful for large set
 	// instead:
@@ -1557,6 +1558,17 @@ tagd::code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& super) 
 	// Otherwise, its too large to loop through looking for holes
 	// and the last rank in the set +1 will be used.
     tagd::code r_rc = tagd::rank::next(next, R);
+	*/
+
+	this->max_child_rank(next, super.id());
+	tagd::code r_rc;
+	if (next.empty()) {
+		next = super.rank();
+		r_rc = next.push_back(1);
+	} else {
+		r_rc = next.increment();
+	}
+
     if (r_rc != tagd::TAGD_OK)
         return this->ferror(tagd::TS_ERR, "next_rank error: %s", tagd_code_str(r_rc));
 
@@ -1828,8 +1840,10 @@ tagd::code sqlite::insert_relations(const tagd::abstract_tag& t, const flags_t& 
                 return this->ferror(tagd::TS_INTERNAL_ERR, "insert relations error: %s", errmsg);
             } 
         } else {
-            return this->ferror(tagd::TS_ERR, "insert relations failed: %s, %s, %s",
-									t.id().c_str(), it->relator.c_str(), it->object.c_str());
+            if (!(sqlite_constraint_type(sqlite3_errmsg(_db)) == TS_SQLITE_UNIQUE && (flags & F_IGNORE_DUPLICATES))) {
+				return this->ferror(tagd::TS_ERR, "insert relations failed: %s, %s, %s",
+										t.id().c_str(), it->relator.c_str(), it->object.c_str());
+			}
         }
 
         if (++it != t.relations.end()) {
@@ -2856,6 +2870,44 @@ tagd::code sqlite::dump(std::ostream& os) {
 
     if (s_rc == SQLITE_ERROR)
         return this->error(tagd::TS_INTERNAL_ERR, "dump referents failed");
+
+    return this->code(tagd::TAGD_OK);
+}
+
+tagd::code sqlite::max_child_rank(tagd::rank& next, const tagd::id_type& super_object) {
+    this->open();
+	OK_OR_RET_ERR();
+
+    int s_rc = this->prepare(&_max_child_rank_stmt,
+        "SELECT rank FROM tags WHERE super_object = tid(?) ORDER BY rank DESC LIMIT 1",
+        "child ranks"
+    );
+
+    this->bind_text(&_max_child_rank_stmt, 1, super_object.c_str(), "rank super_object");
+	OK_OR_RET_ERR();
+
+    const int F_RANK = 0;
+    tagd::code rc;
+
+	s_rc = sqlite3_step(_max_child_rank_stmt);
+    if (s_rc == SQLITE_ROW) {
+        rc = next.init( (const char*) sqlite3_column_text(_max_child_rank_stmt, F_RANK));
+        switch (rc) {
+            case tagd::TAGD_OK:
+                break;
+            case tagd::RANK_EMPTY:
+				// _entity is the only tag having NULL rank
+                if (super_object != HARD_TAG_ENTITY) {
+                    return this->error(tagd::TS_INTERNAL_ERR, "integrity error: NULL rank");
+                }
+				next.clear();  // ensure its empty
+                break;
+            default:
+                return this->ferror(tagd::TS_ERR, "get_childs rank.init() error: %s", tagd_code_str(rc));
+        }
+    } else {
+		next.clear();  // ensure its empty
+	}
 
     return this->code(tagd::TAGD_OK);
 }

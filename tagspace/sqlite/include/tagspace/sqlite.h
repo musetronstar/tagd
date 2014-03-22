@@ -32,6 +32,7 @@ class sqlite: public tagspace {
         sqlite3_stmt *_update_tag_stmt;
         sqlite3_stmt *_update_ranks_stmt;
         sqlite3_stmt *_child_ranks_stmt;
+        sqlite3_stmt *_max_child_rank_stmt;
         sqlite3_stmt *_insert_relations_stmt;
         sqlite3_stmt *_insert_referents_stmt;
         sqlite3_stmt *_insert_context_stmt;
@@ -88,6 +89,7 @@ class sqlite: public tagspace {
             _update_tag_stmt(NULL),
             _update_ranks_stmt(NULL),
             _child_ranks_stmt(NULL),
+            _max_child_rank_stmt(NULL),
             _insert_relations_stmt(NULL),
 			_insert_referents_stmt(NULL),
 			_insert_context_stmt(NULL),
@@ -231,6 +233,7 @@ class sqlite: public tagspace {
 
         tagd_code next_rank(tagd::rank&, const tagd::abstract_tag&);
         tagd_code child_ranks(tagd::rank_set&, const tagd::id_type&);
+		tagd_code max_child_rank(tagd::rank&, const tagd::id_type&);
 
         // sqlite3 helper funcs
         tagd_code exec(const char*, const char*label=NULL);
