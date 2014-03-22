@@ -59,10 +59,12 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	if (opt_trace) TS.trace_on();
-
 	tagsh_callback CB(&TS);
 	tagsh shell(&TS,&CB);
+
+	if (opt_trace) {
+		shell.interpret(".trace_on");
+	}
 
 	if (tagl_statement.empty() && tagl_files.size() == 0) {
 		std::cout << "use .show to list commands" << std::endl;

@@ -227,21 +227,23 @@ void tagsh::command(const std::string& cmdline) {
 }
 
 int tagsh::interpret(const std::string &line) {
-	_driver.parseln(line);
+	if (line[0] == '.') {
+		command(line);
+	} else {
+		_driver.parseln(line);
 
-	// force a reduce action when a terminator
-	// hanging on the end of the stack
-	// i.e. cmd_statement TERMINATOR
-	if (!_driver.has_error() && _driver.token() == TERMINATOR)
-		_driver.parse_tok(TERMINATOR, NULL);
+		// force a reduce action when a terminator
+		// hanging on the end of the stack
+		// i.e. cmd_statement TERMINATOR
+		if (!_driver.has_error() && _driver.token() == TERMINATOR)
+			_driver.parse_tok(TERMINATOR, NULL);
 
-	if (_driver.has_error()) {
-		_driver.finish();
-		_driver.clear_errors();
-		return _driver.code();
+		if (_driver.has_error()) {
+			_driver.finish();
+			_driver.clear_errors();
+			return _driver.code();
+		}
 	}
-
-	_driver.finish();
 
 	return 0;
 }
@@ -253,22 +255,7 @@ int tagsh::interpret(std::istream& ins) {
 		std::cout << prompt;
 
 	while (getline(ins, line)) {
-		if (line[0] == '.') {
-			command(line);
-		} else {
-			_driver.parseln(line);
-
-			// force a reduce action when a terminator
-			// hanging on the end of the stack
-			// i.e. cmd_statement TERMINATOR
-			if (!_driver.has_error() && _driver.token() == TERMINATOR)
-				_driver.parse_tok(TERMINATOR, NULL);
-
-			if (_driver.has_error()) {
-				_driver.finish();
-				_driver.clear_errors();
-			}
-		}
+		this->interpret(line);
 
 		if (!prompt.empty())
 			std::cout << prompt;
