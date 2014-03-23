@@ -49,6 +49,7 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 	if(_TS->ok()) {
 		std::cout << *T << std::endl;
 	} else {	
+		_driver->code(_TS->code()); // stops the scanner
 		_TS->print_errors();
 		_TS->clear_errors();
 	}
@@ -61,6 +62,7 @@ void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 	if (_TS->ok()) {
 		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
 	} else {
+		_driver->code(_TS->code()); // stops the scanner
 		_TS->print_errors();
 		_TS->clear_errors();
 	}
@@ -71,6 +73,7 @@ void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 	if (_TS->ok()) {
 		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
 	} else {
+		_driver->code(_TS->code()); // stops the scanner
 		_TS->print_errors();
 		_TS->clear_errors();
 	}
@@ -90,6 +93,7 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 			std::cout << "-- " << tagd_code_str(_TS->code()) << std::endl;
 			break;
 		default:	
+			_driver->code(_TS->code()); // stops the scanner
 			_TS->print_errors();
 			_TS->clear_errors();
 	}
