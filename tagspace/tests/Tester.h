@@ -917,6 +917,31 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
     }
 
+	void test_ignore_duplicate_rank(void) {
+        space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+		tagd::tag dolphin("dolphin", "mammal");
+        tagd_code ts_rc = TS.put(dolphin, tagspace::F_IGNORE_DUPLICATES); // new tag, no relations
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+		tagd::tag t1;
+		ts_rc = TS.get(t1, "dolphin");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+		tagd::rank r1 = t1.rank();
+
+        ts_rc = TS.put(dolphin, tagspace::F_IGNORE_DUPLICATES); // duplicate not inserted
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+
+		tagd::tag t2;
+		ts_rc = TS.get(t2, "dolphin");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
+		tagd::rank r2 = t2.rank();
+
+        TS_ASSERT_EQUALS(r1.dotted_str(), r2.dotted_str())
+    }
+
     void test_ignore_duplicate(void) {
         space_type TS;
         TS.init(db_fname);
