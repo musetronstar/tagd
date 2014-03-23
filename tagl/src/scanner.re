@@ -156,7 +156,7 @@ next:
 		PARSE(TERMINATOR);
 	}
 
-	[ \t\r]
+	[ \t]
 	{  // whitespace
 		_beg = _cur;
 		goto next;
@@ -199,6 +199,11 @@ next:
 	[\000]               { return; }
 
 	[^]                  { // ANY
+							_driver->error(tagd::TAGL_ERR, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, std::string(_beg,(_cur-_beg))));
+							if (_line_number) {
+								_driver->last_error_relation(
+									tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(_line_number)) );
+							}
 	                        return;
 	                     }
 
@@ -211,13 +216,8 @@ comment:
 	NL			{
 					_line_number++;
 					_ignore = false;
-					/*if (driver::_trace_on) {
-						tok = "COMMENT";
-						goto parse;
-					} else {*/
-						_beg = _cur;
-						goto next;
-					//}
+					_beg = _cur;
+					goto next;
 				}
 	ANY			{ 	_beg = _cur; goto comment; }
 */
@@ -226,10 +226,6 @@ block_comment:
 /*!re2c
 	"*-"		{
 					_ignore = false;
-					/*if (driver::_trace_on) {
-						tok = "BLOCK_COMMENT";
-						goto parse;
-					} */
 					_beg = _cur;
 					goto next;
 				}

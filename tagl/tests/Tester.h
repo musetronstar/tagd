@@ -73,6 +73,8 @@ class tagspace_tester : public tagspace::tagspace {
 			cat.relation("_can", "bite");
 			db[cat.id()] = cat;
 			_cat = cat;
+
+			put_test_tag("breed", "dog", tagd::POS_TAG);
 		}
 
 		tagd::part_of_speech pos(const tagd::id_type& id, ts_flags_t flags = ts_flags_t()) {
@@ -431,6 +433,16 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related("_has", "fur") )
 		TS_ASSERT( tagl.tag().related("_can", "bark") )
 		TS_ASSERT( tagl.tag().related("_can", "bite") )
+	}
+
+	void test_dash_modifier(void) {
+		tagspace_tester TS;
+		TAGL::driver tagl(&TS);
+		tagd_code tc = tagl.execute(
+				"PUT shar_pei _is_a dog\n"
+				"_has breed = Shar-Pei"
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 	}
 
 	void test_delete_super_not_allowed(void) {
