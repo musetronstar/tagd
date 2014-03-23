@@ -76,6 +76,8 @@ int main(int argc, char **argv) {
 		shell.prompt.clear();
 		err = shell.interpret(tagl_statement);
 		if (err) return err;
+		err = shell.interpret(";"); // just in case it wasn't provided
+		if (err) return err;
 	}
 	
 	// input file(s) 
