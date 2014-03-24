@@ -2257,10 +2257,14 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 			f_transform( (const char*) sqlite3_column_text(_related_stmt, F_RELATOR) ),
 			f_transform( (const char*) sqlite3_column_text(_related_stmt, F_OBJECT) )
 		);
-		if (sqlite3_column_type(_get_relations_stmt, F_MODIFIER) != SQLITE_NULL) {
+
+		if (sqlite3_column_type(_related_stmt, F_MODIFIER) != SQLITE_NULL) {
 			pred.modifier = f_transform( (const char*) sqlite3_column_text(_related_stmt, F_MODIFIER) );
 		}
 		t->relation(pred);
+
+		if (_trace_on)
+			std::cerr << "related R.insert: " << *t << std::endl;
 
         it = R.insert(it, *t);
 		delete t;

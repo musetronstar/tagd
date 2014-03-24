@@ -297,6 +297,7 @@ class Tester : public CxxTest::TestSuite {
 		next.clear();
         tagd::rank::next(next, R);
         TS_ASSERT_EQUALS( next.dotted_str() , "1.2.129" );
+        R.insert(next);
     }
 
 	void test_rank_increment(void) {
@@ -648,7 +649,7 @@ class Tester : public CxxTest::TestSuite {
 		// B: { dog, cat, bird }
 
         merge_tags_erase_diffs(A, D);
-
+		
         TS_ASSERT_EQUALS( A.size(), 2 );  // contains cat and bird
         tagd::tag_set::iterator it = A.find(cat); // cat
         TS_ASSERT( it != A.end() && *it == cat );  // cat relations merged
@@ -725,15 +726,34 @@ class Tester : public CxxTest::TestSuite {
 		// because cat and bird are animals
         TS_ASSERT_EQUALS( tag_ids_str(A), "cat, bird" )
 
+		animal.super_object("living_thing");
+		animal.relation("has", "homeostasis");
+
+		cat.relation("has", "whiskers");
+
+		bird.relation("has", "feathers");
+
 		A.clear();
         A.insert(animal);
 		A.insert(cat);
 		A.insert(bird);
 
+		animal.relation("has", "metabolism");
+
 		B.clear();
         B.insert(animal);
 
+		// TODO merge_containing_tags() fails to merge the predicates of contained tags
+		// for example, the animal predicate "has metabolism" will not be in the resulting tag_set
+		// std::cerr << "A:" << std::endl;
+		// tagd::print_tags(A, std::cerr);
+		// std::cerr << "B:" << std::endl;
+		// tagd::print_tags(B, std::cerr);
+
         merge_containing_tags(A, B);
+
+		// std::cerr << "A:" << std::endl;
+		// tagd::print_tags(A, std::cerr);
 
 		// because cat and bird are animals
         TS_ASSERT_EQUALS( tag_ids_str(A), "animal, cat, bird" )

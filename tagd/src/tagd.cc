@@ -108,10 +108,10 @@ size_t merge_containing_tags(tag_set& A, const tag_set& B) {
         return A.size();
     }
 
-    tagd::tag_set::iterator a = A.begin();
+    auto a = A.begin();
 	while (a != A.end()) {
 		size_t merged = 0;
-		for(tagd::tag_set::iterator b = B.begin(); b != B.end(); ++b) {
+		for(auto b = B.begin(); b != B.end(); ++b) {
 			if (b->rank().contains(a->rank())) {  // rank can contain itself (b == a)
 				//a->predicates(b->relations);
 				merged++;

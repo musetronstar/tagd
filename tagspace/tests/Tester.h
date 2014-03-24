@@ -1124,16 +1124,42 @@ class Tester : public CxxTest::TestSuite {
         S.clear();
         tagd::interrogator q1("what");
         q1.relation("has", "legs", "2", tagd::OP_GT);
-        q1.relation("has", "legs", "8", tagd::OP_LT);
+        q1.relation("has", "body_part", "8", tagd::OP_LT_EQ);
         ts_rc = TS.query(S, q1);
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
-        TS_ASSERT_EQUALS( S.size(), 2 );
+        TS_ASSERT_EQUALS( S.size(), 3 );
         TS_ASSERT( tag_set_exists(S, "dog") );
         TS_ASSERT( tag_set_exists(S, "cat") );
+        TS_ASSERT( tag_set_exists(S, "spider") );
 
-        // for(tagd::tag_set::iterator it = S.begin(); it != S.end(); ++it) {
-        //    std::cout << *it << std::endl;
-        // }
+		int num = 0;
+        for(tagd::tag_set::iterator it = S.begin(); it != S.end(); ++it) {
+            if (it->id() == "dog") {
+				if (it->related("has", "legs", "4")) num++;
+			}
+			else if (it->id() == "cat") {
+				if (it->related("has", "legs", "4")) num++;
+			}
+			else if (it->id() == "spider") {
+				if (it->related("has", "legs", "8")) num++;
+			}
+        }
+		TS_ASSERT_EQUALS( num , 3 )
+
+		S.clear();
+        tagd::interrogator q2("what", "animal");
+		q2.relation("has", "");
+        q2.relation("can", "");
+        ts_rc = TS.query(S, q2);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 5 );
+        TS_ASSERT( tag_set_exists(S, "dog") );
+        TS_ASSERT( tag_set_exists(S, "cat") );
+        TS_ASSERT( tag_set_exists(S, "whale") );
+        TS_ASSERT( tag_set_exists(S, "bat") );
+        TS_ASSERT( tag_set_exists(S, "bird") );
+
+		// TODO tagd::merge_containing tags fails to merge predicates
     }
 
     void test_query_super_object(void) {
