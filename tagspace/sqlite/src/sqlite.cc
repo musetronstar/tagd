@@ -2755,7 +2755,7 @@ tagd::code sqlite::dump(std::ostream& os) {
 				(const char*) sqlite3_column_text(stmt, F_SUPER_REL),
 				(const char*) sqlite3_column_text(stmt, F_SUPER_OBJ),
 				pos );
-		os << "PUT " << t << std::endl << std::endl;
+		os << ">> " << t << std::endl << std::endl;
     }
 
     sqlite3_finalize(stmt);
@@ -2794,7 +2794,7 @@ tagd::code sqlite::dump(std::ostream& os) {
 
 		if (t == nullptr || t->id() != id) {
 			if (t != nullptr) {
-				os << "PUT " << *t << std::endl << std::endl; 
+				os << ">> " << *t << std::endl << std::endl; 
 				delete t;
 			}
 
@@ -2819,7 +2819,7 @@ tagd::code sqlite::dump(std::ostream& os) {
     }
 
 	if (t != nullptr) {
-		os << "PUT " << *t << std::endl;
+		os << ">> " << *t << std::endl;
 		delete t;
 	}
 
@@ -2848,7 +2848,7 @@ tagd::code sqlite::dump(std::ostream& os) {
 
 		if (r == NULL || r->id() != refers) {
 			if (r != NULL) {
-				os << std::endl << "PUT " << *r << std::endl; 
+				os << std::endl << ">> " << *r << std::endl; 
 				delete r;
 			}
 
@@ -2866,7 +2866,7 @@ tagd::code sqlite::dump(std::ostream& os) {
     }
 
 	if (r != NULL) {
-		os << std::endl << "PUT " << *r << std::endl;
+		os << std::endl << ">> " << *r << std::endl;
 		delete r;
 	}
 
