@@ -1,148 +1,148 @@
-PUT can _is_a _relator
+>> can _is_a _relator
 
-PUT about _is_a _relator
+>> about _is_a _relator
 
-PUT what _is_a _interrogator
+>> what _is_a _interrogator
 
-PUT physical_object _is_a _entity
+>> physical_object _is_a _entity
 
-PUT living_thing _is_a physical_object
+>> living_thing _is_a physical_object
 
-PUT animal _is_a living_thing
+>> animal _is_a living_thing
 
-PUT vertibrate _is_a animal
+>> vertibrate _is_a animal
 
-PUT mammal _is_a vertibrate
+>> mammal _is_a vertibrate
 
-PUT dog _is_a mammal
+>> dog _is_a mammal
 
-PUT cat _is_a mammal
+>> cat _is_a mammal
 
-PUT whale _is_a mammal
+>> whale _is_a mammal
 
-PUT bat _is_a mammal
+>> bat _is_a mammal
 
-PUT reptile _is_a vertibrate
+>> reptile _is_a vertibrate
 
-PUT snake _is_a reptile
+>> snake _is_a reptile
 
-PUT bird _is_a vertibrate
+>> bird _is_a vertibrate
 
-PUT canary _is_a bird
+>> canary _is_a bird
 
-PUT invertebrate _is_a animal
+>> invertebrate _is_a animal
 
-PUT arthropod _is_a invertebrate
+>> arthropod _is_a invertebrate
 
-PUT insect _is_a arthropod
+>> insect _is_a arthropod
 
-PUT spider _is_a insect
+>> spider _is_a insect
 
-PUT body_part _is_a physical_object
+>> body_part _is_a physical_object
 
-PUT teeth _is_a body_part
+>> teeth _is_a body_part
 
-PUT fangs _is_a teeth
+>> fangs _is_a teeth
 
-PUT tail _is_a body_part
+>> tail _is_a body_part
 
-PUT legs _is_a body_part
+>> legs _is_a body_part
 
-PUT beak _is_a body_part
+>> beak _is_a body_part
 
-PUT wings _is_a body_part
+>> wings _is_a body_part
 
-PUT feathers _is_a body_part
+>> feathers _is_a body_part
 
-PUT fins _is_a body_part
+>> fins _is_a body_part
 
-PUT substance _is_a _entity
+>> substance _is_a _entity
 
-PUT body_fluid _is_a substance
+>> body_fluid _is_a substance
 
-PUT blood _is_a body_fluid
+>> blood _is_a body_fluid
 
-PUT mind _is_a _entity
+>> mind _is_a _entity
 
-PUT knowledge _is_a mind
+>> knowledge _is_a mind
 
-PUT concept _is_a knowledge
+>> concept _is_a knowledge
 
-PUT science _is_a knowledge
+>> science _is_a knowledge
 
-PUT computer_security _is_a science
+>> computer_security _is_a science
 
-PUT creativity _is_a mind
+>> creativity _is_a mind
 
-PUT art _is_a creativity
+>> art _is_a creativity
 
-PUT visual_art _is_a art
+>> visual_art _is_a art
 
-PUT movie _is_a visual_art
+>> movie _is_a visual_art
 
-PUT tv_show _is_a visual_art
+>> tv_show _is_a visual_art
 
-PUT communication _is_a _entity
+>> communication _is_a _entity
 
-PUT language _is_a communication
+>> language _is_a communication
 
-PUT japanese _is_a language
+>> japanese _is_a language
 
-PUT information _is_a communication
+>> information _is_a communication
 
-PUT content _is_a information
+>> content _is_a information
 
-PUT title _is_a content
+>> title _is_a content
 
-PUT message _is_a information
+>> message _is_a information
 
-PUT event _is_a _entity
+>> event _is_a _entity
 
-PUT sound _is_a event
+>> sound _is_a event
 
-PUT utterance _is_a sound
+>> utterance _is_a sound
 
-PUT bark _is_a utterance
+>> bark _is_a utterance
 
-PUT meow _is_a utterance
+>> meow _is_a utterance
 
-PUT action _is_a event
+>> action _is_a event
 
-PUT move _is_a action
+>> move _is_a action
 
-PUT fly _is_a move
+>> fly _is_a move
 
-PUT swim _is_a move
+>> swim _is_a move
 
-PUT mammal
+>> mammal
 _has blood = warm, teeth
 
-PUT dog
+>> dog
 _has legs = 4, tail
 can bark
 
-PUT cat
+>> cat
 _has legs = 4, tail
 can meow
 
-PUT whale
+>> whale
 _has fins
 can swim
 
-PUT bat
+>> bat
 _has wings
 can fly
 
-PUT snake _has fangs
+>> snake _has fangs
 
-PUT bird
+>> bird
 _has feathers, wings
 can fly
 
-PUT spider _has fangs
+>> spider _has fangs
 
-PUT refers_to _refers_to _refers_to
+>> refers_to _refers_to _refers_to
 
-PUT is_a _refers_to _is_a
+>> is_a _refers_to _is_a
 
-PUT has _refers_to _has
+>> has _refers_to _has

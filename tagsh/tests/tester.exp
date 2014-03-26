@@ -90,7 +90,7 @@ expect "use .show to list commands$NL"
 expect $PROMPT
 
 test "get_dog_not_exists" \
-	 "get dog;" \
+	 "<< dog;" \
 	 "TS_NOT_FOUND"
 
 # passes when output does not contain TAGL_ERR or "no such file"
@@ -99,117 +99,117 @@ test_neg "bootstrap" \
 	     "(TAGL_ERR)|(no such file)"
 
 test "get_dog" \
-	 "get dog;" \
+	 "<< dog;" \
 	 "dog is_a mammal"
 
 test "get_doggy_not_exists" \
-	 "get doggy;" \
+	 "<< doggy;" \
 	 "TS_NOT_FOUND"
 
 test "refer_doggy" \
-	 "put doggy refers_to dog;" \
+	 ">> doggy refers_to dog;" \
 	 "TAGD_OK"
 
 test "get_doggy" \
-	 "get doggy;" \
+	 "<< doggy;" \
 	 "doggy is_a mammal(.*)refers_to dog"
 
 test "put_duplicate" \
-     "put cat _is_a mammal;" \
+     ">> cat _is_a mammal;" \
 	 "TS_DUPLICATE"
 
 test "put_ignore_duplicate" \
-     "set _ignore_duplicates 1;\nput cat _is_a mammal;" \
+     "%% _ignore_duplicates 1;\n>> cat _is_a mammal;" \
 	 "TAGD_OK"
 
 test "put_unignore_duplicate" \
-     "set _ignore_duplicates 0;\nput cat _is_a mammal;" \
+     "%% _ignore_duplicates 0;\n>> cat _is_a mammal;" \
 	 "TS_DUPLICATE"
 
 test "delete_refers_tag_err" \
-     "delete doggy;" \
+     "!! doggy;" \
 	 "TS_MISUSE"
 
 test "delete_refer_doggy" \
-	 "del doggy refers_to dog;" \
+	 "!! doggy refers_to dog;" \
 	 "TAGD_OK"
 
 test "get_doggy_deleted_not_exists" \
-	 "get doggy;" \
+	 "<< doggy;" \
 	 "TS_NOT_FOUND"
 
 test "delete_bat" \
-     "delete bat;" \
+     "!! bat;" \
 	 "TAGD_OK"
 
 test "query_mammal_super" \
-	 "query what is_a mammal;" \
+	 "?? what is_a mammal;" \
 	 "dog, cat, whale"
 
 test "query_parent_relator" \
-	 "query what is_a animal
+	 "?? what is_a animal
 	  has blood = warm, tail
 	  can bark" \
 	 "dog"
 
 test "refer_japanese_dog" \
-     "put イヌ refers_to dog _context japanese" \
+     ">> イヌ refers_to dog _context japanese" \
 	 "TAGD_OK"
 
 test "get_japanese_dog_ambiguous" \
-	 "get イヌ;" \
+	 "<< イヌ;" \
 	 "TS_AMBIGUOUS"
 
 test "set_context_not_found" \
-     "set _context caca" \
+     "%% _context caca" \
 	 "TS_NOT_FOUND"
 
 test_neg "set_context_animal" \
-         "set _context animal" \
+         "%% _context animal" \
 	     "TAGL_ERR"
 
 test "get_japanese_dog_ambiguious" \
-	 "get イヌ;" \
+	 "<< イヌ;" \
 	 "TS_AMBIGUOUS"
 
 test_neg "set_context_japanese" \
-         "set _context japanese" \
+         "%% _context japanese" \
 	     "TAGL_ERR"
 
 test "get_japanese_dog" \
-	 "get イヌ;" \
+	 "<< イヌ;" \
 	 "イヌ is_a mammal(.*)refers_to dog"
 
 test_neg "set_context_blank" \
-         "set _context \"\"" \
+         "%% _context \"\"" \
 	     "TAGL_ERR"
 
 test "put_url_dog" \
-     "put https://en.wikipedia.org/wiki/Dog about dog has title = \"Dog - Wikipedia, the free encyclopedia\"" \
+     ">> https://en.wikipedia.org/wiki/Dog about dog has title = \"Dog - Wikipedia, the free encyclopedia\"" \
 	 "TAGD_OK"
 
 test "get_url_dog" \
-     "get https://en.wikipedia.org/wiki/Dog ;" \
+     "<< https://en.wikipedia.org/wiki/Dog ;" \
 	 "https://en.wikipedia.org/wiki/Dog(.*)about dog"
 
 test "put_url_dog2" \
-    "put http://animal.discovery.com/breed-selector/dog-breeds.html about dog" \
+    ">> http://animal.discovery.com/breed-selector/dog-breeds.html about dog" \
 	"TAGD_OK"
 
 test "put_url_cat" \
-    "put https://en.wikipedia.org/wiki/Cat about cat" \
+    ">> https://en.wikipedia.org/wiki/Cat about cat" \
 	"TAGD_OK"
 
 test "query_url_dog" \
-     "query what is_a _url about dog" \
+     "?? what is_a _url about dog" \
 "https://en.wikipedia.org/wiki/Dog, http://animal.discovery.com/breed-selector/dog-breeds.html"
 
 test "query_url_animal" \
-     "query what is_a _url * animal" \
+     "?? what is_a _url * animal" \
 "https://en.wikipedia.org/wiki/Dog, http://animal.discovery.com/breed-selector/dog-breeds.html, https://en.wikipedia.org/wiki/Cat"
 
 test "query_url_animal_wikipedia" \
-"query what is_a _url * animal
+"?? what is_a _url * animal
 _has _private = wikipedia, _pub = org" \
 "https://en.wikipedia.org/wiki/Dog, https://en.wikipedia.org/wiki/Cat"
 

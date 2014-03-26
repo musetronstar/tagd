@@ -168,21 +168,12 @@ next:
 		_beg = _cur;
 		goto next;
 	}
-
-	[a-zA-Z]+[a-zA-Z.+-]* "://" [^\000 \t\r\n'"]+
-	                         {  PARSE_VALUE(URL); }
 		
-	[Ss][Ee][Tt]             { PARSE(CMD_SET); }
-	[Gg][Ee][Tt]             { PARSE(CMD_GET); }
-	[Pp][Uu][Tt]             { PARSE(CMD_PUT); }
-	[Dd][Ee][Ll][Ee][Tt][Ee] { PARSE(CMD_DEL); }
-	[Dd][Ee][Ll]             { PARSE(CMD_DEL); }
-	[Qq][Uu][Ee][Rr][Yy]     { PARSE(CMD_QUERY); }
-
-	"-"? [0-9]+ ("." [0-9]+)?
-						{ 
-	                        PARSE_VALUE(QUANTIFIER);
-	                     }
+	"%%"                 { PARSE(CMD_SET); }
+	"<<"                 { PARSE(CMD_GET); }
+	">>"                 { PARSE(CMD_PUT); }
+	"!!"                 { PARSE(CMD_DEL); }
+	"??"                 { PARSE(CMD_QUERY); }
 
 	"*"                  { PARSE(WILDCARD); }
 	"\"\""               { PARSE(EMPTY_STR); }
@@ -193,6 +184,14 @@ next:
 	"<"                  { PARSE(LT); }
 	"<="                 { PARSE(LT_EQ); }
 	";"                  { PARSE(TERMINATOR); }
+
+	"-"? [0-9]+ ("." [0-9]+)?
+					     { 
+	                        PARSE_VALUE(QUANTIFIER);
+	                     }
+
+	[a-zA-Z]+[a-zA-Z.+-]* "://" [^\000 \t\r\n'"]+
+	                         {  PARSE_VALUE(URL); }
 
 	[^\000 \t\r\n;,=><'"-]+  { goto lookup_parse; }
 

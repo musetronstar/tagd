@@ -35,7 +35,7 @@ A tag can be a metaphysical concept or a concrete entity.  It can be anything
 you can think of and put into words.  To define a tag, you must define its
 *super relation*, given by `_super`, `_is_a`, or `_type_of`:
 
-	put dog _is_a mammal;
+	>> dog _is_a mammal;
 
 Whoah, we have an error:
 
@@ -45,17 +45,18 @@ Whoah, we have an error:
 The object (mammal in this case) of a super relation must also be defined. This
 requires a bit of abstract metaphysical thinking, but here we go:
 
-	put physical_object _is_a _entity;
-	put living_thing _is_a physical_object;
-	put animal _is_a living_thing;
-	put vertibrate _is_a animal;
-	put mammal _is_a vertibrate;
-	put dog _is_a mammal;
+	>> physical_object _is_a _entity;
+	>> living_thing _is_a physical_object;
+	>> animal _is_a living_thing;
+	>> vertibrate _is_a animal;
+	>> mammal _is_a vertibrate;
+	>> dog _is_a mammal;
 
-Note the predicate `_is_a _entity`.  Tags with a leading underscore ('\_') are
-known as *hard tags*, that is, they are hard-coded in the software, defined for
-you, and cannot be redefined.  User defined tags with a leading underscore are
-illegal.  The `_entity` tag is the root of the tagspace - it does not get more
+The `>>` is the input operator for putting data.  Note the predicate
+`_is_a _entity`.  Tags with a leading underscore ('\_') are known as
+*hard tags*, that is, they are hard-coded in the software, defined for you, and
+cannot be redefined.  User defined tags with a leading underscore are illegal. 
+The `_entity` tag is the root of the tagspace - it does not get more
 abtract than that.
 
 The `_entity` tag is axiomatic and self-referencing (i.e. `_entity _is_a _entity`).
@@ -63,16 +64,16 @@ It is the only tag having this relation.
 
 Now let's put some more tags so that we can define dog more completely:
 
-	put can _type_of _relator;
-	put event _is_a _entity;
-	put sound _is_a event;
-	put utterance _is_a sound;
-	put bark _is_a utterance;
-	put body_part _is_a physical_object;
-	put legs _is_a body_part;
-	put tail _is_a body_part
+	>> can _type_of _relator;
+	>> event _is_a _entity;
+	>> sound _is_a event;
+	>> utterance _is_a sound;
+	>> bark _is_a utterance;
+	>> body_part _is_a physical_object;
+	>> legs _is_a body_part;
+	>> tail _is_a body_part
 
-	put dog
+	>> dog
 	can bark
 	_has legs = 4, tail;
 
@@ -96,9 +97,9 @@ Now is a good time to define a put statement more formally...
 
 ##### PUT Grammar:
 
-	put_statement ::= "PUT" subject_super_relation relations
-	put_statement ::= "PUT" subject_super_relation 
-	put_statement ::= "PUT" subject relations
+	put_statement ::= ">>" subject_super_relation relations
+	put_statement ::= ">>" subject_super_relation 
+	put_statement ::= ">>" subject relations
 
 	subject_super_relation ::= subject SUPER TAG
 
@@ -137,7 +138,7 @@ Comments can be used in TAGL like this:
 
 Now we can get the tag we've defined:
 
-	get dog;
+	<< dog;
 
 Results should be:
 
@@ -147,8 +148,9 @@ Results should be:
 
 ##### GET Grammar:
 
-	get_statement ::= "GET" subject
+	get_statement ::= "<<" subject
 
+As you can see, the `<<` input operator is used for getting data.
 The definition will likely be expanded to allow for getting subject lists
 of more than one tag in the future.
 
@@ -156,18 +158,18 @@ of more than one tag in the future.
 
 Let's set up a nonsense tag and delete it:
 
-	put fangs _is_a body_part;
+	>> fangs _is_a body_part;
 
-	put turtle _is_a mammal
+	>> turtle _is_a mammal
 	has legs, fangs;
 
-To delete a particular relation, use the `delete` or `del` command:
+To delete a particular relation, use the `!!` operator:
 
-	delete turtle has fangs;
+	!! turtle has fangs;
 
 Now the tag will still exist, but the relation will have been deleted:
 
-	get turtle;
+	<< turtle;
 
 Results should be:
 
@@ -176,18 +178,18 @@ Results should be:
 
 But a turtle is not a mammal, so let's delete it:
 
-	delete turtle;
+	!! turtle;
 
 And it should no longer exist:
 
-	get turtle;
+	<< turtle;
 
 	TS_NOT_FOUND _type_of _error
 	_caused_by _unknown_tag = turtle
 
 ##### DELETE Grammar:
 
-A `delete` statement has the same grammar as a `put` statement, except that it
+A DELETE statement has the same grammar as a PUT statement, except that it
 cannot have a super relation.
 
 #### QUERY Statement
@@ -195,37 +197,37 @@ cannot have a super relation.
 Tags (subjects) can be retrieved according to matching predicates using query
 statements.  Let's define some more tags to make it interesting:
 
-	put lives_in _type_of _relator;
-	put substance _is_a _entity;
-	put fluid _is_a substance;
-	put water _is_a fluid;
-	put gas _is_a substance;
-	put air _is_a gas;
-	put body_fluid _is_a substance;
-	put blood _is_a body_fluid;
-	put fins _is_a body_part;
-	put gills _is_a body_part;
-	put hair _is_a body_part;
-	put scales _is_a body_part;
-	put breathes _is_a _relator;
-	put what _is_a _interrogator;
+	>> lives_in _type_of _relator;
+	>> substance _is_a _entity;
+	>> fluid _is_a substance;
+	>> water _is_a fluid;
+	>> gas _is_a substance;
+	>> air _is_a gas;
+	>> body_fluid _is_a substance;
+	>> blood _is_a body_fluid;
+	>> fins _is_a body_part;
+	>> gills _is_a body_part;
+	>> hair _is_a body_part;
+	>> scales _is_a body_part;
+	>> breathes _is_a _relator;
+	>> what _is_a _interrogator;
 
-	put fish _is_a vertibrate
+	>> fish _is_a vertibrate
 	_has gills, fins, scales
 	lives_in water
 	breathes water
 
-	put mammal
+	>> mammal
 	_has hair, blood = warm
 	breathes air
 
-	put whale _is_a mammal
+	>> whale _is_a mammal
 	_has fins
 	lives_in water;
 
 Now let's try a query:
 
-	query what _is_a animal
+	?? what _is_a animal
 	lives_in water;
 
 Results should be:
@@ -239,7 +241,7 @@ mammal, it is logically true that whale and fish match.
 
 Let's try another:
 
-	query what lives_in water
+	?? what lives_in water
 	breathes air
 	_has fins, blood = warm;
 
@@ -249,7 +251,7 @@ Results should be:
 
 ###### Wildcard Relator:
 
-	query what * water, fins, blood = warm;
+	?? what * water, fins, blood = warm;
 
 Results should be:
 
@@ -260,9 +262,9 @@ you to match objects while leaving out relators.
 
 ##### QUERY Grammar:
 
-	query_statement ::= "QUERY" interrogator_super_relation relations 
-	query_statement ::= "QUERY" interrogator_super_relation
-	query_statement ::= "QUERY" INTERROGATOR relations
+	query_statement ::= "??" interrogator_super_relation relations 
+	query_statement ::= "??" interrogator_super_relation
+	query_statement ::= "??" INTERROGATOR relations
 
 	interrogator_super_relation ::= INTERROGATOR SUPER TAG
 
@@ -275,20 +277,20 @@ in the future so that tags "referenced by url" can be defined (e.g. "wiki").
 
 Let's put some urls:
 
-	put about _type_of _relator
+	>> about _type_of _relator
 
-	put https://en.wikipedia.org/wiki/Dog
+	>> https://en.wikipedia.org/wiki/Dog
 	about dog
 
-	put http://animal.discovery.com/breed-selector/dog-breeds.html
+	>> http://animal.discovery.com/breed-selector/dog-breeds.html
 	about dog
 
-	put https://en.wikipedia.org/wiki/Whale
+	>> https://en.wikipedia.org/wiki/Whale
 	about whale;
 
 Now we can query some URLs:
 
-	query what _is_a _url
+	?? what _is_a _url
 	about dog;
 
 Results:
@@ -298,7 +300,7 @@ Results:
 	
 And some more:
 
-	query what * _private = wikipedia, _pub = org
+	?? what * _private = wikipedia, _pub = org
 	about animal;
 
 Results:
@@ -308,7 +310,7 @@ Results:
 
 Now let's get a url:
 
-	get https://en.wikipedia.org/wiki/Dog ;
+	<< https://en.wikipedia.org/wiki/Dog ;
 
 Results:
 
@@ -346,22 +348,22 @@ same thing (synonyms), and different things referred by the same name
 
 If you would like to alias hard tags, you can do so:
 
-	put is_a _refers_to _is_a;
-	put has _refers_to _has;
-	put context _refers_to _context;
-	put refers _refers_to _refers;
+	>> is_a _refers_to _is_a;
+	>> has _refers_to _has;
+	>> context _refers_to _context;
+	>> refers _refers_to _refers;
 
 We can even alias `_refers_to`:
 
-	put refers_to _refers_to _refers_to;
+	>> refers_to _refers_to _refers_to;
 
 Here is a synonym for animal:
 
-	put creature refers_to animal;
+	>> creature refers_to animal;
 
 Now, we can `get animal` by refering to creature:
 
-	get creature;
+	<< creature;
 
 Results:
 
@@ -373,25 +375,25 @@ context* (same as *null* context).
 
 Here are some referents within a context:
 
-	put plant is_a living_thing;
-	put fruit is_a plant;
-	put citrus is_a fruit;
-	put lemon is_a citrus;
+	>> plant is_a living_thing;
+	>> fruit is_a plant;
+	>> citrus is_a fruit;
+	>> lemon is_a citrus;
 
-	put quality is_a _entity;
-	put color is_a quality;
-	put yellow is_a color;
+	>> quality is_a _entity;
+	>> color is_a quality;
+	>> yellow is_a color;
 
-	put machine is_a physical_object;
-	put automobile is_a machine;
-	put used_car is_a automobile;
+	>> machine is_a physical_object;
+	>> automobile is_a machine;
+	>> used_car is_a automobile;
 
-	put lemon refers_to yellow context color;
-	put lemon refers_to used_car context automobile;
+	>> lemon refers_to yellow context color;
+	>> lemon refers_to used_car context automobile;
 
 Now, let's get lemon in the universal context:
 
-	get lemon;
+	<< lemon;
 
 Results:
 
@@ -401,8 +403,8 @@ No surprises - now let's set a context...
 
 #### SET Statement:
 
-	set _context automobile;
-	get lemon;
+	%% _context automobile;
+	<< lemon;
 
 Results:
 
@@ -412,8 +414,8 @@ Results:
 Context heirarchies can also be set, where the closest (from right to left)
 context is tested for a match before moving up the context list:
 
-	set context automobile, color;
-	get lemon;
+	%% context automobile, color;
+	<< lemon;
 
 Results:
 
@@ -422,14 +424,14 @@ Results:
 
 Example of a Japanese referent:
 
-	put communication is_a _entity;
-	put language is_a communication;
-	put japanese is_a language;
-	put イヌ refers_to dog context japanese;
+	>> communication is_a _entity;
+	>> language is_a communication;
+	>> japanese is_a language;
+	>> イヌ refers_to dog context japanese;
 
 First, here is a gotcha:
 
-	get イヌ;
+	<< イヌ;
 
 Results:
 
@@ -442,8 +444,8 @@ same label and alter program logic, as it then truly would be ambiguous.
 
 If a referent is defined in a context, that context must be set to resolve it:
 
-	set context japanese;
-	get イヌ;
+	%% context japanese;
+	<< イヌ;
 
 Results:
 
@@ -454,13 +456,13 @@ Results:
 
 The context can be cleared by setting it to an empty string:
 
-	set context "";
+	%% context "";
 
 ##### QUERY Referents:
 
 You can see what a label *refers* by using a query:
 
-	query what _refers lemon;
+	?? what _refers lemon;
 
 Results:
 
@@ -474,7 +476,7 @@ And with a context:
 
 You can see what a label *refers* by using a query:
 
-	query what _refers lemon _context machine;
+	?? what _refers lemon _context machine;
 
 Results:
 
@@ -483,7 +485,7 @@ Results:
 
 Likewise, you can query what *refers to* a tag:
 
-	query what _refers_to dog;
+	?? what _refers_to dog;
 
 Results:
 
@@ -492,9 +494,9 @@ Results:
 
 Or, you can query all referents given a context:
 
-	put クジラ _refers_to whale _context japanese;
+	>> クジラ _refers_to whale _context japanese;
 
-	query what _context japanese;
+	?? what _context japanese;
 
 Results:
 
@@ -506,7 +508,7 @@ Results:
 
 Finally, you can query all referents:
 
-	query what is_a _referent;
+	?? what is_a _referent;
 
 Results:
 
@@ -532,28 +534,28 @@ have those predicates immediately available in the context they refer to.
 Let's set up referents that will allow us to express the definition of dog in
 Spanish:
 
-	put spanish is_a language;
-	put perro refers_to dog context spanish;
-	put es_un refers_to is_a context spanish;
-	put mamífero refers_to mammal context spanish;
-	put puede refers_to can context spanish;
-	put ladrar refers_to bark context spanish;
-	put tiene refers_to has context spanish;
-	put patas refers_to legs context spanish;
-	put cola refers_to tail context spanish;
+	>> spanish is_a language;
+	>> perro refers_to dog context spanish;
+	>> es_un refers_to is_a context spanish;
+	>> mamífero refers_to mammal context spanish;
+	>> puede refers_to can context spanish;
+	>> ladrar refers_to bark context spanish;
+	>> tiene refers_to has context spanish;
+	>> patas refers_to legs context spanish;
+	>> cola refers_to tail context spanish;
 
-	put fur is_a body_part;
-	put piel refers_to fur context spanish;
+	>> fur is_a body_part;
+	>> piel refers_to fur context spanish;
 
 Now let's add a predicate in Spanish:
 
-	set context spanish;
-	put perro tiene piel;
+	%% context spanish;
+	>> perro tiene piel;
 
 Now we can see the predicate that was stated in Spanish:
 
-	set context "";
-	get dog;
+	%% context "";
+	<< dog;
 
 Results:
 
@@ -600,9 +602,9 @@ Let's put some data:
 
 Which executes the TAGL statements:
 
-	PUT meow is_a utterance
+	>> meow is_a utterance
 
-	PUT cat is_a mammal
+	>> cat is_a mammal
 	can meow
 	has legs = 4, tail
 
@@ -620,7 +622,7 @@ Results:
 
 Likewise the following TAGL statement was generated:
 
-	GET cat
+	<< cat
 
 Note, there is no trailing '/' after cat in the tagdurl.  A slash after the
 subject indicates a query.  For example, see the difference between:
@@ -643,7 +645,7 @@ Results:
 
 The TAGL query generated was:
 
-	QUERY _interrogator _super mammal;
+	?? _interrogator _super mammal;
 
 Now, let's query with some relations:
 
@@ -655,7 +657,7 @@ Results:
 
 The TAGL query generated was:
 
-	QUERY _interrogator _super animal
+	?? _interrogator _super animal
 	* meow, tail
 
 To perform a query not having a super relation, use a wildcard ('\*'):
@@ -668,7 +670,7 @@ Results:
 
 The TAGL query generated was:
 
-	QUERY _interrogator
+	?? _interrogator
 	* fins, hair, air, water 
 
 To browse your tagspace, fire up your favorite browser and go to `http://localhost:8082/mammal?t=tag.html`
