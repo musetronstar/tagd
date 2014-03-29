@@ -444,6 +444,10 @@ object ::= TAG(T) op(o) QUOTED_STR(Q) .
 {
 	tagl->_tag->relation(tagl->_relator, *T, *Q, o);
 }
+object ::= TAG(T) op(o) URL(U) .
+{
+	tagl->_tag->relation(tagl->_relator, *T, *U, o);
+}
 object ::= TAG(T) .
 {
 	tagl->_tag->relation(tagl->_relator, *T);

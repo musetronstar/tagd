@@ -445,6 +445,16 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 	}
 
+	void test_url_modifier(void) {
+		tagspace_tester TS;
+		TAGL::driver tagl(&TS);
+		tagd_code tc = tagl.execute(
+				">> shar_pei _is_a dog\n"
+				"_has breed = http://www.dogbreedinfo.com/sharpei.htm"
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+	}
+
 	void test_delete_super_not_allowed(void) {
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
