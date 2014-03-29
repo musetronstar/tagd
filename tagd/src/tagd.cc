@@ -345,6 +345,7 @@ bool util::do_quotes(const id_type& s) {
 					return true;
 			case '/':
 			case ';':
+			case ',':
 			case '=':
 			case '-':
 				return true;
