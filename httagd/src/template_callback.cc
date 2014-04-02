@@ -6,6 +6,7 @@
 namespace httagd {
 
 typedef enum {
+	TPL_HOME,
 	TPL_TAG,
 	TPL_TREE,
 	TPL_RELATIONS,
@@ -23,6 +24,7 @@ struct tpl_t {
 	tpl_file file;
 };
 
+const tpl_t HOME_TPL{"tag.html", "tpl/home.html.tpl", TPL_HOME};
 const tpl_t TAG_TPL{"tag.html", "tpl/tag.html.tpl", TPL_TAG};
 const tpl_t TREE_TPL{"tree.html", "tpl/tree.html.tpl", TPL_TREE};
 const tpl_t BROWSE_TPL{"browse.html", "tpl/browse.html.tpl", TPL_BROWSE};
@@ -42,7 +44,7 @@ class tagd_template {
 			_req{r}, _TS{ts}, _context{c}
 		{}
 
-		void add_http_header() {
+		void add_http_headers() {
 			evhtp_headers_add_header(_req->headers_out,
 					evhtp_header_new("Content-Type", "text/html; charset=utf-8", 0, 0));
 		}
@@ -183,18 +185,25 @@ class tagd_template {
 			evbuffer_add(_req->buffer_out, output.c_str(), output.size());
 		}
 
-		void expand_header(const tagd::abstract_tag& t) {
+		void expand_header(const std::string& title) {
 			ctemplate::TemplateDictionary D("header");
-			D.SetValue("title", t.id());
+			D.SetValue("title", title);
 
 			this->expand_template(HEADER_TPL, D);
 		}
 
-		void expand_footer(const tagd::abstract_tag& t) {
+		void expand_footer() {
 			ctemplate::TemplateDictionary D("footer");
 			this->expand_template(FOOTER_TPL, D);
 		}
 
+		int expand_home(const tpl_t& tpl, ctemplate::TemplateDictionary& D) {
+			// TODO messages should be internationalized
+			// a _home_page tag might suffice for these type of definitions
+			D.SetValue("msg", "Welcome to tagd!");
+
+			return EVHTP_RES_OK;
+		}
 
 		int expand_tag(const tpl_t& tpl, const tagd::abstract_tag& t, ctemplate::TemplateDictionary& D) {
 			if (t.pos() == tagd::POS_URL) {
@@ -629,8 +638,8 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 
 	int res;
 	tagd_template tt(_req, _TS, _context);
-	tt.add_http_header();
-	tt.expand_header(t);
+	tt.add_http_headers();
+	tt.expand_header(t.id());
 
 	ctemplate::TemplateDictionary D("get");
 	if (ts_rc == tagd::TAGD_OK) {
@@ -664,7 +673,7 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 		res = EVHTP_RES_SERVERR;
 	}
 
-	tt.expand_footer(t);
+	tt.expand_footer();
 
 	evhtp_send_reply(_req, res);
 
@@ -677,8 +686,8 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 
 	int res;
 	tagd_template tt(_req, _TS, _context);
-	tt.add_http_header();
-	tt.expand_header(q);
+	tt.add_http_headers();
+	tt.expand_header(q.id());
 
 	ctemplate::TemplateDictionary D("query");
 	if (ts_rc == tagd::TAGD_OK || ts_rc == tagd::TS_NOT_FOUND) {
@@ -698,7 +707,7 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 		res = EVHTP_RES_SERVERR;
 	}
 
-	tt.expand_footer(q);
+	tt.expand_footer();
 
 	evhtp_send_reply(_req, res);
 
@@ -707,10 +716,10 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 
 void template_callback::cmd_error() {
 	tagd_template tt(_req, _TS, _context);
-	tt.add_http_header();
-	tt.expand_header(_driver->last_error());
+	tt.add_http_headers();
+	tt.expand_header(_driver->last_error().id());
 	tt.expand_error(ERROR_TPL, *_driver);
-	tt.expand_footer(_driver->last_error());
+	tt.expand_footer();
 
 	std::stringstream ss;
 	if (_trace_on)
@@ -727,6 +736,20 @@ void template_callback::cmd_error() {
 				std::cerr << "res(" << tagd_code_str(_driver->code()) << "): " << EVHTP_RES_SERVERR << " EVHTP_RES_SERVERR" << std::endl << ss.str() << std::endl;
 			evhtp_send_reply(_req, EVHTP_RES_SERVERR);
 	}
+}
+
+void template_callback::empty() {
+	tagd_template tt(_req, _TS, _context);
+	tt.add_http_headers();
+	tt.expand_header("Welcome to tagd");
+	ctemplate::TemplateDictionary D("get");
+	int res = tt.expand_home(HOME_TPL, D);
+	tt.expand_template(HOME_TPL, D);
+	tt.expand_footer();
+
+	evhtp_send_reply(_req, res);
+
+	if (_trace_on) std::cerr << "empty: " <<  res << std::endl;
 }
 
 }

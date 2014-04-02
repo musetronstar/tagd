@@ -62,6 +62,12 @@ void tagl_callback::cmd_error() {
 	evbuffer_add(_req->buffer_out, ss.str().c_str(), ss.str().size());
 }
 
+void tagl_callback::empty() {
+	std::string msg( "This is tagd" );
+	evbuffer_add(_req->buffer_out, msg.c_str(), msg.size());
+	evhtp_send_reply(_req, EVHTP_RES_OK);
+}
+
 void tagl_callback::finish() {
 	tagd::code most_severe = _driver->code();
 

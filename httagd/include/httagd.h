@@ -31,6 +31,7 @@ class tagl_callback : public TAGL::callback {
 		void cmd_del(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&); 
         void cmd_error();
+        virtual void empty();  // welcome message or home page
         void finish();
 };
 
@@ -54,6 +55,7 @@ class template_callback : public tagl_callback, public tagd::errorable {
 		// void cmd_del(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&); 
         void cmd_error();
+		void empty();
 };
 
 } // namespace httagd

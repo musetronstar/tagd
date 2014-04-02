@@ -30,22 +30,31 @@ static void main_cb(evhtp_request_t *req, void *arg) {
 	if (!c_val.empty())
 		TS->push_context(c_val);
 
+	htp_method method = evhtp_request_get_method(req);
+	std::string full_path(req->uri->path->full);
+	bool is_home_page = (method == htp_method_GET)
+		&& (full_path.empty() || full_path == "/");
+
 	TAGL::driver tagl(TS);
-	TAGL::callback *CB;
-	if (t_val.empty()) {
+	httagd::tagl_callback *CB;
+	if (!is_home_page && t_val.empty()) {
 		CB = new httagd::tagl_callback(TS, req, TRACE_ON);
 	} else {
 		CB = new httagd::template_callback(TS, req, t_val, c_val, TRACE_ON);
 	}
 	tagl.callback_ptr(CB);
 
-	switch(evhtp_request_get_method(req)) {
+	switch(method) {
 		case htp_method_GET:
-			tagl.tagdurl_get(req->uri->path->full, &qm);			
-			tagl.finish();
+			if (is_home_page) {
+				CB->empty();
+			} else {
+				tagl.tagdurl_get(full_path, &qm);
+				tagl.finish();
+			}
 			break;
 		case htp_method_PUT:
-			tagl.tagdurl_put(req->uri->path->full, &qm);
+			tagl.tagdurl_put(full_path, &qm);
 			tagl.evbuffer_execute(req->buffer_in);
 			tagl.finish();
 			break;
@@ -55,7 +64,7 @@ static void main_cb(evhtp_request_t *req, void *arg) {
 			tagl.finish();
 			break;
 		case htp_method_DELETE:
-			tagl.tagdurl_del(req->uri->path->full, &qm);
+			tagl.tagdurl_del(full_path, &qm);
 			tagl.evbuffer_execute(req->buffer_in);
 			tagl.finish();
 			break;
@@ -77,7 +86,7 @@ static void main_cb(evhtp_request_t *req, void *arg) {
 
 		default:
 			// TODO use tagd::error
-			tagl.ferror(tagd::HTTP_ERR, "unsupported method: %d", evhtp_request_get_method(req));
+			tagl.ferror(tagd::HTTP_ERR, "unsupported method: %d", method);
 			std::stringstream ss;
 			tagl.print_errors(ss);
 			evbuffer_add(req->buffer_out, ss.str().c_str(), ss.str().size());
