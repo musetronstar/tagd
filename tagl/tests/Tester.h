@@ -755,6 +755,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd_code tc;
 
 		TAGL::driver d(&TS);
+		TAGL::driver::trace_on();
 		tc = d.execute(
 			"-- this is a comment\n"
 			">> dog _is_a animal --so is this\n"
@@ -762,6 +763,9 @@ class Tester : public CxxTest::TestSuite {
 			"_has-* i'm a block comment *-fur\n"
 			"--_can bark, bite"
 		);
+		TAGL::driver::trace_off();
+		if (d.has_error())
+			d.print_errors();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( d.cmd() , CMD_PUT )
 		TS_ASSERT_EQUALS( d.tag().id() , "dog" )

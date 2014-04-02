@@ -49,7 +49,6 @@ class scanner {
 		int _tok;
 		int32_t _state;
 		std::string _val;
-		bool _ignore, _debug;
 		bool _do_fill;
 		evbuffer *_evbuf;
 
@@ -57,8 +56,8 @@ class scanner {
 	public:
 		scanner(driver *d) :
 			_driver(d), _line_number(1),
-			_beg{nullptr}, _cur{nullptr}, _lim{nullptr}, _eof{nullptr}, _tok{-1}, _state{-1},
-			_ignore{false}, _debug{false}, _do_fill{false}, _evbuf{nullptr} {}
+			_beg{nullptr}, _cur{nullptr}, _lim{nullptr}, _eof{nullptr}, _tok{-1},
+			_state{-1}, _do_fill{false}, _evbuf{nullptr} {}
 		~scanner() {}
 
 		const char* fill();

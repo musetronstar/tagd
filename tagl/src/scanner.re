@@ -43,7 +43,7 @@ const char* scanner::fill() {
 	}
 
 	size_t sz, offset;
-	assert(_lim > _beg);
+	assert(_lim >= _beg);
 	sz = _lim - _beg;
 
 	if (sz >= buf_sz) {
@@ -125,13 +125,11 @@ next:
 
 	"--"
 	{
-		_ignore = true;
 		goto comment;
 	}
 
 	"-*"
 	{
-		_ignore = true;
 		goto block_comment;
 	}
 
@@ -214,7 +212,6 @@ comment:
 /*!re2c
 	NL			{
 					_line_number++;
-					_ignore = false;
 					_beg = _cur;
 					goto next;
 				}
@@ -224,7 +221,6 @@ comment:
 block_comment:
 /*!re2c
 	"*-"		{
-					_ignore = false;
 					_beg = _cur;
 					goto next;
 				}
