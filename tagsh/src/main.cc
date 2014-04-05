@@ -37,6 +37,8 @@ int main(int argc, char **argv) {
 			} else {
 				return tagsh::error("usage: --db <database file>");
 			}
+		} else if (strcmp(argv[i], "--trace") == 0) {
+			opt_trace = true;
 		} else if (strcmp(argv[i], "--trace_on") == 0) {
 			opt_trace = true;
 		} else if (strcmp(argv[i], "--create") == 0) {

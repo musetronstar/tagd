@@ -151,6 +151,8 @@ int main(int argc, char ** argv) {
 			}
 		} else if (strcmp(argv[i], "--trace") == 0) {
 			TRACE_ON = true;
+		} else if (strcmp(argv[i], "--trace_on") == 0) {
+			TRACE_ON = true;
 		} else {
 			return error("unknown argument: %s", argv[i]);
 		}
