@@ -96,7 +96,7 @@ class Tester : public CxxTest::TestSuite {
         tagd::domain d;
         TS_ASSERT( d.empty() );
 
-        tld_code tld_c = d.init("www.example.com");
+        d.init("www.example.com");
         TS_ASSERT( d.is_registrable() );
         TS_ASSERT_EQUALS( tld_code_str(d.code()), "TLD_ICANN_REG" );
         TS_ASSERT_EQUALS( d.pub(), "com" );
