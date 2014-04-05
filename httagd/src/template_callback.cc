@@ -249,8 +249,6 @@ class tagd_template {
 
 			if (img_urls.size() > 0) {
 				D.ShowSection("gallery");
-				int i = 0;
-				ctemplate::TemplateDictionary* sub_dict;
 				for (auto u : img_urls) {
 					D.SetValueAndShowSection("rel_img_src", u.id(), "gallery_item");
 				}
