@@ -24,7 +24,7 @@ void tagl_callback::cmd_get(const tagd::abstract_tag& t) {
 }
 
 void tagl_callback::cmd_put(const tagd::abstract_tag& t) {
-	tagd::code ts_rc = _TS->put(t, _driver->flags());
+	_TS->put(t, _driver->flags());
 	std::stringstream ss;
 	if (_TS->has_error()) {
 		_TS->print_errors(ss);
@@ -33,7 +33,7 @@ void tagl_callback::cmd_put(const tagd::abstract_tag& t) {
 }
 
 void tagl_callback::cmd_del(const tagd::abstract_tag& t) {
-	tagd::code ts_rc = _TS->del(t, _driver->flags());
+	_TS->del(t, _driver->flags());
 	std::stringstream ss;
 	if (_TS->has_error()) {
 		_TS->print_errors(ss);
