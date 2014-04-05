@@ -1,16 +1,16 @@
 TAGD_DIR = ../../tagd
 TAGSPACE_DIR = ../../tagspace
-INC = -I../include -I$(TAGD_DIR)/include -I../../tagspace/include
+INC = -I $(HOME)/src/cxxtest -I../include -I$(TAGD_DIR)/include -I../../tagspace/include 
 LIBTAGD = $(TAGD_DIR)/lib/libtagd.a
 
 CXXTEST = $(HOME)/src/cxxtest/bin/cxxtestgen --error-printer
-CXX = g++ -std=c++0x -O3
-CXXFLAGS = -Wno-write-strings -I $(HOME)/src/cxxtest $(INC)
+CXX = g++ -std=c++0x 
+CXXFLAGS = -O3 -Wno-write-strings
 LFLAGS =  -L $(TAGSPACE_DIR)/lib -ltagspace-sqlite -L../lib -ltagl -L$(TAGD_DIR)/lib -ltagd -levent
 
 DEBUG=
 debug: DEBUG=debug
-#debug: CXXFLAGS += -DDEBUG -ggdb 
+debug: CXXFLAGS = -g -Wno-write-strings
 debug: build
 
 all: build
@@ -19,7 +19,7 @@ build: tagl_tests
 
 tagl_tests: $(LIBTAGD)
 	$(CXXTEST) Tester.h -o tester.cpp
-	$(CXX) -o tester tester.cpp $(CXXFLAGS) $(LFLAGS)
+	$(CXX) $(CXXFLAGS) -o tester tester.cpp $(INC) $(LFLAGS)
 	./tester
 
 $(LIBTAGD):

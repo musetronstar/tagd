@@ -1,6 +1,5 @@
-CXX = g++ -std=c++0x -O3
-WFLAGS = -Wall
-CFLAGS = -fno-strict-aliasing
+CXX = g++ -std=c++0x -Wall -Wextra
+CXXFLAGS = -O3
 
 TAGD_DIR = ../../tagd
 TAGL_DIR = ../../tagl
@@ -20,6 +19,7 @@ LIBEVHTP = $(LIBEVHTP_DIR)/build/libevhtp.a
 
 DEBUG=
 debug: DEBUG=debug
+debug: CXXFLAGS = -g
 debug: build
 
 all: build
@@ -27,20 +27,20 @@ all: build
 build : $(BIN)
 
 main.o : main.cc
-	$(CXX) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
+	$(CXX) $(CXXFLAGS) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
 
 # token to string case statements
 evhtp-results.inc: $(LIBEVHTP_DIR)/evhtp.h
 	grep '#define EVHTP_RES_[A-Z]' $? | awk '{printf "case %s: return \"%s\";\n", $$2, $$2;}' > $@
 
 httagd.o : evhtp-results.inc httagd.cc
-	$(CXX) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
+	$(CXX) $(CXXFLAGS) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
  
 template_callback.o : template_callback.cc
-	$(CXX) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
+	$(CXX) $(CXXFLAGS) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
 
 $(BIN) : main.o httagd.o template_callback.o
-	$(CXX) -o $@ $? $(LFLAGS) $(LIBEVHTP) $(LIBEVHTP_LFLAGS) -lctemplate_nothreads
+	$(CXX) $(CXXFLAGS) -o $@ $? $(LFLAGS) $(LIBEVHTP) $(LIBEVHTP_LFLAGS) -lctemplate_nothreads
 
 clean :
 	rm -f *.o

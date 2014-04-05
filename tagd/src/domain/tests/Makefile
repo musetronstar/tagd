@@ -1,6 +1,6 @@
-CXX = g++ -std=c++0x
+CXX = g++ -std=c++0x -Wall -Wextra
+CXXFLAGS = -O3
 CXXTEST = $(HOME)/src/cxxtest/bin/cxxtestgen --error-printer
-CFLAGS = 
 INC = -I $(HOME)/src/cxxtest -I../ -I../../../include
 OBJS = ../*.o
 
@@ -9,12 +9,12 @@ TESTER_BIN = ./tester
 
 all: build
 
-debug: CFLAGS += -DDEBUG -ggdb
+debug: CXXFLAGS = -g
 debug: build
 
 build:
 	$(CXXTEST) Tester.h -o $(TESTER_CPP)
-	$(CXX) $(CFLAGS) -o $(TESTER_BIN) $(OBJS) $(TESTER_CPP) $(INC)
+	$(CXX) $(CXXFLAGS) -o $(TESTER_BIN) $(OBJS) $(TESTER_CPP) $(INC)
 	$(TESTER_BIN)
 
 clean:

@@ -1,7 +1,6 @@
-CXX = g++ -std=c++0x -O3
-#DFLAGS =
+CXX = g++ -std=c++0x -Wall -Wextra -pedantic
 # -Wno-write-strings suppress const char * to char * warnings
-CXXFLAGS = -Wall -Wextra -pedantic -Wno-write-strings $(DFLAGS)
+CXXFLAGS = -O3
 BUILD_DIR = ../bin
 BIN = $(BUILD_DIR)/tagsh
 
@@ -15,6 +14,7 @@ LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagspace-sqlite -L $(TAGL_DIR)/lib -ltagl -L $
 
 DEBUG=
 debug: DEBUG=debug
+debug: CXXFLAGS = -g
 debug: build
 
 all: build
@@ -22,13 +22,13 @@ all: build
 build : $(BIN)
 
 tagsh.o : tagsh.cc
-	$(CXX) -c -o $@ $? $(INC) $(CXXFLAGS)
+	$(CXX) $(CXXFLAGS) -Wno-write-strings -c -o $@ $? $(INC)
 
 main.o : main.cc
-	$(CXX) -c -o $@ $? $(INC) $(CXXFLAGS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $? $(INC)
  
 $(BIN) : tagsh.o main.o
-	$(CXX) -o $@ $? $(INC) $(CXXFLAGS) $(LFLAGS)
+	$(CXX) $(CXXFLAGS) -o $@ $? $(INC) $(LFLAGS)
 
 clean :
 	rm -f *.o $(BIN)

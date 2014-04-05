@@ -1,6 +1,5 @@
-CC = gcc
-CXX = g++ -std=c++0x -O3
-CXXFLAGS = -Wall -Wextra
+CXX = g++ -std=c++0x -Wall -Wextra
+CXXFLAGS = -O3 
 
 INC =  -I../include
 SRCS = tagd.cc rank.cc url.cc utf8.cc
@@ -10,12 +9,10 @@ HDRS = $(wildcard $(INC).h)
 OBJS=$(SRCS:.cc=.o)
 HARD_TAG_GPERF=hard-tags.gperf
 HARD_TAG_GPERF_H=hard-tags.gperf.h
-DEBUG=
 
 all : build
 
-debug : DEBUG=debug
-#debug : CXXFLAGS += -g
+debug : CXXFLAGS =  -g
 debug : build
 
 build : $(HARD_TAG_GPERF_H) codes.inc hard-tag.o $(SRCS) $(OBJS)
@@ -30,10 +27,10 @@ $(HARD_TAG_GPERF):
 	./gen-hard-tags.gperf.pl $(HARD_TAGS_H) > $@
 
 hard-tag.o: hard-tag.cc
-	$(CXX) -Wno-missing-field-initializers -c -o $@ $? $(INC) $(CXXFLAGS)
+	$(CXX) $(CXXFLAGS) -Wno-missing-field-initializers -c -o $@ $? $(INC)
 
 .cc.o :
-	$(CXX) -c -o $@ $< $(INC) $(CXXFLAGS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INC)
 
 clean :
 	rm -f *.o *.inc $(HARD_TAG_GPERF) $(HARD_TAG_GPERF_H)

@@ -1,25 +1,29 @@
 INCLUDE = ../include
 
-CXX = g++ -std=c++0x 
+CXX = g++ -std=c++0x -Wall -Wextra
+CXXFLAGS = -O3
+INC = -I $(HOME)/src/cxxtest -I$(INCLUDE)
+LFLAGS = -L../lib -ltagd
 CXXTEST = $(HOME)/src/cxxtest/bin/cxxtestgen --error-printer
-CXXFLAGS = -DDEBUG -ggdb -I $(HOME)/src/cxxtest -I$(INCLUDE)
-LFLAGS = -L../lib -ltagd $(PG)
+
+debug : CXXFLAGS = -g
+debug : all
 
 all: tag_tests url_tests domain_tests
 
 tag_tests:
 	$(CXXTEST) Tester.h -o tester.cpp
-	$(CXX) tester.cpp -o tester $(CXXFLAGS) $(LFLAGS)
+	$(CXX) $(CXXFLAGS) tester.cpp -o tester $(INC) $(LFLAGS)
 	./tester
 
 url_tests:
 	$(CXXTEST) UrlTester.h -o url-tester.cpp
-	$(CXX) url-tester.cpp -o url-tester $(CXXFLAGS) $(LFLAGS)
+	$(CXX) $(CXXFLAGS) url-tester.cpp -o url-tester $(INC) $(LFLAGS)
 	./url-tester
 
 domain_tests:
 	$(CXXTEST) DomainTester.h -o domain-tester.cpp
-	$(CXX) domain-tester.cpp -o domain-tester $(CXXFLAGS) $(LFLAGS)
+	$(CXX) $(CXXFLAGS) domain-tester.cpp -o domain-tester $(INC) $(LFLAGS)
 	./domain-tester
 
 clean:
