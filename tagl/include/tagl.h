@@ -12,6 +12,8 @@ struct evbuffer;
 struct yyParser;
 static void yy_reduce(yyParser *, int);
 
+static int BREAK;
+
 namespace TAGL {
 
 class driver; 
@@ -44,7 +46,7 @@ class scanner {
 		driver *_driver;
 		size_t _line_number;
 
-		const char *_beg, *_cur, *_lim, *_eof;	
+		const char *_beg, *_cur, *_mark, *_lim, *_eof;	
 		char _buf[buf_sz];
 		int _tok;
 		int32_t _state;
@@ -56,8 +58,8 @@ class scanner {
 	public:
 		scanner(driver *d) :
 			_driver(d), _line_number(1),
-			_beg{nullptr}, _cur{nullptr}, _lim{nullptr}, _eof{nullptr}, _tok{-1},
-			_state{-1}, _do_fill{false}, _evbuf{nullptr} {}
+			_beg{nullptr}, _cur{nullptr}, _mark{nullptr}, _lim{nullptr}, _eof{nullptr},
+			_tok{-1}, _state{-1}, _do_fill{false}, _evbuf{nullptr} {}
 		~scanner() {}
 
 		const char* fill();
@@ -71,7 +73,7 @@ class scanner {
 		void reset() {
 			_line_number = 1;
 
-			_beg = _cur = _lim = _eof = nullptr;
+			_beg = _mark = _cur = _lim = _eof = nullptr;
 			_val.clear();
 			_evbuf = nullptr;
 			_state = -1;
@@ -86,6 +88,7 @@ class driver : public tagd::errorable {
 		scanner _scanner;
 		void* _parser;	// lemon parser context
 		int _token;		// last token scanned
+		std::string _filename;
 		tagspace::flags_t _flags;
 
 		static bool _trace_on;
@@ -126,6 +129,9 @@ class driver : public tagd::errorable {
 		size_t line_number() const {
 			return _scanner._line_number;
 		}
+
+		void filename(const std::string& f) { _filename = f; }
+		const std::string& filename() const { return _filename; }
 
 		const tagd::abstract_tag& tag() const {
 			static const tagd::abstract_tag empty_tag;

@@ -293,6 +293,7 @@ int tagsh::interpret_fname(const  std::string& fname) {
 
 	// evbuffer_add_file closes fd for us
 	if (evbuffer_add_file(input, fd, 0, st.st_size) == 0) {
+		_driver.filename(fname);
 		_driver.evbuffer_execute(input);
 	} else {
 		return error("evbuffer_add_file failed: %s", fname.c_str());

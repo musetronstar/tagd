@@ -32,7 +32,10 @@
 			else
 				tagl->error(tagd::TAGL_ERR, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
 	}
-
+	if (!tagl->filename().empty()) {
+		tagl->last_error_relation(
+			tagd::make_predicate(HARD_TAG_CAUSED_BY, "_file", tagl->filename()) );
+	}
 	if (tagl->line_number()) {
 		tagl->last_error_relation(
 			tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );

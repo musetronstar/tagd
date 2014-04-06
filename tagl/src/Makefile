@@ -1,6 +1,7 @@
 CXX = g++ -std=c++0x -Wall -Wextra
 CXXFLAGS = -O3
 YACC = 
+RE2CFLAGS = 
 
 INC =  -I../include -I../../tagd/include -I../../tagspace/include
 PARSER_H = ../include/parser.h
@@ -8,14 +9,18 @@ PARSER_H = ../include/parser.h
 DEBUG=
 debug: DEBUG=debug
 debug: CXXFLAGS = -g
+debug: RE2CFLAGS = -d
 debug: build
 
 all: build
 
 build: tagl.o parser.o scanner.o
 
-scanner.o: lemonfiles
-	re2c scanner.re | $(CXX) -c -o $@  -x c++ - $(INC)
+scanner.cc: scanner.re
+	re2c $(RE2CFLAGS) -o scanner.cc scanner.re
+
+scanner.o: scanner.cc lemonfiles
+	$(CXX) $(CXXFLAGS) -c -o $@ scanner.cc $(INC) 
 
 parser.cc: lemonfiles
  
@@ -41,5 +46,5 @@ tagl.o: parser.o tokens.inc tagl.cc
 clean:
 	rm -f *.o
 	rm -f *.inc
-	rm -f parser.cc parser.out $(PARSER_H)
+	rm -f scanner.cc parser.cc parser.out $(PARSER_H)
 

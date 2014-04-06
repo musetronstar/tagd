@@ -35,6 +35,8 @@ const char* scanner::fill() {
 	if (driver::_trace_on)
 		std::cerr << "ln: " << _line_number << " ,fill() _cur: `" << *_cur << "'" << std::endl;
 
+	if (driver::_trace_on) print_buf();
+
 // YYFILL(n)  should adjust YYCURSOR, YYLIMIT, YYMARKER and YYCTXMARKER as needed.
 	if (_cur == '\0') {
 		_eof = _cur;
@@ -57,6 +59,7 @@ const char* scanner::fill() {
 		offset = sz;
 		_buf[sz] = '\0';
 	}
+	_mark = _cur;
 
 	if (driver::_trace_on) {
 		if (!_val.empty())
@@ -87,13 +90,14 @@ const char* scanner::fill() {
 		_eof = _lim = &_buf[offset];
 	}
 
+	if (driver::_trace_on) print_buf();
+
 	return _cur;
 }
 
 void scanner::scan(const char *cur, size_t sz) {
 	
-	const char *mark; 
-	_beg = _cur = cur;
+	_beg = _mark = _cur = cur;
 	//if (!_do_fill)
 	//	_eof = &_cur[sz];
 
@@ -110,10 +114,12 @@ void scanner::scan(const char *cur, size_t sz) {
 #define YYGETSTATE()    _state
 #define YYSETSTATE(x)   { _state = (x);  }
 #define	YYFILL(n)	{ if(_do_fill && _evbuf && !_eof){ this->fill(); if(_driver->has_error()) return; } }
-#define YYMARKER        mark
+#define YYMARKER        _mark
+#define YYDEBUG(s,c) { if(driver::_trace_on) std::cerr << "scanner debug: s = " << s << ", c = " << c << ", _cur = " << *_cur <<", _beg = " << *_beg << std::endl; }
 
 next:
 
+	if (_line_number == 875) BREAK = 1;
 	if (_driver->has_error()) return;
 
 /*!re2c
@@ -197,6 +203,10 @@ next:
 
 	[^]                  { // ANY
 							_driver->error(tagd::TAGL_ERR, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, std::string(_beg,(_cur-_beg))));
+							if (!_driver->filename().empty()) {
+								_driver->last_error_relation(
+									tagd::make_predicate(HARD_TAG_CAUSED_BY, "_file", _driver->filename()) );
+							}
 							if (_line_number) {
 								_driver->last_error_relation(
 									tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(_line_number)) );
