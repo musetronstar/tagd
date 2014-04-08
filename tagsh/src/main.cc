@@ -20,7 +20,8 @@
 int main(int argc, char **argv) {
 	typedef std::vector<std::string> str_vec_t; 
 	str_vec_t tagl_files;
-	std::string db_fname, tagl_statement;
+	std::string db_fname;
+	const std::string s_tagl("--tagl:");
 	bool opt_create = false;
 	bool opt_trace = false;
 
@@ -44,10 +45,10 @@ int main(int argc, char **argv) {
 		} else if (strcmp(argv[i], "--create") == 0) {
 			opt_create = true;
 		} else if (strcmp(argv[i], "--tagl") == 0) {
-			if (++i <= argc)
-				tagl_statement = argv[i];
+			if (++i <= argc) {
+				tagl_files.push_back(std::string(s_tagl).append(argv[i]));
+			}
 		} else {
-
 			tagl_files.push_back(argv[i]);
 		}
 	}
@@ -68,26 +69,29 @@ int main(int argc, char **argv) {
 		shell.interpret(".trace_on");
 	}
 
-	if (tagl_statement.empty() && tagl_files.size() == 0) {
+	if (tagl_files.size() == 0) {
 		std::cout << "use .show to list commands" << std::endl;
 		return shell.interpret(std::cin);
 	}
 
-	int err;
-	if (!tagl_statement.empty()) {
+	auto f_tagl_statement = [&](const std::string &s) -> int {
+		int err;
 		shell.prompt.clear();
-		err = shell.interpret(tagl_statement);
+		err = shell.interpret(s);
 		if (err) return err;
 		err = shell.interpret(";"); // just in case it wasn't provided
-		if (err) return err;
-	}
+		return err;
+	};
 	
+	int err;
 	// input file(s) 
-	for(str_vec_t::iterator it = tagl_files.begin(); it != tagl_files.end(); ++it) {
+	for(auto it = tagl_files.begin(); it != tagl_files.end(); ++it) {
 		if (*it == "-") {  // fname == "-", use interpret stdin
 			// TODO create an evbuffer from stdin, so shell commands are not exposed
 			shell.prompt.clear();
 			err = shell.interpret(std::cin);
+		} else if (it->substr(0, s_tagl.size()) == s_tagl) {
+			err = f_tagl_statement( it->substr(s_tagl.size()) );
 		} else {
 			err = shell.interpret_fname(*it);
 		}

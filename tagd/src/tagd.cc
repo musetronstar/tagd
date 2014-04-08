@@ -336,7 +336,7 @@ bool util::do_quotes(const id_type& s) {
 	for (size_t i=0; i<s.size(); i++) {
 		if (isspace(s[i]))
 			return true;
-
+// TODO escape double quotes while here
 		switch (s[i]) {
 			case ':':
 				if ((s.size()-i) > 2 && s[i+1] == '/' && s[i+2] == '/')
