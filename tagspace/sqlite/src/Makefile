@@ -8,12 +8,12 @@ HDRS = ../include/tagspace/sqlite.h
 OBJS=$(SRCS:.cc=.o)
 BIN = tagdb
 
+all: build
+
 DEBUG=
 debug: DEBUG=debug
 debug: CXXFLAGS = -g
 debug: build
-
-all: build
 
 build: $(HDRS) $(SRCS) $(OBJS)
 

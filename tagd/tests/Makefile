@@ -6,10 +6,10 @@ INC = -I $(HOME)/src/cxxtest -I$(INCLUDE)
 LFLAGS = -L../lib -ltagd
 CXXTEST = $(HOME)/src/cxxtest/bin/cxxtestgen --error-printer
 
+all: tag_tests url_tests domain_tests
+
 debug : CXXFLAGS = -g
 debug : all
-
-all: tag_tests url_tests domain_tests
 
 tag_tests:
 	$(CXXTEST) Tester.h -o tester.cpp

@@ -2,11 +2,11 @@ SRC_DIR = ./src
 BUILD_DIR = ./bin
 TEST_DIR = ./tests
 
+all: build
+
 DEBUG=
 debug: DEBUG=debug
 debug: build
-
-all: build
 
 build: tagsh
 

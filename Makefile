@@ -4,10 +4,10 @@ DEBUG=
 
 .PHONY: debug build all
 
+all: build
+
 debug: DEBUG = debug
 debug: build
-
-all: build
 
 build: force_look
 	for dir in $(MAKE_DIRS) ; do \

@@ -4,11 +4,11 @@ BUILD_DIR = ./lib
 TEST_DIR = ./tests
 LIB = $(BUILD_DIR)/libtagspace-sqlite.a
 
+all: build
+
 DEBUG=
 debug: DEBUG=debug
 debug: build
-
-all: build
 
 build: tagspace $(LIB)
 

@@ -17,12 +17,12 @@ LIBEVHTP_INC = -I$(LIBEVHTP_DIR) -I$(LIBEVHTP_DIR)/build -I$(LIBEVHTP_DIR)/build
 LIBEVHTP_LFLAGS = -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
 LIBEVHTP = $(LIBEVHTP_DIR)/build/libevhtp.a
 
+all: build
+
 DEBUG=
 debug: DEBUG=debug
 debug: CXXFLAGS = -g
 debug: build
-
-all: build
 
 build : $(BIN)
 

@@ -6,13 +6,13 @@ RE2CFLAGS =
 INC =  -I../include -I../../tagd/include -I../../tagspace/include
 PARSER_H = ../include/parser.h
 
+all: build
+
 DEBUG=
 debug: DEBUG=debug
 debug: CXXFLAGS = -g
 debug: RE2CFLAGS = -d
 debug: build
-
-all: build
 
 build: tagl.o parser.o scanner.o
 

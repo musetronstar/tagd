@@ -7,12 +7,12 @@ SRCS = tagspace.cc bootstrap.cc
 HDRS = ../include/tagspace.h ../include/tagspace/bootstrap.h
 OBJS=$(SRCS:.cc=.o)
 
+all: build
+
 DEBUG=
 debug: DEBUG=debug
 debug: CXXFLAGS = -g -DDEBUG
 debug: build
-
-all: build
 
 build: $(HDRS) $(SRCS) $(OBJS)
 

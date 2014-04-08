@@ -4,11 +4,11 @@ TEST_DIR = ./tests
 
 LIB = $(BUILD_DIR)/libtagl.a
 
+all: build
+
 DEBUG=
 debug: DEBUG=debug
 debug: build
-
-all: build
 
 build: libtagl
 

@@ -8,12 +8,12 @@ CXX = g++ -std=c++0x
 CXXFLAGS = -O3 -Wno-write-strings
 LFLAGS =  -L $(TAGSPACE_DIR)/lib -ltagspace-sqlite -L../lib -ltagl -L$(TAGD_DIR)/lib -ltagd -levent
 
+all: build
+
 DEBUG=
 debug: DEBUG=debug
 debug: CXXFLAGS = -g -Wno-write-strings
 debug: build
-
-all: build
 
 build: tagl_tests
 

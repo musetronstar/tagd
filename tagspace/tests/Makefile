@@ -12,12 +12,12 @@ SRC = tester.cc
 OBJ = tester.o
 BIN = ./tester
 
+all: build
+
 DEBUG=
 debug: DEBUG=debug
 debug: CXXFLAGS = -g
 debug: build
-
-all: build
 
 build: $(LIBTAGD)
 	$(CXXTEST) Tester.h -o $(SRC)
