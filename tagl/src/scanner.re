@@ -119,7 +119,6 @@ void scanner::scan(const char *cur, size_t sz) {
 
 next:
 
-	if (_line_number == 875) BREAK = 1;
 	if (_driver->has_error()) return;
 
 /*!re2c

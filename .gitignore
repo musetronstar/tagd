@@ -25,6 +25,8 @@ bin/
 *.db
 
 # generated files
+tagd/src/hard-tags.gperf
+tagd/src/hard-tags.gperf.h
 *.inc
 *.out
 parser.h

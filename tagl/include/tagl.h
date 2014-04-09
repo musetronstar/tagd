@@ -12,8 +12,6 @@ struct evbuffer;
 struct yyParser;
 static void yy_reduce(yyParser *, int);
 
-static int BREAK;
-
 namespace TAGL {
 
 class driver; 
