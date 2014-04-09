@@ -1075,12 +1075,21 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23") )
     }
 
-    void test_modifier_str_quotes(void) {
-		tagd::tag t("property_table");
-		t.relation("has", "editmaskid", "47_1,47_2,47_3");
+    void test_modifier_comma_quotes(void) {
+		tagd::tag t("table");
+		t.relation("has", "idlist", "47,72,43");
 		std::stringstream ss;
 		ss << t;
 
-		TS_ASSERT_EQUALS( ss.str() , "property_table has editmaskid = \"47_1,47_2,47_3\"");
+		TS_ASSERT_EQUALS( ss.str() , "table has idlist = \"47,72,43\"");
+	}
+
+	void test_modifier_esc_quotes(void) {
+		tagd::tag t("my_message");
+		t.relation("has", "message", "quoted \"string\" hey\" yo \\ ");
+		std::stringstream ss;
+		ss << t;
+
+		TS_ASSERT_EQUALS( ss.str() , "my_message has message = \"quoted \\\"string\\\" hey\\\" yo \\ \"");
 	}
 };

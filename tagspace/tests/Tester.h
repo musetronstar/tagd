@@ -1243,7 +1243,7 @@ class Tester : public CxxTest::TestSuite {
         populate_tags(TS);
 
         tagd::tag dog;
-        tagd_code ts_rc = TS.get(dog, "dog");
+        TS.get(dog, "dog");
         TS_ASSERT_EQUALS( dog.relations.size(), 3 )
 		TS_ASSERT( dog.related("has", "legs", "4") )
 		TS_ASSERT( dog.related("has", "tail")  )

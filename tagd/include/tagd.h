@@ -574,7 +574,7 @@ struct util {
 	// returns c string of formatted printf string, or NULL on failure
 	static char* csprintf(const char *, ...);
 	static char* csprintf(const char *, va_list&);
-	static bool do_quotes(const id_type&);
+	static std::string esc_and_quote(id_type);
 };
 
 

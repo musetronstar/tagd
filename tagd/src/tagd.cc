@@ -332,36 +332,47 @@ id_type referent::context() const {
 // tag output functions
 
 // whether a label should be quoted
-bool util::do_quotes(const id_type& s) {
+std::string util::esc_and_quote(id_type s) {
+	bool do_quotes = false;
 	for (size_t i=0; i<s.size(); i++) {
 		if (isspace(s[i]))
-			return true;
-// TODO escape double quotes while here
+			do_quotes = true;
 		switch (s[i]) {
 			case ':':
 				if ((s.size()-i) > 2 && s[i+1] == '/' && s[i+2] == '/')
-					return false;	// don't quote urls
+					return s;	// don't quote urls
 				else
-					return true;
+					do_quotes = true;
+				break;
+			case '\\':
+				//if ((s.size()-i) > 1 && s[i+1] == '"') {
+				//	i++;  // escaped  \"
+				//}
+				i += 2;
+				do_quotes = true;
+				break;
+			case '"':
+				// escape the "
+				s.insert(i, "\\");
+				i += 2;
+				do_quotes = true;
+				break;
 			case '/':
 			case ';':
 			case ',':
 			case '=':
 			case '-':
-				return true;
+				do_quotes = true;
 			default:
 				continue;
 		}
 	}
 
-	return false;
+	return (do_quotes ? std::string("\"").append(s).append("\"") : s);
 }
 
-void print_quotable(std::ostream& os, const id_type& s) {
-	if (util::do_quotes(s))
-			os << '"' << s << '"';
-		else
-			os << s;
+inline void print_quotable(std::ostream& os, const id_type& s) {
+			os << util::esc_and_quote(s);
 }
 
 void print_object (std::ostream& os, const predicate& p) {

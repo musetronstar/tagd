@@ -147,7 +147,7 @@ class tagd_template {
 				d->SetValue(k, u.id());
 			} else {
 				d->SetValue( std::string(k).append("_lnk"),
-					std::string("/").append((tagd::util::do_quotes(v) ? tagd::uri_encode(std::string("\"").append(v).append("\"")) : tagd::uri_encode(v))).append("?t=").append(tpl.opt_t).append(context_lnk) );
+					std::string("/").append(tagd::util::esc_and_quote(v)).append("?t=").append(tpl.opt_t).append(context_lnk) );
 				d->SetValue(k, v);
 			}
 		}
@@ -223,7 +223,7 @@ class tagd_template {
 			if (t.relations.size() > 0) {
 				D.ShowSection("relations");
 				tagd::id_type last_relator;
-				ctemplate::TemplateDictionary* relator_dict;
+				ctemplate::TemplateDictionary* relator_dict = nullptr;
 				for (auto p : t.relations) {
 					if (p.relator == "img_src" && looks_like_hduri(p.object)) {
 						tagd::url u;
@@ -237,6 +237,8 @@ class tagd_template {
 						relator_dict = D.AddSectionDictionary("relation_set");
 						set_relator_link(tpl, relator_dict, "relator", p.relator);
 					}
+
+					if (!relator_dict) continue;
 
 					ctemplate::TemplateDictionary* sub_dict = relator_dict->AddSectionDictionary("relation");
 					set_tag_link(tpl, sub_dict, "object", p.object);
