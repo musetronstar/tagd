@@ -63,14 +63,23 @@ while (<>) {
 
     if ($idn) {
         print "# $tld\n";
-        print "$idn, $tld_constant\n";
+        print_uniq("$idn, $tld_constant\n");
         $idn = undef;
     } else {
         my $a = domain_to_ascii($tld);
        
         print "# $tld\n" if $a ne $tld;  # utf
-        print "$a, $tld_constant\n";
+        print_uniq ("$a, $tld_constant\n");
     }
+}
+
+my %uniq;
+sub print_uniq {
+	my $v = shift;
+	if (!$uniq{$v}) {
+		$uniq{$v} = 1;
+		print $v;
+	}
 }
 
 __END__

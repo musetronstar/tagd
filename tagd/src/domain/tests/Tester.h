@@ -181,7 +181,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( !d.is_registrable() );
 
         tld_code tld_c = d.init("com.ar");
-        TS_ASSERT_EQUALS( tld_code_str(tld_c), "TLD_WILDCARD" );
+        TS_ASSERT_EQUALS( tld_code_str(tld_c), "TLD_ICANN" );
         TS_ASSERT_EQUALS( d.pub(), "com.ar" );
         TS_ASSERT_EQUALS( d.reg(), "" );
         TS_ASSERT_EQUALS( d.priv(), "" );
@@ -191,7 +191,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( !d.is_registrable() );
 
         tld_c = d.init("www.example.com.ar");
-        TS_ASSERT_EQUALS( tld_code_str(tld_c), "TLD_WILDCARD_REG" );
+        TS_ASSERT_EQUALS( tld_code_str(tld_c), "TLD_ICANN_REG" );
         TS_ASSERT_EQUALS( d.pub(), "com.ar" );
         TS_ASSERT_EQUALS( d.reg(), "example.com.ar" );
         TS_ASSERT_EQUALS( d.priv(), "www.example" );
@@ -203,7 +203,7 @@ class Tester : public CxxTest::TestSuite {
 
     void test_domain_wildcard_exception(void) {
         tagd::domain d("nic.ar");
-        TS_ASSERT_EQUALS( tld_code_str(d.code()), "TLD_EXCEPTION_REG" );
+        TS_ASSERT_EQUALS( tld_code_str(d.code()), "TLD_ICANN_REG" );
         TS_ASSERT_EQUALS( d.pub(), "ar" );
         TS_ASSERT_EQUALS( d.reg(), "nic.ar" );
         TS_ASSERT_EQUALS( d.priv(), "nic" );
@@ -213,7 +213,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( d.is_registrable() );
 
         tld_code tld_c = d.init("example.nic.ar");
-        TS_ASSERT_EQUALS( tld_code_str(tld_c), "TLD_EXCEPTION_REG" );
+        TS_ASSERT_EQUALS( tld_code_str(tld_c), "TLD_ICANN_REG" );
         TS_ASSERT_EQUALS( d.pub(), "ar" );
         TS_ASSERT_EQUALS( d.reg(), "nic.ar" );
         TS_ASSERT_EQUALS( d.priv(), "example.nic" );
@@ -223,7 +223,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( d.is_registrable() );
 
         tld_c = d.init("www.example.nic.ar");
-        TS_ASSERT_EQUALS( tld_code_str(tld_c), "TLD_EXCEPTION_REG" );
+        TS_ASSERT_EQUALS( tld_code_str(tld_c), "TLD_ICANN_REG" );
         TS_ASSERT_EQUALS( d.pub(), "ar" );
         TS_ASSERT_EQUALS( d.reg(), "nic.ar" );
         TS_ASSERT_EQUALS( d.priv(), "www.example.nic" );
@@ -359,12 +359,12 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( checkPublicSuffix("city.kobe.jp", "city.kobe.jp") );
         TS_ASSERT( checkPublicSuffix("www.city.kobe.jp", "city.kobe.jp") );
         // TLD with a wildcard rule and exceptions.
-        TS_ASSERT( checkPublicSuffix("om", NULL) );
-        TS_ASSERT( checkPublicSuffix("test.om", NULL) );
-        TS_ASSERT( checkPublicSuffix("b.test.om", "b.test.om") );
-        TS_ASSERT( checkPublicSuffix("a.b.test.om", "b.test.om") );
-        TS_ASSERT( checkPublicSuffix("songfest.om", "songfest.om") );
-        TS_ASSERT( checkPublicSuffix("www.songfest.om", "songfest.om") );
+        TS_ASSERT( checkPublicSuffix("uk", NULL) );
+        TS_ASSERT( checkPublicSuffix("test.uk", NULL) );
+        TS_ASSERT( checkPublicSuffix("b.test.uk", "b.test.uk") );
+        TS_ASSERT( checkPublicSuffix("a.b.test.uk", "b.test.uk") );
+        TS_ASSERT( checkPublicSuffix("mod.uk", "mod.uk") );
+        TS_ASSERT( checkPublicSuffix("www.mod.uk", "mod.uk") );
         // US K12.
         TS_ASSERT( checkPublicSuffix("us", NULL) );
         TS_ASSERT( checkPublicSuffix("test.us", "test.us") );
