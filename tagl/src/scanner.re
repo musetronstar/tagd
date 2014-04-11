@@ -128,6 +128,11 @@ next:
 	NL			= "\r"? "\n" ;
 	ANY			= [^] ;
 
+	URL_SCHEME = [a-zA-Z]+[a-zA-Z.+-]* "://" ;
+	SCHEME_SPEC_DATA  = [^\000 \t\r\n'"]+ ;
+	SCHEME_SPEC_LCHAR = [^\000 \t\r\n'",]{1} ;
+	URL = URL_SCHEME SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ; 
+
 	"--"
 	{
 		goto comment;
@@ -193,8 +198,7 @@ next:
 	                        PARSE_VALUE(QUANTIFIER);
 	                     }
 
-	[a-zA-Z]+[a-zA-Z.+-]* "://" [^\000 \t\r\n'"]+
-	                         {  PARSE_VALUE(URL); }
+	URL                  {  PARSE_VALUE(URL); }
 
 	[^\000 \t\r\n;,=><'"-]+  { goto lookup_parse; }
 

@@ -448,11 +448,21 @@ class Tester : public CxxTest::TestSuite {
 	void test_url_modifier(void) {
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
-		tagd_code tc = tagl.execute(
+		tagl.execute(
 				">> shar_pei _is_a dog\n"
 				"_has breed = http://www.dogbreedinfo.com/sharpei.htm"
 			);
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
+	}
+
+	void test_url_list(void) {
+		tagspace_tester TS;
+		TAGL::driver tagl(&TS);
+		tagl.execute(
+				">> shar_pei _is_a dog\n"
+				"_has breed = http://www.dogbreedinfo.com/sharpei.htm, http://www.akc.org/breeds/chinese_shar_pei/index.cfm"
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 	}
 
 	void test_delete_super_not_allowed(void) {
@@ -755,7 +765,8 @@ class Tester : public CxxTest::TestSuite {
 		tagd_code tc;
 
 		TAGL::driver d(&TS);
-		TAGL::driver::trace_on();
+		// TODO random error sometimes raised by this statement
+		//TAGL::driver::trace_on();
 		tc = d.execute(
 			"-- this is a comment\n"
 			">> dog _is_a animal --so is this\n"
@@ -763,7 +774,7 @@ class Tester : public CxxTest::TestSuite {
 			"_has-* i'm a block comment *-fur\n"
 			"--_can bark, bite"
 		);
-		TAGL::driver::trace_off();
+		//TAGL::driver::trace_off();
 		if (d.has_error())
 			d.print_errors();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
