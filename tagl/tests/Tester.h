@@ -40,7 +40,8 @@ class tagspace_tester : public tagspace::tagspace {
 			put_test_tag("meow", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("bite", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("swim", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("internet_security", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("information", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("internet_security", "information", tagd::POS_TAG);
 			put_test_tag("child", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("fun", "action", tagd::POS_TAG);
@@ -457,10 +458,13 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_url_list(void) {
 		tagspace_tester TS;
+		TS.put(tagd::tag("simple", "_is_a", "_concept"));
+		TS.put(tagd::referent("Shar Pei", "shar_pei", "simple"));
+		TS.put(tagd::referent("SHARPEI","shar_pei","code"));
 		TAGL::driver tagl(&TS);
 		tagl.execute(
 				">> shar_pei _is_a dog\n"
-				"_has breed = http://www.dogbreedinfo.com/sharpei.htm, http://www.akc.org/breeds/chinese_shar_pei/index.cfm"
+				"_has information = http://www.dogbreedinfo.com/sharpei.htm, breed = http://www.akc.org/breeds/chinese_shar_pei/index.cfm, SHARPEI, \"Shar Pei\""
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 	}

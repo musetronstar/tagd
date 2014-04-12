@@ -464,6 +464,11 @@ object ::= URL(U) .
 		tagl->ferror(u.code(), "bad url: %s", U->c_str());
 	}
 }
+object ::= REFERENT(R) .
+{
+	tagl->_tag->relation(tagl->_relator, *R);
+}
+
 
 op(o) ::= EQ .
 {
