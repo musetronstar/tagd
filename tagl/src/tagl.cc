@@ -115,6 +115,7 @@ void driver::finish() {
 
 	_scanner.reset();
 	_token = -1;
+	_filename.clear();
 
 	if (_callback != NULL)
 		_callback->finish();

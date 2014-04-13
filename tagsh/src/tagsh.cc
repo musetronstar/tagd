@@ -7,8 +7,10 @@
 #include <cstdio>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <fcntl.h>
+
+#include <readline/readline.h>
+#include <readline/history.h>
 
 #include <event2/buffer.h>
 #include "tagd.h"
@@ -35,6 +37,19 @@ tagsh_callback::tagsh_callback(space_type *ts) {
 	_TS = ts;
 }
 
+void add_history_lines_clear(cmdlines_t& lines) {
+	std::string hst;
+	for (auto l : lines) {
+		hst.append(l);
+		if (l != lines.back())
+			hst.push_back('\n');
+		delete l;
+	}
+	lines.clear();
+	if (!hst.empty())
+		add_history(hst.c_str());
+}
+
 void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag *T;
 	if (t.pos() == tagd::POS_URL) {
@@ -55,6 +70,8 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 
 	delete T;
+
+	add_history_lines_clear(_lines);
 }
 
 void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
@@ -66,6 +83,7 @@ void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 		_TS->print_errors();
 		_TS->clear_errors();
 	}
+	add_history_lines_clear(_lines);
 }
 
 void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
@@ -77,6 +95,7 @@ void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 		_TS->print_errors();
 		_TS->clear_errors();
 	}
+	add_history_lines_clear(_lines);
 }
 
 void tagsh_callback::cmd_query(const tagd::interrogator& q) {
@@ -97,15 +116,13 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 			_TS->print_errors();
 			_TS->clear_errors();
 	}
+	add_history_lines_clear(_lines);
 }
 
 void tagsh_callback::cmd_error() {
 	_driver->print_errors();
+	add_history_lines_clear(_lines);
 }
-
-tagsh::tagsh(space_type *ts, TAGL::callback *cb) :
-	_TS(ts), _CB(cb), _driver(ts, cb), prompt("tagd> ")
-{}
 
 std::vector<std::string> split_string(const std::string &s, const char *delim = " ", bool allow_empty = false)
 {
@@ -230,9 +247,27 @@ void tagsh::command(const std::string& cmdline) {
 	error("no such command: %s", cmd.c_str());
 }
 
+int tagsh::interpret_readline() {
+    // tab auto-complete paths 
+    rl_bind_key('\t', rl_complete);
+
+    while(true) {
+		char* input = readline(prompt.c_str());
+ 
+        if (!input) // EOF
+            break;
+ 
+        _CB->_lines.push_back(input);
+		this->interpret(input);
+    }
+
+	return 0;
+}
+
 int tagsh::interpret(const std::string &line) {
 	if (line[0] == '.') {
 		command(line);
+		return 0;
 	} else {
 		_driver.parseln(line);
 

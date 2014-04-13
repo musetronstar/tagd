@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
 
 	if (tagl_files.size() == 0) {
 		std::cout << "use .show to list commands" << std::endl;
-		return shell.interpret(std::cin);
+		return shell.interpret_readline();
 	}
 
 	auto f_tagl_statement = [&](const std::string &s) -> int {

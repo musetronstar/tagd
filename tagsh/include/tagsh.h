@@ -5,12 +5,18 @@
 
 // TODO use a template
 typedef tagspace::sqlite space_type;
+typedef std::vector<char *> cmdlines_t;
+
+class tagsh;
 
 class tagsh_callback : public TAGL::callback {
+		friend class tagsh;
 		space_type *_TS;
+		cmdlines_t _lines;
 
 	public:
 		tagsh_callback(space_type*);
+		~tagsh_callback() { for(auto l : _lines) delete l; }
 		void cmd_get(const tagd::abstract_tag&);
 		void cmd_put(const tagd::abstract_tag&);
 		void cmd_del(const tagd::abstract_tag&);
@@ -18,16 +24,17 @@ class tagsh_callback : public TAGL::callback {
         void cmd_error();
 };
 
-
 class tagsh {
 	protected:
 		space_type *_TS;
-		TAGL::callback *_CB;
+		tagsh_callback *_CB;
 		TAGL::driver _driver;
 	public:
 		std::string prompt;
-		tagsh(space_type*, TAGL::callback*);
+		tagsh(space_type *ts, tagsh_callback *cb) :
+			_TS(ts), _CB(cb), _driver(ts, cb), prompt("tagd> ") {}
 		void command(const std::string&);
+		int interpret_readline();
 		int interpret(std::istream&);
 		int interpret(const std::string&);  // tagl statement
 		int interpret_fname(const std::string&);  // filename
