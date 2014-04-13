@@ -251,12 +251,8 @@ int tagsh::interpret_readline() {
     // tab auto-complete paths 
     rl_bind_key('\t', rl_complete);
 
-    while(true) {
-		char* input = readline(prompt.c_str());
- 
-        if (!input) // EOF
-            break;
- 
+	char* input;
+    while( (input = readline(prompt.c_str())) != NULL ) {
         _CB->_lines.push_back(input);
 		this->interpret(input);
     }
@@ -267,6 +263,7 @@ int tagsh::interpret_readline() {
 int tagsh::interpret(const std::string &line) {
 	if (line[0] == '.') {
 		command(line);
+		add_history_lines_clear(_CB->_lines);
 		return 0;
 	} else {
 		_driver.parseln(line);
