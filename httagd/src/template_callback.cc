@@ -44,11 +44,6 @@ class tagd_template {
 			_req{r}, _TS{ts}, _context{c}
 		{}
 
-		void add_http_headers() {
-			evhtp_headers_add_header(_req->headers_out,
-					evhtp_header_new("Content-Type", "text/html; charset=utf-8", 0, 0));
-		}
-
 		// lookup a tpl_t given the tpl query string option 
 		// doesn't allow looking up error template
 		static tpl_t lookup_tpl(const std::string& opt_tpl) {
@@ -638,7 +633,7 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 
 	int res;
 	tagd_template tt(_req, _TS, _context);
-	tt.add_http_headers();
+	this->add_http_headers();
 	tt.expand_header(t.id());
 
 	ctemplate::TemplateDictionary D("get");
@@ -686,7 +681,7 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 
 	int res;
 	tagd_template tt(_req, _TS, _context);
-	tt.add_http_headers();
+	this->add_http_headers();
 	tt.expand_header(q.id());
 
 	ctemplate::TemplateDictionary D("query");
@@ -716,7 +711,7 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 
 void template_callback::cmd_error() {
 	tagd_template tt(_req, _TS, _context);
-	tt.add_http_headers();
+	this->add_http_headers();
 	tt.expand_header(_driver->last_error().id());
 	tt.expand_error(ERROR_TPL, *_driver);
 	tt.expand_footer();
@@ -740,7 +735,7 @@ void template_callback::cmd_error() {
 
 void template_callback::empty() {
 	tagd_template tt(_req, _TS, _context);
-	tt.add_http_headers();
+	this->add_http_headers();
 	tt.expand_header("Welcome to tagd");
 	ctemplate::TemplateDictionary D("get");
 	int res = tt.expand_home(HOME_TPL, D);

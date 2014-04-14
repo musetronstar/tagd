@@ -16,6 +16,7 @@ class tagl_callback : public TAGL::callback {
 		tagspace::tagspace *_TS;
 		evhtp_request_t *_req;
 		bool _trace_on;
+		std::string _content_type;
 
 	public:
 		tagl_callback(
@@ -23,8 +24,8 @@ class tagl_callback : public TAGL::callback {
 				evhtp_request_t* req,
 				bool trace = false
 			)
-			: _TS{ts}, _req{req}, _trace_on{trace}
-		{}
+			: _TS{ts}, _req{req}, _trace_on{trace},
+			_content_type{"text/plain; charset=utf-8"} {}
 
 		void cmd_get(const tagd::abstract_tag&);
 		void cmd_put(const tagd::abstract_tag&);
@@ -33,6 +34,7 @@ class tagl_callback : public TAGL::callback {
         void cmd_error();
         virtual void empty();  // welcome message or home page
         void finish();
+		void add_http_headers();
 };
 
 class template_callback : public tagl_callback, public tagd::errorable {
@@ -47,8 +49,9 @@ class template_callback : public tagl_callback, public tagd::errorable {
 				const std::string& context,
 				bool trace = false
 			) : tagl_callback(ts, req, trace),
-			_opt_tpl{opt_tpl}, _context{context}
-		{}
+			_opt_tpl{opt_tpl}, _context{context} {
+				_content_type = "text/html; charset=utf-8";
+			}
 
 		void cmd_get(const tagd::abstract_tag&);
 		// void cmd_put(const tagd::abstract_tag&);

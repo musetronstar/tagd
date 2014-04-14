@@ -9,6 +9,11 @@ const char* evhtp_res_str(int tok) {
 
 namespace httagd {
 
+void tagl_callback::add_http_headers() {
+	evhtp_headers_add_header(_req->headers_out,
+	evhtp_header_new("Content-Type", _content_type.c_str(), 0, 0));
+}
+
 void tagl_callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag T;
 	tagd::code ts_rc = _TS->get(T, t.id(), _driver->flags());
@@ -100,6 +105,7 @@ void tagl_callback::finish() {
 	if (_trace_on)
 		std::cerr << "res(" << tagd_code_str(most_severe) << "): " << res << " " << evhtp_res_str(res) << std::endl;
 
+	this->add_http_headers();
 	evhtp_send_reply(_req, res);
 }
 
