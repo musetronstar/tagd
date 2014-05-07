@@ -77,7 +77,7 @@ Now let's put some more tags so that we can define dog more completely:
 	can bark
 	_has legs = 4, tail;
 
-Note the missing semicolon (';') after the statement `put tail _is_a body_part`.
+Note the missing semicolon (';') after the statement `>> tail _is_a body_part`.
 That's not a syntax error.  A statement can be terminated by a semicolon, `<EOF>`,
 or a double newline.
 
@@ -93,7 +93,7 @@ Note, when speaking of subjects and objects, this is meant in the linguistic
 sense of the terms (i.e. subject-verb-object).  Also, I tend to use the terms
 relations and predicates interchangeably.
 
-Now is a good time to define a put statement more formally...
+Now is a good time to define a input (`>>`) statement more formally...
 
 ##### PUT Grammar:
 
@@ -361,7 +361,7 @@ Here is a synonym for animal:
 
 	>> creature refers_to animal;
 
-Now, we can `get animal` by refering to creature:
+Now, we can `<< animal` by refering to creature:
 
 	<< creature;
 
