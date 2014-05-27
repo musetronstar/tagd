@@ -10,6 +10,7 @@
 #include "tagl.h"
 #include "tagspace/sqlite.h"
 #include "httagd.h"
+#include "tagsh.h"
 
 bool TRACE_ON = false;
 
@@ -135,34 +136,19 @@ bool file_exists(const std::string& fname) {
 }
 
 int main(int argc, char ** argv) {
-	std::string db_fname;
+	auto args = cmd_args(argc, argv);
+	TRACE_ON = args.opt_trace;
 
-	for(int i=1; i<argc; i++) {
-		if (strcmp(argv[i], "--db") == 0) {
-			if (++i < argc) {
-				if (argv[i][0] == '-')
-					db_fname = ":memory:";
-				else if (file_exists(argv[i]))
-					db_fname = argv[i];
-				else
-					return error("no such file: %s", argv[i]);
-			} else {
-				return error("--db option requires database file");
-			}
-		} else if (strcmp(argv[i], "--trace") == 0) {
-			TRACE_ON = true;
-		} else if (strcmp(argv[i], "--trace_on") == 0) {
-			TRACE_ON = true;
-		} else {
-			return error("unknown argument: %s", argv[i]);
-		}
+	if ( args.has_error() ) {
+		args.print_errors();
+		return args.code();
 	}
 
-	if (db_fname.empty())
-		db_fname = tagspace::util::user_db();
+	if (args.db_fname.empty())
+		args.db_fname = tagspace::util::user_db();
 
 	tagspace::sqlite TS;
-	if ( TS.init(db_fname) != tagd::TAGD_OK ) {
+	if ( TS.init(args.db_fname) != tagd::TAGD_OK ) {
 		TS.print_errors();
 		return 1;
 	}
@@ -170,6 +156,20 @@ int main(int argc, char ** argv) {
 	if (TRACE_ON) {
 		TS.trace_on();
 		TAGL::driver::trace_on((char *)"trace: ");
+	}
+
+	if (args.tagl_file_statements.size() > 0) {
+		tagsh_callback CB(&TS);
+		tagsh shell(&TS,&CB);
+		int r = args.interpret(shell);
+		if (args.has_error()) {
+			args.print_errors();
+			return args.code();
+		}
+		if (TS.has_error()) {
+			TS.print_errors();
+			return TS.code();
+		}
 	}
 
     const char   * bind_addr   = "0.0.0.0";

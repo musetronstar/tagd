@@ -44,3 +44,19 @@ class tagsh {
 		static void cmd_show();
 };
 
+const std::string TAGL_OPT("--tagl");
+
+class cmd_args : public tagd::errorable {
+	public:
+		typedef std::vector<std::string> str_vec_t; 
+		str_vec_t tagl_file_statements;
+		std::string db_fname;
+		bool opt_create;
+		bool opt_trace;
+
+		cmd_args(int, char **); 
+
+		int interpret(tagsh&);
+};
+
+

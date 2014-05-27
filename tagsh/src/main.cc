@@ -16,90 +16,30 @@
 #include "tagspace/sqlite.h"
 #include "tagsh.h"
 
-
 int main(int argc, char **argv) {
-	typedef std::vector<std::string> str_vec_t; 
-	str_vec_t tagl_files;
-	std::string db_fname;
-	const std::string s_tagl("--tagl:");
-	bool opt_create = false;
-	bool opt_trace = false;
-
-	for(int i=1; i<argc; i++) {
-		if (strcmp(argv[i], "--db") == 0) {
-			if (++i < argc) {
-				if (argv[i][0] == '-')
-					db_fname = ":memory:";
-				else {
-					if (!opt_create && !tagsh::file_exists(argv[i]))
-						return tagsh::error("no such file: %s", argv[i]);
-					db_fname = argv[i];
-				}
-			} else {
-				return tagsh::error("usage: --db <database file>");
-			}
-		} else if (strcmp(argv[i], "--trace") == 0) {
-			opt_trace = true;
-		} else if (strcmp(argv[i], "--trace_on") == 0) {
-			opt_trace = true;
-		} else if (strcmp(argv[i], "--create") == 0) {
-			opt_create = true;
-		} else if (strcmp(argv[i], "--tagl") == 0) {
-			if (++i <= argc) {
-				tagl_files.push_back(std::string(s_tagl).append(argv[i]));
-			}
-		} else {
-			tagl_files.push_back(argv[i]);
-		}
+	auto args = cmd_args(argc, argv);
+	if ( args.has_error() ) {
+		args.print_errors();
+		return args.code();
 	}
 
-	if (db_fname.empty())
-		db_fname = tagspace::util::user_db();
+	if (args.db_fname.empty())
+		args.db_fname = tagspace::util::user_db();
 
 	space_type TS;
-	if ( TS.init(db_fname) != tagd::TAGD_OK ) {
+	if ( TS.init(args.db_fname) != tagd::TAGD_OK ) {
 		TS.print_errors();
-		return 1;
+		return TS.code();
 	}
 
 	tagsh_callback CB(&TS);
 	tagsh shell(&TS,&CB);
 
-	if (opt_trace) {
-		shell.interpret(".trace_on");
-	}
-
-	if (tagl_files.size() == 0) {
+	if (args.tagl_file_statements.size() == 0) {
 		std::cout << "use .show to list commands" << std::endl;
 		return shell.interpret_readline();
-	}
-
-	auto f_tagl_statement = [&](const std::string &s) -> int {
-		int err;
-		shell.prompt.clear();
-		err = shell.interpret(s);
-		if (err) return err;
-		err = shell.interpret(";"); // just in case it wasn't provided
-		return err;
-	};
-	
-	int err;
-	// input file(s) 
-	for(auto it = tagl_files.begin(); it != tagl_files.end(); ++it) {
-		if (*it == "-") {  // fname == "-", use interpret stdin
-			// TODO create an evbuffer from stdin, so shell commands are not exposed
-			shell.prompt.clear();
-			err = shell.interpret(std::cin);
-		} else if (it->substr(0, s_tagl.size()) == s_tagl) {
-			err = f_tagl_statement( it->substr(s_tagl.size()) );
-		} else {
-			err = shell.interpret_fname(*it);
-		}
-
-		if ( err ) {
-			// err already printed
-			return err;
-		}
+	} else {
+		return args.interpret(shell);
 	}
 
 	return 0;

@@ -351,3 +351,117 @@ void tagsh::cmd_show() {
 	std::cout << ".quit\t# same as .exit" << std::endl;
 	std::cout << ".show\t# show commands" << std::endl;
 }
+
+
+cmd_args::cmd_args(int argc, char **argv) :
+	opt_create{false}, opt_trace{false}
+{
+
+	for (int i=1; i<argc; i++) {
+
+		if (argv[i][0] != '-') {
+			tagl_file_statements.push_back(argv[i]);
+			continue;
+		}
+
+		if (argv[i][1] != '-') {
+			// TODO short opts
+			this->ferror(tagd::TAGD_ERR, "no such option: %s", argv[i]);
+			return;
+		}
+
+		if (strlen(argv[i]) < 3) {
+			// long opts only
+			this->ferror(tagd::TAGD_ERR, "no such option: %s", argv[i]);
+			return;
+		}
+
+		char *arg = &argv[i][2];
+		switch ( arg[0] ) {
+			case 'c':
+				if (strcmp(arg, "create") == 0) {
+					opt_create = true;
+				} else {
+					this->ferror(tagd::TAGD_ERR, "no such option: %s", argv[i]);
+					return;
+				}
+
+				break;
+
+			case 'd':
+				if (strcmp(arg, "db") == 0) {
+					if (++i < argc) {
+						if (argv[i][0] == '-')
+							db_fname = ":memory:";
+						else {
+							if (!opt_create && !tagsh::file_exists(argv[i])) {
+								this->ferror(tagd::TAGD_ERR, "no such file: %s", argv[i]);
+								return;
+							}
+							db_fname = argv[i];
+						}
+					} else {
+						this->error(tagd::TAGD_ERR, "usage: --db <database file>");
+						return;
+					}
+				}
+
+				break;
+
+			case 't':
+				if (TAGL_OPT == argv[i]) {
+					if (++i <= argc) {
+						tagl_file_statements.push_back(
+								std::string(TAGL_OPT).append(" ").append(argv[i]) );
+					}
+				} else if (strcmp(arg, "trace") == 0) {
+					opt_trace = true;
+				} else if (strcmp(arg, "trace_on") == 0) {
+					opt_trace = true;
+				}
+
+				break;
+
+		} // switch arg
+	}
+
+	this->code(tagd::TAGD_OK);
+}
+
+int cmd_args::interpret(tagsh& shell) {
+
+	auto f_tagl_statement = [&](const std::string &s) -> int {
+		int err;
+		shell.prompt.clear();
+		err = shell.interpret(s);
+		if (err) return err;
+		err = shell.interpret(";"); // just in case it wasn't provided
+		return err;
+	};
+
+	if (args.opt_trace) {
+		shell.interpret(".trace_on");
+	}
+
+	int err;
+	// input file(s) 
+	for(auto s : tagl_file_statements) {
+		if (s == "-") {  // fname == "-", use interpret stdin
+			// TODO create an evbuffer from stdin, so shell commands are not exposed
+			shell.prompt.clear();
+			err = shell.interpret(std::cin);
+		} else if (s.substr(0, TAGL_OPT.size()) == TAGL_OPT) {
+			err = f_tagl_statement( s.substr(TAGL_OPT.size()) );
+		} else {
+			err = shell.interpret_fname(s);
+		}
+
+		if ( err ) {
+			// err already printed
+			return err;
+		}
+	}
+
+	return 0;
+}
+

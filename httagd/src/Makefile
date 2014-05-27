@@ -3,14 +3,14 @@ CXXFLAGS = -O3
 
 TAGD_DIR = ../../tagd
 TAGL_DIR = ../../tagl
-TAGSPACE_DIR = ../../tagdb
-
 TAGSPACE_DIR = ../../tagspace
+TAGSH_DIR = ../../tagsh
+
 BUILD_DIR = ../bin
 BIN = $(BUILD_DIR)/httagd
 
-INC = -I../include -I$(TAGD_DIR)/include -I$(TAGL_DIR)/include -I$(TAGSPACE_DIR)/include -I$(TAGSPACE_DIR)/sqlite/include
-LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagspace-sqlite -L $(TAGL_DIR)/lib -ltagl -L $(TAGD_DIR)/lib -ltagd -lsqlite3
+INC = -I../include -I$(TAGD_DIR)/include -I$(TAGL_DIR)/include -I$(TAGSPACE_DIR)/include -I$(TAGSPACE_DIR)/sqlite/include -I$(TAGSH_DIR)/include
+LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagspace-sqlite -L $(TAGL_DIR)/lib -ltagl -L $(TAGD_DIR)/lib -ltagd -L $(TAGSH_DIR)/lib -ltagsh -lsqlite3 -levent -lreadline
 
 LIBEVHTP_DIR = $(HOME)/src/libevhtp
 LIBEVHTP_INC = -I$(LIBEVHTP_DIR) -I$(LIBEVHTP_DIR)/build -I$(LIBEVHTP_DIR)/build/compat -I$(LIBEVHTP_DIR)/htparse -I$(LIBEVHTP_DIR)/build/oniguruma -I$(LIBEVHTP_DIR)/oniguruma -I$(LIBEVHTP_DIR)/evthr
