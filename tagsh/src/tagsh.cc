@@ -439,7 +439,7 @@ int cmd_args::interpret(tagsh& shell) {
 		return err;
 	};
 
-	if (args.opt_trace) {
+	if (opt_trace) {
 		shell.interpret(".trace_on");
 	}
 

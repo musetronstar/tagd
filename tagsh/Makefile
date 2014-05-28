@@ -20,7 +20,7 @@ tagsh: force_look
 	[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
 	make -C	$(SRC_DIR) $(DEBUG)
 
-tests: force_look tagsh
+tests: force_look build
 	make -C $(TEST_DIR) $(DEBUG)
 
 force_look:
