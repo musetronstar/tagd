@@ -352,11 +352,41 @@ void tagsh::cmd_show() {
 	std::cout << ".show\t# show commands" << std::endl;
 }
 
-
-cmd_args::cmd_args(int argc, char **argv) :
+cmd_args::cmd_args() :
 	opt_create{false}, opt_trace{false}
 {
+	_cmds["--db"] = {
+		[this](char *val) {
+			if (val[0] == '-')
+				this->db_fname = ":memory:";
+			else {
+				if (!this->opt_create && !tagsh::file_exists(val)) {
+					this->ferror(tagd::TAGD_ERR, "no such file: %s", val);
+					return;
+				}
+				this->db_fname = val;
+			}
+		}, true
+	};
 
+	_cmds["--create"] = {
+		[this](char *) { this->opt_create = true; },
+		false
+	}; 
+
+	_cmds["--tagl"] = {
+		[this](char *val) { 
+				tagl_file_statements.push_back(
+						std::string("--tagl").append(" ").append(val) );
+		}, true
+	};
+
+	auto trace_f = [this](char *val) { opt_trace = true; };
+	_cmds["--trace"] = { trace_f, false };
+	_cmds["--trace_on"] = { trace_f, false };
+}
+
+void cmd_args::parse(int argc, char **argv) {
 	for (int i=1; i<argc; i++) {
 
 		if (argv[i][0] != '-') {
@@ -364,66 +394,29 @@ cmd_args::cmd_args(int argc, char **argv) :
 			continue;
 		}
 
-		if (argv[i][1] != '-') {
-			// TODO short opts
-			this->ferror(tagd::TAGD_ERR, "no such option: %s", argv[i]);
-			return;
-		}
-
-		if (strlen(argv[i]) < 3) {
-			// long opts only
-			this->ferror(tagd::TAGD_ERR, "no such option: %s", argv[i]);
-			return;
-		}
-
-		char *arg = &argv[i][2];
-		switch ( arg[0] ) {
-			case 'c':
-				if (strcmp(arg, "create") == 0) {
-					opt_create = true;
+		auto cmd_it = _cmds.find(std::string(argv[i]));
+		if (cmd_it != _cmds.end()) {
+			auto h = cmd_it->second;
+			if (h.has_arg) {
+				if (++i < argc) {
+					h.handler( argv[i] );
 				} else {
-					this->ferror(tagd::TAGD_ERR, "no such option: %s", argv[i]);
+					this->ferror(tagd::TAGD_OK, "option required: %s <val>", argv[i-1]);
 					return;
 				}
-
-				break;
-
-			case 'd':
-				if (strcmp(arg, "db") == 0) {
-					if (++i < argc) {
-						if (argv[i][0] == '-')
-							db_fname = ":memory:";
-						else {
-							if (!opt_create && !tagsh::file_exists(argv[i])) {
-								this->ferror(tagd::TAGD_ERR, "no such file: %s", argv[i]);
-								return;
-							}
-							db_fname = argv[i];
-						}
-					} else {
-						this->error(tagd::TAGD_ERR, "usage: --db <database file>");
-						return;
-					}
-				}
-
-				break;
-
-			case 't':
-				if (TAGL_OPT == argv[i]) {
-					if (++i <= argc) {
-						tagl_file_statements.push_back(
-								std::string(TAGL_OPT).append(" ").append(argv[i]) );
-					}
-				} else if (strcmp(arg, "trace") == 0) {
-					opt_trace = true;
-				} else if (strcmp(arg, "trace_on") == 0) {
-					opt_trace = true;
-				}
-
-				break;
-
-		} // switch arg
+			} else {
+				h.handler( nullptr );
+			}
+			if (this->has_error()) return;
+			continue;
+		} else {
+			this->ferror(tagd::TAGD_OK, "invalid option: %s", argv[i]);
+			return;
+		}
 	}
+
+	if (db_fname.empty())
+		db_fname = tagspace::util::user_db();
 
 	this->code(tagd::TAGD_OK);
 }
@@ -443,6 +436,7 @@ int cmd_args::interpret(tagsh& shell) {
 		shell.interpret(".trace_on");
 	}
 
+	const std::string TAGL_OPT("--tagl");
 	int err;
 	// input file(s) 
 	for(auto s : tagl_file_statements) {
@@ -464,4 +458,5 @@ int cmd_args::interpret(tagsh& shell) {
 
 	return 0;
 }
+
 

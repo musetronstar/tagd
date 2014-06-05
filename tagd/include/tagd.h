@@ -559,6 +559,11 @@ class errorable {
 		tagd_code error(tagd::code, const predicate&);
 		tagd_code error(tagd::code, const std::string&);
 
+		tagd_code errors( const errorable &E ) {
+			_errors.insert( _errors.end(), E._errors.begin(), E._errors.end() );
+			return E.code();
+		}
+
 		// set and return code, set err msg to printf style formatted list
 		tagd_code ferror(tagd::code, const char *, ...);
 		tagd_code verror(tagd::code, const char *, va_list&);

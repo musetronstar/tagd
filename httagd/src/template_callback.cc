@@ -24,25 +24,35 @@ struct tpl_t {
 	tpl_file file;
 };
 
-const tpl_t HOME_TPL{"tag.html", "tpl/home.html.tpl", TPL_HOME};
-const tpl_t TAG_TPL{"tag.html", "tpl/tag.html.tpl", TPL_TAG};
-const tpl_t TREE_TPL{"tree.html", "tpl/tree.html.tpl", TPL_TREE};
-const tpl_t BROWSE_TPL{"browse.html", "tpl/browse.html.tpl", TPL_BROWSE};
-const tpl_t RELATIONS_TPL{"relations.html", "tpl/relations.html.tpl", TPL_RELATIONS};
-const tpl_t QUERY_TPL{"query.html", "tpl/query.html.tpl", TPL_QUERY};
-const tpl_t ERROR_TPL{"error.html", "tpl/error.html.tpl", TPL_ERROR};
-const tpl_t HEADER_TPL{"header.html", "tpl/header.html.tpl", TPL_HEADER};
-const tpl_t FOOTER_TPL{"footer.html", "tpl/footer.html.tpl", TPL_FOOTER};
+const tpl_t HOME_TPL{"tag.html", "home.html.tpl", TPL_HOME};
+const tpl_t TAG_TPL{"tag.html", "tag.html.tpl", TPL_TAG};
+const tpl_t TREE_TPL{"tree.html", "tree.html.tpl", TPL_TREE};
+const tpl_t BROWSE_TPL{"browse.html", "browse.html.tpl", TPL_BROWSE};
+const tpl_t RELATIONS_TPL{"relations.html", "relations.html.tpl", TPL_RELATIONS};
+const tpl_t QUERY_TPL{"query.html", "query.html.tpl", TPL_QUERY};
+const tpl_t ERROR_TPL{"error.html", "error.html.tpl", TPL_ERROR};
+const tpl_t HEADER_TPL{"header.html", "header.html.tpl", TPL_HEADER};
+const tpl_t FOOTER_TPL{"footer.html", "footer.html.tpl", TPL_FOOTER};
 
-class tagd_template {
-		evhtp_request_t *_req;
+class tagd_template : public tagd::errorable {
 		tagspace::tagspace *_TS;
+		request *_request;
+		evhtp_request_t *_ev_req;
+		std::string _tpl_dir;
 		std::string _context;
 
 	public: 
-		tagd_template(evhtp_request_t *r, tagspace::tagspace* ts, std::string c) :
-			_req{r}, _TS{ts}, _context{c}
-		{}
+		tagd_template(tagspace::tagspace* ts, request *r, evhtp_request_t *v, const std::string &tpl_dir) :
+			_TS{ts}, _request{r}, _ev_req{v}, _tpl_dir{tpl_dir}, _context{r->query_opt("c")}
+		{
+			if (_tpl_dir.empty()) _tpl_dir = "./tpl/";
+		}
+
+		std::string fpath(const tpl_t &tpl) {
+			return std::string(_tpl_dir)
+					.append( (_tpl_dir.size() > 0 && _tpl_dir[_tpl_dir.size()-1] == '/' ? "" : "/") )
+					.append( tpl.fname );
+		}
 
 		// lookup a tpl_t given the tpl query string option 
 		// doesn't allow looking up error template
@@ -50,21 +60,21 @@ class tagd_template {
 			switch (opt_tpl[0]) {
 				case 'b':
 					if (opt_tpl == "browse.html")
-						return {opt_tpl, "tpl/browse.html.tpl", TPL_BROWSE};
+						return BROWSE_TPL;
 					break;
 				case 't':
 					if (opt_tpl == "tag.html")
-						return {opt_tpl, "tpl/tag.html.tpl", TPL_TAG};
+						return TAG_TPL;
 					if (opt_tpl == "tree.html")
-						return {opt_tpl, "tpl/tree.html.tpl", TPL_TREE};
+						return TREE_TPL;
 					break;	
 				case 'q':
 					if (opt_tpl == "query.html")
-						return {opt_tpl, "tpl/query.html.tpl", TPL_QUERY};
+						return QUERY_TPL;
 					break;	
 				case 'r':
 					if (opt_tpl == "relations.html")
-						return {opt_tpl, "tpl/relations.html.tpl", TPL_RELATIONS};
+						return RELATIONS_TPL;
 					break;	
 				default:
 					;
@@ -170,14 +180,14 @@ class tagd_template {
 		}
 
 		void expand_template(const tpl_t& tpl, const ctemplate::TemplateDictionary& D) {
-			if (!ctemplate::LoadTemplate(tpl.fname, ctemplate::DO_NOT_STRIP)) {
-				std::cerr << "failed to load template: " << tpl.fname << std::endl;
-				std::terminate();
+			if (!ctemplate::LoadTemplate(fpath(tpl), ctemplate::DO_NOT_STRIP)) {
+				this->ferror( tagd::TAGD_ERR, "load template failed: %s" , fpath(tpl).c_str() );
+				return;
 			}
 
 			std::string output; 
-			ctemplate::ExpandTemplate(tpl.fname, ctemplate::DO_NOT_STRIP, &D, &output); 
-			evbuffer_add(_req->buffer_out, output.c_str(), output.size());
+			ctemplate::ExpandTemplate(fpath(tpl), ctemplate::DO_NOT_STRIP, &D, &output); 
+			evbuffer_add(_ev_req->buffer_out, output.c_str(), output.size());
 		}
 
 		void expand_header(const std::string& title) {
@@ -330,13 +340,13 @@ class tagd_template {
 			}
 
 			ctemplate::TemplateDictionary* tree = D.AddIncludeDictionary("tree_html_tpl");
-			tree->SetFilename(TREE_TPL.fname);
+			tree->SetFilename(fpath(TREE_TPL));
 			size_t num_children = 0;
 			this->expand_tree(tpl, t, *tree, &num_children);
 			// std::cerr << "num_children: " << num_children << std::endl;
 
 			ctemplate::TemplateDictionary* tag = D.AddIncludeDictionary("tag_html_tpl");
-			tag->SetFilename(TAG_TPL.fname);
+			tag->SetFilename(fpath(TAG_TPL));
 			this->expand_tag(BROWSE_TPL, t, *tag);
 
 			tagd::tag_set S;
@@ -350,7 +360,7 @@ class tagd_template {
 			// std::cerr << "q_related(" << S.size() << "): " << q_related << std::endl;
 
 			ctemplate::TemplateDictionary* results = D.AddIncludeDictionary("results_html_tpl");
-			results->SetFilename(QUERY_TPL.fname);
+			results->SetFilename(fpath(QUERY_TPL));
 			if (tc == tagd::TAGD_OK) {
 				if (S.size() > 0) {
 					this->expand_query(QUERY_TPL, q_related, S, *results);
@@ -622,6 +632,13 @@ class tagd_template {
 		}
 };
 
+void ev_send_error_str(evhtp_request_t *evreq, const tagd::errorable &err) {
+	std::stringstream ss;
+	err.print_errors(ss);
+	evbuffer_add(evreq->buffer_out, ss.str().c_str(), ss.str().size());
+	evhtp_send_reply(evreq, EVHTP_RES_SERVERR);
+}
+
 void template_callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag T;
 	tagd::code ts_rc;
@@ -632,13 +649,18 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 
 	int res;
-	tagd_template tt(_req, _TS, _context);
+	tagd_template tt(_TS, _request, _ev_req, _request->_server->_args->tpl_dir);
 	this->add_http_headers();
 	tt.expand_header(t.id());
 
+	if (tt.has_error()) {
+		ev_send_error_str(_ev_req, tt);
+		return;
+	}
+
 	ctemplate::TemplateDictionary D("get");
 	if (ts_rc == tagd::TAGD_OK) {
-		tpl_t tpl = tagd_template::lookup_tpl(_opt_tpl);
+		tpl_t tpl = tagd_template::lookup_tpl(_request->query_opt("t"));
 		switch (tpl.file) {
 			case TPL_BROWSE:
 				res = tt.expand_browse(tpl, T, D);
@@ -657,7 +679,7 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 				tt.expand_template(tpl, D);
 				break;
 			default: // TPL_NOT_FOUND:
-				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _opt_tpl.c_str());
+				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _request->query_opt("t").c_str());
 				tt.expand_error(ERROR_TPL, *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;
@@ -668,9 +690,19 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 		res = EVHTP_RES_SERVERR;
 	}
 
+	if (tt.has_error()) {
+		ev_send_error_str(_ev_req, tt);
+		return;
+	}
+
 	tt.expand_footer();
 
-	evhtp_send_reply(_req, res);
+	if (tt.has_error()) {
+		ev_send_error_str(_ev_req, tt);
+		return;
+	}
+
+	evhtp_send_reply(_ev_req, res);
 
 	if (_trace_on) std::cerr << "cmd_get(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 }
@@ -680,16 +712,21 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 	tagd::code ts_rc = _TS->query(T, q);
 
 	int res;
-	tagd_template tt(_req, _TS, _context);
+	tagd_template tt(_TS, _request, _ev_req, _request->_server->_args->tpl_dir);
 	this->add_http_headers();
 	tt.expand_header(q.id());
 
+	if (tt.has_error()) {
+		ev_send_error_str(_ev_req, tt);
+		return;
+	}
+
 	ctemplate::TemplateDictionary D("query");
 	if (ts_rc == tagd::TAGD_OK || ts_rc == tagd::TS_NOT_FOUND) {
-		tpl_t tpl = tagd_template::lookup_tpl(_opt_tpl);
+		tpl_t tpl = tagd_template::lookup_tpl(_request->query_opt("t"));
 		switch (tpl.file) {
 			case TPL_NOT_FOUND:
-				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _opt_tpl.c_str());
+				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _request->query_opt("t").c_str());
 				tt.expand_error(ERROR_TPL, *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;
@@ -702,19 +739,35 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 		res = EVHTP_RES_SERVERR;
 	}
 
+	if (tt.has_error()) {
+		ev_send_error_str(_ev_req, tt);
+		return;
+	}
+
 	tt.expand_footer();
 
-	evhtp_send_reply(_req, res);
+	if (tt.has_error()) {
+		ev_send_error_str(_ev_req, tt);
+		return;
+	}
+
+	evhtp_send_reply(_ev_req, res);
 
 	if (_trace_on) std::cerr << "cmd_query(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 }
 
 void template_callback::cmd_error() {
-	tagd_template tt(_req, _TS, _context);
+	tagd_template tt(_TS, _request, _ev_req, _request->_server->_args->tpl_dir);
 	this->add_http_headers();
 	tt.expand_header(_driver->last_error().id());
 	tt.expand_error(ERROR_TPL, *_driver);
 	tt.expand_footer();
+
+	if (tt.has_error()) {
+		ev_send_error_str(_ev_req, *_driver);
+		ev_send_error_str(_ev_req, tt);
+		return;
+	}
 
 	std::stringstream ss;
 	if (_trace_on)
@@ -724,25 +777,48 @@ void template_callback::cmd_error() {
 		case tagd::TS_NOT_FOUND:
 			if (_trace_on)
 				std::cerr << "res(" << tagd_code_str(_driver->code()) << "): " << EVHTP_RES_NOTFOUND << " EVHTP_RES_NOTFOUND" << std::endl << ss.str() << std::endl;
-			evhtp_send_reply(_req, EVHTP_RES_NOTFOUND);
+			evhtp_send_reply(_ev_req, EVHTP_RES_NOTFOUND);
 			break;
 		default:
 			if (_trace_on)
 				std::cerr << "res(" << tagd_code_str(_driver->code()) << "): " << EVHTP_RES_SERVERR << " EVHTP_RES_SERVERR" << std::endl << ss.str() << std::endl;
-			evhtp_send_reply(_req, EVHTP_RES_SERVERR);
+			evhtp_send_reply(_ev_req, EVHTP_RES_SERVERR);
 	}
 }
 
 void template_callback::empty() {
-	tagd_template tt(_req, _TS, _context);
+	tagd_template tt(_TS, _request, _ev_req, _request->_server->_args->tpl_dir);
 	this->add_http_headers();
 	tt.expand_header("Welcome to tagd");
+
+	if (tt.has_error()) {
+		ev_send_error_str(_ev_req, tt);
+		return;
+	}
+
 	ctemplate::TemplateDictionary D("get");
 	int res = tt.expand_home(HOME_TPL, D);
+
+	if (tt.has_error()) {
+		ev_send_error_str(_ev_req, tt);
+		return;
+	}
+
 	tt.expand_template(HOME_TPL, D);
+
+	if (tt.has_error()) {
+		ev_send_error_str(_ev_req, tt);
+		return;
+	}
+
 	tt.expand_footer();
 
-	evhtp_send_reply(_req, res);
+	if (tt.has_error()) {
+		ev_send_error_str(_ev_req, tt);
+		return;
+	}
+
+	evhtp_send_reply(_ev_req, res);
 
 	if (_trace_on) std::cerr << "empty: " <<  res << std::endl;
 }

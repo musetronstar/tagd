@@ -586,19 +586,19 @@ First, fire up the webserver:
 	cd ../httagd
 	bin/httagd --db - &
 
-httagd should now be listening on port 8082 and using an in-memory database.
+httagd should now be listening on port 2112 and using an in-memory database.
 
 You can post valid TAGL to httagd. Let's load the data we just dumped previously:
 
-	curl -XPOST http://localhost:8082/ --data-binary @/tmp/tutorial.tagl
+	curl -XPOST http://localhost:2112/ --data-binary @/tmp/tutorial.tagl
 
 Note, though the .tagl file is UTF-8 text data, the --data-binary option
 prevents curl from messing with the new line characters.
 
 Let's put some data:
 
-	curl -XPUT http://localhost:8082/meow --data 'is_a utterance'
-	curl -XPUT http://localhost:8082/cat --data 'is_a mammal can meow has legs = 4, tail'
+	curl -XPUT http://localhost:2112/meow --data 'is_a utterance'
+	curl -XPUT http://localhost:2112/cat --data 'is_a mammal can meow has legs = 4, tail'
 
 Which executes the TAGL statements:
 
@@ -612,7 +612,7 @@ Note, the subject is in the tagdurl, while the relations are in the data body.
 
 Now, let's get it:
 
-	curl -XGET http://localhost:8082/cat
+	curl -XGET http://localhost:2112/cat
 
 Results:
 
@@ -627,7 +627,7 @@ Likewise the following TAGL statement was generated:
 Note, there is no trailing '/' after cat in the tagdurl.  A slash after the
 subject indicates a query.  For example, see the difference between:
 
-	curl -XGET http://localhost:8082/mammal
+	curl -XGET http://localhost:2112/mammal
 
 Results:
 
@@ -637,7 +637,7 @@ Results:
 
 and the query:
 
-	curl -XGET http://localhost:8082/mammal/
+	curl -XGET http://localhost:2112/mammal/
 
 Results:
 
@@ -649,7 +649,7 @@ The TAGL query generated was:
 
 Now, let's query with some relations:
 
-	curl -XGET http://localhost:8082/animal/meow,tail
+	curl -XGET http://localhost:2112/animal/meow,tail
 
 Results:
 
@@ -662,7 +662,7 @@ The TAGL query generated was:
 
 To perform a query not having a super relation, use a wildcard ('\*'):
 
-	curl -XGET http://localhost:8082/*/fins,hair,air,water
+	curl -XGET http://localhost:2112/*/fins,hair,air,water
 
 Results:
 
@@ -673,7 +673,7 @@ The TAGL query generated was:
 	?? _interrogator
 	* fins, hair, air, water 
 
-To browse your tagspace, fire up your favorite browser and go to `http://localhost:8082/mammal?t=tag.html`
+To browse your tagspace, fire up your favorite browser and go to `http://localhost:2112/mammal?t=tag.html`
 
 So far, that is all that httagd can do.  More features will be coming soon...
 

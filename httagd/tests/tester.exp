@@ -23,9 +23,9 @@ proc test {n m u d e} {
 	set match 0
 
 	if { [string length $d] == 0 } {
-		spawn curl -D - -X$m "http://localhost:8082$u"
+		spawn curl -D - -X$m "http://localhost:2112$u"
 	} else {
-		spawn curl -D - -X$m "http://localhost:8082$u" --data $d
+		spawn curl -D - -X$m "http://localhost:2112$u" --data $d
 	}
 
 	expect {
@@ -56,9 +56,9 @@ proc test_file {n m u f e} {
 	set match 0
 
 	if { [string length $f] == 0 } {
-		spawn curl -D - -X$m "http://localhost:8082$u"
+		spawn curl -D - -X$m "http://localhost:2112$u"
 	} else {
-		spawn curl -D - -X$m "http://localhost:8082$u" --data-binary "@$f"
+		spawn curl -D - -X$m "http://localhost:2112$u" --data-binary "@$f"
 	}
 
 	expect {

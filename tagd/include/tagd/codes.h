@@ -3,7 +3,7 @@
 namespace tagd {
 
 typedef enum {	// TAGD_CODES_START  // marks automated processing
-    TAGD_OK,
+    TAGD_OK = 0,
 
     TS_INIT,
     TAGL_INIT,

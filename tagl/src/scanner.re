@@ -295,7 +295,7 @@ lookup_parse:
 }
 
 
-void scanner::scan_tagdurl_path(int cmd, const std::string& path, const url_query_map_t* qm) {
+void scanner::scan_tagdurl_path(int cmd, const std::string& path) {
 	// path separator defs
 	const size_t max_seps = 2;
 	size_t sep_i = 0;

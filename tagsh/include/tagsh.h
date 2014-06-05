@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include "tagl.h"
 #include "tagspace/sqlite.h"
 
@@ -28,11 +30,26 @@ class tagsh {
 	protected:
 		space_type *_TS;
 		tagsh_callback *_CB;
+		bool _own_callback;  // true if this own's the callback pointer
 		TAGL::driver _driver;
+
 	public:
 		std::string prompt;
 		tagsh(space_type *ts, tagsh_callback *cb) :
-			_TS(ts), _CB(cb), _driver(ts, cb), prompt("tagd> ") {}
+			_TS(ts), _CB(cb), _own_callback{false}, _driver(ts, cb), prompt("tagd> ")
+		{}
+
+		tagsh(space_type *ts) :
+			_TS(ts), _CB{ new tagsh_callback(_TS) }, _own_callback{true},
+			_driver(_TS, _CB), prompt("tagd> ")
+		{}
+
+		~tagsh() {
+			if (_own_callback)
+				delete _CB;
+		}
+		
+
 		void command(const std::string&);
 		int interpret_readline();
 		int interpret(std::istream&);
@@ -44,9 +61,17 @@ class tagsh {
 		static void cmd_show();
 };
 
-const std::string TAGL_OPT("--tagl");
+typedef std::function<void(char *)> cmd_arg_handler_t;
+struct cmd_handler {
+	cmd_arg_handler_t handler;
+	bool has_arg;
+};
+typedef std::map< std::string, cmd_handler > cmd_handler_map_t;
 
 class cmd_args : public tagd::errorable {
+	protected:
+		cmd_handler_map_t _cmds;
+
 	public:
 		typedef std::vector<std::string> str_vec_t; 
 		str_vec_t tagl_file_statements;
@@ -54,7 +79,8 @@ class cmd_args : public tagd::errorable {
 		bool opt_create;
 		bool opt_trace;
 
-		cmd_args(int, char **); 
+		cmd_args();
+		void parse(int, char **); 
 
 		int interpret(tagsh&);
 };

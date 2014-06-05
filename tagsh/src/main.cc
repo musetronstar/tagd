@@ -17,14 +17,13 @@
 #include "tagsh.h"
 
 int main(int argc, char **argv) {
-	auto args = cmd_args(argc, argv);
+	cmd_args args;
+	args.parse(argc, argv);
+
 	if ( args.has_error() ) {
 		args.print_errors();
 		return args.code();
 	}
-
-	if (args.db_fname.empty())
-		args.db_fname = tagspace::util::user_db();
 
 	space_type TS;
 	if ( TS.init(args.db_fname) != tagd::TAGD_OK ) {
@@ -32,8 +31,7 @@ int main(int argc, char **argv) {
 		return TS.code();
 	}
 
-	tagsh_callback CB(&TS);
-	tagsh shell(&TS,&CB);
+	tagsh shell(&TS);
 
 	if (args.tagl_file_statements.size() == 0) {
 		std::cout << "use .show to list commands" << std::endl;

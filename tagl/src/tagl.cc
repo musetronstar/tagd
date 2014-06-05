@@ -222,26 +222,26 @@ tagd_code driver::execute(const std::string& statement) {
 	return this->code();
 }
 
-tagd_code driver::tagdurl_get(const std::string& tagdurl, const url_query_map_t *qm) {
+tagd_code driver::tagdurl_get(const std::string& tagdurl) {
 	this->init();
 
-	_scanner.scan_tagdurl_path(CMD_GET, tagdurl, qm);
+	_scanner.scan_tagdurl_path(CMD_GET, tagdurl);
 
 	return this->code();
 }
 
-tagd_code driver::tagdurl_put(const std::string& tagdurl, const url_query_map_t *qm) {
+tagd_code driver::tagdurl_put(const std::string& tagdurl) {
 	this->init();
 
-	_scanner.scan_tagdurl_path(CMD_PUT, tagdurl, qm);
+	_scanner.scan_tagdurl_path(CMD_PUT, tagdurl);
 
 	return this->code();
 }
 
-tagd_code driver::tagdurl_del(const std::string& tagdurl, const url_query_map_t *qm) {
+tagd_code driver::tagdurl_del(const std::string& tagdurl) {
 	this->init();
 
-	_scanner.scan_tagdurl_path(CMD_DEL, tagdurl, qm);
+	_scanner.scan_tagdurl_path(CMD_DEL, tagdurl);
 
 	return this->code();
 }

@@ -66,7 +66,7 @@ class scanner {
 		void evbuf(evbuffer *ev) { _evbuf = ev; _do_fill = true; }
 		void print_buf();
 
-		void scan_tagdurl_path(int cmd, const std::string&, const url_query_map_t* qm = nullptr);
+		void scan_tagdurl_path(int cmd, const std::string&);
 
 		void reset() {
 			_line_number = 1;
@@ -112,9 +112,9 @@ class driver : public tagd::errorable {
 		callback *callback_ptr() { return _callback; }
 		tagd_code parseln(const std::string& = std::string());
 		tagd_code execute(const std::string&);
-		tagd_code tagdurl_get(const std::string&, const url_query_map_t* qm = nullptr);
-		tagd_code tagdurl_put(const std::string&, const url_query_map_t* qm = nullptr);
-		tagd_code tagdurl_del(const std::string&, const url_query_map_t* qm = nullptr);
+		tagd_code tagdurl_get(const std::string&);
+		tagd_code tagdurl_put(const std::string&);
+		tagd_code tagdurl_del(const std::string&);
 		tagd_code evbuffer_execute(struct evbuffer*);
 		int token() const { return _token; }
 		bool is_trace_on() const { return _trace_on; }
