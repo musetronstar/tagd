@@ -161,11 +161,11 @@ Let's set up a nonsense tag and delete it:
 	>> fangs _is_a body_part;
 
 	>> turtle _is_a mammal
-	has legs, fangs;
+	_has legs, fangs;
 
 To delete a particular relation, use the `!!` operator:
 
-	!! turtle has fangs;
+	!! turtle _has fangs;
 
 Now the tag will still exist, but the relation will have been deleted:
 
@@ -174,7 +174,7 @@ Now the tag will still exist, but the relation will have been deleted:
 Results should be:
 
 	turtle _is_a mammal
-	has legs
+	_has legs
 
 But a turtle is not a mammal, so let's delete it:
 
@@ -232,7 +232,8 @@ Now let's try a query:
 
 Results should be:
 
-	whale, fish
+	whale ,
+	fish
 
 But `whale _is_a mammal` and `fish _is_a vertibrate` - how did we query for
 `_is_a animal` and get a match?  Since tagspace is organized as a tree, and
@@ -260,11 +261,36 @@ Results should be:
 The wildcard ('\*') means "is related to" in the most general sense.  It allows
 you to match objects while leaving out relators.
 
+##### Full Text Search
+
+The simplest full text query is the query operator followed by a quoted string:
+
+	?? "has fins"
+
+Results should be:
+
+	whale ,
+	fish
+
+You can add search terms to an interrogator to combine with other predicates:
+
+	?? _what
+	_has blood = warm ,
+	    _terms = "has fins";
+
+Results:
+
+	whale
+
 ##### QUERY Grammar:
 
 	query_statement ::= "??" interrogator_super_relation relations 
 	query_statement ::= "??" interrogator_super_relation
-	query_statement ::= "??" INTERROGATOR relations
+	query_statement ::= "??" INTERROGATOR query_relations
+	query_statement ::= "??" "<search terms>"
+
+	query_relations ::= relations
+	query_relations ::= relator HARD_TAG_TERMS = "<search terms>"
 
 	interrogator_super_relation ::= INTERROGATOR SUPER TAG
 
@@ -300,7 +326,8 @@ Results:
 	
 And some more:
 
-	?? what * _private = wikipedia, _pub = org
+	?? what * _private = wikipedia,
+	_pub = org
 	about animal;
 
 Results:
@@ -673,7 +700,20 @@ The TAGL query generated was:
 	?? _interrogator
 	* fins, hair, air, water 
 
-To browse your tagspace, fire up your favorite browser and go to `http://localhost:2112/mammal?t=tag.html`
+To add search terms to your query, add a `q=<terms>` parameter to the query string:
+
+	curl -XGET http://localhost:2112/mammal/?q=can+bark
+
+Results:
+
+		dog
+
+The TAGL query generated was:
+
+	?? _interrogator _super mammal
+	_has _terms = "can bark"
+
+To browse your tagspace, fire up your favorite browser and go to `http://localhost:2112/mammal?t=html`
 
 So far, that is all that httagd can do.  More features will be coming soon...
 
