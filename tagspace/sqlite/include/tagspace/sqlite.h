@@ -28,6 +28,10 @@ class sqlite: public tagspace {
         sqlite3_stmt *_insert_term_stmt;
         sqlite3_stmt *_update_term_stmt;
         sqlite3_stmt *_delete_term_stmt;
+        sqlite3_stmt *_insert_fts_tag_stmt;
+        sqlite3_stmt *_update_fts_tag_stmt;
+        sqlite3_stmt *_delete_fts_tag_stmt;
+        sqlite3_stmt *_search_stmt;
         sqlite3_stmt *_insert_stmt;
         sqlite3_stmt *_update_tag_stmt;
         sqlite3_stmt *_update_ranks_stmt;
@@ -85,6 +89,10 @@ class sqlite: public tagspace {
             _insert_term_stmt(NULL),
             _update_term_stmt(NULL),
             _delete_term_stmt(NULL),
+            _insert_fts_tag_stmt(NULL),
+            _update_fts_tag_stmt(NULL),
+            _delete_fts_tag_stmt(NULL),
+            _search_stmt(NULL),
             _insert_stmt(NULL),
             _update_tag_stmt(NULL),
             _update_ranks_stmt(NULL),
@@ -177,12 +185,14 @@ class sqlite: public tagspace {
 			return this->related(T, p, tagd::id_type(), f);
 		}
         tagd_code query(tagd::tag_set&, const tagd::interrogator&, flags_t = flags_t());
+        tagd_code search(tagd::tag_set&, const std::string&, flags_t = flags_t());
         tagd_code get_children(tagd::tag_set&, const tagd::id_type&, flags_t = flags_t());
         tagd_code query_referents(tagd::tag_set&, const tagd::interrogator&);
 
         tagd_code dump(std::ostream& = std::cout);
         tagd_code dump_grid(std::ostream& = std::cout);
         tagd_code dump_terms(std::ostream& = std::cout);
+        tagd_code dump_search(std::ostream& = std::cout);
 
         tagd_code dump_uridb(std::ostream& = std::cout);
         tagd_code dump_uridb_relations(std::ostream& = std::cout);
@@ -200,13 +210,17 @@ class sqlite: public tagspace {
         tagd_code update_term(const tagd::id_type&, const tagd::part_of_speech);
         tagd_code delete_term(const tagd::id_type&);
 
+        tagd_code insert_fts_tag(const tagd::id_type&, flags_t = flags_t());
+        tagd_code update_fts_tag(const tagd::id_type&, flags_t = flags_t());
+        tagd_code delete_fts_tag(const tagd::id_type&);
+
         // insert - new, destination (super of new tag)
         tagd_code insert(const tagd::abstract_tag&, const tagd::abstract_tag&);
         // update - updated, new destination
         tagd_code update(const tagd::abstract_tag&, const tagd::abstract_tag&);
 
-        tagd_code insert_relations(const tagd::abstract_tag&, const flags_t& = flags_t());
-		tagd_code insert_referent(const tagd::referent&, const flags_t& = flags_t());
+        tagd_code insert_relations(const tagd::abstract_tag&, flags_t = flags_t());
+		tagd_code insert_referent(const tagd::referent&, flags_t = flags_t());
 
 		void encode_referent(tagd::id_type&, const tagd::id_type&);
 		void encode_referents(tagd::predicate_set&, const tagd::predicate_set&);
@@ -253,6 +267,7 @@ class sqlite: public tagspace {
         tagd_code create_tags_table();
         tagd_code create_relations_table();
         tagd_code create_referents_table();
+        tagd_code create_fts_tags_table();
 		tagd_code create_context_stack_table();
 
     public:

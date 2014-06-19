@@ -1,4 +1,6 @@
 #include "httagd.h"
+#include "tagl.h"
+#include "parser.h"  // for CMDs
 #include <evhtp.h>
 
 const char* evhtp_res_str(int tok) {
@@ -9,6 +11,143 @@ const char* evhtp_res_str(int tok) {
 }
 
 namespace httagd {
+
+void htscanner::scan_tagdurl_path(int cmd, const request& R) {
+	std::string path = R.path();
+	// path separator defs
+	const size_t max_seps = 2;
+	size_t sep_i = 0;
+	size_t seps[max_seps] = {0, 0};  // offsets of '/' chars
+
+	std::string q_val = R.query_opt("q"); // q = FTS query terms
+	auto f_parse_query_terms = [this, &q_val]() {
+		this->_driver->parse_tok(RELATOR, new std::string(HARD_TAG_HAS));
+		this->_driver->parse_tok(TAG, new std::string(HARD_TAG_TERMS));
+		this->_driver->parse_tok(EQ, NULL);
+		this->_driver->parse_tok(QUOTED_STR, new std::string(q_val.c_str()));
+	};
+
+	if ((path == "" || path == "/") && cmd == CMD_GET) {
+		if (q_val.empty()) {	// home page
+			dynamic_cast<tagl_callback*>(_driver->callback_ptr())->empty();
+		}
+		else {	// FTS query
+			_driver->parse_tok(CMD_QUERY, NULL);
+			_driver->parse_tok(QUOTED_STR, new std::string(q_val.c_str()));
+		}
+		return;
+	}
+
+	if (path[0] != '/') {
+			_driver->error(tagd::TAGL_ERR, "malformed path: no leading '/'");
+			return;
+	}
+
+	for(size_t i = 0; i < path.size(); i++) {
+		if (path[i] == '/') {
+			if (sep_i == max_seps) {
+				// TODO use error tag
+				_driver->error(tagd::TAGL_ERR, "max_seps exceeded");
+				return;
+			}
+			seps[sep_i++] = i;
+		}
+	}
+
+	size_t num_seps = sep_i;
+
+	if (cmd == CMD_PUT && num_seps > 1) {
+		_driver->error(tagd::TAGL_ERR, "malformed path: trailing '/'");
+		return;
+	}
+
+	// path segment
+	std::string segment;
+
+	// first segment - what is it?
+	sep_i = 0;
+	if (seps[sep_i+1]) {
+		size_t sz = seps[sep_i+1] - seps[sep_i] - 1;
+		segment = path.substr((seps[sep_i]+1), sz);
+	}
+	else {
+		// get
+		segment = path.substr(seps[sep_i]+1);
+	}
+
+	auto f_parse_cmd_query = [this, &cmd]() {
+		cmd = CMD_QUERY;
+		this->_driver->parse_tok(cmd, NULL);
+		this->_driver->parse_tok(INTERROGATOR,
+			(new std::string(HARD_TAG_INTERROGATOR)) );  // parser deletes
+	};
+
+	if (cmd == CMD_GET) {
+		if (num_seps > 1) {
+			f_parse_cmd_query();
+
+			// first segment of "*" is a placeholder for super relation, so ignore it
+			if (segment != "*") {  // how is it related
+				_driver->parse_tok(SUPER_RELATOR, (new std::string(HARD_TAG_SUPER)));
+				this->scan(tagd::uri_decode(segment).c_str());
+			}
+		} else {
+			if (!q_val.empty()) {  // turn into query (like adding a '/' to the end)
+				f_parse_cmd_query();
+				f_parse_query_terms();
+				return;
+			} else {
+				_driver->parse_tok(cmd, NULL);
+				this->scan(tagd::uri_decode(segment).c_str());
+			}
+		}
+	} else { // CMD_PUT
+		if (!q_val.empty()) {
+			_driver->error(tagd::TAGD_ERR, "illegal use of query terms with PUT method");
+			return;
+		}
+		_driver->parse_tok(cmd, NULL);
+		this->scan(tagd::uri_decode(segment).c_str());
+	}
+
+	if (++sep_i >= num_seps)
+		return;	
+
+	// second segment - how is it related?
+	segment = path.substr(seps[sep_i]+1);
+
+	if (!segment.empty()) {
+		_driver->parse_tok(WILDCARD, NULL);
+		this->scan(tagd::uri_decode(segment).c_str());
+	}
+
+	if (cmd == CMD_QUERY && !q_val.empty())
+		f_parse_query_terms();
+}
+
+tagd_code httagl::tagdurl_get(const request& R) {
+	this->init();
+
+	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(CMD_GET, R);
+
+	return this->code();
+}
+
+tagd_code httagl::tagdurl_put(const request& R) {
+	this->init();
+
+	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(CMD_PUT, R);
+
+	return this->code();
+}
+
+tagd_code httagl::tagdurl_del(const request& R) {
+	this->init();
+
+	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(CMD_DEL, R);
+
+	return this->code();
+}
 
 void tagl_callback::add_http_headers() {
 	evhtp_headers_add_header(_request->_ev_req->headers_out,
@@ -48,8 +187,11 @@ void tagl_callback::cmd_del(const tagd::abstract_tag& t) {
 }
 
 void tagl_callback::cmd_query(const tagd::interrogator& q) {
+	std::cerr << "tagl_callback::cmd_query:\n";
+	std::cerr << q << std::endl;
 	tagd::tag_set T;
 	tagd::code ts_rc = _TS->query(T, q, _driver->flags());
+	std::cerr << tagd_code_str(ts_rc) << ", size: " << T.size() << std::endl;
 
 	std::stringstream ss;
 	if (ts_rc == tagd::TAGD_OK) {
@@ -115,14 +257,12 @@ void main_cb(evhtp_request_t *req, void *arg) {
 	// for now, this request uses the servers tagspace reference
 	// TODO allow requests to use other tagspaces (given the request)  
 	auto *TS = svr->_TS;
-
 	bool trace_on = svr->_args->opt_trace;
-
-	// check for template id in query string
 	
 	httagd::request R(svr, req);
 	std::string t_val = R.query_opt("t"); // t = template
 	std::string c_val = R.query_opt("c"); // c = context
+	std::string q_val = R.query_opt("q"); // q = query terms
 	
 	if (!c_val.empty())
 		TS->push_context(c_val);
@@ -132,7 +272,7 @@ void main_cb(evhtp_request_t *req, void *arg) {
 	bool is_home_page = (method == htp_method_GET)
 		&& (full_path.empty() || full_path == "/");
 
-	TAGL::driver tagl(TS);
+	httagl tagl(TS);
 	httagd::tagl_callback *CB;
 	if (!is_home_page && t_val.empty()) {
 		CB = new httagd::tagl_callback(TS, &R);
@@ -143,15 +283,11 @@ void main_cb(evhtp_request_t *req, void *arg) {
 
 	switch(method) {
 		case htp_method_GET:
-			if (is_home_page) {
-				CB->empty();
-			} else {
-				tagl.tagdurl_get(full_path);
-				tagl.finish();
-			}
+			tagl.tagdurl_get(R);
+			tagl.finish();
 			break;
 		case htp_method_PUT:
-			tagl.tagdurl_put(full_path);
+			tagl.tagdurl_put(R);
 			tagl.evbuffer_execute(req->buffer_in);
 			tagl.finish();
 			break;
@@ -161,7 +297,7 @@ void main_cb(evhtp_request_t *req, void *arg) {
 			tagl.finish();
 			break;
 		case htp_method_DELETE:
-			tagl.tagdurl_del(full_path);
+			tagl.tagdurl_del(R);
 			tagl.evbuffer_execute(req->buffer_in);
 			tagl.finish();
 			break;
@@ -219,9 +355,11 @@ tagd::code server::start() {
 
     evhtp_set_gencb(_htp, httagd::main_cb, this);
 
-    if (evhtp_bind_socket(_htp, _bind_addr.c_str(), _bind_port, 128) < 0) {
+	const char *bind_addr = ( _bind_addr == "localhost" ? "0.0.0.0" : _bind_addr.c_str() );
+
+    if (evhtp_bind_socket(_htp, bind_addr, _bind_port, 128) < 0) {
 		return this->ferror( tagd::TAGD_ERR,
-				"failed to bind socket(%s): %s:%d", strerror(errno), _bind_addr.c_str(), _bind_port );
+				"failed to bind socket(%s): %s:%d", strerror(errno), bind_addr, _bind_port );
 	}
 
     event_base_loop(_evbase, 0);

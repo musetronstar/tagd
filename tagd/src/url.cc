@@ -524,8 +524,8 @@ void insert_host_parts(tagd::predicate_set& P, const url& u) {
 	return;
 }
 
-size_t url::parse_query(url_query_map_t& m, const std::string& s) {
-	size_t n = m.size();
+size_t url::parse_query(url_query_map_t& M, const std::string& s) {
+	size_t n = M.size();
 
 	//std::cerr << "parse_query: " << s << std::endl;
 	for(size_t i=0; i<s.size(); ++i) {
@@ -558,12 +558,17 @@ size_t url::parse_query(url_query_map_t& m, const std::string& s) {
 				}
 			}
 key_val:
-			m[k] = v;
-			//std::cerr << "m[" << k << "] = " << v << std::endl;
+			v = uri_decode(v);
+			for (size_t i=0; i<v.size(); i++) {
+				if (v[i] == '+') 
+					v[i] = ' ';
+			}
+			M[k] = v;
+			//std::cerr << "M[" << k << "] = " << v << std::endl;
 		}
 	}
 
-	return (m.size() - n);
+	return (M.size() - n);
 }
 
 bool url::query_find(const url_query_map_t& m, std::string& val, const std::string& key) {

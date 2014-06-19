@@ -77,7 +77,7 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 	tagd::code ts_rc = _TS->put(t, _driver->flags());
 	if (_TS->ok()) {
-		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
+		// std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
 	} else {
 		_driver->code(_TS->code()); // stops the scanner
 		_TS->print_errors();
@@ -89,6 +89,8 @@ void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 	tagd::code ts_rc = _TS->del(t, _driver->flags());
 	if (_TS->ok()) {
+		// std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
+	} else if (_TS->code() == tagd::TS_NOT_FOUND ) {
 		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
 	} else {
 		_driver->code(_TS->code()); // stops the scanner
@@ -219,6 +221,11 @@ void tagsh::command(const std::string& cmdline) {
 		return;
 	}
 
+	if ( cmd == ".dump_search" ) {
+		_TS->dump_search();
+		return;
+	}
+
 	if ( cmd == ".print_flags" ) {
 		std::cout << tagspace::flag_util::flag_list_str(_driver.flags()) << std::endl;
 		return;
@@ -344,6 +351,7 @@ void tagsh::cmd_show() {
 	std::cout << ".dump [-f] <filename>\t# dump tagspace to file, [-f] forces overwrite existing" << std::endl;
 	std::cout << ".dump_grid\t# dump tagspace to stdout as a grid (specific to sqlite)" << std::endl;
 	std::cout << ".dump_terms\t# dump tagspace terms and part_of_speech lists to stdout" << std::endl;
+	std::cout << ".dump_search\t# dump full text content of tag search terms" << std::endl;
 	std::cout << ".print_flags\t# print TAGL flags set" << std::endl;
 	std::cout << ".trace_on\t# trace tagl lexer and parser execution path and sql statements" << std::endl;
 	std::cout << ".trace_off\t# turn trace off" << std::endl;

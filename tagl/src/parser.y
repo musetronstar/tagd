@@ -186,17 +186,40 @@ del_statement ::= CMD_DEL referent_relation .
 del_subject_super_err ::= subject_super_relation .
 del_subject_super_err ::= subject_super_relation relations .
 
-query_statement ::= CMD_QUERY interrogator_super_relation relations .
-query_statement ::= CMD_QUERY interrogator_super_relation .
-query_statement ::= CMD_QUERY interrogator relations .
-query_statement ::= CMD_QUERY interrogator super_relator REFERENT(R) query_referent_relations .
+query_statement ::= interrogator_query .
+query_statement ::= search_query .
+
+interrogator_query ::= CMD_QUERY interrogator_super_relation relations .
+interrogator_query ::= CMD_QUERY interrogator_super_relation .
+interrogator_query ::= CMD_QUERY interrogator relations .
+interrogator_query ::= CMD_QUERY interrogator super_relator REFERENT(R) query_referent_relations .
 {
 	tagl->_tag->super_object(*R);
 }
-query_statement ::= CMD_QUERY interrogator query_referent_relations .
+interrogator_query ::= CMD_QUERY interrogator query_referent_relations .
 {
 	tagl->_tag->super_object(HARD_TAG_REFERENT);
 }
+
+search_query ::= CMD_QUERY QUOTED_STR(S) search_query_list .
+{
+	// use quoted str in production so we can reduce here
+	if (tagl->_tag != NULL)
+		delete tagl->_tag;
+	tagl->_tag = new tagd::interrogator(HARD_TAG_SEARCH);
+	tagl->_tag->relation(HARD_TAG_HAS, HARD_TAG_TERMS, *S);
+}
+
+search_query_list ::= search_query_list COMMA QUOTED_STR(S) .
+{
+	tagl->_tag->relation(HARD_TAG_HAS, HARD_TAG_TERMS, *S);
+}
+search_query_list ::= QUOTED_STR(S) .
+{
+	tagl->_tag->relation(HARD_TAG_HAS, HARD_TAG_TERMS, *S);
+}
+search_query_list ::= .
+
 
 interrogator_super_relation ::= interrogator super_relator super_object .
 

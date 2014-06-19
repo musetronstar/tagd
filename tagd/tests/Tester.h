@@ -1092,4 +1092,11 @@ class Tester : public CxxTest::TestSuite {
 
 		TS_ASSERT_EQUALS( ss.str() , "my_message has message = \"quoted \\\"string\\\" hey\\\" yo \\ \"");
 	}
+
+	void test_predicate_ostream_op(void) {
+		std::stringstream ss;
+		tagd::predicate p{ "has" , "legs", "4" };
+		ss << p;
+		TS_ASSERT_EQUALS( ss.str() , "has legs = 4" );
+	}
 };

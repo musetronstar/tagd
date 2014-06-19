@@ -27,37 +27,59 @@ namespace TAGL {
 bool driver::_trace_on = false;
 
 driver::driver(tagspace::tagspace *ts) :
-		tagd::errorable(tagd::TAGL_INIT), _scanner(this), _parser(NULL),
-		_token(-1), _flags(0), _TS(ts), _callback(NULL),
-		_cmd(), _tag(NULL), _relator()
+		tagd::errorable(tagd::TAGL_INIT), _own_scanner{true}, _scanner{new scanner(this)}, _parser(nullptr),
+		_token(-1), _flags(0), _TS(ts), _callback(nullptr),
+		_cmd(), _tag(nullptr), _relator()
 {
 	this->init();
 }
 
-driver::driver(tagspace::tagspace *ts, callback *cb) :
-		tagd::errorable(tagd::TAGL_INIT), _scanner(this), _parser(NULL),
+driver::driver(tagspace::tagspace *ts, scanner *s) :
+		tagd::errorable(tagd::TAGL_INIT),
+		_own_scanner{false}, _scanner{s}, _parser(nullptr),
+		_token(-1), _flags(0), _TS(ts), _callback(nullptr),
+		_cmd(), _tag(nullptr), _relator()
+{
+	this->init();
+}
+
+driver::driver(tagspace::tagspace *ts, scanner *s, callback *cb) :
+		tagd::errorable(tagd::TAGL_INIT),
+		_own_scanner{false}, _scanner{s}, _parser(nullptr),
 		_token(-1), _flags(0), _TS(ts), _callback(cb),
-		_cmd(), _tag(NULL), _relator()
+		_cmd(), _tag(nullptr), _relator()
+{
+	cb->_driver = this;
+	this->init();
+}
+
+driver::driver(tagspace::tagspace *ts, callback *cb) :
+		tagd::errorable(tagd::TAGL_INIT),
+		_own_scanner{true}, _scanner{new scanner(this)}, _parser(nullptr),
+		_token(-1), _flags(0), _TS(ts), _callback(cb),
+		_cmd(), _tag(nullptr), _relator()
 {
 	cb->_driver = this;
 	this->init();
 }
 
 driver::~driver() {
-	if (_tag != NULL)
+	if (_own_scanner)
+		delete _scanner;
+	if (_tag != nullptr)
 		delete _tag;
 }
 
 void driver::do_callback() {
-	if (_callback == NULL)  return;
+	if (_callback == nullptr)  return;
 
 	if (this->has_error()) {
 		_callback->cmd_error();
 		return;
 	}
 
-	assert(_tag != NULL);
-	if (_tag == NULL) {
+	assert(_tag != nullptr);
+	if (_tag == nullptr) {
 		this->error(tagd::TAGL_ERR, "callback on NULL tag");
 		return;
 	}
@@ -92,7 +114,7 @@ void driver::do_callback() {
 
 // sets up scanner and parser, wont init if already setup
 void driver::init() {
-	if (_parser != NULL)
+	if (_parser != nullptr)
 		return;
 
     // set up parser
@@ -104,20 +126,20 @@ void driver::init() {
 }
 
 void driver::finish() {
-	if (_parser != NULL) {
+	if (_parser != nullptr) {
 		if (_token != TERMINATOR && !this->has_error())
 			Parse(_parser, TERMINATOR, NULL, this);
 		if (_token != -1 || _token != 0)
 			Parse(_parser, 0, NULL, this);
 		ParseFree(_parser, free);
-		_parser = NULL;
+		_parser = nullptr;
 	}
 
-	_scanner.reset();
+	_scanner->reset();
 	_token = -1;
 	_filename.clear();
 
-	if (_callback != NULL)
+	if (_callback != nullptr)
 		_callback->finish();
 }
 
@@ -188,7 +210,7 @@ int driver::lookup_pos(const std::string& s) const {
 void driver::parse_tok(int tok, std::string *s) {
 		_token = tok;
 		if (_trace_on)
-			std::cerr << "line " << _scanner._line_number << ", token " << token_str(_token) << ": " << (s == NULL ? "NULL" : *s) << std::endl;
+			std::cerr << "line " << _scanner->_line_number << ", token " << token_str(_token) << ": " << (s == nullptr ? "NULL" : *s) << std::endl;
 		Parse(_parser, _token, s, this);
 }
 
@@ -208,41 +230,16 @@ tagd_code driver::parseln(const std::string& line) {
 		return this->code();
 	}
 
-	_scanner.scan(line.c_str());
+	_scanner->scan(line.c_str());
 
 	return this->code();
 }
-
 
 tagd_code driver::execute(const std::string& statement) {
 	this->init();
 
-	_scanner.scan(statement.c_str());
+	_scanner->scan(statement.c_str());
 	this->finish();
-	return this->code();
-}
-
-tagd_code driver::tagdurl_get(const std::string& tagdurl) {
-	this->init();
-
-	_scanner.scan_tagdurl_path(CMD_GET, tagdurl);
-
-	return this->code();
-}
-
-tagd_code driver::tagdurl_put(const std::string& tagdurl) {
-	this->init();
-
-	_scanner.scan_tagdurl_path(CMD_PUT, tagdurl);
-
-	return this->code();
-}
-
-tagd_code driver::tagdurl_del(const std::string& tagdurl) {
-	this->init();
-
-	_scanner.scan_tagdurl_path(CMD_DEL, tagdurl);
-
 	return this->code();
 }
 
@@ -252,13 +249,13 @@ tagd_code driver::evbuffer_execute(struct evbuffer *input) {
 	size_t sz, read_sz;
 
 	read_sz = buf_sz - 1;
-	if ((sz = evbuffer_remove(input, _scanner._buf, read_sz)) > 0) {
+	if ((sz = evbuffer_remove(input, _scanner->_buf, read_sz)) > 0) {
 		if (_trace_on)
-			std::cout << "scanning: " << std::string(_scanner._buf, sz) << std::endl;
-		if (sz < buf_sz && _scanner._buf[sz] != '\0')
-			_scanner._buf[sz] = '\0';
-		_scanner.evbuf(input);
-		_scanner.scan(_scanner._buf, sz);
+			std::cout << "scanning: " << std::string(_scanner->_buf, sz) << std::endl;
+		if (sz < buf_sz && _scanner->_buf[sz] != '\0')
+			_scanner->_buf[sz] = '\0';
+		_scanner->evbuf(input);
+		_scanner->scan(_scanner->_buf, sz);
 	}
 
 	this->finish();

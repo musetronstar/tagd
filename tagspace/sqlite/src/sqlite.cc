@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <vector>
 #include <functional>
+#include <algorithm>
 #include <cstdio>
 #include <cstdarg>
 
@@ -128,6 +129,9 @@ tagd::code sqlite::_init(const std::string& fname) {
         this->create_referents_table();
 
     if (_code == tagd::TAGD_OK)
+        this->create_fts_tags_table();
+
+    if (_code == tagd::TAGD_OK)
         this->create_context_stack_table();
 
 	// We have to insert _entity and _super manually because of the FK on _super_relator
@@ -206,14 +210,6 @@ tagd::code sqlite::create_terms_table() {
 		);
 
 		rowid_t term_id;
-		/*
-		tagd::part_of_speech pos = tagd::hard_tag::term_pos(term, &term_id);
-		if (pos != tagd::POS_UNKNOWN) {
-			sqlite3_result_int64(context, term_id);
-			return;
-		}*/
-		// sqlite3 *db = sqlite3_context_db_handle(context);
-
 		sqlite *ts = (sqlite*)sqlite3_user_data(context);
 		tagd::part_of_speech pos = ts->term_pos(term, &term_id);
 		if (pos == tagd::POS_UNKNOWN) {
@@ -277,6 +273,13 @@ tagd::code sqlite::create_terms_table() {
         if (this->term_pos(HARD_TAG_ENTITY) != tagd::POS_UNKNOWN)
             return tagd::TAGD_OK; // db already initialized
     }
+
+	// TODO VACUUMs can reset rowids, so use INTEGER PRIMARY KEY alias
+    // "CREATE TABLE terms ( "
+	//  "tid INTEGER PRIMARY KEY, "
+    //  "term UNIQUE NOT NULL, "
+    //    "term_pos INTEGER NOT NULL"
+    // ")" 
 
     this->exec(
     "CREATE TABLE terms ( "
@@ -350,7 +353,6 @@ tagd::code sqlite::create_tags_table() {
 }
 
 tagd::code sqlite::create_referents_table() {
-    // check db
     sqlite3_stmt *stmt = NULL; 
     this->prepare(&stmt,
         "SELECT 1 FROM sqlite_master "
@@ -406,6 +408,16 @@ tagd::code sqlite::create_referents_table() {
 	OK_OR_RET_ERR();
 
 	this->exec("CREATE INDEX idx_refers_to ON referents(refers_to)");
+
+    return _code;
+}
+
+tagd::code sqlite::create_fts_tags_table() {
+	// no way to check for existence of fts virtual table
+	// so we rely on "IF NOT EXISTS"
+
+    //create db
+    this->exec( "CREATE VIRTUAL TABLE fts_tags USING fts4()" );
 
     return _code;
 }
@@ -920,6 +932,17 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
     tagd::abstract_tag existing;
     tagd::code existing_rc = this->get(existing, t.id(), (flags|F_NO_TRANSFORM_REFERENTS|F_NO_NOT_FOUND_ERROR));
 
+	// insert/updates fts_tags and returns whatever error occurs first or the code passed in
+	auto f_fts_passthru = [this, existing_rc, &t, flags](tagd::code tc) -> tagd::code {
+		if ( existing_rc == tagd::TAGD_OK ) {
+			this->update_fts_tag(t.id(), flags);
+		} else if ( existing_rc == tagd::TS_NOT_FOUND ) {
+			this->insert_fts_tag(t.id(), flags);
+		}
+		OK_OR_RET_ERR();
+		return tc;
+	};
+
     if (existing_rc != tagd::TAGD_OK && existing_rc != tagd::TS_NOT_FOUND)
         return existing_rc; // err set by get
 
@@ -932,7 +955,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
             if (t.relations.empty())  // duplicate tag and no relations to insert 
                 return this->ferror(tagd::TS_MISUSE, "cannot put a tag without relations: %s", t.id().c_str());
             else // insert relations
-                return this->insert_relations(t, flags);
+                return f_fts_passthru( this->insert_relations(t, flags) );
         }
     }
 
@@ -948,7 +971,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
 
     // handle duplicate tags up-front
     tagd::code ins_upd_rc;
-    if (existing_rc == tagd::TAGD_OK) {  // existing tag
+    if ( existing_rc == tagd::TAGD_OK ) {  // existing tag
         if ( t.super_relator() == existing.super_relator() &&
 		     t.super_object() == existing.super_object() )
 		{  // same location
@@ -958,7 +981,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
 				else
 					return this->ferror(tagd::TS_DUPLICATE, "duplicate tag: %s", t.id().c_str());
 			} else { // insert relations
-                return this->insert_relations(t, flags);
+                return f_fts_passthru( this->insert_relations(t, flags) );
 			}
         }
 
@@ -977,10 +1000,10 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
     }
 
     if (ins_upd_rc == tagd::TAGD_OK && !t.relations.empty())
-        return this->insert_relations(t, flags);
+        return f_fts_passthru( this->insert_relations(t, flags) );
 
     // res from insert/update, (errors will have been set)
-    return this->code(ins_upd_rc);
+    return f_fts_passthru( this->code(ins_upd_rc) );
 }
 
 tagd::code sqlite::put(const tagd::url& u, flags_t flags) {
@@ -1590,6 +1613,173 @@ tagd::part_of_speech sqlite::put_term(const tagd::id_type& t, const tagd::part_o
 	}
 }
 
+std::string format_fts(const tagd::abstract_tag &t) {
+	std::stringstream ss;  // captured by lambdas - return val
+
+	auto f_format_fts = [](std::string s) -> std::string {
+		if (s[0] == '_')  // hard tag no more
+			s.erase(0, 1);
+
+		for (size_t i=0; i<s.size(); i++) {
+			switch (s[i]) {
+				case '_':
+				case '\n':
+					s[i] = ' ';
+					break;
+				default:
+					continue;
+			}
+		}
+
+		return s;
+	};
+
+	auto f_is_digits = [](const std::string &str) {
+		return std::all_of(str.begin(), str.end(), ::isdigit);
+	};
+
+	auto f_print_fts = [&](const tagd::id_type& s) {
+				ss << f_format_fts(s);
+	};
+
+	auto f_print_object = [&](const tagd::predicate& p) {
+		/*
+		if (f_is_digits(p.modifier)) {
+			// hackish formatting of English quantifier before object
+			ss << p.modifier << ' ' << p.object;
+		} else {
+			ss << p.object;
+			if (!p.modifier.empty()) {
+				ss << ' ' << p.op_c_str() << ' ' << p.modifier;
+			}
+		}
+		*/
+		// even more hackish...
+		if (!p.modifier.empty())
+			ss << p.modifier << ' ' << p.object;
+		else
+			ss << p.object;
+	};
+
+	// urls' super determined by nature of being a url
+	if (!t.super_object().empty() && t.pos() != tagd::POS_URL) {
+		f_print_fts(t.id());
+		ss << ' ';
+		f_print_fts(t.super_relator());
+		ss << ' ';
+		f_print_fts(t.super_object());
+	} else {
+		ss << t.id();
+	}
+
+	auto it = t.relations.begin();
+	if (it == t.relations.end())
+		return ss.str();
+
+	if (t.relations.size() == 1 && t.super_object().empty()) {
+		ss << ' ';
+		f_print_fts(it->relator);
+		ss << ' ';
+		f_print_object(*it);
+		return ss.str();
+	} 
+
+	tagd::id_type last_relator;
+	for (; it != t.relations.end(); ++it) {
+		if (last_relator == it->relator) {
+			ss << ", ";
+			f_print_object(*it);
+		} else {
+			// use wildcard for empty relators
+			ss << ' ';
+			if (it->relator.empty())
+				ss << '*';
+			else
+				f_print_fts(it->relator);
+			ss << ' ';
+			f_print_object(*it);
+			last_relator = it->relator;
+		}
+	}
+
+	return ss.str();
+}
+
+tagd::code sqlite::insert_fts_tag(const tagd::id_type& id, flags_t flags) {
+    assert( !id.empty() );
+
+	tagd::abstract_tag t;
+	this->get(t, id, flags);
+    OK_OR_RET_ERR(); 
+
+	if (_trace_on)
+		std::cerr << "insert_fts_tag( " << id << " ): " << format_fts(t) << std::endl;
+
+    this->prepare(&_insert_fts_tag_stmt,
+        "INSERT INTO fts_tags (docid, content) VALUES (tid(?), ?)",
+        "insert fts_tag"
+    );
+    OK_OR_RET_ERR(); 
+
+    this->bind_text(&_insert_fts_tag_stmt, 1, id.c_str(), "insert fts_tag docid");
+    OK_OR_RET_ERR(); 
+ 
+    this->bind_text(&_insert_fts_tag_stmt, 2, format_fts(t).c_str(), "insert fts_tag content");
+    OK_OR_RET_ERR(); 
+
+    int s_rc = sqlite3_step(_insert_fts_tag_stmt);
+    if (s_rc != SQLITE_DONE)
+        return this->ferror(tagd::TS_ERR, "insert fts_tag failed: %s", id.c_str());
+
+    return this->code(tagd::TAGD_OK);
+}
+
+tagd::code sqlite::update_fts_tag(const tagd::id_type& id, flags_t flags) {
+    assert( !id.empty() );
+
+	tagd::abstract_tag t;
+	this->get(t, id, flags);
+    OK_OR_RET_ERR(); 
+
+	if (_trace_on)
+		std::cerr << "update_fts_tag( " << id << " ): " << format_fts(t) << std::endl;
+
+    this->prepare(&_update_fts_tag_stmt,
+        "UPDATE fts_tags SET content = ? WHERE docid = tid(?)",
+        "update fts_tag"
+    );
+    OK_OR_RET_ERR(); 
+
+    this->bind_text(&_update_fts_tag_stmt, 1, format_fts(t).c_str(), "update fts_tag content");
+    OK_OR_RET_ERR(); 
+
+    this->bind_text(&_update_fts_tag_stmt, 2, id.c_str(), "update fts_tag docid");
+    OK_OR_RET_ERR(); 
+
+    int s_rc = sqlite3_step(_update_fts_tag_stmt);
+    if (s_rc != SQLITE_DONE)
+        return this->ferror(tagd::TS_ERR, "update fts_tag failed: %s", id.c_str());
+
+    return this->code(tagd::TAGD_OK);
+}
+
+tagd::code sqlite::delete_fts_tag(const tagd::id_type& id) {
+    assert( !id.empty() ); this->prepare(&_delete_fts_tag_stmt,
+        "DELETE FROM fts_tags WHERE docid = tid(?)",
+        "delete fts_tag"
+    );
+    OK_OR_RET_ERR();
+
+    this->bind_text(&_delete_fts_tag_stmt, 1, id.c_str(), "delete fts_tag docid");
+    OK_OR_RET_ERR(); 
+ 
+    int s_rc = sqlite3_step(_delete_fts_tag_stmt);
+    if (s_rc != SQLITE_DONE)
+        return this->ferror(tagd::TS_ERR, "delete fts_tag failed: %s", id.c_str());
+
+    return this->code(tagd::TAGD_OK);
+}
+
 tagd::code sqlite::insert_term(const tagd::id_type& t, const tagd::part_of_speech pos) {
     assert( !t.empty() );
 
@@ -1769,7 +1959,7 @@ tagd::code sqlite::update(const tagd::abstract_tag& t,
     return this->code(tagd::TAGD_OK);
 }
 
-tagd::code sqlite::insert_relations(const tagd::abstract_tag& t, const flags_t& flags) {
+tagd::code sqlite::insert_relations(const tagd::abstract_tag& t, flags_t flags) {
     assert( !t.id().empty() );
     assert( !t.relations.empty() );
 
@@ -1864,7 +2054,7 @@ tagd::code sqlite::insert_relations(const tagd::abstract_tag& t, const flags_t& 
 	}
 }
 
-tagd::code sqlite::insert_referent(const tagd::referent& put_ref, const flags_t& flags) {
+tagd::code sqlite::insert_referent(const tagd::referent& put_ref, flags_t flags) {
     assert( !put_ref.refers().empty() );
     assert( !put_ref.refers_to().empty() );
 	assert( flags < 32 );  // use flags here to suppress unused param warning
@@ -2522,9 +2712,23 @@ tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& i
 tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& intr, flags_t flags) {
     //TODO use the id (who, what, when, where, why, how_many...)
     // to distinguish types of queries
-
+	
 	if (intr.super_object() == HARD_TAG_REFERENT)
 		return this->query_referents(R, intr);
+
+	/*
+	tagd::predicate_set term_set;
+	intr.related(HARD_TAG_TERMS, term_set);
+
+	// HARD_TAG_SEARCH indicates that HARD_TAG_TERMS are the only relations
+	if (intr.id() == HARD_TAG_SEARCH) {
+		for (auto p : term_set) {
+			this->search(R, p.modifier, flags);
+			OK_OR_RET_ERR();
+		}
+		return _code;
+	}
+	*/
 
     if (intr.relations.empty()) {
         if (intr.super_object().empty())
@@ -2533,30 +2737,83 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& intr, flags
             return this->get_children(R, intr.super_object(), flags);
     }
 
-
 	size_t n = 0;
     tagd::tag_set S;  // related per predicate
-    for (tagd::predicate_set::const_iterator it = intr.relations.begin();
-                it != intr.relations.end(); ++it) {
+    for (auto p : intr.relations) {
 
         S.clear();
 
-		// super_relator is not used for finding related tags (its not advantagious)
-        this->related(S, *it, intr.super_object());
-		if (_trace_on) {
-			std::cerr << "related: ";
-			tagd::print_tag_ids(S);
+		if (p.object == HARD_TAG_TERMS) {
+			this->search(S, p.modifier, flags);
+		} else {
+			// only super_object is advantagious in related query (super_relator not needed) 
+			this->related(S, p, intr.super_object());
 		}
-		OK_OR_RET_ERR();
 
+		if (_trace_on) {
+			if (p.object == HARD_TAG_TERMS)
+				std::cerr << "search: " << p.modifier << std::endl;
+			else  // TODO predicate iostream op
+				std::cerr << "related: " << p << std::endl;
+			tagd::print_tag_ids(S, std::cerr);
+			std::cerr << std::endl;
+		}
+
+		OK_OR_RET_ERR();
 		n += merge_containing_tags(R, S);
     }
+
 
     if (n == 0)
         return this->code(tagd::TS_NOT_FOUND);
 
     return this->code(tagd::TAGD_OK);
 }
+
+tagd::code sqlite::search(tagd::tag_set& R, const std::string &terms, flags_t flags) {
+    //TODO use the id (who, what, when, where, why, how_many...)
+    // to distinguish types of queries
+
+    if (terms.empty())
+		return tagd::TS_NOT_FOUND;
+   
+    this->prepare(&_search_stmt,
+        "SELECT idt(docid) FROM fts_tags "
+        "WHERE content MATCH ?",
+        "search"
+    );
+	OK_OR_RET_ERR();
+
+	this->bind_text(&_search_stmt, 1, terms.c_str(), "search terms");
+	OK_OR_RET_ERR();
+
+    const int F_TAG_ID = 0;
+
+	if (_trace_on)
+		std::cerr << "search: " << terms << std::endl;
+
+    int s_rc;
+	size_t n = 0;
+    while ((s_rc = sqlite3_step(_search_stmt)) == SQLITE_ROW) {
+			std::string tag_id( (const char*) sqlite3_column_text(_search_stmt, F_TAG_ID) );
+			tagd::abstract_tag t;
+			if ( this->get(t, tag_id, flags) == tagd::TAGD_OK ) {
+				R.insert(t);
+				n++;
+			} else {
+				return this->ferror( tagd::TAGD_ERR, "search result failed(%s): %s", tag_id.c_str(), terms.c_str() );
+			}
+    }
+
+    if (s_rc == SQLITE_ERROR)
+        return this->ferror(tagd::TS_ERR, "search failed: %s", terms.c_str());
+
+    if (n == 0)
+        return this->code(tagd::TS_NOT_FOUND);
+
+    return this->code(tagd::TAGD_OK);
+}
+
 
 tagd::code sqlite::dump_grid(std::ostream& os) {
     sqlite3_stmt *stmt = NULL;
@@ -2877,6 +3134,46 @@ tagd::code sqlite::dump(std::ostream& os) {
 
     return this->code(tagd::TAGD_OK);
 }
+
+tagd::code sqlite::dump_search(std::ostream& os) {
+    sqlite3_stmt *stmt = NULL;
+    tagd::code ts_rc = this->prepare(&stmt,
+        "SELECT docid, idt(docid), content FROM fts_tags",
+        "dump search"
+    );
+    if (ts_rc != tagd::TAGD_OK) return ts_rc;
+
+    const int F_DOCID = 0;
+    const int F_TAG_ID = 1;
+    const int F_CONTENT = 2;
+
+    int s_rc;
+    const int colw = 20;
+	os << std::setw(colw) << std::left << "-- tag_id"
+	   << std::setw(colw) << std::left << "docid"
+	   << std::setw(colw) << std::left << "content"
+	   << std::endl;
+	os << std::setw(colw) << std::left << "---------"
+	   << std::setw(colw) << std::left << "-----"
+	   << std::setw(colw) << std::left << "-------"
+	   << std::endl;
+
+    while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        os << std::setw(colw) << std::left << sqlite3_column_text(stmt, F_TAG_ID) 
+           << std::setw(colw) << std::left << sqlite3_column_int64(stmt, F_DOCID) 
+           << std::setw(colw) << std::left << sqlite3_column_text(stmt, F_CONTENT)
+           << std::endl; 
+    }
+
+    sqlite3_finalize(stmt);
+
+    if (s_rc == SQLITE_ERROR) {
+        return this->error(tagd::TS_INTERNAL_ERR, "dump search failed");
+    }
+
+    return this->code(tagd::TAGD_OK);
+}
+
 
 tagd::code sqlite::max_child_rank(tagd::rank& next, const tagd::id_type& super_object) {
     this->open();

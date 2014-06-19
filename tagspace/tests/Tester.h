@@ -61,9 +61,9 @@ size_t populate_tags(space_type& TS) {
     TS.put( tagd::tag("bark","utterance") );
     TS.put( tagd::tag("meow","utterance") );
     // TODO these are verbs, how do we deal with them?
-    TS.put( tagd::tag("move","action") );  // to_move
-    TS.put( tagd::tag("fly","move") );    // to_fly
-    TS.put( tagd::tag("swim","move") );    // to_swim
+    TS.put( tagd::tag("movement","action") );  // to_move
+    TS.put( tagd::tag("fly","movement") );    // to_fly
+    TS.put( tagd::tag("swim","movement") );    // to_swim
 
     TS.put( tagd::relator("verb","_relator") );
     TS.put( tagd::relator("can","verb") );  // no hard_tagd == _can, so no referent
@@ -478,7 +478,7 @@ class Tester : public CxxTest::TestSuite {
         tagd::tag_set S;
 		// refers.empty() && refers_to.empty() && context.empty()
 		// all referents
-        tagd::interrogator q_referent("what", HARD_TAG_REFERENT);
+        tagd::interrogator q_referent("_what", HARD_TAG_REFERENT);
         S.clear();
         TS.query(S, q_referent);
 		//tagd::print_tags(S);
@@ -489,7 +489,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tag_set_exists(S, creature) );
 
 		// refers.empty() && refers_to.empty() && !context.empty()
-        tagd::interrogator q_context("what", HARD_TAG_REFERENT);
+        tagd::interrogator q_context("_what", HARD_TAG_REFERENT);
         q_context.relation(HARD_TAG_CONTEXT, "living_thing");
         S.clear();
         TS.query(S, q_context);
@@ -499,7 +499,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tag_set_exists(S, creature) );
 
 		// refers.empty() && !refers_to.empty() && context.empty()
-        tagd::interrogator q_refers_to("what", HARD_TAG_REFERENT);
+        tagd::interrogator q_refers_to("_what", HARD_TAG_REFERENT);
         q_refers_to.relation(HARD_TAG_REFERS_TO, "animal");
         S.clear();
         TS.query(S, q_refers_to);
@@ -509,7 +509,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tag_set_exists(S, creature) );
 
 		// refers.empty() && !refers_to.empty() && !context.empty()
-        tagd::interrogator q_refers_to_context("what", HARD_TAG_REFERENT);
+        tagd::interrogator q_refers_to_context("_what", HARD_TAG_REFERENT);
         q_refers_to_context.relation(HARD_TAG_REFERS_TO, "animal");
         q_refers_to_context.relation(HARD_TAG_CONTEXT, "physical_object");
 		// living_thing _is_a physical_object
@@ -521,7 +521,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tag_set_exists(S, creature) );
 
 		// !refers.empty() && refers_to.empty() && context.empty()
-        tagd::interrogator q_refers("what", HARD_TAG_REFERENT);
+        tagd::interrogator q_refers("_what", HARD_TAG_REFERENT);
         q_refers.relation(HARD_TAG_REFERS, "thing");
         S.clear();
         TS.query(S, q_refers);
@@ -531,7 +531,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tag_set_exists(S, thing_animal) );
 
 		// !refers.empty() && refers_to.empty() && !context.empty()
-        tagd::interrogator q_refers_context("what", HARD_TAG_REFERENT);
+        tagd::interrogator q_refers_context("_what", HARD_TAG_REFERENT);
         q_refers_context.relation(HARD_TAG_REFERS, "thing");
         q_refers_context.relation(HARD_TAG_CONTEXT, "physical_object");
         S.clear();
@@ -541,7 +541,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tag_set_exists(S, thing_animal) );
 
 		// !refers.empty() && !refers_to.empty() && context.empty()
-        tagd::interrogator q_refers_refers_to("what", HARD_TAG_REFERENT);
+        tagd::interrogator q_refers_refers_to("_what", HARD_TAG_REFERENT);
         q_refers_refers_to.relation(HARD_TAG_REFERS, "thing");
         q_refers_refers_to.relation(HARD_TAG_REFERS_TO, "animal");
         S.clear();
@@ -551,7 +551,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tag_set_exists(S, thing_animal) );
 
 		// !refers.empty() && !refers_to.empty() && !context.empty()
-        tagd::interrogator q_refers_refers_to_context("what", HARD_TAG_REFERENT);
+        tagd::interrogator q_refers_refers_to_context("_what", HARD_TAG_REFERENT);
         q_refers_refers_to_context.relation(HARD_TAG_REFERS, "thing");
         q_refers_refers_to_context.relation(HARD_TAG_REFERS_TO, "animal");
         q_refers_refers_to_context.relation(HARD_TAG_CONTEXT, "physical_object");
@@ -663,7 +663,7 @@ class Tester : public CxxTest::TestSuite {
 
 		// refers.empty() && refers_to.empty() && !context.empty()
         TS.del( tagd::referent("", "", "living_thing") );
-        tagd::interrogator q_context("what", HARD_TAG_REFERENT);
+        tagd::interrogator q_context("_what", HARD_TAG_REFERENT);
         q_context.relation(HARD_TAG_CONTEXT, "living_thing");
 		tagd::tag_set S;
         TS.query(S, q_context);
@@ -705,7 +705,7 @@ class Tester : public CxxTest::TestSuite {
 		TS.del( tagd::referent("", "animal", "living_thing") );
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
 
-        tagd::interrogator q_refers_to_context("what", HARD_TAG_REFERENT);
+        tagd::interrogator q_refers_to_context("_what", HARD_TAG_REFERENT);
         q_refers_to_context.relation(HARD_TAG_REFERS_TO, "animal");
         q_refers_to_context.relation(HARD_TAG_CONTEXT, "living_thing");
         S.clear();
@@ -722,7 +722,7 @@ class Tester : public CxxTest::TestSuite {
 		TS.del( tagd::referent("thing", "", "") );
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
 
-        tagd::interrogator q_refers("what", HARD_TAG_REFERENT);
+        tagd::interrogator q_refers("_what", HARD_TAG_REFERENT);
         q_refers.relation(HARD_TAG_REFERS, "thing");
         S.clear();
         TS.query(S, q_refers);
@@ -746,7 +746,7 @@ class Tester : public CxxTest::TestSuite {
 		TS.del( tagd::referent("thing", "", "living_thing") );
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
 
-        tagd::interrogator q_refers_context("what", HARD_TAG_REFERENT);
+        tagd::interrogator q_refers_context("_what", HARD_TAG_REFERENT);
         q_refers_context.relation(HARD_TAG_REFERS, "thing");
         q_refers_context.relation(HARD_TAG_CONTEXT, "living_thing");
         S.clear();
@@ -768,7 +768,7 @@ class Tester : public CxxTest::TestSuite {
 		TS.del( tagd::referent("thing", "animal") );
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
 
-        tagd::interrogator q_refers_refers_to("what", HARD_TAG_REFERENT);
+        tagd::interrogator q_refers_refers_to("_what", HARD_TAG_REFERENT);
         q_refers_refers_to.relation(HARD_TAG_REFERS, "thing");
         q_refers_refers_to.relation(HARD_TAG_REFERS_TO, "animal");
         S.clear();
@@ -782,7 +782,7 @@ class Tester : public CxxTest::TestSuite {
 		TS.del( tagd::referent("thing", "animal", "living_thing") );
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(TS.code()), "TAGD_OK" );
 
-		tagd::interrogator q_refers_refers_to_context("what", HARD_TAG_REFERENT);
+		tagd::interrogator q_refers_refers_to_context("_what", HARD_TAG_REFERENT);
         q_refers_refers_to_context.relation(HARD_TAG_REFERS, "thing");
         q_refers_refers_to_context.relation(HARD_TAG_REFERS_TO, "animal");
         q_refers_refers_to_context.relation(HARD_TAG_CONTEXT, "living_thing");
@@ -903,7 +903,7 @@ class Tester : public CxxTest::TestSuite {
         ts_rc = TS.put(dog); // one duplicate (has tail), one insert (can bite)
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 
-		TS.put(tagd::relator("wags", "move"));
+		TS.put(tagd::relator("wags", "movement"));
 		dog.relation("wags", "tail");
         ts_rc = TS.put(dog); // relator makes unique
 
@@ -963,7 +963,7 @@ class Tester : public CxxTest::TestSuite {
         ts_rc = TS.put(dog, tagspace::F_IGNORE_DUPLICATES); // one duplicate (has tail), one insert (can bite)
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 
-		TS.put(tagd::relator("wags", "move"));
+		TS.put(tagd::relator("wags", "movement"));
 		dog.relation("wags", "tail");
         ts_rc = TS.put(dog, tagspace::F_IGNORE_DUPLICATES); // relator makes unique
 
@@ -1090,10 +1090,10 @@ class Tester : public CxxTest::TestSuite {
         TS.init(db_fname);
         populate_tags(TS);
 
-        // TODO "what" is not actually used in the query
+        // TODO "_what" is not actually used in the query
         // this will change over time, as different types
         // of interrogators will denote different queries
-        tagd::interrogator q("what", "mammal");
+        tagd::interrogator q("_what", "mammal");
         q.relation("can", "swim");
 
         tagd::tag_set S;
@@ -1103,7 +1103,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tag_set_exists(S, "whale") );
 
         S.clear();
-        tagd::interrogator r("what");
+        tagd::interrogator r("_what");
         r.relation("has", "fangs");
         ts_rc = TS.query(S, r);
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
@@ -1112,7 +1112,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tag_set_exists(S, "snake") );
 
         S.clear();
-        tagd::interrogator s("what");
+        tagd::interrogator s("_what");
         s.relation("has", "teeth");
         ts_rc = TS.query(S, s);
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
@@ -1122,7 +1122,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tag_set_exists(S, "snake") );
 
         S.clear();
-        tagd::interrogator q1("what");
+        tagd::interrogator q1("_what");
         q1.relation("has", "legs", "2", tagd::OP_GT);
         q1.relation("has", "body_part", "8", tagd::OP_LT_EQ);
         ts_rc = TS.query(S, q1);
@@ -1147,7 +1147,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( num , 3 )
 
 		S.clear();
-        tagd::interrogator q2("what", "animal");
+        tagd::interrogator q2("_what", "animal");
 		q2.relation("has", "");
         q2.relation("can", "");
         ts_rc = TS.query(S, q2);
@@ -1167,10 +1167,10 @@ class Tester : public CxxTest::TestSuite {
         TS.init(db_fname);
         populate_tags(TS);
 
-        // TODO "what" is not actually used in the query
+        // TODO "_what" is not actually used in the query
         // this will change over time, as different types
         // of interrogators will denote different queries
-        tagd::interrogator q("what", "mammal");
+        tagd::interrogator q("_what", "mammal");
 
         tagd::tag_set S;
         tagd_code ts_rc = TS.query(S, q);
@@ -1187,7 +1187,7 @@ class Tester : public CxxTest::TestSuite {
         TS.init(db_fname);
         populate_tags(TS);
 
-        tagd::interrogator q("what");
+        tagd::interrogator q("_what");
         q.relation("has", "blood", "warm");
         q.relation("can", "swim");
 
@@ -1200,6 +1200,121 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( S.size(), 1 );
         TS_ASSERT( tag_set_exists(S, "whale") );
 	}
+
+	void test_search(void) {
+        space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+		// std::cout << std::endl; TS.dump_search();
+
+		std::string terms = "mammal can swim";
+        tagd::tag_set S;
+        tagd_code ts_rc = TS.search(S, terms);
+		TS.print_errors();
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 1 );
+        TS_ASSERT( tag_set_exists(S, "whale") );
+
+        S.clear();
+        terms = "has fangs";
+        ts_rc = TS.search(S, terms);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 2 );
+        TS_ASSERT( tag_set_exists(S, "spider") );
+        TS_ASSERT( tag_set_exists(S, "snake") );
+
+        S.clear();
+        terms = "has teeth";
+        ts_rc = TS.search(S, terms);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 1 );
+        TS_ASSERT( tag_set_exists(S, "mammal") );
+		// fangs are teeth, but don't match FTS for teeth
+        TS_ASSERT( !tag_set_exists(S, "spider") );
+        TS_ASSERT( !tag_set_exists(S, "snake") );
+
+		S.clear();
+        terms = "mammal has can";
+        ts_rc = TS.search(S, terms);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 4 );
+        TS_ASSERT( tag_set_exists(S, "dog") );
+        TS_ASSERT( tag_set_exists(S, "cat") );
+        TS_ASSERT( tag_set_exists(S, "whale") );
+        TS_ASSERT( tag_set_exists(S, "bat") );
+    }
+
+	void test_query_search(void) {
+        space_type TS;
+        TS.init(db_fname);
+        populate_tags(TS);
+
+        tagd::interrogator q("_what", "mammal");
+		q.relation(HARD_TAG_HAS, HARD_TAG_TERMS, "can swim");
+        tagd::tag_set S;
+        tagd_code ts_rc = TS.query(S, q);
+		TS.print_errors();
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 1 );
+        TS_ASSERT( tag_set_exists(S, "whale") );
+
+        S.clear();
+        tagd::interrogator r("_what");
+		r.relation(HARD_TAG_HAS, HARD_TAG_TERMS, "has fangs");
+        ts_rc = TS.query(S, r);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 2 );
+        TS_ASSERT( tag_set_exists(S, "spider") );
+        TS_ASSERT( tag_set_exists(S, "snake") );
+
+        S.clear();
+        tagd::interrogator s("_what");
+		s.relation(HARD_TAG_HAS, HARD_TAG_TERMS, "has teeth");
+        ts_rc = TS.query(S, s);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 1 );
+        TS_ASSERT( tag_set_exists(S, "mammal") );
+		// fangs are teeth, but not a FTS match
+        TS_ASSERT( !tag_set_exists(S, "spider") );
+        TS_ASSERT( !tag_set_exists(S, "snake") );
+
+		S.clear();
+        tagd::interrogator q2("_what", "animal");
+		q2.relation(HARD_TAG_HAS, HARD_TAG_TERMS, "has can");
+        ts_rc = TS.query(S, q2);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 5 );
+        TS_ASSERT( tag_set_exists(S, "dog") );
+        TS_ASSERT( tag_set_exists(S, "cat") );
+        TS_ASSERT( tag_set_exists(S, "whale") );
+        TS_ASSERT( tag_set_exists(S, "bat") );
+        TS_ASSERT( tag_set_exists(S, "bird") );
+
+		S.clear();
+		tagd::interrogator s1(HARD_TAG_SEARCH);
+		s1.relation(HARD_TAG_HAS, HARD_TAG_TERMS, "warm blood");
+		s1.relation(HARD_TAG_HAS, HARD_TAG_TERMS, "can bark");
+        ts_rc = TS.query(S, s1);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 1 );
+        TS_ASSERT( tag_set_exists(S, "dog") );
+
+		// test update search terms
+		TS.put( tagd::tag("bite", "action") );
+        tagd::tag t("dog");
+        t.relation("can", "bite");
+        TS.put(t);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK");
+
+		S.clear();
+		tagd::interrogator s2(HARD_TAG_SEARCH);
+		s2.relation(HARD_TAG_HAS, HARD_TAG_TERMS, "can bite");
+        ts_rc = TS.query(S, s2);
+        TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
+        TS_ASSERT_EQUALS( S.size(), 1 );
+        TS_ASSERT( tag_set_exists(S, "dog") );
+    }
 
     void test_get_hard_tag(void) {
 		space_type TS;
@@ -1357,8 +1472,8 @@ class Tester : public CxxTest::TestSuite {
         ts_rc = TS.put(c);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
 
-        // TODO "what" is not actually used in the query
-        tagd::interrogator q("what", "_url");
+        // TODO "_what" is not actually used in the query
+        tagd::interrogator q("_what", "_url");
         q.relation("about", "dog");
 
         tagd::tag_set S;
@@ -1369,7 +1484,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tag_set_exists(S, "http://animal.discovery.com/tv-shows/dogs-101") );
 
         S.clear();
-        tagd::interrogator r("what", "_url");
+        tagd::interrogator r("_what", "_url");
         r.relation("has", "_path", "/wiki/Dog");
         ts_rc = TS.query(S, r);
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
@@ -1377,7 +1492,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tag_set_exists(S, "http://en.wikipedia.org/wiki/Dog") );
         TS_ASSERT( tag_set_exists(S, "http://starwars.wikia.com/wiki/Dog") );
 
-        // what is 'about' something
+        // _what is 'about' something
         tagd::interrogator what_about(HARD_TAG_INTERROGATOR);
         what_about.relation(tagd::make_predicate("about", ""));
 

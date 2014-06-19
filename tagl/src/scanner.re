@@ -228,7 +228,8 @@ comment:
 					_beg = _cur;
 					goto next;
 				}
-	ANY			{ 	_beg = _cur; goto comment; }
+	[\000]      { return; }
+	ANY			{	_beg = _cur; goto comment; }
 */
 
 block_comment:
@@ -274,7 +275,10 @@ parse_quoted_str:
 	_val.append(_beg, sz);
 	// parse the value in quotes, not the quotes themselves
 	_driver->parse_tok(
-		_driver->lookup_pos(_val.substr(1, sz-2)),
+		( _driver->_token == CMD_QUERY
+			? QUOTED_STR	// indicates search
+			: _driver->lookup_pos(_val.substr(1, sz-2))
+		),
 		new std::string(_val.substr(1, sz-2))  // parser deletes
 	);
 	_val.clear();
@@ -292,77 +296,6 @@ lookup_parse:
 	}
 	_beg = _cur;
 	goto next;
-}
-
-
-void scanner::scan_tagdurl_path(int cmd, const std::string& path) {
-	// path separator defs
-	const size_t max_seps = 2;
-	size_t sep_i = 0;
-	size_t seps[max_seps] = {0, 0};  // offsets '/' chars in path
-
-	if (path[0] != '/') {
-		_driver->error(tagd::TAGL_ERR, "malformed path: no leading '/'");
-		return;
-	}
-
-	for(size_t i = 0; i < path.size(); i++) {
-		if (path[i] == '/') {
-			if (sep_i == max_seps) {
-				// TODO use error tag
-				_driver->error(tagd::TAGL_ERR, "max_seps exceeded");
-				return;
-			}
-			seps[sep_i++] = i;
-		}
-	}
-
-	size_t num_seps = sep_i;
-
-	if (cmd == CMD_PUT && num_seps > 1) {
-		_driver->error(tagd::TAGL_ERR, "malformed path: trailing '/'");
-		return;
-	}
-	
-	// path segment
-	std::string segment;
-
-	// first segment
-	sep_i = 0;
-	if (seps[sep_i+1]) {
-		size_t sz = seps[sep_i+1] - seps[sep_i] - 1;
-		segment = path.substr((seps[sep_i]+1), sz);
-	}
-	else {
-		// get
-		segment = path.substr(seps[sep_i]+1);
-	}
-
-	if (cmd == CMD_GET && num_seps > 1) {
-		cmd = CMD_QUERY;
-		_driver->parse_tok(cmd, NULL);
-		_driver->parse_tok(INTERROGATOR, (new std::string(HARD_TAG_INTERROGATOR)));  // parser deletes
-
-		// first segment of "*" is a placeholder for super relation, so ignore it
-		if (segment != "*") {
-			_driver->parse_tok(SUPER_RELATOR, (new std::string(HARD_TAG_SUPER)));
-			this->scan(tagd::uri_decode(segment).c_str());
-		}
-	} else {
-		_driver->parse_tok(cmd, NULL);
-		this->scan(tagd::uri_decode(segment).c_str());
-	}
-
-	if (++sep_i >= num_seps)
-		return;	
-
-	// second segment
-	segment = path.substr(seps[sep_i]+1);
-
-	if (!segment.empty()) {
-		_driver->parse_tok(WILDCARD, NULL);
-		this->scan(tagd::uri_decode(segment).c_str());
-	}
 }
 
 } // namespace TAGL

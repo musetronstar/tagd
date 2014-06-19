@@ -34,7 +34,7 @@ void print_tag_ids(const tag_set& T, std::ostream& os) {
 	tagd::tag_set::iterator it = T.begin();
 	os << it->id();
 	for (++it; it != T.end(); ++it) {
-		os << ", " << it->id();
+		os << " ," << std::endl << it->id();
 	}
 	os << std::endl;
 }
@@ -381,6 +381,12 @@ void print_object (std::ostream& os, const predicate& p) {
 		os << ' ' << p.op_c_str() << ' ';
 		print_quotable(os, p.modifier);
 	} 
+}
+
+std::ostream& operator<<(std::ostream& os, const predicate& p) {
+	os << p.relator << ' ';
+	print_object(os, p);
+	return os;
 }
 
 // note it is a tag friend function, not abstract_tag::operator<<

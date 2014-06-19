@@ -33,7 +33,16 @@ typedef enum {
 	TYPE_INTEGER,
 	TYPE_FLOAT
 } data_t;
-	
+
+/* TODO
+typedef enum {
+	PRINT_PRETTY,		// use whitespace for maximum readability
+	PRINT_DELIM_NL,		// use newlines when delimitting lists 
+	PRINT_ID_ONLY,		// only print the tag id
+	PRINT_ID_SUPER_ONLY	// only print the tag id and the super relation
+} print_options_t;
+*/
+
 struct predicate {
 	public:
 		id_type relator;
@@ -96,6 +105,8 @@ struct predicate {
 		);
 	}
 };
+
+std::ostream& operator<<(std::ostream&, const predicate&);
 
 typedef std::set<predicate> predicate_set;
 typedef std::pair<predicate_set::iterator,bool> predicate_pair;

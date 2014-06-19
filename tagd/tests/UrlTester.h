@@ -870,6 +870,21 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( qm, tm );
 	}
 
+	void test_query_map_endcoded(void) {
+		url_query_map_t qm, tm;
+
+		// TODO be comprehensive
+	
+		// test '+' => ' '
+		tm = {
+			{"a", "1"},
+			{"b", ""},
+			{"yo", "hey bro"}
+		};
+		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a=1&b=&yo=hey+bro"), 3 );
+		TS_ASSERT_EQUALS( qm, tm );
+	}
+
 	void test_query_find(void) {
 		url_query_map_t qm;
 		size_t n = tagd::url::parse_query(qm, "?a=1&b=2&yo=hey");
