@@ -260,9 +260,9 @@ void main_cb(evhtp_request_t *req, void *arg) {
 	bool trace_on = svr->_args->opt_trace;
 	
 	httagd::request R(svr, req);
-	std::string t_val = R.query_opt("t"); // t = template
-	std::string c_val = R.query_opt("c"); // c = context
-	std::string q_val = R.query_opt("q"); // q = query terms
+	std::string t_val { R.query_opt("t") }; // t = template
+	std::string c_val { R.query_opt("c") }; // c = context
+	std::string q_val { R.query_opt("q") }; // q = query terms
 	
 	if (!c_val.empty())
 		TS->push_context(c_val);
@@ -329,9 +329,6 @@ void main_cb(evhtp_request_t *req, void *arg) {
 			evhtp_send_reply(req, EVHTP_RES_METHNALLOWED);
 	}
 
-	if (!c_val.empty())
-		TS->pop_context();
-
 	if (TS->has_error()) {
 		if (trace_on)
 			TS->print_errors();
@@ -343,6 +340,9 @@ void main_cb(evhtp_request_t *req, void *arg) {
 			tagl.print_errors();
 		tagl.clear_errors();
 	}
+
+	if (!c_val.empty())
+		TS->pop_context();
 
 	delete CB;
 }
