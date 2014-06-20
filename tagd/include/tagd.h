@@ -44,12 +44,11 @@ typedef enum {
 */
 
 struct predicate {
-	public:
-		id_type relator;
-		id_type object;
-		id_type modifier;
-		operator_t opr8r; // operates on the modifier
-		data_t modifier_type;
+	id_type relator;
+	id_type object;
+	id_type modifier;
+	operator_t opr8r; // operates on the modifier
+	data_t modifier_type;
 
 	predicate() : opr8r{OP_EQ}, modifier_type{TYPE_TEXT} {}
 	predicate(const id_type &r, const id_type &o) :
