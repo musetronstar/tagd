@@ -943,8 +943,8 @@ class Tester : public CxxTest::TestSuite {
 		tagd::url::insert_url_part_relations(a.relations, a);
 		TS_ASSERT( a.related(HARD_TAG_HAS, HARD_TAG_HOST, "hypermega.com") )
 		TS_ASSERT( a.related(HARD_TAG_HAS, HARD_TAG_PRIV_LABEL, "hypermega") )
-		TS_ASSERT( a.related(HARD_TAG_HAS, HARD_TAG_PUB, "com") )
-		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_SUB) )
+		TS_ASSERT( a.related(HARD_TAG_HAS, HARD_TAG_PUBLIC, "com") )
+		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_SUBDOMAIN) )
 		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_PATH) )
 		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_QUERY) )
 		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT) )
@@ -957,8 +957,8 @@ class Tester : public CxxTest::TestSuite {
 		tagd::url::insert_url_part_relations(b.relations, b);
 		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_HOST, "www.hypermega.com") )
 		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_PRIV_LABEL, "hypermega") )
-		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_PUB, "com") )
-		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_SUB, "www") )
+		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_PUBLIC, "com") )
+		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_SUBDOMAIN, "www") )
 		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_PATH) )
 		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_QUERY) )
 		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "here") )
@@ -971,8 +971,8 @@ class Tester : public CxxTest::TestSuite {
 		tagd::url::insert_url_part_relations(c.relations, c);
 		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_HOST, "en.wikipedia.org") )
 		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_PRIV_LABEL, "wikipedia") )
-		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_PUB, "org") )
-		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_SUB, "en") )
+		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_PUBLIC, "org") )
+		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_SUBDOMAIN, "en") )
 		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_PATH, "/wiki/Dog") )
 		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_QUERY) )
 		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT) )

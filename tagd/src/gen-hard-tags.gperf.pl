@@ -1,37 +1,23 @@
 #!/usr/bin/perl
 ## generates a gperf input file of hard tags
-## DATA section of this file contains gperf declarations
+## The DATA (__END__) section of this file contains gperf declarations heading
 
 use strict;
 use warnings;
 use open qw(:std :utf8);
 
-use Net::IDN::Encode 'domain_to_ascii';
-my $print_private = 1;
-
 @ARGV > 0 or die "usage: $0 <hard-tags.h>";
 
-# gperf declarations header
-while (<DATA>) {
-        print $_ 
-}
+# gperf declarations heading
+while (<DATA>) { print $_ }
 
-my %tlds;
-my $managed_by = undef;
-my $idn;
-my $tld;
 my $rank = 0;
 while (<>) {
-
-    # strip comments, leading ws, blank lines...
     #chomp;
     s/\s+$//g;
-    if (/^\s*$/) {
-        # print "\n";
-        next;
-    }
 
     if (/^#define\s*(\S*)\s*\"(\S*)\"\s*\/\/gperf(.*)/) {
+		# <tag id>, <super_object>, <rank>
         print "$2, $3, $rank\n";
 		$rank++;
         next;
@@ -51,9 +37,9 @@ __END__
 %define lookup-function-name lookup
 
 struct hard_tag_hash_value {
-    const char *key;
-    const char *super;
-    tagd::part_of_speech pos;
+	const char *key;
+	const char *super;
+	tagd::part_of_speech pos;
 	uint32_t rank;
 };
 %%

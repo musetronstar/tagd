@@ -327,7 +327,7 @@ Results:
 And some more:
 
 	?? what * _private = wikipedia,
-	_pub = org
+	_public = org
 	about animal;
 
 Results:
@@ -342,7 +342,7 @@ Now let's get a url:
 Results:
 
 	https://en.wikipedia.org/wiki/Dog _is_a _url
-	_has _host = en.wikipedia.org, _path = /wiki/Dog, _private = wikipedia, _pub = org, _scheme = https, _sub = en
+	_has _host = en.wikipedia.org, _path = /wiki/Dog, _private = wikipedia, _public = org, _scheme = https, _subdomain = en
 	about dog
 
 As you can see, when a URL is inserted, it is parsed and its components
@@ -353,10 +353,10 @@ are inserted according to the following hard tags:
 	* `_host` - host of a URL
 	* `_private` - private label of a registerable TLD
 	  (i.e. the "wikipedia" in wikipedia.org)
-	* `_pub` - label(s) of the TLD (can be a multi-level TLD).
+	* `_public` - label(s) of the TLD (can be a multi-level TLD).
 	  Public and private (effective) TLDs are parsed according to the
 	  [Mozilla Public Suffix List](http://publicsuffix.org/)
-	* `_sub` - label(s) of the subdomain
+	* `_subdomain` - subdomain label(s) 
 	* `_path` 
 	* `_query` - query string of the URL
 	* `_fragment`

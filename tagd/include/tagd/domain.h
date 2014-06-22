@@ -33,7 +33,6 @@ typedef enum {
     TLD_EXCEPTION_REG,
     TLD_PRIVATE,
     TLD_PRIVATE_REG,
-
     TLD_UNKNOWN,
     TLD_ERR,  // internal error - unexpected state
 

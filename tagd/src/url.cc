@@ -511,7 +511,7 @@ void insert_host_parts(tagd::predicate_set& P, const url& u) {
 
 	std::string s = d.pub();
 	if (!s.empty())
-		tagd::insert_predicate(P, HARD_TAG_HAS, HARD_TAG_PUB, d.pub());
+		tagd::insert_predicate(P, HARD_TAG_HAS, HARD_TAG_PUBLIC, d.pub());
 
 	s = d.priv_label();
 	if (!s.empty())
@@ -519,7 +519,7 @@ void insert_host_parts(tagd::predicate_set& P, const url& u) {
 
 	s = d.sub();
 	if (!s.empty())
-		tagd::insert_predicate(P, HARD_TAG_HAS, HARD_TAG_SUB, d.sub());
+		tagd::insert_predicate(P, HARD_TAG_HAS, HARD_TAG_SUBDOMAIN, d.sub());
 
 	return;
 }

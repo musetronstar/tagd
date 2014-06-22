@@ -15,7 +15,7 @@ tagd_code tagspace::push_context(const tagd::id_type& id) {
 		return _code;
 	}
 
-	return this->error(tagd::TS_INTERNAL_ERR, "push_context failed: %s");
+	return this->ferror(tagd::TS_INTERNAL_ERR, "push_context failed: %s", id.c_str());
 }
 
 const tagd::id_vec& tagspace::context() const { return _context; }
