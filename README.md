@@ -601,7 +601,7 @@ To exit the shell type `.exit` or `^D`.
 
 ### tagd Web Service
 
-Just as TAGL is a map onto a tagspace, a the tagd web service (*httagd*) maps
+Just as TAGL is a map onto a tagspace, the tagd web service (*httagd*) maps
 a *tagdurl* to TAGL.  With tagdurls, the *service is the language*.
 
 The httagd web server is very minimal at this point - only a few features have been
