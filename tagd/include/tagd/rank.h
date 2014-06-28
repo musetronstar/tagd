@@ -1,8 +1,8 @@
 #pragma once
 
-#include <stdint.h>  // uint32_t
 #include <string>
 #include <set>
+#include <algorithm>  // reverse_copy
 #include "codes.h"
 
 namespace tagd {
@@ -44,9 +44,14 @@ class rank {
     public:
         rank() : _data() {}
         rank(const rank& cp) : _data(cp._data) {}
-        // don't allow iniatialization by constructors (other than copy),
+		rank(uint64_t packed) {  // not validate - make sure your bytes are valid!
+			char *p = reinterpret_cast<char *>(&packed); // cast reverses bytes
+			std::reverse_copy (p, p+8, _data.begin());	
+		}
+		// otherwise, don't allow iniatialization by constructors,
         // because we must validate data either by return code
         // or exception - I'm not about to use exceptions
+
         ~rank() {}
 		void clear() { _data.clear(); }
 
@@ -59,9 +64,9 @@ class rank {
 		// in other words, this rank is a prefix to the other 
         bool contains(const rank&) const;
 
-        // validates bytes, allocs and copies bytes into memory
-        // already alloced memory will be reused if possible
+        // validates bytes, and copies to _data
 		tagd::code init(const char*);
+		tagd::code init(uint64_t);  // packed bytes
  
         const char* c_str() const { return _data.c_str(); }
         std::string dotted_str() const;

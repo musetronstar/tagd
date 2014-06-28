@@ -41,7 +41,7 @@ tagd::code rank::init(const char *bytes) {
     if (bytes == NULL) return RANK_EMPTY;
 
 	std::string tmp(bytes);
-	tagd::code tc = validate(tmp);
+	auto tc = validate(tmp);
 
     if (tc != TAGD_OK)
         return tc;
@@ -49,6 +49,21 @@ tagd::code rank::init(const char *bytes) {
 	_data = tmp;
 
     return TAGD_OK;
+}
+
+tagd::code rank::init(uint64_t packed) {
+    if (packed == 0) return RANK_EMPTY;
+
+	char *p = reinterpret_cast<char *>(&packed); // cast reverses bytes
+	std::reverse_copy (p, p+8, _data.begin());	
+
+	auto tc = validate(_data);
+    if (tc != TAGD_OK) {\
+		_data.clear();
+        return tc;
+	}
+
+    return tc;
 }
 
 std::string rank::dotted_str() const {

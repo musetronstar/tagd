@@ -31,7 +31,7 @@ part_of_speech hard_tag::term_pos(const tagd::id_type& id, rowid_t* row_id) {
     if (val == NULL) {
         return POS_UNKNOWN;
 	} else {
-		*row_id = (val->rank + 1);
+		*row_id = val->row_id;
         return val->pos;
 	}
 }
@@ -46,9 +46,7 @@ tagd_code hard_tag::get(abstract_tag& t, const std::string &id) {
 		t.super_relator(HARD_TAG_SUPER);
 		t.super_object(val->super);
 		t.pos(val->pos);
-		rank r;
-		r.push_back(val->rank);
-		t.rank(r);
+		rank r(val->rank);
     	// std::cout << "hard_tag_hash::get( " << pos_str(val->pos) << ", " << val->rank << ", " << t.rank().dotted_str() << " ) => "
           //    << t  << std::endl;
 	
