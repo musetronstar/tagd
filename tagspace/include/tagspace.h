@@ -53,6 +53,14 @@ struct flag_util {
 	}
 };
 
+typedef long long int rowid_t;
+
+struct hard_tag {
+	static tagd::part_of_speech pos(const std::string &id);
+	static tagd::code get(tagd::abstract_tag&, const std::string &id);
+	static tagd::part_of_speech term_pos(const tagd::id_type&, rowid_t*);
+};
+
 // pure virtual interface
 class tagspace : public tagd::errorable {
 	protected:

@@ -151,6 +151,48 @@ bool tag_set_exists(const tagd::tag_set& S, const tagd::abstract_tag& t) {
 class Tester : public CxxTest::TestSuite {
     public:
 
+	void test_hard_tag_pos(void) {
+		std::string id(HARD_TAG_ENTITY);
+		tagd::part_of_speech pos = tagspace::hard_tag::pos(id);
+		TS_ASSERT_EQUALS(pos, tagd::POS_TAG);
+
+		id = "caca";
+		pos = tagspace::hard_tag::pos(id);
+		TS_ASSERT_EQUALS(pos, tagd::POS_UNKNOWN);
+	}
+
+	void test_hard_tag_get(void) {
+		std::string id(HARD_TAG_ENTITY);
+		tagd::abstract_tag t;
+		tagd::code tc = tagspace::hard_tag::get(t, id);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(t.id(), HARD_TAG_ENTITY);
+		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
+		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_ENTITY);
+
+		t.clear();
+		id = HARD_TAG_IS_A;
+		tc = tagspace::hard_tag::get(t, id);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(t.id(), HARD_TAG_IS_A);
+		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
+		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_SUPER);
+		TS_ASSERT_EQUALS(t.rank().dotted_str(), "3.1");
+
+		t.clear();
+		id = HARD_TAG_HAS;
+		tc = tagspace::hard_tag::get(t, id);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(t.id(), HARD_TAG_HAS);
+		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
+		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_RELATOR);
+
+		t.clear();
+		id = "caca";
+		tc = tagspace::hard_tag::get(t, id);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
+	}
+
     void test_init(void) {
         space_type TS;
         tagd_code ts_rc = TS.init(db_fname);

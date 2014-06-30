@@ -72,7 +72,7 @@ while (<>) {
 
 __END__
 %{
-#include "tagd.h"
+#include "tagspace.h"
 %}
 // declarations
 %struct-type
@@ -86,7 +86,7 @@ struct hard_tag_hash_value {
 	const char *key;
 	const char *super;
 	tagd::part_of_speech pos;
-	tagd::rowid_t row_id;
+	tagspace::rowid_t row_id;
 	uint64_t rank;
 };
 %%

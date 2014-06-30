@@ -524,12 +524,9 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t
 	if (_trace_on)
 		std::cerr << "sqlite::get: " << term << std::endl;
 
-	tagd_code tc = tagd::hard_tag::get(t, term);
-	if (tc != tagd::TS_NOT_FOUND) {
-		// TODO
-		//std::cerr << "hard_tag: " << t << std::endl;
-		//return this->code(tc);
-	}
+	tagd_code tc = hard_tag::get(t, term);
+	if (tc != tagd::TS_NOT_FOUND) 
+		return this->code(tc);
 
 	tagd::part_of_speech term_pos = this->term_pos(term);
 	// std::cerr << "term_pos(" << term << "): " << pos_list_str(term_pos) << std::endl;
@@ -734,11 +731,9 @@ tagd::part_of_speech sqlite::term_id_pos(rowid_t term_id, std::string *term) {
 tagd::part_of_speech sqlite::pos(const tagd::id_type& id, flags_t flags) {
 	assert(id.length() <= tagd::MAX_TAG_LEN);
 
-	tagd::part_of_speech pos = tagd::hard_tag::pos(id);
-	if (pos != tagd::POS_UNKNOWN) {
-		//std::cerr << "hard_tag pos(" << pos_str(pos) << "): " << id << std::endl;
+	tagd::part_of_speech pos = hard_tag::pos(id);
+	if (pos != tagd::POS_UNKNOWN)
 		return pos;
-	}
 
 	tagd::id_type refers_to;
 	if (flags & F_NO_TRANSFORM_REFERENTS)
@@ -1556,6 +1551,9 @@ tagd::code sqlite::delete_tag(const tagd::id_type& id) {
 }
 
 tagd::code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& super) {
+    if( !(!super.rank().empty() || (super.rank().empty() && super.id() == HARD_TAG_ENTITY)) ) {
+		std::cerr << "next_rank: " << super << "\t-- " << super.rank().dotted_str() << std::endl;
+	}
     assert( !super.rank().empty() || (super.rank().empty() && super.id() == HARD_TAG_ENTITY) );
 
 	/*
