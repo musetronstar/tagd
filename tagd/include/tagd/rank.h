@@ -44,9 +44,31 @@ class rank {
     public:
         rank() : _data() {}
         rank(const rank& cp) : _data(cp._data) {}
-		rank(uint64_t packed) {  // not validate - make sure your bytes are valid!
-			char *p = reinterpret_cast<char *>(&packed); // cast reverses bytes
-			std::reverse_copy (p, p+8, _data.begin());	
+
+		// unpacks the 8 bytes of a 64 bit number into the string passed in
+		// returns the number of non-zero bytes unpacked
+		static size_t unpack(std::string& s, uint64_t packed) {
+			if (packed == 0) return 0;
+
+			char unpacked[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+			size_t i = 7, sz = 0;
+			do {
+				char b = (packed & 0xff);
+				if (b) {
+					unpacked[i] = b;
+					sz++;
+				}
+				packed >>= 8;
+			} while (i-- > 0);
+
+			if (sz != 0)
+				s = std::string(unpacked, sz);
+
+			return sz;
+		}
+
+		rank(uint64_t packed) {  // not validated - make sure your bytes are valid!
+			unpack(_data, packed);
 		}
 		// otherwise, don't allow iniatialization by constructors,
         // because we must validate data either by return code

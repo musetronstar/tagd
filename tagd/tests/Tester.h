@@ -11,47 +11,6 @@
 class Tester : public CxxTest::TestSuite {
 	public:
 
-	void test_hard_tag_pos(void) {
-		std::string id(HARD_TAG_ENTITY);
-		tagd::part_of_speech pos = tagd::hard_tag::pos(id);
-		TS_ASSERT_EQUALS(pos, tagd::POS_TAG);
-
-		id = "caca";
-		pos = tagd::hard_tag::pos(id);
-		TS_ASSERT_EQUALS(pos, tagd::POS_UNKNOWN);
-	}
-
-	void test_hard_tag_get(void) {
-		std::string id(HARD_TAG_ENTITY);
-		tagd::abstract_tag t;
-		tagd::code tc = tagd::hard_tag::get(t, id);
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT_EQUALS(t.id(), HARD_TAG_ENTITY);
-		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
-		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_ENTITY);
-
-		t.clear();
-		id = HARD_TAG_IS_A;
-		tc = tagd::hard_tag::get(t, id);
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT_EQUALS(t.id(), HARD_TAG_IS_A);
-		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
-		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_SUPER);
-
-		t.clear();
-		id = HARD_TAG_HAS;
-		tc = tagd::hard_tag::get(t, id);
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT_EQUALS(t.id(), HARD_TAG_HAS);
-		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
-		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_RELATOR);
-
-		t.clear();
-		id = "caca";
-		tc = tagd::hard_tag::get(t, id);
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
-	}
-
     void test_utf8_read(void) {
 		std::string str;
 		size_t pos = 0;
@@ -132,7 +91,8 @@ class Tester : public CxxTest::TestSuite {
 
         // init tests
         tagd::rank r1;
-        r1.init(a1);
+        auto tc = r1.init(a1);
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(tc) , "TAGD_OK");
         TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.5" );
         TS_ASSERT_EQUALS( r1.back() , 5 );
         TS_ASSERT_EQUALS( r1.size() , 3 );
@@ -147,6 +107,18 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( r3.empty() );
         r3 = r1;
         TS_ASSERT_EQUALS( r3.dotted_str() , "1.2.5" );
+    }
+	
+	void test_rank_init_int64(void) {
+        uint64_t i = 0x0102050000000000;
+
+        // init tests
+        tagd::rank r1;
+        auto tc = r1.init(i);
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(tc) , "TAGD_OK");
+        TS_ASSERT_EQUALS( r1.dotted_str() , "1.2.5" );
+        TS_ASSERT_EQUALS( r1.back() , 5 );
+        TS_ASSERT_EQUALS( r1.size() , 3 );
     }
 
     void test_rank_clear(void) {

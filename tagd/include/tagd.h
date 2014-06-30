@@ -18,7 +18,6 @@ namespace tagd {
 
 const size_t MAX_TAG_LEN = 2112;  // We are the Priests of the Temples of Syrinx 
 typedef std::string id_type;
-typedef long long int rowid_t;
 
 typedef enum {
 	OP_EQ,		// =
@@ -590,13 +589,6 @@ struct util {
 	static char* csprintf(const char *, ...);
 	static char* csprintf(const char *, va_list&);
 	static std::string esc_and_quote(id_type);
-};
-
-
-struct hard_tag {
-	static part_of_speech pos(const std::string &id);
-	static tagd_code get(abstract_tag&, const std::string &id);
-	static part_of_speech term_pos(const id_type&, rowid_t*);
 };
 
 }  // namespace tagd

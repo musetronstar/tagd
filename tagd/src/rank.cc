@@ -52,13 +52,11 @@ tagd::code rank::init(const char *bytes) {
 }
 
 tagd::code rank::init(uint64_t packed) {
-    if (packed == 0) return RANK_EMPTY;
-
-	char *p = reinterpret_cast<char *>(&packed); // cast reverses bytes
-	std::reverse_copy (p, p+8, _data.begin());	
+    if (unpack(_data, packed) == 0)
+		return RANK_EMPTY;
 
 	auto tc = validate(_data);
-    if (tc != TAGD_OK) {\
+    if (tc != TAGD_OK) {
 		_data.clear();
         return tc;
 	}
