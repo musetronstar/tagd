@@ -572,12 +572,12 @@ Spanish:
 	>> cola refers_to tail context spanish;
 
 	>> fur is_a body_part;
-	>> piel refers_to fur context spanish;
+	>> pelo refers_to fur context spanish;
 
 Now let's add a predicate in Spanish:
 
 	%% context spanish;
-	>> perro tiene piel;
+	>> perro tiene pelo;
 
 Now we can see the predicate that was stated in Spanish:
 
@@ -590,7 +590,7 @@ Results:
 	can bark
 	has fur, legs = 4, tail
 
-We can see the Spanish predicate `tiene piel` is available in English as
+We can see the Spanish predicate `tiene pelo` is available in English as
 `has fur`.
 
 Let's dump all the data we have entered so far to file so we can reuse it:
