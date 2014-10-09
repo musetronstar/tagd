@@ -10,7 +10,6 @@
 #include <cstdio>
 #include <cstdarg>
 
-#include "tagspace/bootstrap.h"
 #include "tagspace/sqlite.h"
 
 void trace_callback( void* udp, const char* sql ) {
@@ -134,42 +133,6 @@ tagd::code sqlite::_init(const std::string& fname) {
     if (_code == tagd::TAGD_OK)
         this->create_context_stack_table();
 
-	// We have to insert _entity and _super manually because of the FK on _super_relator
-	// The rest of the hard tags will be inserted by bootstrap
-	bool init_hard_tags = false;
-    if (_code == tagd::TAGD_OK) {
-		if (this->exists(HARD_TAG_ENTITY) == tagd::TS_NOT_FOUND) {
-			this->exec_mprintf(
-				"INSERT INTO terms (ROWID, term, term_pos) "
-				"VALUES (1, '%s', %d)",
-				HARD_TAG_ENTITY, tagd::POS_TAG
-			);
-			init_hard_tags = true;
-		}
-
-		if ( _code == tagd::TAGD_OK &&
-			this->exists(HARD_TAG_SUPER) == tagd::TS_NOT_FOUND )
-		{
-			this->exec_mprintf(
-				"INSERT INTO terms (ROWID, term, term_pos) "
-				"VALUES (2, '%s', %d)",
-				HARD_TAG_SUPER, tagd::POS_SUPER_RELATOR
-			);
-			init_hard_tags = true;
-		}
-
-		if ( _code == tagd::TAGD_OK && init_hard_tags) {
-			this->exec_mprintf(
-				"INSERT INTO tags (tag, super_relator, super_object, rank, pos) "
-				"VALUES (tid('%s'), tid('%s'), tid('%s'), NULL, %d)",
-				HARD_TAG_ENTITY, HARD_TAG_SUPER, HARD_TAG_ENTITY, tagd::POS_TAG
-			);
-		}
-	}
-
-    if (_code == tagd::TAGD_OK && init_hard_tags)
-		bootstrap::init_hard_tags(*this);
-
     if (_code != tagd::TAGD_OK) {
 		tagd::code ts_rc = _code;
         this->exec("ROLLBACK");
@@ -211,7 +174,12 @@ tagd::code sqlite::create_terms_table() {
 
 		rowid_t term_id;
 		sqlite *ts = (sqlite*)sqlite3_user_data(context);
-		tagd::part_of_speech pos = ts->term_pos(term, &term_id);
+		tagd::part_of_speech pos = (
+			term[0] == '_'
+				? hard_tag::term_pos(term, &term_id)
+				: ts->term_pos(term, &term_id)
+		);
+
 		if (pos == tagd::POS_UNKNOWN) {
 			sqlite3_result_null(context);
 		} else {
@@ -234,7 +202,12 @@ tagd::code sqlite::create_terms_table() {
 		sqlite *ts = (sqlite*)sqlite3_user_data(context);
 
 		std::string term;
-		tagd::part_of_speech pos = ts->term_id_pos(term_id, &term);
+		tagd::part_of_speech pos = (
+			term[0] == '_'
+				? hard_tag::term_id_pos(term_id, &term)
+				: ts->term_id_pos(term_id, &term)
+		);
+
 		if (pos == tagd::POS_UNKNOWN) {
 			sqlite3_result_null(context);
 			return;

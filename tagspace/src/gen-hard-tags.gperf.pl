@@ -8,15 +8,18 @@ use open qw(:std :utf8);
 
 @ARGV > 0 or die "usage: $0 <hard-tags.h>";
 
-# gperf declarations heading
-while (<DATA>) { print $_ }
-
 my %tree;
-
+my @rows = ("");  # first row == 0 unused
 my $row = 0;
+
 while (<>) {
     #chomp;
     s/\s+$//g;
+
+# hard-tags.h form:
+#define HARD_TAG_TAGNAME "<_tagname>" //gperf <SUPER_RELATION>, <tagd::part_of_speech>
+# example:
+#define HARD_TAG_RELATOR	"_relator"	//gperf HARD_TAG_ENTITY, tagd::POS_RELATOR
 
     if (/^#define\s*(\S*)\s*\"(\S*)\"\s*\/\/gperf\s*([^, ]+), ?(.*)/) {
 		$row++;
@@ -25,20 +28,25 @@ while (<>) {
 		my $super_hard_tag  = $3;
 		my $pos  = $4;
 
-		$tree{$hard_tag_define} = {
+		$tree{$hard_tag_value} = {
 			hard_tag_define => $hard_tag_define,
 			hard_tag_value => $hard_tag_value,
 			super_hard_tag => $super_hard_tag,
+			pos => $pos,
+			row => $row
 		};
+
+		push @rows, $hard_tag_value;
 
 		if ($hard_tag_define eq 'HARD_TAG_ENTITY') {
 			# <row_id>, <tag id>, <super_object>, <pos>, <rank_cstr>
-			print "$hard_tag_value, $super_hard_tag, $pos, $row, 0\n";
+			# print "$hard_tag_value, $super_hard_tag, $pos, $row, 0\n";
+			$tree{$hard_tag_value}->{rank} = [ 0 ];
 		} else {
 			if ( $tree{$super_hard_tag}->{childs} ) {
-				push @{$tree{$super_hard_tag}->{childs}}, $hard_tag_define;
+				push @{$tree{$super_hard_tag}->{childs}}, $hard_tag_value;
 			} else {
-				$tree{$super_hard_tag}->{childs} = [ $hard_tag_define ];
+				$tree{$super_hard_tag}->{childs} = [ $hard_tag_value ];
 			}
 
 			# last byte is its child index (starting from 1)
@@ -46,28 +54,41 @@ while (<>) {
 			my $super_rank = $tree{$super_hard_tag}->{rank};
 
 			if (!$super_rank) {
-				$tree{$hard_tag_define}->{rank} = [ $last_byte ];
+				$tree{$hard_tag_value}->{rank} = [ $last_byte ];
 			} else {
 				my @s = @$super_rank;
 				push @s, $last_byte;
-				$tree{$hard_tag_define}->{rank} = \@s;
+				$tree{$hard_tag_value}->{rank} = \@s;
 			}
-
-			# <row_id>, <tag id>, <super_object>, <pos>, <rank_cstr>
-			print "$hard_tag_value, $super_hard_tag, $pos, $row, ";
-
-			# rank as a 64bit hex string
-			my $b = 0;
-			print "0x";
-			foreach (@{$tree{$hard_tag_define}->{rank}}) {
-				printf "%02x", $_;
-				$b++;
-			}
-			while ($b++ < 8) { print "00"; }
-
-			print "\n";
 		}
     }
+}
+
+# gperf declarations heading
+while (<DATA>) { print $_ }
+
+print "const char * hard_tag_rows[".scalar(@rows)."] = { \"" . join("\", \"", @rows) . "\" };\n";
+print "const size_t hard_tag_rows_end = " . scalar(@rows) . ";\n";
+print "%%\n";  # close declarations
+
+shift @rows;  # first row unused
+foreach ( @rows ) {
+	my $hard_tag_value = $_;
+	my $val = $tree{$hard_tag_value};
+
+	# <row_id>, <tag id>, <super_object>, <pos>, <rank_cstr>
+	print "$hard_tag_value, $val->{super_hard_tag}, $val->{pos}, $val->{row}, ";
+
+	# rank as a 64bit hex string
+	my $b = 0;
+	print "0x";
+	foreach (@{$val->{rank}}) {
+		printf "%02x", $_;
+		$b++;
+	}
+	while ($b++ < 8) { print "00"; }
+
+	print "\n";
 }
 
 __END__
@@ -89,4 +110,5 @@ struct hard_tag_hash_value {
 	tagspace::rowid_t row_id;
 	uint64_t rank;
 };
-%%
+
+// closing '%%' after hard_tag_rows

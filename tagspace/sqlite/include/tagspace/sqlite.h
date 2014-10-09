@@ -204,7 +204,7 @@ class sqlite: public tagspace {
 		// returns the part of speech that was inserted or updated, or a duplicate, POS_UNKNOWN on error
 		tagd::part_of_speech put_term(const tagd::id_type&, const tagd::part_of_speech);
 		tagd::part_of_speech term_pos(const tagd::id_type&, rowid_t*);
-		tagd::part_of_speech term_id_pos(rowid_t, tagd::id_type* = NULL);
+		tagd::part_of_speech term_id_pos(rowid_t, tagd::id_type* = nullptr);
 
         tagd_code insert_term(const tagd::id_type&, const tagd::part_of_speech);
         tagd_code update_term(const tagd::id_type&, const tagd::part_of_speech);
