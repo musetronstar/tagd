@@ -498,8 +498,11 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t
 		std::cerr << "sqlite::get: " << term << std::endl;
 
 	tagd_code tc = hard_tag::get(t, term);
-	if (tc != tagd::TS_NOT_FOUND) 
+	if (tc != tagd::TS_NOT_FOUND) {
+		if (_trace_on)
+			std::cerr << "got hard_tag: " << t << " -- " << t.rank().dotted_str() << std::endl;
 		return this->code(tc);
+	}
 
 	tagd::part_of_speech term_pos = this->term_pos(term);
 	// std::cerr << "term_pos(" << term << "): " << pos_list_str(term_pos) << std::endl;
@@ -1524,6 +1527,10 @@ tagd::code sqlite::delete_tag(const tagd::id_type& id) {
 }
 
 tagd::code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& super) {
+	std::cerr << "sqlite::next_rank: " << std::endl;
+	std::cerr << "\tnext: " << next.dotted_str() << std::endl;
+	std::cerr << "\tsuper(" << (super.rank().empty() ? "empty" : "non-empty") << "): " << super << "\t-- " << super.rank().dotted_str() << std::endl;
+
     if( !(!super.rank().empty() || (super.rank().empty() && super.id() == HARD_TAG_ENTITY)) ) {
 		std::cerr << "next_rank: " << super << "\t-- " << super.rank().dotted_str() << std::endl;
 	}
@@ -1605,9 +1612,11 @@ std::string format_fts(const tagd::abstract_tag &t) {
 		return s;
 	};
 
+	/*
 	auto f_is_digits = [](const std::string &str) {
 		return std::all_of(str.begin(), str.end(), ::isdigit);
 	};
+	*/
 
 	auto f_print_fts = [&](const tagd::id_type& s) {
 				ss << f_format_fts(s);
@@ -1816,6 +1825,9 @@ tagd::code sqlite::delete_term(const tagd::id_type& id) {
 }
 
 tagd::code sqlite::insert(const tagd::abstract_tag& t, const tagd::abstract_tag& destination) {
+	if (_trace_on)
+		std::cerr << "sqlite::insert " << t << std::endl;
+
     assert( t.super_object() == destination.id() );
     assert( !t.id().empty() );
     assert( !t.super_relator().empty() );

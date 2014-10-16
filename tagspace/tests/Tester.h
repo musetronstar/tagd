@@ -169,6 +169,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS(t.id(), HARD_TAG_ENTITY);
 		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
 		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_ENTITY);
+		TS_ASSERT(t.rank().empty());
 
 		t.clear();
 		id = HARD_TAG_IS_A;
@@ -177,7 +178,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS(t.id(), HARD_TAG_IS_A);
 		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
 		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_SUPER);
-		TS_ASSERT_EQUALS(t.rank().dotted_str(), "3.1");
+		TS_ASSERT_EQUALS(t.rank().dotted_str(), "1.1");
 
 		t.clear();
 		id = HARD_TAG_HAS;
@@ -204,17 +205,15 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(t.id(), HARD_TAG_ENTITY);
         TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_ENTITY);
     }
-
     void test_put_get_rank(void) {
         space_type TS;
         TS.init(db_fname);
-
         tagd::tag a("physical_object", HARD_TAG_ENTITY);
         tagd_code ts_rc = TS.put(a);
 
         tagd::tag b;
         ts_rc = TS.get(b, "physical_object");
-        TS_ASSERT_EQUALS(ts_rc, tagd::TAGD_OK);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TAGD_OK");
         TS_ASSERT_EQUALS(b.id(), "physical_object");
         TS_ASSERT_EQUALS(b.super_object(), HARD_TAG_ENTITY);
 

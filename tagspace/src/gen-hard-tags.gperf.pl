@@ -9,6 +9,7 @@ use open qw(:std :utf8);
 @ARGV > 0 or die "usage: $0 <hard-tags.h>";
 
 my %tree;
+my %defines;
 my @rows = ("");  # first row == 0 unused
 my $row = 0;
 
@@ -25,41 +26,47 @@ while (<>) {
 		$row++;
 		my $hard_tag_define = $1;
 		my $hard_tag_value  = $2;
-		my $super_hard_tag  = $3;
+		my $super_hard_tag_define  = $3;
 		my $pos  = $4;
+
+		$defines{$hard_tag_define} = $hard_tag_value;
 
 		$tree{$hard_tag_value} = {
 			hard_tag_define => $hard_tag_define,
 			hard_tag_value => $hard_tag_value,
-			super_hard_tag => $super_hard_tag,
+			super_hard_tag_define => $super_hard_tag_define,
 			pos => $pos,
 			row => $row
 		};
+
+		my $super_hard_tag = $defines{$super_hard_tag_define};
+
+		die "undef super hard tag!" if !$super_hard_tag;
 
 		push @rows, $hard_tag_value;
 
 		if ($hard_tag_define eq 'HARD_TAG_ENTITY') {
 			# <row_id>, <tag id>, <super_object>, <pos>, <rank_cstr>
-			# print "$hard_tag_value, $super_hard_tag, $pos, $row, 0\n";
-			$tree{$hard_tag_value}->{rank} = [ 0 ];
+			$tree{$hard_tag_value}->{rank} = undef;
+			next;
+		} 
+		
+		if ( $tree{$super_hard_tag}->{childs} ) {
+			push @{$tree{$super_hard_tag}->{childs}}, $hard_tag_value;
 		} else {
-			if ( $tree{$super_hard_tag}->{childs} ) {
-				push @{$tree{$super_hard_tag}->{childs}}, $hard_tag_value;
-			} else {
-				$tree{$super_hard_tag}->{childs} = [ $hard_tag_value ];
-			}
+			$tree{$super_hard_tag}->{childs} = [ $hard_tag_value ];
+		}
 
-			# last byte is its child index (starting from 1)
-			my $last_byte = @{$tree{$super_hard_tag}->{childs}};
-			my $super_rank = $tree{$super_hard_tag}->{rank};
+		# last byte is its child index (starting from 1)
+		my $last_byte = @{$tree{$super_hard_tag}->{childs}};
+		my $super_rank = $tree{$super_hard_tag}->{rank};
 
-			if (!$super_rank) {
-				$tree{$hard_tag_value}->{rank} = [ $last_byte ];
-			} else {
-				my @s = @$super_rank;
-				push @s, $last_byte;
-				$tree{$hard_tag_value}->{rank} = \@s;
-			}
+		if (!$super_rank) {
+			$tree{$hard_tag_value}->{rank} = [ $last_byte ];
+		} else {
+			my @s = @$super_rank;
+			push @s, $last_byte;
+			$tree{$hard_tag_value}->{rank} = \@s;
 		}
     }
 }
@@ -69,6 +76,7 @@ while (<DATA>) { print $_ }
 
 print "const char * hard_tag_rows[".scalar(@rows)."] = { \"" . join("\", \"", @rows) . "\" };\n";
 print "const size_t hard_tag_rows_end = " . scalar(@rows) . ";\n";
+print "\n";  # close declarations
 print "%%\n";  # close declarations
 
 shift @rows;  # first row unused
@@ -77,7 +85,7 @@ foreach ( @rows ) {
 	my $val = $tree{$hard_tag_value};
 
 	# <row_id>, <tag id>, <super_object>, <pos>, <rank_cstr>
-	print "$hard_tag_value, $val->{super_hard_tag}, $val->{pos}, $val->{row}, ";
+	print "$hard_tag_value, $val->{super_hard_tag_define}, $val->{pos}, $val->{row}, ";
 
 	# rank as a 64bit hex string
 	my $b = 0;
@@ -95,6 +103,7 @@ __END__
 %{
 #include "tagspace.h"
 %}
+
 // declarations
 %struct-type
 %7bit
@@ -111,4 +120,3 @@ struct hard_tag_hash_value {
 	uint64_t rank;
 };
 
-// closing '%%' after hard_tag_rows

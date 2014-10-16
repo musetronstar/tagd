@@ -15,24 +15,22 @@
 
 // root _entity (only axiomatic, self-referencing entity that exists)
 #define HARD_TAG_ENTITY		"_entity"	//gperf HARD_TAG_ENTITY, tagd::POS_TAG
-#define HARD_TAG_MESSAGE	"_message"	//gperf HARD_TAG_ENTITY, tagd::POS_TAG
-
-// relators - relates subject to object, superordinate to all relators
-#define HARD_TAG_RELATOR	"_relator"	//gperf HARD_TAG_ENTITY, tagd::POS_RELATOR
-#define HARD_TAG_HAS 		"_has"		//gperf HARD_TAG_RELATOR, tagd::POS_RELATOR
-#define HARD_TAG_CAN 		"_can"		//gperf HARD_TAG_RELATOR, tagd::POS_RELATOR
 
 // super relators - relates tag ids to their super_object (aka. superordinate, parent, hypernym...)
 #define HARD_TAG_SUPER		"_super"	//gperf HARD_TAG_ENTITY, tagd::POS_SUPER_RELATOR
 #define HARD_TAG_IS_A		"_is_a"		//gperf HARD_TAG_SUPER, tagd::POS_SUPER_RELATOR
 #define HARD_TAG_TYPE_OF	"_type_of"	//gperf HARD_TAG_SUPER, tagd::POS_SUPER_RELATOR
 
+// relators - relates subject to object, superordinate to all relators
+#define HARD_TAG_RELATOR	"_relator"	//gperf HARD_TAG_ENTITY, tagd::POS_RELATOR
+#define HARD_TAG_HAS 		"_has"		//gperf HARD_TAG_RELATOR, tagd::POS_RELATOR
+#define HARD_TAG_CAN 		"_can"		//gperf HARD_TAG_RELATOR, tagd::POS_RELATOR
+
 /***** interrogators *****/
 // resolves objects of inquiry (queries, searches)
 #define HARD_TAG_INTERROGATOR	"_interrogator"	//gperf HARD_TAG_ENTITY, tagd::POS_INTERROGATOR
 #define HARD_TAG_WHAT			"_what"			//gperf HARD_TAG_INTERROGATOR, tagd::POS_INTERROGATOR
 #define HARD_TAG_SEARCH			"_search"		//gperf HARD_TAG_INTERROGATOR, tagd::POS_INTERROGATOR
-#define HARD_TAG_TERMS			"_terms"		//gperf HARD_TAG_MESSAGE, tagd::POS_TAG
 
 /***** referents *****/
 // super_object for token that refers to a tag in a context
@@ -43,6 +41,10 @@
 #define HARD_TAG_REFERS_TO	"_refers_to"	//gperf HARD_TAG_RELATOR, tagd::POS_REFERS_TO
 // relation that defines the context of a _referent
 #define HARD_TAG_CONTEXT	"_context"		//gperf HARD_TAG_RELATOR, tagd::POS_CONTEXT
+
+/***** messages *****/
+#define HARD_TAG_MESSAGE	"_message"	//gperf HARD_TAG_ENTITY, tagd::POS_TAG
+#define HARD_TAG_TERMS		"_terms"		//gperf HARD_TAG_MESSAGE, tagd::POS_TAG
 
 /***** flags *****/
 #define HARD_TAG_FLAG		"_flag"			//gperf HARD_TAG_ENTITY, tagd::POS_FLAG

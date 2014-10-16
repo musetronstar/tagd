@@ -10,10 +10,10 @@
 namespace tagspace {
 
 // looks up hard tag and returns part_of_speech
-	tagd::part_of_speech hard_tag::pos(const tagd::id_type &id) {
+tagd::part_of_speech hard_tag::pos(const tagd::id_type &id) {
     hard_tag_hash_value *val = hard_tag_hash::lookup(id.c_str(), id.size());
 
-    if (val == NULL)
+    if (val == nullptr)
         return tagd::POS_UNKNOWN;
     else
         return val->pos;
@@ -23,7 +23,7 @@ namespace tagspace {
 tagd::part_of_speech hard_tag::term_pos(const tagd::id_type& id, rowid_t* row_id) {
     hard_tag_hash_value *val = hard_tag_hash::lookup(id.c_str(), id.size());
 
-    if (val == NULL) {
+    if (val == nullptr) {
         return tagd::POS_UNKNOWN;
 	} else {
 		*row_id = val->row_id;
@@ -51,7 +51,7 @@ tagd::part_of_speech hard_tag::term_id_pos(rowid_t row_id, tagd::id_type *term) 
 tagd::code hard_tag::get(tagd::abstract_tag& t, const tagd::id_type &id) {
     hard_tag_hash_value *val = hard_tag_hash::lookup(id.c_str(), id.size());
 
-    if (val == NULL) {
+    if (val == nullptr) {
         return tagd::TS_NOT_FOUND;
 	} else {
 		t.id(id);
