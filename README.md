@@ -150,7 +150,7 @@ Results should be:
 
 	get_statement ::= "<<" subject
 
-As you can see, the `<<` input operator is used for getting data.
+As you can see, the `<<` output operator is used for getting data.
 The definition will likely be expanded to allow for getting subject lists
 of more than one tag in the future.
 
