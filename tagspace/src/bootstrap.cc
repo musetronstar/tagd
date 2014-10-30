@@ -7,6 +7,14 @@ namespace tagspace {
 tagd::code bootstrap::put_hard_tag(
 		tagspace& TS, const tagd::id_type& id,
 		const tagd::id_type& super, const tagd::part_of_speech& pos) {
+
+	tagd::abstract_tag ht;
+	tagd_code tc = hard_tag::get(ht, id);
+	if (tc != tagd::TS_NOT_FOUND) {
+		std::cerr << "bootstrap hard_tag: " << ht << " -- " << ht.rank().dotted_str() << std::endl;
+	}
+
+
 	tagd::abstract_tag t(id, super, pos);
 	tagd::code rs = TS.put(t, (F_NO_POS_CAST|F_NO_TRANSFORM_REFERENTS));
 	if (!((rs == tagd::TAGD_OK)||(rs == tagd::TS_DUPLICATE))) {

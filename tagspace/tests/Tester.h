@@ -205,6 +205,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(t.id(), HARD_TAG_ENTITY);
         TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_ENTITY);
     }
+
     void test_put_get_rank(void) {
         space_type TS;
         TS.init(db_fname);
@@ -1597,5 +1598,6 @@ class Tester : public CxxTest::TestSuite {
 //        populate_tags(TS);
 //		TS.dump_terms();
 //	}
+
 
 };

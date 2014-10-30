@@ -55,11 +55,15 @@ struct flag_util {
 
 typedef long long int rowid_t;
 
-struct hard_tag {
-	static tagd::part_of_speech pos(const tagd::id_type &id);
-	static tagd::code get(tagd::abstract_tag&, const tagd::id_type &id);
-	static tagd::part_of_speech term_pos(const tagd::id_type&, rowid_t*);
-	static tagd::part_of_speech term_id_pos(rowid_t, tagd::id_type* = nullptr);
+class hard_tag {
+	public:
+		static tagd::part_of_speech pos(const tagd::id_type &id);
+		static tagd::code get(tagd::abstract_tag&, const tagd::id_type &id);
+		static tagd::part_of_speech term_pos(const tagd::id_type&, rowid_t* = nullptr);
+		static tagd::part_of_speech term_id_pos(rowid_t, tagd::id_type* = nullptr);
+
+		static const char ** rows();
+		static size_t rows_end();
 };
 
 // pure virtual interface

@@ -35,20 +35,41 @@ typedef enum {
 } ts_sqlite_code;
 
 ts_sqlite_code sqlite_constraint_type(const char *err) {
-	if (strcmp(err, "columns subject, relator, object are not unique") == 0)
-		return TS_SQLITE_UNIQUE;
+	switch (err[0]) {
+		case 'c':
+			if (strcmp(err, "columns subject, relator, object are not unique") == 0)
+				return TS_SQLITE_UNIQUE;
 
-	if (strcmp(err, "columns refers, refers_to are not unique") == 0)
-		return TS_SQLITE_UNIQUE;
+			if (strcmp(err, "columns refers, refers_to are not unique") == 0)
+				return TS_SQLITE_UNIQUE;
 
-	if (strcmp(err, "columns refers, context are not unique") == 0)
-		return TS_SQLITE_UNIQUE;
+			if (strcmp(err, "columns refers, context are not unique") == 0)
+				return TS_SQLITE_UNIQUE;
 
-	if (strcmp(err, "columns refers, context = NULL are not unique") == 0)
-		return TS_SQLITE_UNIQUE;
+			if (strcmp(err, "columns refers, context = NULL are not unique") == 0)
+				return TS_SQLITE_UNIQUE;
 
-	if (strcmp(err, "foreign key constraint failed") == 0)
-		return TS_SQLITE_FK;
+			break;
+
+		case 'f':
+			if (strcmp(err, "foreign key constraint failed") == 0)
+				return TS_SQLITE_FK;
+
+			break;
+
+		case 'F':
+			if (strcmp(err, "FOREIGN KEY constraint failed") == 0)
+				return TS_SQLITE_FK;
+
+			break;
+
+		case 'U':
+			//               0123456789012345678901234
+			if (strncmp(err, "UNIQUE constraint failed", 24) == 0)
+				return TS_SQLITE_UNIQUE;
+
+			break;
+	}	
 
 	return TS_SQLITE_UNK;
 }
@@ -132,6 +153,97 @@ tagd::code sqlite::_init(const std::string& fname) {
 
     if (_code == tagd::TAGD_OK)
         this->create_context_stack_table();
+
+	// We have to insert _entity and _super manually because of the FK on _super_relator
+	// The rest of the hard tags will be inserted by bootstrap
+	//bool init_hard_tags = false;
+    if (_code == tagd::TAGD_OK) {
+
+		sqlite3_stmt *stmt = NULL; 
+		this->prepare(&stmt,
+			"INSERT INTO terms (ROWID, term, term_pos) VALUES (?, ?, ?)",
+			"insert term"
+		);
+		OK_OR_RET_ERR(); 
+
+		const char ** hard_tag_rows = hard_tag::rows();	
+		const size_t rows_end = hard_tag::rows_end();
+
+		for (size_t i=1; i<rows_end; i++) {
+			tagd::part_of_speech term_pos = hard_tag::term_pos(hard_tag_rows[i]);
+
+			this->bind_rowid(&stmt, 1, i, "insert hard_tag rowid");
+			this->bind_text(&stmt, 2, hard_tag_rows[i], "insert hard_tag term");
+			this->bind_int(&stmt, 3, term_pos, "insert hard_tag term_pos");
+
+			int s_rc = sqlite3_step(stmt);
+			if (s_rc != SQLITE_DONE) {
+				this->ferror( tagd::TS_ERR, "insert hard_tag term failed: %s, sqlite_error: %s",
+						hard_tag_rows[i], sqlite3_errmsg(_db) );
+			}
+
+			sqlite3_reset(stmt);
+			sqlite3_clear_bindings(stmt);
+		}
+
+		sqlite3_finalize(stmt);
+
+		// INSERT NULL for HARD_TAG_ENTITY rank 
+		if ( _code == tagd::TAGD_OK ) {
+			this->exec_mprintf(
+				"INSERT INTO tags (tag, super_relator, super_object, rank, pos) "
+				"VALUES (tid('%s'), tid('%s'), tid('%s'), NULL, %d)",
+				HARD_TAG_ENTITY, HARD_TAG_SUPER, HARD_TAG_ENTITY, tagd::POS_TAG
+			);
+		}
+
+		if ( _code == tagd::TAGD_OK ) {
+			stmt = NULL;
+			this->prepare(&stmt,
+				"INSERT INTO tags (tag, super_relator, super_object, rank, pos) "
+				"VALUES (tid(?), tid(?), tid(?), ?, ?)",
+				"insert hard_tag"
+			);
+
+			// HARD_TAG_ENTITY (i==1) already inserted
+			for (size_t i=2; i<rows_end; i++) {
+				tagd::abstract_tag t;
+				tagd_code tc = hard_tag::get(t, hard_tag_rows[i]);
+
+				if (tc != tagd::TAGD_OK) {
+					this->code(tc);
+					break;
+				}
+
+				this->bind_text(&stmt, 1, t.id().c_str(), "insert hard_tag id");
+				this->bind_text(&stmt, 2, t.super_relator().c_str(), "insert hard_tag super_relator");
+				this->bind_text(&stmt, 3, t.super_object().c_str(), "insert hard_tag super_object");
+				if (t.rank().empty()) {
+					assert(t.id() == HARD_TAG_ENTITY);
+					this->bind_null(&stmt, 4, "insert hard_tag rank");
+				} else {
+					this->bind_text(&stmt, 4, t.rank().c_str(), "insert hard_tag rank");
+				}
+				this->bind_text(&stmt, 4, t.rank().c_str(), "insert hard_tag rank");
+				this->bind_int(&stmt, 5, t.pos(), "insert hard_tag pos");
+
+				int s_rc = sqlite3_step(stmt);
+				if (s_rc != SQLITE_DONE) {
+					this->ferror( tagd::TS_ERR, "insert hard_tag failed: %s, sqlite_error: %s",
+							t.id().c_str(), sqlite3_errmsg(_db) );
+					sqlite3_finalize(stmt);
+					break;
+				}
+
+				sqlite3_reset(stmt);
+				sqlite3_clear_bindings(stmt);
+			}
+		}
+		sqlite3_finalize(stmt);
+	}
+
+    //if (_code == tagd::TAGD_OK && init_hard_tags)
+	//	bootstrap::init_hard_tags(*this);
 
     if (_code != tagd::TAGD_OK) {
 		tagd::code ts_rc = _code;
@@ -1527,10 +1639,6 @@ tagd::code sqlite::delete_tag(const tagd::id_type& id) {
 }
 
 tagd::code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& super) {
-	std::cerr << "sqlite::next_rank: " << std::endl;
-	std::cerr << "\tnext: " << next.dotted_str() << std::endl;
-	std::cerr << "\tsuper(" << (super.rank().empty() ? "empty" : "non-empty") << "): " << super << "\t-- " << super.rank().dotted_str() << std::endl;
-
     if( !(!super.rank().empty() || (super.rank().empty() && super.id() == HARD_TAG_ENTITY)) ) {
 		std::cerr << "next_rank: " << super << "\t-- " << super.rank().dotted_str() << std::endl;
 	}

@@ -26,7 +26,8 @@ tagd::part_of_speech hard_tag::term_pos(const tagd::id_type& id, rowid_t* row_id
     if (val == nullptr) {
         return tagd::POS_UNKNOWN;
 	} else {
-		*row_id = val->row_id;
+		if (row_id != nullptr)
+			*row_id = val->row_id;
         return val->pos;
 	}
 }
@@ -43,7 +44,8 @@ tagd::part_of_speech hard_tag::term_id_pos(rowid_t row_id, tagd::id_type *term) 
     if (val == nullptr) {
         return tagd::POS_UNKNOWN;
 	} else {
-		*term = id;
+		if (term != nullptr)
+			*term = id;
         return val->pos;
 	}
 }
@@ -59,11 +61,17 @@ tagd::code hard_tag::get(tagd::abstract_tag& t, const tagd::id_type &id) {
 		t.super_object(val->super);
 		t.pos(val->pos);
 		t.rank(tagd::rank(val->rank));
-    	std::cout << "hard_tag_hash::get( " << pos_str(val->pos) << ", " << val->rank << ", " << t.rank().dotted_str() << " ) => "
-        			<< t  << std::endl;
 	
         return t.code();
 	}
+}
+
+const char ** hard_tag::rows() {
+	return hard_tag_rows;
+}
+
+size_t hard_tag::rows_end() {
+	return hard_tag_rows_end;
 }
 
 } // namespace tagspace
