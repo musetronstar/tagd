@@ -3,8 +3,8 @@ CXXFLAGS = -O3
 
 TAGDDIR =../../tagd
 INC = -I../include -I$(TAGDDIR)/include
-SRCS = tagspace.cc bootstrap.cc
-HDRS = ../include/tagspace.h ../include/tagspace/bootstrap.h
+SRCS = tagspace.cc
+HDRS = ../include/tagspace.h
 OBJS=$(SRCS:.cc=.o)
 
 HARD_TAGS_H = ../../tagd/include/tagd/hard-tags.h
