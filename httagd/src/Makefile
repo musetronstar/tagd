@@ -1,10 +1,11 @@
 CXX = g++ -std=c++0x -Wall -Wextra
 CXXFLAGS = -O3
 
-TAGD_DIR = ../../tagd
-TAGL_DIR = ../../tagl
-TAGSPACE_DIR = ../../tagspace
-TAGSH_DIR = ../../tagsh
+PRG_DIR = ../..
+TAGD_DIR = $(PRG_DIR)/tagd
+TAGL_DIR = $(PRG_DIR)/tagl
+TAGSPACE_DIR = $(PRG_DIR)/tagspace
+TAGSH_DIR = $(PRG_DIR)/tagsh
 
 BUILD_DIR = ../bin
 BIN = $(BUILD_DIR)/httagd

@@ -1,11 +1,12 @@
 #pragma once
 
-#include <evhtp.h>
-
 #include "tagd.h"
 #include "tagl.h"
 #include "tagspace.h"
 #include "tagsh.h"
+
+#include <map>
+#include <evhtp.h>
 #include <ctemplate/template.h>
 
 const char* evhtp_res_str(int);
@@ -223,22 +224,6 @@ class tagl_callback : public TAGL::callback {
 		void add_http_headers();
 };
 
-class template_callback : public tagl_callback, public tagd::errorable {
-	public:
-		template_callback( tagspace::tagspace* ts, request* req )
-				: tagl_callback(ts, req) 
-			{
-				_content_type = "text/html; charset=utf-8";
-			}
-
-		void cmd_get(const tagd::abstract_tag&);
-		// void cmd_put(const tagd::abstract_tag&);
-		// void cmd_del(const tagd::abstract_tag&);
-		void cmd_query(const tagd::interrogator&); 
-        void cmd_error();
-		void empty();
-};
-
 
 /*
  evhtp_request_t structure 
@@ -301,34 +286,36 @@ class template_callback : public tagl_callback, public tagd::errorable {
 */
 
 typedef enum {
-	TPL_HTML,  // general html template
+	TPL_UNKNOWN,
 	TPL_HOME,
 	TPL_TAG,
 	TPL_TREE,
 	TPL_RELATIONS,
 	TPL_BROWSE,
 	TPL_QUERY,
-	TPL_NOT_FOUND,
 	TPL_HEADER,
 	TPL_FOOTER,
 	TPL_ERROR
-} tpl_file;
+} tpl_type;
 
 struct tpl_t {
-	std::string opt_t;
+	std::string val;
 	std::string fname;
-	tpl_file file;
+	tpl_type type;
 };
 
-const tpl_t HOME_TPL{"tag.html", "home.html.tpl", TPL_HOME};
-const tpl_t TAG_TPL{"tag.html", "tag.html.tpl", TPL_TAG};
-const tpl_t TREE_TPL{"tree.html", "tree.html.tpl", TPL_TREE};
-const tpl_t BROWSE_TPL{"browse.html", "browse.html.tpl", TPL_BROWSE};
-const tpl_t RELATIONS_TPL{"relations.html", "relations.html.tpl", TPL_RELATIONS};
-const tpl_t QUERY_TPL{"query.html", "query.html.tpl", TPL_QUERY};
-const tpl_t ERROR_TPL{"error.html", "error.html.tpl", TPL_ERROR};
-const tpl_t HEADER_TPL{"header.html", "header.html.tpl", TPL_HEADER};
-const tpl_t FOOTER_TPL{"footer.html", "footer.html.tpl", TPL_FOOTER};
+typedef std::map< std::string, tpl_t > template_map_t;
+
+const tpl_t UNKNOWN_TPL{"", "", TPL_UNKNOWN};
+const std::string HOME_TPL_VAL{"home.html"};
+const std::string TAG_TPL_VAL{"tag.html"};
+const std::string TREE_TPL_VAL{"tree.html"};
+const std::string BROWSE_TPL_VAL{"browse.html"};
+const std::string RELATIONS_TPL_VAL{"relations.html"};
+const std::string QUERY_TPL_VAL{"query.html"};
+const std::string ERROR_TPL_VAL{"error.html"};
+const std::string HEADER_TPL_VAL{"header.html"};
+const std::string FOOTER_TPL_VAL{"footer.html"};
 
 class tagd_template : public tagd::errorable {
 		tagspace::tagspace *_TS;
@@ -336,51 +323,50 @@ class tagd_template : public tagd::errorable {
 		evhtp_request_t *_ev_req;
 		std::string _tpl_dir;
 		std::string _context;
+		template_map_t _templates;
 
 	public: 
 		tagd_template(tagspace::tagspace* ts, request *r, evhtp_request_t *v, const std::string &tpl_dir) :
 			_TS{ts}, _request{r}, _ev_req{v}, _tpl_dir{tpl_dir}, _context{r->query_opt("c")}
 		{
-			if (_tpl_dir.empty()) _tpl_dir = "./tpl/";
+			if (_tpl_dir.empty()) {
+				_tpl_dir = "./tpl/";
+			} else {
+				if ( _tpl_dir[_tpl_dir.size()-1] != '/' )
+					_tpl_dir.push_back('/');
+			}
+
+			// TODO consider using a memory-only tagspace to store these details
+			_templates[ HOME_TPL_VAL ] = {HOME_TPL_VAL, "home.html.tpl", TPL_HOME};
+			_templates[ TAG_TPL_VAL ] = {TAG_TPL_VAL, "tag.html.tpl", TPL_TAG};
+			_templates[ TREE_TPL_VAL ] = {TREE_TPL_VAL, "tree.html.tpl", TPL_TREE};
+			_templates[ BROWSE_TPL_VAL ] = {BROWSE_TPL_VAL, "browse.html.tpl", TPL_BROWSE};
+			_templates[ RELATIONS_TPL_VAL ] = {RELATIONS_TPL_VAL, "relations.html.tpl", TPL_RELATIONS};
+			_templates[ QUERY_TPL_VAL ] = {QUERY_TPL_VAL, "query.html.tpl", TPL_QUERY};
+			_templates[ ERROR_TPL_VAL ] = {ERROR_TPL_VAL, "error.html.tpl", TPL_ERROR};
+			_templates[ HEADER_TPL_VAL ] = {HEADER_TPL_VAL, "header.html.tpl", TPL_HEADER};
+			_templates[ FOOTER_TPL_VAL ] = {FOOTER_TPL_VAL, "footer.html.tpl", TPL_FOOTER};
+		}
+
+		/* TODO maybe
+		void put ( const tpl_t& tpl ) {
+			_templates[tpl.val] = tpl;	
+		}  */
+
+		tpl_t get ( const std::string& key ) {
+			auto it = _templates.find(key);
+			if (it == _templates.end()) {
+				tpl_t t = UNKNOWN_TPL;
+				t.val = key;
+				return t;
+			}
+
+			return it->second;
 		}
 
 		std::string fpath(const tpl_t &tpl) {
-			return std::string(_tpl_dir)
-					.append( (_tpl_dir.size() > 0 && _tpl_dir[_tpl_dir.size()-1] == '/' ? "" : "/") )
+			return std::string(_tpl_dir)  // has trailing '/'
 					.append( tpl.fname );
-		}
-
-		// lookup a tpl_t given the tpl query string option 
-		// doesn't allow looking up error template
-		static tpl_t lookup_tpl(const std::string& opt_tpl) {
-			switch (opt_tpl[0]) {
-				case 'b':
-					if (opt_tpl == "browse.html")
-						return BROWSE_TPL;
-					break;
-				case 'h':
-					if (opt_tpl == "html")
-						return BROWSE_TPL;
-					break;
-				case 't':
-					if (opt_tpl == "tag.html")
-						return TAG_TPL;
-					if (opt_tpl == "tree.html")
-						return TREE_TPL;
-					break;	
-				case 'q':
-					if (opt_tpl == "query.html")
-						return QUERY_TPL;
-					break;	
-				case 'r':
-					if (opt_tpl == "relations.html")
-						return RELATIONS_TPL;
-					break;	
-				default:
-					;
-			}
-
-			return {opt_tpl, std::string(), TPL_NOT_FOUND};
 		}
 
 		bool looks_like_url(const std::string& s) {
@@ -444,5 +430,26 @@ class tagd_template : public tagd::errorable {
 		int expand_query(const tpl_t& tpl, const tagd::interrogator& q, const tagd::tag_set& R, ctemplate::TemplateDictionary& D);
 		void expand_error(const tpl_t& tpl, const tagd::errorable& E);
 };
+
+class template_callback : public tagl_callback, public tagd::errorable {
+	protected:
+		tagd_template _template; 
+
+	public:
+		template_callback( tagspace::tagspace* ts, request* req )
+				: tagl_callback(ts, req),
+				  _template(_TS, _request, _ev_req, _args->tpl_dir) 
+			{
+				_content_type = "text/html; charset=utf-8";
+			}
+
+		void cmd_get(const tagd::abstract_tag&);
+		// void cmd_put(const tagd::abstract_tag&);
+		// void cmd_del(const tagd::abstract_tag&);
+		void cmd_query(const tagd::interrogator&); 
+        void cmd_error();
+		void empty();
+};
+
 
 } // namespace httagd
