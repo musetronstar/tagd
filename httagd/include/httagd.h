@@ -73,7 +73,7 @@ class server : public tagsh, public tagd::errorable {
 		{ this->init(); }
 
 		server(tagspace::sqlite *ts, httagd_args *args)
-			: tagsh(ts), _args{args}, _bind_addr{"localhost"}, _bind_port{2112} 
+			: tagsh(ts), _args{args}
 		{
 			_bind_addr = (!args->bind_addr.empty() ? args->bind_addr : "localhost");
 			_bind_port = (args->bind_port ? args->bind_port : 2112);
