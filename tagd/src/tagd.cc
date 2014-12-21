@@ -34,7 +34,7 @@ void print_tag_ids(const tag_set& T, std::ostream& os) {
 	tagd::tag_set::iterator it = T.begin();
 	os << it->id();
 	for (++it; it != T.end(); ++it) {
-		os << " ," << std::endl << it->id();
+		os << ", " << it->id();
 	}
 	os << std::endl;
 }

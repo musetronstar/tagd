@@ -210,7 +210,7 @@ test "query_url_animal" \
 
 test "query_url_animal_wikipedia" \
 "?? what is_a _url * animal
-_has _private = wikipedia, _pub = org" \
+_has _private = wikipedia, _public = org" \
 "https://en.wikipedia.org/wiki/Dog, https://en.wikipedia.org/wiki/Cat"
 
 send ".exit$NL"
