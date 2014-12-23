@@ -34,10 +34,6 @@ int tagsh::error(const char *errfmt, ...) {
 	return 1;
 }
 
-tagsh_callback::tagsh_callback(space_type *ts) {
-	_TS = ts;
-}
-
 void add_history_lines_clear(cmdlines_t& lines) {
 	std::string hst;
 	for (auto l : lines) {
@@ -78,7 +74,8 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 	tagd::code ts_rc = _TS->put(t, _driver->flags());
 	if (_TS->ok()) {
-		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
+		if (_echo_result_code)
+			std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
 	} else {
 		_driver->code(_TS->code()); // stops the scanner
 		_TS->print_errors();
@@ -90,9 +87,11 @@ void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 	tagd::code ts_rc = _TS->del(t, _driver->flags());
 	if (_TS->ok()) {
-		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
+		if (_echo_result_code)
+			std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
 	} else if (_TS->code() == tagd::TS_NOT_FOUND ) {
-		std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
+		if (_echo_result_code)
+			std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
 	} else {
 		_driver->code(_TS->code()); // stops the scanner
 		_TS->print_errors();
@@ -112,7 +111,8 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 				tagd::print_tag_ids(T);
 			break;
 		case tagd::TS_NOT_FOUND:  // TS_NOT_FOUND not an error for queries
-			std::cout << "-- " << tagd_code_str(_TS->code()) << std::endl;
+			if (_echo_result_code)
+				std::cout << "-- " << tagd_code_str(_TS->code()) << std::endl;
 			break;
 		default:	
 			_driver->code(_TS->code()); // stops the scanner
@@ -325,16 +325,21 @@ int tagsh::interpret_fname(const  std::string& fname) {
 	struct evbuffer *input = evbuffer_new();
 
 	if (st.st_size == 0) {
-		return 0;  // warn, don't fail
 		std::cerr << "ignoring zero length file: "  << fname << std::endl;
 		if (fcntl(fd, F_GETFD) != -1)
 			close(fd);
+		return 0;  // warn, don't fail
 	}
 
 	// evbuffer_add_file closes fd for us
 	if (evbuffer_add_file(input, fd, 0, st.st_size) == 0) {
+		bool echo_rc = _CB->_echo_result_code;
+		_CB->_echo_result_code = false;
+
 		_driver.filename(fname);
 		_driver.evbuffer_execute(input);
+
+		_CB->_echo_result_code = echo_rc;
 	} else {
 		return error("evbuffer_add_file failed: %s", fname.c_str());
 		if (fcntl(fd, F_GETFD) != -1)
@@ -390,7 +395,10 @@ cmd_args::cmd_args() :
 		}, true
 	};
 
-	auto trace_f = [this](char *val) { opt_trace = true; };
+	auto trace_f = [this](char *val) {
+		val = nullptr; assert(!val);  // suppress unused param warning
+		opt_trace = true;
+	};
 	_cmds["--trace"] = { trace_f, false };
 	_cmds["--trace_on"] = { trace_f, false };
 }

@@ -15,10 +15,12 @@ class tagsh_callback : public TAGL::callback {
 		friend class tagsh;
 		space_type *_TS;
 		cmdlines_t _lines;
+		bool _echo_result_code;
 
 	public:
-		tagsh_callback(space_type*);
+		tagsh_callback(space_type *ts) : _TS{ts}, _echo_result_code{true} {}
 		~tagsh_callback() { for(auto l : _lines) delete l; }
+
 		void cmd_get(const tagd::abstract_tag&);
 		void cmd_put(const tagd::abstract_tag&);
 		void cmd_del(const tagd::abstract_tag&);
@@ -30,7 +32,7 @@ class tagsh {
 	protected:
 		space_type *_TS;
 		tagsh_callback *_CB;
-		bool _own_callback;  // true if this own's the callback pointer
+		bool _own_callback;  // true if this alloced the callback pointer
 		TAGL::driver _driver;
 
 	public:
