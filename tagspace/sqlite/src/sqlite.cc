@@ -754,7 +754,6 @@ tagd::code sqlite::get_relations(tagd::predicate_set& P, const tagd::id_type& id
 }
 
 tagd::part_of_speech sqlite::term_pos(const tagd::id_type& id, rowid_t *term_id) {
-	assert(id.length() <= tagd::MAX_TAG_LEN);
 
     tagd::code ts_rc = this->prepare(&_term_pos_stmt,
         "SELECT ROWID, term_pos FROM terms WHERE term = ?",
@@ -817,7 +816,6 @@ tagd::part_of_speech sqlite::term_id_pos(rowid_t term_id, std::string *term) {
 }
 
 tagd::part_of_speech sqlite::pos(const tagd::id_type& id, flags_t flags) {
-	assert(id.length() <= tagd::MAX_TAG_LEN);
 
 	tagd::part_of_speech pos = hard_tag::pos(id);
 	if (pos != tagd::POS_UNKNOWN)
@@ -855,7 +853,6 @@ tagd::part_of_speech sqlite::pos(const tagd::id_type& id, flags_t flags) {
 
 tagd_code sqlite::refers(tagd::id_type &refers, const tagd::id_type& refers_to) {
 	assert(!refers_to.empty());
-	assert(refers_to.length() <= tagd::MAX_TAG_LEN);
 
     this->prepare(&_refers_stmt,
 		"SELECT idt(refers) FROM ("
@@ -899,7 +896,6 @@ tagd_code sqlite::refers(tagd::id_type &refers, const tagd::id_type& refers_to) 
 
 tagd_code sqlite::refers_to(tagd::id_type &refers_to, const tagd::id_type& refers) {
 	assert(!refers.empty());
-	assert(refers.length() <= tagd::MAX_TAG_LEN);
 
     this->prepare(&_refers_to_stmt,
 		"SELECT idt(refers_to) FROM ("
@@ -1127,9 +1123,6 @@ void tag_affected(std::set<tagd::id_type>& terms_affected, const tagd::abstract_
 tagd::code sqlite::del(const tagd::abstract_tag& t, flags_t flags) {
 	if (_trace_on)
 		std::cerr << "sqlite::del: " << t << std::endl;
-
-    if (t.id().length() > tagd::MAX_TAG_LEN)
-        return this->ferror(tagd::TS_ERR_MAX_TAG_LEN, "tag exceeds MAX_TAG_LEN of %d", tagd::MAX_TAG_LEN);
 
 	if (t.id().empty())
 		return this->error(tagd::TS_ERR, "deleting empty tag not allowed");
