@@ -35,7 +35,7 @@ class callback {
         virtual void finish() {} // optionally, can be overridden
 };
 
-const size_t buf_sz = 256;
+const size_t buf_sz = 16384;
 
 class scanner {
 	friend void ::yy_reduce(yyParser *, int);

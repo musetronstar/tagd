@@ -50,6 +50,7 @@ class tagspace_tester : public tagspace::tagspace {
 			put_test_tag("_has", HARD_TAG_ENTITY, tagd::POS_RELATOR);
 			put_test_tag("_can", HARD_TAG_ENTITY, tagd::POS_RELATOR);
 			put_test_tag("_what", HARD_TAG_ENTITY, tagd::POS_INTERROGATOR);
+			put_test_tag("_message", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("_referent", "_super", tagd::POS_REFERENT);
 			put_test_tag("_refers", HARD_TAG_ENTITY, tagd::POS_REFERS);
 			put_test_tag("_refers_to", HARD_TAG_ENTITY, tagd::POS_REFERS_TO);
@@ -1375,5 +1376,63 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related("_has", "legs") )
 		TS_ASSERT( tagl.tag().related("_has", "fur") )
 		TS_ASSERT( tagl.tag().related("_can", "bark") )
+	}
+
+	void test_quoted_str_size_of_buf(void) {
+		std::stringstream ss, ss1;
+		ss << ">> my_message1 _is_a _entity\n"
+		   << "_has _message = ";
+
+		// fill buf 
+		auto sz = ss.str().size();
+		while ( sz++ < TAGL::buf_sz )
+			ss << ' ';
+
+		// trigger a fill so that a quoted string
+		// completely fills the buffer
+		ss1 << '"';
+		sz = ss1.str().size();
+		while ( sz++ < TAGL::buf_sz - 1 )
+			ss1 << (char)(sz % 10 + 48);  // ascii 0-9
+		ss1 << '"';
+
+		ss << ss1.str();
+		ss << "\n\n";
+		ss << ">> my_message2 _is_a _entity\n"
+		   << "_has _message = \"another message\"";
+
+		struct evbuffer *input = evbuffer_new();
+		evbuffer_add(input, ss.str().c_str(), ss.str().size());
+
+		tagspace_tester TS;
+		TAGL::driver tagl(&TS);
+		tagd_code tc = tagl.evbuffer_execute(input);
+		evbuffer_free(input);
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+	}
+
+	void test_quoted_str_larger_than_buf(void) {
+		std::stringstream ss, ss1;
+		ss << ">> my_message1 _is_a _entity\n"
+		   << "_has _message = \"";
+
+		auto sz = ss.str().size();
+		while ( sz++  < (TAGL::buf_sz * 3) )
+			ss << (char)(sz % 10 + 48);  // ascii 0-9
+
+		ss << "\"\n\n";
+		ss << ">> my_message2 _is_a _entity\n"
+		   << "_has _message = \"another message\"";
+
+		struct evbuffer *input = evbuffer_new();
+		evbuffer_add(input, ss.str().c_str(), ss.str().size());
+
+		tagspace_tester TS;
+		TAGL::driver tagl(&TS);
+		tagd_code tc = tagl.evbuffer_execute(input);
+		evbuffer_free(input);
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 	}
 };

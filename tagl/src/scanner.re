@@ -12,7 +12,7 @@
 namespace TAGL {
 
 void scanner::print_buf() {
-	std::cerr << std::endl;
+	std::cerr << "print_buf:" << std::endl;
 	for(size_t i=0; i<buf_sz; ++i) {
 		std::cerr << (i % 10);
 	}
@@ -21,19 +21,21 @@ void scanner::print_buf() {
 		std::cerr << _buf[i];
 	}
 	std::cerr << std::endl;
-	std::cerr << "_beg(" << (_beg-_buf) << "): " << ((int)*_beg) << ", " << *_beg << std::endl;
-	std::cerr << "_cur(" << (_cur-_buf) << "): " << ((int)*_cur) << ", " << *_cur << std::endl;
-	std::cerr << "_lim(" << (_lim-_buf) << "): " << ((int)*_lim) << ", " << *_lim << std::endl;
+	std::cerr << "print_buf _beg(" << (_beg-_buf) << "): " << ((int)*_beg) << ", " << *_beg << std::endl;
+	std::cerr << "print_buf _cur(" << (_cur-_buf) << "): " << ((int)*_cur) << ", " << *_cur << std::endl;
+	std::cerr << "print_buf _lim(" << (_lim-_buf) << "): " << ((int)*_lim) << ", " << *_lim << std::endl;
 	if (_eof == nullptr)
-		std::cerr << "_eof: NULL" << std::endl;
+		std::cerr << "print_buf _eof: NULL" << std::endl;
 	else
-		std::cerr << "_eof(" << (_eof-_buf) << "): " << ((int)*_eof) << ", " << *_eof << std::endl;
-	std::cerr << "_val(" << _val.size() << "): `" << _val << "'" << std::endl;
+		std::cerr << "print_buf _eof(" << (_eof-_buf) << "): " << ((int)*_eof) << ", " << *_eof << std::endl;
+	std::cerr << "print_buf _val(" << _val.size() << "): `" << _val << "'" << std::endl;
 }
 
 const char* scanner::fill() {
-	if (driver::_trace_on)
-		std::cerr << "ln: " << _line_number << " ,fill() _cur: `" << *_cur << "'" << std::endl;
+	if (driver::_trace_on) {
+		std::cerr << "fill ln: " << _line_number << std::endl;
+		std::cerr << "fill _cur(" << (_cur-_buf) << "): " << ((int)*_cur) << ", " << *_cur << std::endl;
+	}
 
 	if (driver::_trace_on) print_buf();
 
@@ -47,31 +49,41 @@ const char* scanner::fill() {
 	size_t sz, offset;
 	assert(_lim >= _beg);
 	sz = _lim - _beg;
+	assert(sz <= buf_sz);
 
 	if (sz >= buf_sz) {
-		_val.append(_buf, buf_sz);
+		// buffer is full, so overflow into a std::string _val
+		// _cur is at the end of the buffer, so append everything up to _cur into _val
+		// and copy _cur to the beginning of the buffer for scanning
+		auto apnd_sz = buf_sz - 1;
+		_val.append(_buf, apnd_sz);
+		if (driver::_trace_on) {
+			std::cerr << "fill _val.append(" << apnd_sz << "): `" << std::string(_buf, apnd_sz) << "'" << std::endl;
+			std::cerr << "fill    new _val(" << _val.size() << "): `" << _val << "'" << std::endl;
+		}
+		_buf[0] = *_cur;
 		_beg = _cur = &_buf[0];
-		sz = offset = 0;
+		sz = offset = 1;
 	} else {
 		strncpy(&_buf[0], _beg, sz);
 		_cur = &_buf[_cur-_beg];
 		_beg = &_buf[0];
 		offset = sz;
-		_buf[sz] = '\0';
 	}
+	_buf[sz] = '\0';
 	_mark = _cur;
 
 	if (driver::_trace_on) {
 		if (!_val.empty())
-			std::cerr << "val: `" << _val << "'" << std::endl;
-		std::cerr << "buf(" << sz << "): `" << std::string(_buf, sz) << "'" << std::endl;
+			std::cerr << "fill val: `" << _val << "'" << std::endl;
+		std::cerr << "fill buf(" << sz << "): `" << std::string(_buf, sz) << "'" << std::endl;
 	}
 
 	size_t read_sz = buf_sz - offset;
 	if (driver::_trace_on) {
-		std::cerr << "sz: " << sz << std::endl;
-		std::cerr << "offset: " << offset << std::endl;
-		std::cerr << "read_sz: " << read_sz << std::endl;
+		std::cerr << "fill sz: " << sz << std::endl;
+		std::cerr << "fill offset: " << offset << std::endl;
+		std::cerr << "fill read_sz: " << read_sz << std::endl;
 	}
 
 	if ((sz = evbuffer_remove(_evbuf, &_buf[offset], read_sz)) != 0) {
