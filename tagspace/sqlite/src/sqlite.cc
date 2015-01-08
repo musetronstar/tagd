@@ -156,12 +156,12 @@ tagd::code sqlite::_init(const std::string& fname) {
 
 	// We have to insert _entity and _super manually because of the FK on _super_relator
 	// The rest of the hard tags will be inserted by bootstrap
-	//bool init_hard_tags = false;
+	// UNIQUE constraints will be ignored
     if (_code == tagd::TAGD_OK) {
 
 		sqlite3_stmt *stmt = NULL; 
 		this->prepare(&stmt,
-			"INSERT INTO terms (ROWID, term, term_pos) VALUES (?, ?, ?)",
+			"INSERT OR IGNORE INTO terms (ROWID, term, term_pos) VALUES (?, ?, ?)",
 			"insert term"
 		);
 		OK_OR_RET_ERR(); 
@@ -191,7 +191,7 @@ tagd::code sqlite::_init(const std::string& fname) {
 		// INSERT NULL for HARD_TAG_ENTITY rank 
 		if ( _code == tagd::TAGD_OK ) {
 			this->exec_mprintf(
-				"INSERT INTO tags (tag, super_relator, super_object, rank, pos) "
+				"INSERT OR IGNORE INTO tags (tag, super_relator, super_object, rank, pos) "
 				"VALUES (tid('%s'), tid('%s'), tid('%s'), NULL, %d)",
 				HARD_TAG_ENTITY, HARD_TAG_SUPER, HARD_TAG_ENTITY, tagd::POS_TAG
 			);
@@ -200,7 +200,7 @@ tagd::code sqlite::_init(const std::string& fname) {
 		if ( _code == tagd::TAGD_OK ) {
 			stmt = NULL;
 			this->prepare(&stmt,
-				"INSERT INTO tags (tag, super_relator, super_object, rank, pos) "
+				"INSERT OR IGNORE INTO tags (tag, super_relator, super_object, rank, pos) "
 				"VALUES (tid(?), tid(?), tid(?), ?, ?)",
 				"insert hard_tag"
 			);
@@ -241,9 +241,6 @@ tagd::code sqlite::_init(const std::string& fname) {
 		}
 		sqlite3_finalize(stmt);
 	}
-
-    //if (_code == tagd::TAGD_OK && init_hard_tags)
-	//	bootstrap::init_hard_tags(*this);
 
     if (_code != tagd::TAGD_OK) {
 		tagd::code ts_rc = _code;
@@ -498,8 +495,22 @@ tagd::code sqlite::create_referents_table() {
 }
 
 tagd::code sqlite::create_fts_tags_table() {
-	// no way to check for existence of fts virtual table
-	// so we rely on "IF NOT EXISTS"
+    sqlite3_stmt *stmt = NULL;
+    this->prepare(&stmt,
+        "SELECT 1 FROM sqlite_master "
+        "WHERE type = 'table' "
+        "AND sql LIKE 'CREATE VIRTUAL TABLE fts_tags %'",
+        "fts_tags table exists"
+    );
+	OK_OR_RET_ERR();
+
+    int s_rc = sqlite3_step(stmt);
+    if (s_rc == SQLITE_ERROR)
+        return this->error(tagd::TS_INTERNAL_ERR, "check referents table error");
+
+    // table exists
+    if (s_rc == SQLITE_ROW)
+        return tagd::TAGD_OK;
 
     //create db
     this->exec( "CREATE VIRTUAL TABLE fts_tags USING fts4()" );
