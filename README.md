@@ -1,6 +1,6 @@
 ## The tagd Semantic-Relational Engine
 
-<img src="http://tagd.ws/tagd-cloud.png" align="right" width="300px" />
+<img src="http://s.tagd.ws/tagd-cloud.png" align="right" width="300px" />
 
 In a hurry? Go directly to [Installation](#installation)
 
