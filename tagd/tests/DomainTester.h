@@ -331,10 +331,10 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( checkPublicSuffix("a.b.example.uk.com", "example.uk.com") );
         TS_ASSERT( checkPublicSuffix("test.ac", "test.ac") );
         // TLD with only 1 (wildcard) rule.
-        TS_ASSERT( checkPublicSuffix("cy", NULL) );
-        TS_ASSERT( checkPublicSuffix("c.cy", NULL) );
-        TS_ASSERT( checkPublicSuffix("b.c.cy", "b.c.cy") );
-        TS_ASSERT( checkPublicSuffix("a.b.c.cy", "b.c.cy") );
+        TS_ASSERT( checkPublicSuffix("bd", NULL) );
+        TS_ASSERT( checkPublicSuffix("c.bd", NULL) );
+        TS_ASSERT( checkPublicSuffix("b.c.bd", "b.c.bd") );
+        TS_ASSERT( checkPublicSuffix("a.b.c.bd", "b.c.bd") );
         // More complex TLD.
         TS_ASSERT( checkPublicSuffix("jp", NULL) );
         TS_ASSERT( checkPublicSuffix("test.jp", "test.jp") );
