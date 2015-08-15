@@ -28,15 +28,11 @@ effective_tld_names.dat :
 $(GPERF): effective_tld_names.dat
 	./gen-gperf-tlds.pl $? > $@
 
-tests: all force_look
-	make -C tests $(DEBUG)
-
 force_look:
 	true
 
 clean:
 	rm -f *.o
-	make -C tests clean
 
 extra_clean: clean
 	rm -f $(GPERF) $(GPERF_H)
