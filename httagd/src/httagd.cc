@@ -149,11 +149,6 @@ tagd_code httagl::tagdurl_del(const request& R) {
 	return this->code();
 }
 
-void tagl_callback::add_http_headers() {
-	evhtp_headers_add_header(_request->_ev_req->headers_out,
-	evhtp_header_new("Content-Type", _content_type.c_str(), 0, 0));
-}
-
 void tagl_callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag T;
 	tagd::code ts_rc = _TS->get(T, t.id(), _driver->flags());
@@ -165,7 +160,7 @@ void tagl_callback::cmd_get(const tagd::abstract_tag& t) {
 		_TS->print_errors(ss);
 	}
 	if (ss.str().size())
-		evbuffer_add(_request->_ev_req->buffer_out, ss.str().c_str(), ss.str().size());
+		_res->add(ss.str());
 }
 
 void tagl_callback::cmd_put(const tagd::abstract_tag& t) {
@@ -173,7 +168,7 @@ void tagl_callback::cmd_put(const tagd::abstract_tag& t) {
 	std::stringstream ss;
 	if (_TS->has_error()) {
 		_TS->print_errors(ss);
-		evbuffer_add(_request->_ev_req->buffer_out, ss.str().c_str(), ss.str().size());
+		_res->add(ss.str());
 	}
 }
 
@@ -182,7 +177,7 @@ void tagl_callback::cmd_del(const tagd::abstract_tag& t) {
 	std::stringstream ss;
 	if (_TS->has_error()) {
 		_TS->print_errors(ss);
-		evbuffer_add(_request->_ev_req->buffer_out, ss.str().c_str(), ss.str().size());
+		_res->add(ss.str());
 	}
 }
 
@@ -201,22 +196,26 @@ void tagl_callback::cmd_query(const tagd::interrogator& q) {
 		_TS->print_errors(ss);
 	}
 	if (ss.str().size())
-		evbuffer_add(_request->_ev_req->buffer_out, ss.str().c_str(), ss.str().size());
+		_res->add(ss.str());
 }
 
 void tagl_callback::cmd_error() {
 	std::stringstream ss;
 	_driver->print_errors(ss);
-	evbuffer_add(_request->_ev_req->buffer_out, ss.str().c_str(), ss.str().size());
+	_res->add(ss.str());
 }
 
 void tagl_callback::empty() {
-	std::string msg( "This is tagd" );
-	evbuffer_add(_request->_ev_req->buffer_out, msg.c_str(), msg.size());
-	evhtp_send_reply(_request->_ev_req, EVHTP_RES_OK);
+	_res->add("This is tagd");
+	_res->send_reply(EVHTP_RES_OK);
 }
 
 void tagl_callback::finish() {
+
+	if (_res->reply_sent()) return;
+
+	// determine the most severe error and send a corresponding response code,
+	// or OK if no error 
 	tagd::code most_severe = _driver->code();
 
 	for (auto e : _driver->errors() ) {
@@ -245,60 +244,60 @@ void tagl_callback::finish() {
 			res = EVHTP_RES_SERVERR;
 	}
 
-	if (_trace_on)
+	if (_req->svr()->args()->opt_trace)
 		std::cerr << "res(" << tagd_code_str(most_severe) << "): " << res << " " << evhtp_res_str(res) << std::endl;
 
-	this->add_http_headers();
-	evhtp_send_reply(_request->_ev_req, res);
+	_res->send_reply(res);
 }
 
-void main_cb(evhtp_request_t *req, void *arg) {
+void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagd::server *svr = (httagd::server*)arg;
 	// for now, this request uses the servers tagspace reference
 	// TODO allow requests to use other tagspaces (given the request)  
-	auto *TS = svr->_TS;
-	bool trace_on = svr->_args->opt_trace;
+	auto *TS = svr->tagspace();
+	bool trace_on = svr->args()->opt_trace;
 	
-	httagd::request R(svr, req);
-	std::string t_val { R.query_opt("t") }; // t = template
-	std::string c_val { R.query_opt("c") }; // c = context
-	std::string q_val { R.query_opt("q") }; // q = query terms
+	httagd::request req(svr, ev_req);
+	httagd::response res(svr, ev_req);
+	std::string t_val { req.query_opt("t") }; // t = template
+	std::string c_val { req.query_opt("c") }; // c = context
+	std::string q_val { req.query_opt("q") }; // q = query terms
 	
 	if (!c_val.empty())
 		TS->push_context(c_val);
 
-	htp_method method = evhtp_request_get_method(req);
-	std::string full_path(req->uri->path->full);
+	htp_method method = evhtp_request_get_method(ev_req);
+	std::string full_path(ev_req->uri->path->full);
 	bool is_home_page = (method == htp_method_GET)
 		&& (full_path.empty() || full_path == "/");
 
 	httagl tagl(TS);
 	httagd::tagl_callback *CB;
 	if (!is_home_page && t_val.empty()) {
-		CB = new httagd::tagl_callback(TS, &R);
+		CB = new httagd::tagl_callback(TS, &req, &res);
 	} else {
-		CB = new httagd::template_callback(TS, &R);
+		CB = new httagd::template_callback(TS, &req, &res);
 	}
 	tagl.callback_ptr(CB);
 
 	switch(method) {
 		case htp_method_GET:
-			tagl.tagdurl_get(R);
+			tagl.tagdurl_get(req);
 			tagl.finish();
 			break;
 		case htp_method_PUT:
-			tagl.tagdurl_put(R);
-			tagl.evbuffer_execute(req->buffer_in);
+			tagl.tagdurl_put(req);
+			tagl.evbuffer_execute(ev_req->buffer_in);
 			tagl.finish();
 			break;
 		case htp_method_POST:
 			// TODO check path
-			tagl.evbuffer_execute(req->buffer_in);
+			tagl.evbuffer_execute(ev_req->buffer_in);
 			tagl.finish();
 			break;
 		case htp_method_DELETE:
-			tagl.tagdurl_del(R);
-			tagl.evbuffer_execute(req->buffer_in);
+			tagl.tagdurl_del(req);
+			tagl.evbuffer_execute(ev_req->buffer_in);
 			tagl.finish();
 			break;
 /*
@@ -322,11 +321,11 @@ void main_cb(evhtp_request_t *req, void *arg) {
 			tagl.ferror(tagd::HTTP_ERR, "unsupported method: %d", method);
 			std::stringstream ss;
 			tagl.print_errors(ss);
-			evbuffer_add(req->buffer_out, ss.str().c_str(), ss.str().size());
+			res.add(ss.str());
 			// TODO 10.4.6 405 Method Not Allowed
 			// The method specified in the Request-Line is not allowed for the resource identified by the Request-URI.
 			// The response MUST include an Allow header containing a list of valid methods for the requested resource. 
-			evhtp_send_reply(req, EVHTP_RES_METHNALLOWED);
+			res.send_reply(EVHTP_RES_METHNALLOWED);
 	}
 
 	if (TS->has_error()) {
