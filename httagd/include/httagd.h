@@ -45,17 +45,7 @@ class httagd_args : public cmd_args {
 		}
 };
 
-void main_cb(evhtp_request_t *, void *);
-
-class tagl_callback;
-class request;
-
 class server : public tagsh, public tagd::errorable {
-	friend void main_cb(evhtp_request_t *, void *);
-	friend class tagl_callback;
-	friend class template_callback;
-	friend class request;
-
 	protected:
 		httagd_args *_args;
 		std::string _bind_addr;
@@ -80,41 +70,114 @@ class server : public tagsh, public tagd::errorable {
 			this->init();
 		}
 
+		const std::string& bind_addr() const {
+			return _bind_addr;
+		}
+
+		uint16_t bind_port() const {
+			return _bind_port;
+		}
+
+		tagspace::sqlite* tagspace() {
+			return _TS;
+		}
+
+		httagd_args * args() {
+			return _args;
+		}
+
 		tagd::code start();
 };
 
-class tagd_template;
+class response {
+	protected:
+		server *_server;
+		evhtp_request_t *_ev_req;
+		bool _reply_sent;
+
+	public:
+		std::string content_type;
+		response(server* S, evhtp_request_t *req)
+			: _server{S}, _ev_req{req}, _reply_sent{false}
+		{}
+
+		bool reply_sent() const {
+			return _reply_sent;
+		}
+
+		void add(const std::string& s) {
+			evbuffer_add(_ev_req->buffer_out, s.c_str(), s.size());
+		}
+
+		void add(const char* s, size_t sz) {
+			evbuffer_add(_ev_req->buffer_out, s, sz);
+		}
+
+		void send_reply(evhtp_res r) {
+			if (_reply_sent) {
+				std::cerr << "reply already sent" << std::endl;
+				return;
+			}
+			this->add_header("Content-Type", content_type);
+			if (_server->args()->opt_trace)
+				std::cerr << "send_reply(" << r << ")" << std::endl;
+			evhtp_send_reply(_ev_req, r);
+			_reply_sent = true;
+		}
+
+		void add_header(const std::string &k, const std::string &v) {
+			if (_server->args()->opt_trace)
+				std::cerr << "add_header(" << '"' << k << '"' << ", " << '"' << v << '"' << ")" << std::endl;
+			evhtp_headers_add_header(_ev_req->headers_out,
+				evhtp_header_new(k.c_str(), v.c_str(), 0, 0)
+			);
+		}
+
+		void send_error_str(const tagd::errorable &err) {
+			std::stringstream ss;
+			err.print_errors(ss);
+			this->add(ss.str());
+			this->send_reply(EVHTP_RES_SERVERR);
+		}
+
+};
 
 class request {
-	friend class tagl_callback;
-	friend class template_callback;
-	friend class tagd_template;
+	private:
+		url_query_map_t _query_map;
 
 	protected:
 		server *_server;
 		evhtp_request_t *_ev_req;
-		url_query_map_t _query_map;
 		std::string _path; // for testing
 
 	public:
-		request(server* S, evhtp_request_t *req)
-			: _server{S}, _ev_req{req}
+		request(server* S, evhtp_request_t *ev_req)
+			: _server{S}, _ev_req{ev_req}
 		{
-			if ( req->uri->query_raw != NULL ) {
+			if ( ev_req->uri->query_raw != NULL ) {
 				tagd::url::parse_query(
-					_query_map, (char*)req->uri->query_raw );
+					_query_map, (char*)ev_req->uri->query_raw );
 			}
 
-			_path = _ev_req->uri->path->full;
+			_path = ev_req->uri->path->full;
 		}
 
 		request(const std::string &path)	// for testing
 			: _server{nullptr}, _ev_req{nullptr}, _path{path} {}
 
+		server *svr() {
+			return _server;
+		}
+
 		std::string query_opt(const std::string &opt) const {
 			std::string val;
 			tagd::url::query_find(_query_map, val, opt);
 			return val;
+		}
+
+		const url_query_map_t &query_map() const {
+			return _query_map;
 		}
 
 		std::string path() const {
@@ -158,8 +221,8 @@ class request {
 					url.append( std::to_string(_ev_req->uri->authority->port) );
 			} else {
 				// TODO not sure this is a good way to do it
-				url.append( _server->_bind_addr );
-				url.append(":").append( std::to_string(_server->_bind_port) );
+				url.append( _server->bind_addr() );
+				url.append(":").append( std::to_string(_server->bind_port()) );
 			}
 
 			if ( _ev_req->uri->path->full )
@@ -198,20 +261,17 @@ class httagl : public TAGL::driver {
 class tagl_callback : public TAGL::callback {
 	protected:
 		tagspace::tagspace *_TS;
-		request *_request;
-		evhtp_request_t *_ev_req;
-		httagd_args *_args;
-		bool _trace_on;
-		std::string _content_type;
+		request *_req;
+		response *_res;
 
 	public:
 		tagl_callback(
 				tagspace::tagspace* ts,
-				request* req
-			) : _TS{ts}, _request{req}, _ev_req{req->_ev_req}, _args{req->_server->_args},
-				_content_type{"text/plain; charset=utf-8"}
+				request* req,
+				response* res
+			) : _TS{ts}, _req{req}, _res{res}
 			{
-				_trace_on = req->_server->_args->opt_trace;
+				_res->content_type = "text/plain; charset=utf-8";
 			}
 
 		void cmd_get(const tagd::abstract_tag&);
@@ -221,7 +281,6 @@ class tagl_callback : public TAGL::callback {
         void cmd_error();
         virtual void empty();  // welcome message or home page
         void finish();
-		void add_http_headers();
 };
 
 
@@ -319,15 +378,15 @@ const std::string FOOTER_TPL_VAL{"footer.html"};
 
 class tagd_template : public tagd::errorable {
 		tagspace::tagspace *_TS;
-		request *_request;
-		evhtp_request_t *_ev_req;
+		request *_req;
+		response *_res;
 		std::string _tpl_dir;
 		std::string _context;
 		template_map_t _templates;
 
 	public: 
-		tagd_template(tagspace::tagspace* ts, request *r, evhtp_request_t *v, const std::string &tpl_dir) :
-			_TS{ts}, _request{r}, _ev_req{v}, _tpl_dir{tpl_dir}, _context{r->query_opt("c")}
+		tagd_template(tagspace::tagspace* ts, request *req, response *res) :
+			_TS{ts}, _req{req}, _res{res}, _tpl_dir{req->svr()->args()->tpl_dir}, _context{req->query_opt("c")}
 		{
 			if (_tpl_dir.empty()) {
 				_tpl_dir = "./tpl/";
@@ -433,14 +492,16 @@ class tagd_template : public tagd::errorable {
 
 class template_callback : public tagl_callback, public tagd::errorable {
 	protected:
-		tagd_template _template; 
+		tagd_template _template;
+		bool _trace_on;
 
 	public:
-		template_callback( tagspace::tagspace* ts, request* req )
-				: tagl_callback(ts, req),
-				  _template(_TS, _request, _ev_req, _args->tpl_dir) 
+		template_callback( tagspace::tagspace* ts, request* req, response *res )
+				: tagl_callback(ts, req, res),
+				  _template(_TS, req, res),
+					_trace_on(req->svr()->args()->opt_trace)
 			{
-				_content_type = "text/html; charset=utf-8";
+				_res->content_type = "text/html; charset=utf-8";
 			}
 
 		void cmd_get(const tagd::abstract_tag&);

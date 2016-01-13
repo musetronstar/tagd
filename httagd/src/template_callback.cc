@@ -81,16 +81,16 @@ void tagd_template::expand_template(const tpl_t& tpl, const ctemplate::TemplateD
 
 	std::string output; 
 	ctemplate::ExpandTemplate(fpath(tpl), ctemplate::DO_NOT_STRIP, &D, &output); 
-	evbuffer_add(_ev_req->buffer_out, output.c_str(), output.size());
+	_res->add(output);
 }
 
 void tagd_template::expand_header(const std::string& title) {
 	ctemplate::TemplateDictionary D("header");
 	D.SetValue("title", title);
-	if ( _request->_query_map.size() > 0 ) {
+	if ( _req->query_map().size() > 0 ) {
 		D.ShowSection("query_options");
 		auto d = D.AddSectionDictionary("query_option");
-		for ( auto &kv : _request->_query_map ) {
+		for ( auto &kv : _req->query_map() ) {
 			d->SetValue("query_key", kv.first);
 			d->SetValue("query_value", kv.second);	
 		}
@@ -504,7 +504,7 @@ int tagd_template::expand_query(const tpl_t& tpl, const tagd::interrogator& q, c
 	return EVHTP_RES_OK;
 }
 
-void tagd_template::tagd_template::tagd_template::expand_error(const tpl_t& tpl, const tagd::errorable& E) {
+void tagd_template::expand_error(const tpl_t& tpl, const tagd::errorable& E) {
 	ctemplate::TemplateDictionary D("error");
 	D.SetValue("err_ids", tagd::tag_ids_str(E.errors()));
 	const tagd::errors_t& R	= E.errors();
@@ -545,14 +545,6 @@ void tagd_template::tagd_template::tagd_template::expand_error(const tpl_t& tpl,
 }
 
 
-void ev_send_error_str(evhtp_request_t *evreq, const tagd::errorable &err) {
-	std::stringstream ss;
-	err.print_errors(ss);
-	evbuffer_add(evreq->buffer_out, ss.str().c_str(), ss.str().size());
-	evhtp_send_reply(evreq, EVHTP_RES_SERVERR);
-}
-
-
 void template_callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag T;
 	tagd::code ts_rc;
@@ -563,17 +555,16 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 
 	int res;
-	this->add_http_headers();
 	_template.expand_header(t.id());
 
 	if (_template.has_error()) {
-		ev_send_error_str(_ev_req, _template);
+		_res->send_error_str(_template);
 		return;
 	}
 
 	ctemplate::TemplateDictionary D("get");
 	if (ts_rc == tagd::TAGD_OK) {
-		tpl_t tpl = _template.get(_request->query_opt("t"));
+		tpl_t tpl = _template.get(_req->query_opt("t"));
 		switch (tpl.type) {
 			case TPL_BROWSE:
 				res = _template.expand_browse(tpl, T, D);
@@ -592,7 +583,7 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 				_template.expand_template(tpl, D);
 				break;
 			default:
-				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _request->query_opt("t").c_str());
+				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _req->query_opt("t").c_str());
 				_template.expand_error(_template.get(ERROR_TPL_VAL), *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;
@@ -604,18 +595,18 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 
 	if (_template.has_error()) {
-		ev_send_error_str(_ev_req, _template);
+		_res->send_error_str(_template);
 		return;
 	}
 
 	_template.expand_footer();
 
 	if (_template.has_error()) {
-		ev_send_error_str(_ev_req, _template);
+		_res->send_error_str(_template);
 		return;
 	}
 
-	evhtp_send_reply(_ev_req, res);
+	_res->send_reply(res);
 
 	if (_trace_on) std::cerr << "cmd_get(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 }
@@ -625,17 +616,16 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 	tagd::code ts_rc = _TS->query(T, q);
 
 	int res;
-	this->add_http_headers();
 	_template.expand_header(q.id());
 
 	if (_template.has_error()) {
-		ev_send_error_str(_ev_req, _template);
+		_res->send_error_str(_template);
 		return;
 	}
 
 	ctemplate::TemplateDictionary D("query");
 	if (ts_rc == tagd::TAGD_OK || ts_rc == tagd::TS_NOT_FOUND) {
-		tpl_t tpl = _template.get(_request->query_opt("t"));
+		tpl_t tpl = _template.get(_req->query_opt("t"));
 		switch (tpl.type) {
 			case TPL_BROWSE:
 				tpl = _template.get(QUERY_TPL_VAL);
@@ -643,7 +633,7 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 				_template.expand_template(tpl, D);
 				break;
 			case TPL_UNKNOWN:
-				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _request->query_opt("t").c_str());
+				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _req->query_opt("t").c_str());
 				_template.expand_error(_template.get(ERROR_TPL_VAL), *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;
@@ -657,31 +647,30 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 	}
 
 	if (_template.has_error()) {
-		ev_send_error_str(_ev_req, _template);
+		_res->send_error_str(_template);
 		return;
 	}
 
 	_template.expand_footer();
 
 	if (_template.has_error()) {
-		ev_send_error_str(_ev_req, _template);
+		_res->send_error_str(_template);
 		return;
 	}
 
-	evhtp_send_reply(_ev_req, res);
+	_res->send_reply(res);
 
 	if (_trace_on) std::cerr << "cmd_query(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 }
 
 void template_callback::cmd_error() {
-	this->add_http_headers();
 	_template.expand_header(_driver->last_error().id());
 	_template.expand_error(_template.get(ERROR_TPL_VAL), *_driver);
 	_template.expand_footer();
 
 	if (_template.has_error()) {
-		ev_send_error_str(_ev_req, *_driver);
-		ev_send_error_str(_ev_req, _template);
+		_res->send_error_str(*_driver);
+		_res->send_error_str(_template);
 		return;
 	}
 
@@ -693,21 +682,20 @@ void template_callback::cmd_error() {
 		case tagd::TS_NOT_FOUND:
 			if (_trace_on)
 				std::cerr << "res(" << tagd_code_str(_driver->code()) << "): " << EVHTP_RES_NOTFOUND << " EVHTP_RES_NOTFOUND" << std::endl << ss.str() << std::endl;
-			evhtp_send_reply(_ev_req, EVHTP_RES_NOTFOUND);
+			_res->send_reply(EVHTP_RES_NOTFOUND);
 			break;
 		default:
 			if (_trace_on)
 				std::cerr << "res(" << tagd_code_str(_driver->code()) << "): " << EVHTP_RES_SERVERR << " EVHTP_RES_SERVERR" << std::endl << ss.str() << std::endl;
-			evhtp_send_reply(_ev_req, EVHTP_RES_SERVERR);
+			_res->send_reply(EVHTP_RES_SERVERR);
 	}
 }
 
 void template_callback::empty() {
-	this->add_http_headers();
 	_template.expand_header("Welcome to tagd");
 
 	if (_template.has_error()) {
-		ev_send_error_str(_ev_req, _template);
+		_res->send_error_str(_template);
 		return;
 	}
 
@@ -716,25 +704,25 @@ void template_callback::empty() {
 	int res = _template.expand_home(home_tpl, D);
 
 	if (_template.has_error()) {
-		ev_send_error_str(_ev_req, _template);
+		_res->send_error_str(_template);
 		return;
 	}
 
 	_template.expand_template(home_tpl, D);
 
 	if (_template.has_error()) {
-		ev_send_error_str(_ev_req, _template);
+		_res->send_error_str(_template);
 		return;
 	}
 
 	_template.expand_footer();
 
 	if (_template.has_error()) {
-		ev_send_error_str(_ev_req, _template);
+		_res->send_error_str(_template);
 		return;
 	}
 
-	evhtp_send_reply(_ev_req, res);
+	_res->send_reply(res);
 
 	if (_trace_on) std::cerr << "empty: " <<  res << std::endl;
 }
