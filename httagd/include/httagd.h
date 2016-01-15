@@ -283,67 +283,6 @@ class tagl_callback : public TAGL::callback {
         void finish();
 };
 
-
-/*
- evhtp_request_t structure 
-
-{
-    evhtp_t            * htp;         // the parent evhtp_t structure
-    evhtp_connection_t * conn;        // the associated connection
-    evhtp_hooks_t      * hooks;       // request specific hooks
-    evhtp_uri_t        * uri;         // request URI information
-	// evhtp_uri_s => evhtp_uri_t URI strucutre
-	struct evhtp_uri_s {
-		evhtp_authority_t * authority;
-		// evhtp_authority_s => evhtp_authority_t
-		struct evhtp_authority_s {
-			char   * username;                // the username in URI (scheme://USER:..
-			char   * password;                // the password in URI (scheme://...:PASS..
-			char   * hostname;                // hostname if present in URI
-			uint16_t port;                    // port if present in URI
-		};
-
-		evhtp_path_t      * path;
-		// evhtp_path_s => evhtp_path_t 
-		struct evhtp_path_s {
-			char       * full;                // the full path+file (/a/b/c.html)
-			char       * path;                // the path (/a/b/)
-			char       * file;                // the filename if present (c.html)
-			char       * match_start;
-			char       * match_end;
-			unsigned int matched_soff;        // offset of where the uri sta
-											//   mainly used for regex matching
-											
-			unsigned int matched_eoff;        // offset of where the uri e
-											//   mainly used for regex matching
-		};
-
-		unsigned char     * fragment;     // data after '#' in uri
-		unsigned char     * query_raw;    // the unparsed query arguments
-		evhtp_query_t     * query;        // list of k/v for query arguments
-		htp_scheme          scheme;       // set if a scheme is found
-	};
-
-
-    evbuf_t            * buffer_in;   // buffer containing data from client
-    evbuf_t            * buffer_out;  // buffer containing data to client
-    evhtp_headers_t    * headers_in;  // headers from client
-    evhtp_headers_t    * headers_out; // headers to client
-    evhtp_proto          proto;       // HTTP protocol used
-    htp_method           method;      // HTTP method used
-    evhtp_res            status;      // The HTTP response code or other error conditions
-    int                  keepalive;   // set to 1 if the connection is keep-alive
-    int                  finished;    // set to 1 if the request is fully processed
-    int                  chunked;     // set to 1 if the request is chunked
-
-    evhtp_callback_cb cb;             // the function to call when fully processed
-    void            * cbarg;          // argument which is passed to the cb function
-    int               error;
-
-    TAILQ_ENTRY(evhtp_request_s) next;
-};
-*/
-
 typedef enum {
 	TPL_UNKNOWN,
 	TPL_HOME,
@@ -376,6 +315,11 @@ const std::string ERROR_TPL_VAL{"error.html"};
 const std::string HEADER_TPL_VAL{"header.html"};
 const std::string FOOTER_TPL_VAL{"footer.html"};
 
+// request url query options
+const std::string QUERY_OPT_SEARCH{"q"};    // full text search
+const std::string QUERY_OPT_TEMPLATE{"t"};  // template name
+const std::string QUERY_OPT_CONTEXT{"c"};   // tagspace context
+
 class tagd_template : public tagd::errorable {
 		tagspace::tagspace *_TS;
 		request *_req;
@@ -386,7 +330,8 @@ class tagd_template : public tagd::errorable {
 
 	public: 
 		tagd_template(tagspace::tagspace* ts, request *req, response *res) :
-			_TS{ts}, _req{req}, _res{res}, _tpl_dir{req->svr()->args()->tpl_dir}, _context{req->query_opt("c")}
+			_TS{ts}, _req{req}, _res{res}, _tpl_dir{req->svr()->args()->tpl_dir},
+			_context{req->query_opt(QUERY_OPT_CONTEXT)}
 		{
 			if (_tpl_dir.empty()) {
 				_tpl_dir = "./tpl/";

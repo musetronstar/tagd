@@ -564,7 +564,7 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 
 	ctemplate::TemplateDictionary D("get");
 	if (ts_rc == tagd::TAGD_OK) {
-		tpl_t tpl = _template.get(_req->query_opt("t"));
+		tpl_t tpl = _template.get(_req->query_opt(QUERY_OPT_TEMPLATE));
 		switch (tpl.type) {
 			case TPL_BROWSE:
 				res = _template.expand_browse(tpl, T, D);
@@ -583,7 +583,7 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 				_template.expand_template(tpl, D);
 				break;
 			default:
-				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _req->query_opt("t").c_str());
+				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _req->query_opt(QUERY_OPT_TEMPLATE).c_str());
 				_template.expand_error(_template.get(ERROR_TPL_VAL), *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;
@@ -625,7 +625,7 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 
 	ctemplate::TemplateDictionary D("query");
 	if (ts_rc == tagd::TAGD_OK || ts_rc == tagd::TS_NOT_FOUND) {
-		tpl_t tpl = _template.get(_req->query_opt("t"));
+		tpl_t tpl = _template.get(_req->query_opt(QUERY_OPT_TEMPLATE));
 		switch (tpl.type) {
 			case TPL_BROWSE:
 				tpl = _template.get(QUERY_TPL_VAL);
@@ -633,7 +633,7 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 				_template.expand_template(tpl, D);
 				break;
 			case TPL_UNKNOWN:
-				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _req->query_opt("t").c_str());
+				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _req->query_opt(QUERY_OPT_TEMPLATE).c_str());
 				_template.expand_error(_template.get(ERROR_TPL_VAL), *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;

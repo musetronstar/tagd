@@ -19,7 +19,7 @@ void htscanner::scan_tagdurl_path(int cmd, const request& R) {
 	size_t sep_i = 0;
 	size_t seps[max_seps] = {0, 0};  // offsets of '/' chars
 
-	std::string q_val = R.query_opt("q"); // q = FTS query terms
+	std::string q_val = R.query_opt(QUERY_OPT_SEARCH);
 	auto f_parse_query_terms = [this, &q_val]() {
 		this->_driver->parse_tok(RELATOR, new std::string(HARD_TAG_HAS));
 		this->_driver->parse_tok(TAG, new std::string(HARD_TAG_TERMS));
@@ -259,9 +259,8 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	
 	httagd::request req(svr, ev_req);
 	httagd::response res(svr, ev_req);
-	std::string t_val { req.query_opt("t") }; // t = template
-	std::string c_val { req.query_opt("c") }; // c = context
-	std::string q_val { req.query_opt("q") }; // q = query terms
+	std::string t_val {req.query_opt(QUERY_OPT_TEMPLATE)};
+	std::string c_val {req.query_opt(QUERY_OPT_CONTEXT)};
 	
 	if (!c_val.empty())
 		TS->push_context(c_val);
@@ -280,6 +279,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	}
 	tagl.callback_ptr(CB);
 
+	// route request
 	switch(method) {
 		case htp_method_GET:
 			tagl.tagdurl_get(req);
