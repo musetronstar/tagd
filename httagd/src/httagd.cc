@@ -259,11 +259,14 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	
 	httagd::request req(svr, ev_req);
 	httagd::response res(svr, ev_req);
-	std::string t_val {req.query_opt(QUERY_OPT_TEMPLATE)};
-	std::string c_val {req.query_opt(QUERY_OPT_CONTEXT)};
-	
-	if (!c_val.empty())
-		TS->push_context(c_val);
+	std::string opt_view {req.query_opt(QUERY_OPT_VIEW)};
+	std::string opt_context {req.query_opt(QUERY_OPT_CONTEXT)};
+
+	// TODO context is part of the request, not global
+	// we may need some kind of session id or something
+	// to push_context()
+	if (!opt_context.empty())
+		TS->push_context(opt_context);
 
 	htp_method method = evhtp_request_get_method(ev_req);
 	std::string full_path(ev_req->uri->path->full);
@@ -272,10 +275,12 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 
 	httagl tagl(TS);
 	httagd::tagl_callback *CB;
-	if (!is_home_page && t_val.empty()) {
+	// determine TAGL::callback pointer based on media type
+	
+	if (!is_home_page && opt_view.empty()) {
 		CB = new httagd::tagl_callback(TS, &req, &res);
 	} else {
-		CB = new httagd::template_callback(TS, &req, &res);
+		CB = new httagd::html_callback(TS, &req, &res);
 	}
 	tagl.callback_ptr(CB);
 
@@ -340,7 +345,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 		tagl.clear_errors();
 	}
 
-	if (!c_val.empty())
+	if (!opt_context.empty())
 		TS->pop_context();
 
 	delete CB;
