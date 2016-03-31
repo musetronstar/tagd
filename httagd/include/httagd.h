@@ -5,7 +5,9 @@
 #include "tagspace.h"
 #include "tagsh.h"
 
+#include <cstring>
 #include <map>
+#include <vector>
 #include <evhtp.h>
 #include <ctemplate/template.h>
 
@@ -113,6 +115,10 @@ class response {
 			evbuffer_add(_ev_req->buffer_out, s, sz);
 		}
 
+		evbuffer* output_buffer() {
+			return _ev_req->buffer_out;
+		}
+
 		void send_reply(evhtp_res r) {
 			if (_reply_sent) {
 				std::cerr << "reply already sent" << std::endl;
@@ -141,6 +147,16 @@ class response {
 		}
 
 };
+
+// request url query options
+const std::string QUERY_OPT_SEARCH{"q"};    // full text search
+const std::string QUERY_OPT_VIEW{"v"};		// view name
+const std::string QUERY_OPT_CONTEXT{"c"};   // tagspace context
+
+typedef enum {
+	MEDIA_TYPE_TEXT_TAGL,
+	MEDIA_TYPE_TEXT_HTML
+} media_type_t;
 
 class request {
 	private:
@@ -283,67 +299,6 @@ class tagl_callback : public TAGL::callback {
         void finish();
 };
 
-
-/*
- evhtp_request_t structure 
-
-{
-    evhtp_t            * htp;         // the parent evhtp_t structure
-    evhtp_connection_t * conn;        // the associated connection
-    evhtp_hooks_t      * hooks;       // request specific hooks
-    evhtp_uri_t        * uri;         // request URI information
-	// evhtp_uri_s => evhtp_uri_t URI strucutre
-	struct evhtp_uri_s {
-		evhtp_authority_t * authority;
-		// evhtp_authority_s => evhtp_authority_t
-		struct evhtp_authority_s {
-			char   * username;                // the username in URI (scheme://USER:..
-			char   * password;                // the password in URI (scheme://...:PASS..
-			char   * hostname;                // hostname if present in URI
-			uint16_t port;                    // port if present in URI
-		};
-
-		evhtp_path_t      * path;
-		// evhtp_path_s => evhtp_path_t 
-		struct evhtp_path_s {
-			char       * full;                // the full path+file (/a/b/c.html)
-			char       * path;                // the path (/a/b/)
-			char       * file;                // the filename if present (c.html)
-			char       * match_start;
-			char       * match_end;
-			unsigned int matched_soff;        // offset of where the uri sta
-											//   mainly used for regex matching
-											
-			unsigned int matched_eoff;        // offset of where the uri e
-											//   mainly used for regex matching
-		};
-
-		unsigned char     * fragment;     // data after '#' in uri
-		unsigned char     * query_raw;    // the unparsed query arguments
-		evhtp_query_t     * query;        // list of k/v for query arguments
-		htp_scheme          scheme;       // set if a scheme is found
-	};
-
-
-    evbuf_t            * buffer_in;   // buffer containing data from client
-    evbuf_t            * buffer_out;  // buffer containing data to client
-    evhtp_headers_t    * headers_in;  // headers from client
-    evhtp_headers_t    * headers_out; // headers to client
-    evhtp_proto          proto;       // HTTP protocol used
-    htp_method           method;      // HTTP method used
-    evhtp_res            status;      // The HTTP response code or other error conditions
-    int                  keepalive;   // set to 1 if the connection is keep-alive
-    int                  finished;    // set to 1 if the request is fully processed
-    int                  chunked;     // set to 1 if the request is chunked
-
-    evhtp_callback_cb cb;             // the function to call when fully processed
-    void            * cbarg;          // argument which is passed to the cb function
-    int               error;
-
-    TAILQ_ENTRY(evhtp_request_s) next;
-};
-*/
-
 typedef enum {
 	TPL_UNKNOWN,
 	TPL_HOME,
@@ -363,30 +318,159 @@ struct tpl_t {
 	tpl_type type;
 };
 
-typedef std::map< std::string, tpl_t > template_map_t;
+typedef std::map< std::string, tpl_t > view_map_t;
 
 const tpl_t UNKNOWN_TPL{"", "", TPL_UNKNOWN};
-const std::string HOME_TPL_VAL{"home.html"};
-const std::string TAG_TPL_VAL{"tag.html"};
-const std::string TREE_TPL_VAL{"tree.html"};
-const std::string BROWSE_TPL_VAL{"browse.html"};
-const std::string RELATIONS_TPL_VAL{"relations.html"};
-const std::string QUERY_TPL_VAL{"query.html"};
-const std::string ERROR_TPL_VAL{"error.html"};
-const std::string HEADER_TPL_VAL{"header.html"};
-const std::string FOOTER_TPL_VAL{"footer.html"};
+const std::string HOME_VIEW{"home.html"};
+const std::string TAG_VIEW{"tag.html"};
+const std::string TREE_VIEW{"tree.html"};
+const std::string BROWSE_VIEW{"browse.html"};
+const std::string RELATIONS_VIEW{"relations.html"};
+const std::string QUERY_VIEW{"query.html"};
+const std::string ERROR_VIEW{"error.html"};
+const std::string HEADER_VIEW{"header.html"};
+const std::string FOOTER_VIEW{"footer.html"};
+
+/*\
+|*| Class for using mustache style templates.
+|*| We are currently wrapping ctemplate::TemplateDictionary so,
+|*| that in case we decide to replace it, all the logic will be encapsulated here.
+\*/ 
+class tagd_template;
+
+// ExpandEmitter class allows ctemplate to output directly to an evbuffer
+class  evbuffer_emitter : public ctemplate::ExpandEmitter {
+	private:
+		evbuffer* _buf;
+
+	public:
+		evbuffer_emitter(evbuffer* b) : _buf{b} {}
+
+		virtual void Emit(char c) {
+			evbuffer_add(_buf, &c, sizeof(char));
+		}
+
+		virtual void Emit(const std::string& s) {
+			evbuffer_add(_buf, s.c_str(), s.size());
+		}
+
+		virtual void Emit(const char* s) {
+			evbuffer_add(_buf, s, strlen(s));
+		}
+
+		virtual void Emit(const char* s, size_t l) {
+			evbuffer_add(_buf, s, l);
+		}
+};
 
 class tagd_template : public tagd::errorable {
+	protected:
+		ctemplate::TemplateDictionary* _dict;
+		ctemplate::ExpandEmitter* _output;
+		bool _owner;  // this owns _dict and _output resources
+		std::string _output_str;
+
+		// reference to dynamically created objects own by this
+		std::vector<tagd_template *> _sub_templates;
+
+		tagd_template(ctemplate::TemplateDictionary *t, ctemplate::ExpandEmitter *o) :
+			_dict{t},
+			_output{o},
+			_owner{false} {}
+
+	public:
+
+		tagd_template(const std::string &id) :
+			_dict{new ctemplate::TemplateDictionary(id)},
+			_output{new ctemplate::StringEmitter(&_output_str)},
+			_owner{true} {}
+
+		tagd_template(const std::string &id, evbuffer* b) :
+			_dict{new ctemplate::TemplateDictionary(id)},
+			_output{new evbuffer_emitter(b)},
+			_owner{true} {}
+
+		// deal with undefined default constructors
+		tagd_template(tagd_template *caca) :
+			_dict{caca->_dict},
+			_output{caca->_output},
+			_owner{false} {}
+
+		virtual ~tagd_template() {
+			if (_owner) {
+				delete _dict;
+				delete _output;
+			}
+
+			for (auto s: _sub_templates)
+				if (s) delete s;
+		}
+
+		// expand template filename into ouput
+		tagd_code expand(const std::string&);
+
+		// output of the last expansion
+		const std::string& output_str() const {
+			return _output_str;
+		}
+
+		// add dictionary subsection given id
+		tagd_template* add_section(const std::string &);
+
+		// include dictionary subsection given id and template file
+		tagd_template* include(const std::string &, const std::string&);
+
+		// show subsection given marker
+		void show_section(const std::string &);
+
+		// set key in template to value
+		void set_value(const std::string &k, const std::string &v);
+
+		// set key in template to int value
+		void set_int_value(const std::string &k, long v );
+
+		// set marker key in template to value if marker found and value non-empty
+		void set_value_show_section(const std::string &k, const std::string &v, const std::string &id);
+
+		void set_tag_link(
+				const std::string&,
+				const std::string&,
+				const tpl_t&,
+				const std::string *c = nullptr);
+
+		void set_relator_link(
+				const std::string&,
+				const std::string&,
+				const tpl_t&,
+				const std::string *c = nullptr);
+
+		void set_query_link(const std::string& k, const std::string& v);
+		void set_query_related_link(const std::string& k, const std::string& v);
+
+	protected:
+		// ctemplate::ShowSection() and others return ctemplate::TemplateDictionary*
+		// pointers owned by them.  Similary we will own sub-templates created by this
+		tagd_template* new_sub_template(ctemplate::TemplateDictionary *t) {
+			auto s = new tagd_template(t, _output);
+			_sub_templates.push_back(s);
+			return s;
+		}
+};
+
+
+// container of views, templates and handlers
+class router : public tagd::errorable {
 		tagspace::tagspace *_TS;
 		request *_req;
 		response *_res;
 		std::string _tpl_dir;
 		std::string _context;
-		template_map_t _templates;
+		view_map_t _views;
 
 	public: 
-		tagd_template(tagspace::tagspace* ts, request *req, response *res) :
-			_TS{ts}, _req{req}, _res{res}, _tpl_dir{req->svr()->args()->tpl_dir}, _context{req->query_opt("c")}
+		router(tagspace::tagspace* ts, request *req, response *res) :
+			_TS{ts}, _req{req}, _res{res}, _tpl_dir{req->svr()->args()->tpl_dir},
+			_context{req->query_opt(QUERY_OPT_CONTEXT)}
 		{
 			if (_tpl_dir.empty()) {
 				_tpl_dir = "./tpl/";
@@ -396,25 +480,25 @@ class tagd_template : public tagd::errorable {
 			}
 
 			// TODO consider using a memory-only tagspace to store these details
-			_templates[ HOME_TPL_VAL ] = {HOME_TPL_VAL, "home.html.tpl", TPL_HOME};
-			_templates[ TAG_TPL_VAL ] = {TAG_TPL_VAL, "tag.html.tpl", TPL_TAG};
-			_templates[ TREE_TPL_VAL ] = {TREE_TPL_VAL, "tree.html.tpl", TPL_TREE};
-			_templates[ BROWSE_TPL_VAL ] = {BROWSE_TPL_VAL, "browse.html.tpl", TPL_BROWSE};
-			_templates[ RELATIONS_TPL_VAL ] = {RELATIONS_TPL_VAL, "relations.html.tpl", TPL_RELATIONS};
-			_templates[ QUERY_TPL_VAL ] = {QUERY_TPL_VAL, "query.html.tpl", TPL_QUERY};
-			_templates[ ERROR_TPL_VAL ] = {ERROR_TPL_VAL, "error.html.tpl", TPL_ERROR};
-			_templates[ HEADER_TPL_VAL ] = {HEADER_TPL_VAL, "header.html.tpl", TPL_HEADER};
-			_templates[ FOOTER_TPL_VAL ] = {FOOTER_TPL_VAL, "footer.html.tpl", TPL_FOOTER};
+			_views[ HOME_VIEW ] = {HOME_VIEW, "home.html.tpl", TPL_HOME};
+			_views[ TAG_VIEW ] = {TAG_VIEW, "tag.html.tpl", TPL_TAG};
+			_views[ TREE_VIEW ] = {TREE_VIEW, "tree.html.tpl", TPL_TREE};
+			_views[ BROWSE_VIEW ] = {BROWSE_VIEW, "browse.html.tpl", TPL_BROWSE};
+			_views[ RELATIONS_VIEW ] = {RELATIONS_VIEW, "relations.html.tpl", TPL_RELATIONS};
+			_views[ QUERY_VIEW ] = {QUERY_VIEW, "query.html.tpl", TPL_QUERY};
+			_views[ ERROR_VIEW ] = {ERROR_VIEW, "error.html.tpl", TPL_ERROR};
+			_views[ HEADER_VIEW ] = {HEADER_VIEW, "header.html.tpl", TPL_HEADER};
+			_views[ FOOTER_VIEW ] = {FOOTER_VIEW, "footer.html.tpl", TPL_FOOTER};
 		}
 
 		/* TODO maybe
 		void put ( const tpl_t& tpl ) {
-			_templates[tpl.val] = tpl;	
+			_views[tpl.val] = tpl;	
 		}  */
 
 		tpl_t get ( const std::string& key ) {
-			auto it = _templates.find(key);
-			if (it == _templates.end()) {
+			auto it = _views.find(key);
+			if (it == _views.end()) {
 				tpl_t t = UNKNOWN_TPL;
 				t.val = key;
 				return t;
@@ -428,77 +512,27 @@ class tagd_template : public tagd::errorable {
 					.append( tpl.fname );
 		}
 
-		bool looks_like_url(const std::string& s) {
-			return (s.find("://") != std::string::npos);
-		}
-
-		// if looks like hduri
-		bool looks_like_hduri(const std::string& str) {
-			size_t i = str.rfind(':');
-			if (i == std::string::npos) return false;
-
-			int sz = str.size() - i;
-			switch (sz) {
-				case 4:  // ":ftp"
-					if (str.substr((i+1), sz-1) == "ftp")
-						return true;
-					break;
-				case 5:
-					// ":http"
-					if (str.substr((i+1), sz-1) == "http")
-						return true;
-					// ":file"
-					if (str.substr((i+1), sz-1) == "file")
-						return true;
-					break;
-				case 6:  // ":https"
-					if (str.substr((i+1), sz-1) == "https")
-						return true;
-					break;
-				default:
-					return false;
-			}
-
-			return false;
-		}
-
-		void set_tag_link (
-				const tpl_t& tpl,
-				ctemplate::TemplateDictionary* d,
-				const std::string& k,
-				const std::string& v,
-				const std::string *c = nullptr);
-
-		void set_relator_link (
-				const tpl_t& tpl,
-				ctemplate::TemplateDictionary* d,
-				const std::string& k,
-				const std::string& v,
-				const std::string *c = nullptr);
-
-		void set_query_link (ctemplate::TemplateDictionary* d, const std::string& k, const std::string& v);
-		void set_query_related_link (ctemplate::TemplateDictionary* d, const std::string& k, const std::string& v);
-		void expand_template(const tpl_t& tpl, const ctemplate::TemplateDictionary& D);
+		//void expand_template(const tpl_t& tpl, const tagd_template& D);
 		void expand_header(const std::string& title);
 		void expand_footer();
-		int expand_home(const tpl_t& tpl, ctemplate::TemplateDictionary& D);
-		int expand_tag(const tpl_t& tpl, const tagd::abstract_tag& t, ctemplate::TemplateDictionary& D);
-		int expand_browse(const tpl_t& tpl, const tagd::abstract_tag& t, ctemplate::TemplateDictionary& D);
-		int expand_relations(const tpl_t& tpl, const tagd::abstract_tag& t, ctemplate::TemplateDictionary& D);
-		int expand_tree(const tpl_t& tpl, const tagd::abstract_tag& t, ctemplate::TemplateDictionary& D, size_t *num_children=nullptr);
-		int expand_query(const tpl_t& tpl, const tagd::interrogator& q, const tagd::tag_set& R, ctemplate::TemplateDictionary& D);
+		int expand_home(const tpl_t& tpl, tagd_template& D);
+		int expand_tag(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D);
+		int expand_browse(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D);
+		int expand_relations(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D);
+		int expand_tree(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D, size_t *num_children=nullptr);
+		int expand_query(const tpl_t& tpl, const tagd::interrogator& q, const tagd::tag_set& R, tagd_template& D);
 		void expand_error(const tpl_t& tpl, const tagd::errorable& E);
 };
 
-class template_callback : public tagl_callback, public tagd::errorable {
+class html_callback : public tagl_callback, public tagd::errorable {
 	protected:
-		tagd_template _template;
+		router _router;
 		bool _trace_on;
 
 	public:
-		template_callback( tagspace::tagspace* ts, request* req, response *res )
+		html_callback( tagspace::tagspace* ts, request* req, response *res )
 				: tagl_callback(ts, req, res),
-				  _template(_TS, req, res),
+				  _router(_TS, req, res),
 					_trace_on(req->svr()->args()->opt_trace)
 			{
 				_res->content_type = "text/html; charset=utf-8";

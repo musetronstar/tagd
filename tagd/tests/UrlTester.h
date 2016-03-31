@@ -899,6 +899,14 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( !tagd::url::query_find(qm, val, "caca") );
 	}
 
+	void test_looks_like(void) {
+		TS_ASSERT( url::looks_like_url("http://example.com") )
+        TS_ASSERT( url::looks_like_hduri("com:example:http") )
+
+        TS_ASSERT( url::looks_like_url("http://example.com/?a=1&b=2") )
+        TS_ASSERT( url::looks_like_hduri("com:example::/:?a=1&b=2:http") )
+	}
+
 	void test_percent_encode(void) {
 		TS_ASSERT(tagd::uri_encode("ABC") == "ABC");
    

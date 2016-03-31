@@ -581,6 +581,42 @@ bool url::query_find(const url_query_map_t& m, std::string& val, const std::stri
 	}
 }
 
+bool url::looks_like_url(const std::string& s) {
+	return (s.find("://") != std::string::npos);
+}
+
+// if looks like hduri
+bool url::looks_like_hduri(const std::string& str) {
+	size_t i = str.rfind(':');
+	if (i == std::string::npos) return false;
+
+	int sz = str.size() - i;
+	switch (sz) {
+		case 4:  // ":ftp"
+			if (str.substr((i+1), sz-1) == "ftp")
+				return true;
+			break;
+		case 5:
+			// ":http"
+			if (str.substr((i+1), sz-1) == "http")
+				return true;
+			// ":file"
+			if (str.substr((i+1), sz-1) == "file")
+				return true;
+			break;
+		case 6:  // ":https"
+			if (str.substr((i+1), sz-1) == "https")
+				return true;
+			break;
+		default:
+			return false;
+	}
+
+	return false;
+}
+
+
+
 // Uri encode and decode.
 // RFC1630, RFC1738, RFC2396
 // see: http://www.codeguru.com/cpp/cpp/algorithms/strings/article.php/c12759/URI-Encoding-and-Decoding.htm

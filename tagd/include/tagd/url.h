@@ -182,6 +182,9 @@ class url : public abstract_tag {
 		// insert url part relation into predicate_set
 		static void insert_url_part_relations(tagd::predicate_set&, const url&);
 
+		static bool looks_like_url(const std::string&);
+		static bool looks_like_hduri(const std::string&);
+
     private:
         std::string url_substr(const url_size_t offset, const url_size_t len) const {
             if (len == 0 || this->empty()) return std::string();

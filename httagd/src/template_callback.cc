@@ -5,134 +5,50 @@
 
 namespace httagd {
 
-void tagd_template::set_tag_link (
-		const tpl_t& tpl,
-		ctemplate::TemplateDictionary* d,
-		const std::string& k,
-		const std::string& v,
-		const std::string *c) {
-
-	if (v == "*") { // wildcard relator
-		// empty link	
-		d->SetValue(k, v);
-		return;
-	}
-
-	std::string context_lnk;
-	if (c!=nullptr && !c->empty()) {
-		context_lnk.append("&c=").append(tagd::uri_encode(*c));
-	} else if (!_context.empty())
-		context_lnk.append("&c=").append(tagd::uri_encode(_context));
-
-	if ( looks_like_hduri(v) ) {
-		tagd::url u;
-		u.init_hduri(v);
-		d->SetValue( std::string(k).append("_lnk"),
-			std::string("/").append(tagd::uri_encode(u.hduri())).append("?t=").append(tpl.val).append(context_lnk)
-		);
-		d->SetValue(k, u.id());
-	} else if ( looks_like_url(v) ) {
-		tagd::url u;
-		u.init(v);
-		d->SetValue( std::string(k).append("_lnk"),
-			std::string("/").append(tagd::uri_encode(u.hduri())).append("?t=").append(tpl.val).append(context_lnk)
-		);
-		d->SetValue(k, u.id());
-	} else {
-		d->SetValue( std::string(k).append("_lnk"),
-			std::string("/").append(tagd::util::esc_and_quote(v)).append("?t=").append(tpl.val).append(context_lnk) );
-		d->SetValue(k, v);
-	}
-}
-
-void tagd_template::set_relator_link (
-		const tpl_t& tpl,
-		ctemplate::TemplateDictionary* d,
-		const std::string& k,
-		const std::string& v,
-		const std::string *c) {
-	if (v.empty())  // wildcard relator
-		set_tag_link(tpl, d, k, "*", c);
-	else
-		set_tag_link(tpl, d, k, v, c);
-}
-
-void tagd_template::set_query_link (ctemplate::TemplateDictionary* d, const std::string& k, const std::string& v) {
-	d->SetValue( std::string(k).append("_lnk"),
-		std::string("/").append(tagd::uri_encode(v)).append("/?t=query.html") );
-}
-
-void tagd_template::set_query_related_link (ctemplate::TemplateDictionary* d, const std::string& k, const std::string& v) {
-	d->SetValue( std::string(k).append("_lnk"),
-		std::string("/*/").append(tagd::uri_encode(v)).append("?t=query.html") );
-}
-
-void tagd_template::expand_template(const tpl_t& tpl, const ctemplate::TemplateDictionary& D) {
-
-	if (tpl.type == TPL_UNKNOWN) {
-		this->ferror( tagd::TAGD_ERR, "unknown template value: %s" , tpl.val.c_str() );
-		return;
-	}
-
-	if (!ctemplate::LoadTemplate(fpath(tpl), ctemplate::DO_NOT_STRIP)) {
-		this->ferror( tagd::TAGD_ERR, "load template failed: %s" , fpath(tpl).c_str() );
-		return;
-	}
-
-	std::string output; 
-	ctemplate::ExpandTemplate(fpath(tpl), ctemplate::DO_NOT_STRIP, &D, &output); 
-	_res->add(output);
-}
-
-void tagd_template::expand_header(const std::string& title) {
-	ctemplate::TemplateDictionary D("header");
-	D.SetValue("title", title);
+void router::expand_header(const std::string& title) {
+	tagd_template D("header", _res->output_buffer());
+	D.set_value("title", title);
 	if ( _req->query_map().size() > 0 ) {
-		D.ShowSection("query_options");
-		auto d = D.AddSectionDictionary("query_option");
+		D.show_section("query_options");
+		auto d = D.add_section("query_option");
 		for ( auto &kv : _req->query_map() ) {
-			d->SetValue("query_key", kv.first);
-			d->SetValue("query_value", kv.second);	
+			d->set_value("query_key", kv.first);
+			d->set_value("query_value", kv.second);	
 		}
 	}
 
-	this->expand_template(this->get(HEADER_TPL_VAL), D);
+	D.expand(this->fpath(this->get(HEADER_VIEW)));
 }
 
-void tagd_template::expand_footer() {
-	ctemplate::TemplateDictionary D("footer");
-	this->expand_template(this->get(FOOTER_TPL_VAL), D);
-}
-
-int tagd_template::expand_home(const tpl_t& tpl, ctemplate::TemplateDictionary& D) {
+int router::expand_home(const tpl_t& tpl, tagd_template& D) {
 	// TODO messages should be internationalized
 	// a _home_page tag might suffice for these type of definitions
-	D.SetValue("msg", "Welcome to tagd!");
+	D.set_value("msg", "Welcome to tagd!");
 
 	return EVHTP_RES_OK;
 }
 
-int tagd_template::expand_tag(const tpl_t& tpl, const tagd::abstract_tag& t, ctemplate::TemplateDictionary& D) {
+int router::expand_tag(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D) {
 	if (t.pos() == tagd::POS_URL) {
 		tagd::url u;
 		u.init_hduri(t.id());
-		D.SetValue("id", u.id());
+		D.set_value("id", u.id());
 		if (t.related("type", "image_jpeg"))
-			D.SetValueAndShowSection("img_src", u.id(), "has_img");
+			D.set_value_show_section("img_src", u.id(), "has_img");
 	} else {
-		D.SetValue("id", t.id());
+		D.set_value("id", t.id());
 	}
 
-	set_tag_link(tpl, &D, "super_relator", t.super_relator());
-	set_tag_link(tpl, &D, "super_object", t.super_object());
+	D.set_tag_link("super_relator", t.super_relator(), tpl, &_context);
+	D.set_tag_link("super_object", t.super_object(), tpl, &_context);
 
 	tagd::tag_set img_urls;
 	if (t.relations.size() > 0) {
-		D.ShowSection("relations");
+		D.show_section("relations");
 		tagd::id_type last_relator;
-		ctemplate::TemplateDictionary* relator_dict = nullptr;
+		tagd_template *relator_dict = nullptr;
 		for (auto p : t.relations) {
-			if (p.relator == "img_src" && looks_like_hduri(p.object)) {
+			if (p.relator == "img_src" && tagd::url::looks_like_hduri(p.object)) {
 				tagd::url u;
 				u.init_hduri(p.object);
 				img_urls.insert(u);
@@ -141,25 +57,25 @@ int tagd_template::expand_tag(const tpl_t& tpl, const tagd::abstract_tag& t, cte
 
 			if (p.relator != last_relator) {
 				last_relator = p.relator;
-				relator_dict = D.AddSectionDictionary("relation_set");
-				set_relator_link(tpl, relator_dict, "relator", p.relator);
+				relator_dict = D.add_section("relation_set");
+				relator_dict->set_relator_link("relator", p.relator, tpl, &_context);
 			}
 
 			if (!relator_dict) continue;
 
-			ctemplate::TemplateDictionary* sub_dict = relator_dict->AddSectionDictionary("relation");
-			set_tag_link(tpl, sub_dict, "object", p.object);
+			auto sub_dict = relator_dict->add_section("relation");
+			sub_dict->set_tag_link("object", p.object, tpl, &_context);
 			if (!p.modifier.empty()) {
-				sub_dict->ShowSection("has_modifier");
-				sub_dict->SetValue("modifier", p.modifier);
+				sub_dict->show_section("has_modifier");
+				sub_dict->set_value("modifier", p.modifier);
 			}
 		}
 	}
 
 	if (img_urls.size() > 0) {
-		D.ShowSection("gallery");
+		D.show_section("gallery");
 		for (auto u : img_urls) {
-			D.SetValueAndShowSection("rel_img_src", u.id(), "gallery_item");
+			D.set_value_show_section("rel_img_src", u.id(), "gallery_item");
 		}
 	}
 
@@ -175,7 +91,7 @@ int tagd_template::expand_tag(const tpl_t& tpl, const tagd::abstract_tag& t, cte
 	}
 	*/
 
-	tpl_t query_tpl = this->get(QUERY_TPL_VAL);
+	tpl_t query_tpl = this->get(QUERY_VIEW);
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0)
 			this->expand_query(query_tpl, q_refers_to, S, D);
@@ -226,35 +142,33 @@ int tagd_template::expand_tag(const tpl_t& tpl, const tagd::abstract_tag& t, cte
 	if (_TS->has_error()) {
 		std::stringstream ss;
 		_TS->print_errors(ss);
-		D.SetValue("errors", ss.str());
+		D.set_value("errors", ss.str());
 	}
 
 	return EVHTP_RES_OK;
 }
 
-int tagd_template::expand_browse(const tpl_t& tpl, const tagd::abstract_tag& t, ctemplate::TemplateDictionary& D) {
-	// ctemplate::TemplateDictionary D("browse");
+int router::expand_browse(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D) {
+	// tagd_template D("browse");
 	if (t.pos() == tagd::POS_URL) {
 		tagd::url u;
 		u.init_hduri(t.id());
-		D.SetValue("id", u.id());
+		D.set_value("id", u.id());
 	} else {
-		D.SetValue("id", t.id());
+		D.set_value("id", t.id());
 	}
 
-	tpl_t tag_tpl = this->get(TAG_TPL_VAL);
-	tpl_t tree_tpl = this->get(TREE_TPL_VAL);
-	tpl_t browse_tpl = this->get(BROWSE_TPL_VAL);
-	tpl_t query_tpl = this->get(QUERY_TPL_VAL);
+	tpl_t tag_tpl = this->get(TAG_VIEW);
+	tpl_t tree_tpl = this->get(TREE_VIEW);
+	tpl_t browse_tpl = this->get(BROWSE_VIEW);
+	tpl_t query_tpl = this->get(QUERY_VIEW);
 
-	ctemplate::TemplateDictionary* tree = D.AddIncludeDictionary("tree_html_tpl");
-	tree->SetFilename(fpath(tree_tpl));
+	auto tree = D.include("tree_html_tpl", fpath(tree_tpl));
 	size_t num_children = 0;
 	this->expand_tree(tpl, t, *tree, &num_children);
 	// std::cerr << "num_children: " << num_children << std::endl;
 
-	ctemplate::TemplateDictionary* tag = D.AddIncludeDictionary("tag_html_tpl");
-	tag->SetFilename(fpath(tag_tpl));
+	auto tag = D.include("tag_html_tpl", fpath(tag_tpl));
 	this->expand_tag(browse_tpl, t, *tag);
 
 	tagd::tag_set S;
@@ -267,8 +181,7 @@ int tagd_template::expand_browse(const tpl_t& tpl, const tagd::abstract_tag& t, 
 
 	// std::cerr << "q_related(" << S.size() << "): " << q_related << std::endl;
 
-	ctemplate::TemplateDictionary* results = D.AddIncludeDictionary("results_html_tpl");
-	results->SetFilename(fpath(query_tpl));
+	auto results = D.include("results_html_tpl", fpath(query_tpl));
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0) {
 			this->expand_query(query_tpl, q_related, S, *results);
@@ -278,39 +191,39 @@ int tagd_template::expand_browse(const tpl_t& tpl, const tagd::abstract_tag& t, 
 	if (_TS->has_error()) {
 		std::stringstream ss;
 		_TS->print_errors(ss);
-		D.SetValue("errors", ss.str());
+		D.set_value("errors", ss.str());
 	}
 
 	return EVHTP_RES_OK;
 }
 
-int tagd_template::expand_relations(const tpl_t& tpl, const tagd::abstract_tag& t, ctemplate::TemplateDictionary& D) {
+int router::expand_relations(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D) {
 /*
 	if (t.pos() == tagd::POS_URL) {
 		tagd::url u;
 		u.init_hduri(t.id());
-		D.SetValue("id", u.id());
+		D.set_value("id", u.id());
 		if (t.related("type", "image_jpeg")) {
 			std::cerr << "related(type, jpeg): " << u.id() << std::endl;
-			D.SetValueAndShowSection("img_src", u.id(), "has_img");
+			D.set_valueAndShowSection("img_src", u.id(), "has_img");
 		} else {
 			std::cerr << "not related(type, jpeg): " << t << std::endl;
 		}
 	} else {
-		D.SetValue("id", t.id());
+		D.set_value("id", t.id());
 	}
-	set_tag_link(tpl, &D, "super_relator", t.super_relator());
-	set_tag_link(tpl, &D, "super_object", t.super_object());
+	set_tag_link(&D, "super_relator", tpl, t.super_relator());
+	set_tag_link(&D, "super_object", tpl, t.super_object());
 */	
 	if (t.relations.size() > 0) {
-		D.ShowSection("relations");
+		D.show_section("relations");
 		for (auto p : t.relations) {
-			ctemplate::TemplateDictionary* sub_dict = D.AddSectionDictionary("relation");
-			set_relator_link(tpl, sub_dict, "relator", p.relator);
-			set_tag_link(tpl, sub_dict, "object", p.object);
+			auto sub_dict = D.add_section("relation");
+			sub_dict->set_relator_link("relator", p.relator, tpl, &_context);
+			sub_dict->set_tag_link("object", p.object, tpl, &_context);
 			if (!p.modifier.empty()) {
-				sub_dict->ShowSection("has_modifier");
-				sub_dict->SetValue("modifier", p.modifier);
+				sub_dict->show_section("has_modifier");
+				sub_dict->set_value("modifier", p.modifier);
 			}
 		}
 	}
@@ -369,22 +282,22 @@ int tagd_template::expand_relations(const tpl_t& tpl, const tagd::abstract_tag& 
 	if (_TS->has_error()) {
 		std::stringstream ss;
 		_TS->print_errors(ss);
-		D.SetValue("errors", ss.str());
+		D.set_value("errors", ss.str());
 	}
 
 	return EVHTP_RES_OK;
 }
 
-int tagd_template::expand_tree(const tpl_t& tpl, const tagd::abstract_tag& t, ctemplate::TemplateDictionary& D, size_t *num_children) {
+int router::expand_tree(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D, size_t *num_children) {
 	if (t.pos() == tagd::POS_URL) {
 		tagd::url u;
 		u.init_hduri(t.id());
-		D.SetValue("id", u.id());
+		D.set_value("id", u.id());
 	} else {
-		D.SetValue("id", t.id());
+		D.set_value("id", t.id());
 	}
-	set_tag_link(tpl, &D, "super_relator", t.super_relator());
-	set_tag_link(tpl, &D, "super_object", t.super_object());
+	D.set_tag_link("super_relator", t.super_relator(), tpl, &_context);
+	D.set_tag_link("super_object", t.super_object(), tpl, &_context);
 
 	tagd::tag_set S;
 	tagd::code tc = _TS->query(S,
@@ -395,14 +308,14 @@ int tagd_template::expand_tree(const tpl_t& tpl, const tagd::abstract_tag& t, ct
 			if (it->id() == t.id()) {
 				if (it != S.begin()) {
 					--it;
-					ctemplate::TemplateDictionary* s1 = D.AddSectionDictionary("has_prev");
-					set_tag_link(tpl, s1, "prev", it->id());
+					auto s1 = D.add_section("has_prev");
+					s1->set_tag_link("prev", it->id(), tpl, &_context);
 					++it;
 				}
 				++it;
 				if (it != S.end()) {
-					ctemplate::TemplateDictionary* s1 = D.AddSectionDictionary("has_next");
-					set_tag_link(tpl, s1, "next", it->id());
+					auto s1 = D.add_section("has_next");
+					s1->set_tag_link("next", it->id(), tpl, &_context);
 				}
 				break;
 			}
@@ -418,13 +331,13 @@ int tagd_template::expand_tree(const tpl_t& tpl, const tagd::abstract_tag& t, ct
 		*num_children = S.size();
 
 	if (tc == tagd::TAGD_OK) {
-		set_query_link(&D, "query_children", t.id());
+		D.set_query_link("query_children", t.id());
 		if (S.size() > 0) {
-			ctemplate::TemplateDictionary* s1 = D.AddSectionDictionary("has_children");
+			auto s1 = D.add_section("has_children");
 			for (auto s : S) {
-				ctemplate::TemplateDictionary* s2 = s1->AddSectionDictionary("children");
+				auto s2 = s1->add_section("children");
 				if (s.id() != t.id()) {
-					set_tag_link(tpl, s2, "child", s.id());
+					s2->set_tag_link("child", s.id(), tpl, &_context);
 				}
 			}
 		}
@@ -433,62 +346,62 @@ int tagd_template::expand_tree(const tpl_t& tpl, const tagd::abstract_tag& t, ct
 	if (_TS->has_error()) {
 		std::stringstream ss;
 		_TS->print_errors(ss);
-		D.SetValue("errors", ss.str());
+		D.set_value("errors", ss.str());
 	}
 
 	return EVHTP_RES_OK;
 }
 
-int tagd_template::expand_query(const tpl_t& tpl, const tagd::interrogator& q, const tagd::tag_set& R, ctemplate::TemplateDictionary& D) {
-	// ctemplate::TemplateDictionary D("query");
+int router::expand_query(const tpl_t& tpl, const tagd::interrogator& q, const tagd::tag_set& R, tagd_template& D) {
+	// tagd_template D("query");
 
-	D.SetValue("interrogator", q.id());
-	tpl_t tag_tpl = this->get(TAG_TPL_VAL);
-	tpl_t browse_tpl = this->get(BROWSE_TPL_VAL);
+	D.set_value("interrogator", q.id());
+	tpl_t tag_tpl = this->get(TAG_VIEW);
+	tpl_t browse_tpl = this->get(BROWSE_VIEW);
 	if (!q.super_object().empty()) {
-		D.ShowSection("super_relations");
-		ctemplate::TemplateDictionary* s1 = D.AddSectionDictionary("super_relation");
-		set_tag_link(tag_tpl, s1, "super_relator", q.super_relator());
-		set_tag_link(tag_tpl, s1, "super_object", q.super_object());
+		D.show_section("super_relations");
+		auto s1 = D.add_section("super_relation");
+		s1->set_tag_link("super_relator", q.super_relator(), tag_tpl, &_context);
+		s1->set_tag_link("super_object", q.super_object(), tag_tpl, &_context);
 	}
 
 	if (q.relations.size() > 0) {
-		D.ShowSection("relations");
+		D.show_section("relations");
 		for (auto p : q.relations) {
-			ctemplate::TemplateDictionary* s1 = D.AddSectionDictionary("relation");
-			set_relator_link(tag_tpl, s1, "relator", p.relator);
-			set_tag_link(tag_tpl, s1, "object", p.object);
+			auto s1 = D.add_section("relation");
+			s1->set_relator_link("relator", p.relator, tag_tpl, &_context);
+			s1->set_tag_link("object", p.object, tag_tpl, &_context);
 			if (!p.modifier.empty()) {
-				s1->ShowSection("has_modifier");
-				s1->SetValue("modifier", p.modifier);
+				s1->show_section("has_modifier");
+				s1->set_value("modifier", p.modifier);
 			}
 		}
 	}
 
-	D.SetIntValue("num_results", R.size());
+	D.set_int_value("num_results", R.size());
 
 	if (R.size() > 0) {
-		D.ShowSection("results");
+		D.show_section("results");
 		for (auto r : R) {
-			ctemplate::TemplateDictionary* s1 = D.AddSectionDictionary("result");
+			auto s1 = D.add_section("result");
 			if (r.has_relator(HARD_TAG_CONTEXT)) {
 				tagd::referent ref(r);
 				std::string context{ref.context()};
-				set_tag_link(browse_tpl, s1, "res_id", r.id(), &context);
+				s1->set_tag_link("res_id", r.id(), browse_tpl, &context);
 			} else {
-				set_tag_link(browse_tpl, s1, "res_id", r.id());
+				s1->set_tag_link("res_id", r.id(), browse_tpl, &_context);
 			}
-			set_tag_link(tag_tpl, s1, "res_super_relator", r.super_relator());
-			set_tag_link(tag_tpl, s1, "res_super_object", r.super_object());
+			s1->set_tag_link("res_super_relator", r.super_relator(), tag_tpl, &_context);
+			s1->set_tag_link("res_super_object", r.super_object(), tag_tpl, &_context);
 			if (r.relations.size() > 0) {
-				s1->ShowSection("res_relations");
+				s1->show_section("res_relations");
 				for (auto p : r.relations) {
-					ctemplate::TemplateDictionary* s2 = s1->AddSectionDictionary("res_relation");
-					set_relator_link(browse_tpl, s2, "res_relator", p.relator);
-					set_tag_link(browse_tpl, s2, "res_object", p.object);
+					auto s2 = s1->add_section("res_relation");
+					s2->set_relator_link("res_relator", p.relator, browse_tpl, &_context);
+					s2->set_tag_link("res_object", p.object, browse_tpl, &_context);
 					if (!p.modifier.empty()) {
-						s2->ShowSection("res_has_modifier");
-						s2->SetValue("res_modifier", p.modifier);
+						s2->show_section("res_has_modifier");
+						s2->set_value("res_modifier", p.modifier);
 					}
 				}
 			}
@@ -498,54 +411,54 @@ int tagd_template::expand_query(const tpl_t& tpl, const tagd::interrogator& q, c
 	if (_TS->has_error()) {
 		std::stringstream ss;
 		_TS->print_errors(ss);
-		D.SetValue("errors", ss.str());
+		D.set_value("errors", ss.str());
 	}
 
 	return EVHTP_RES_OK;
 }
 
-void tagd_template::expand_error(const tpl_t& tpl, const tagd::errorable& E) {
-	ctemplate::TemplateDictionary D("error");
-	D.SetValue("err_ids", tagd::tag_ids_str(E.errors()));
+void router::expand_error(const tpl_t& tpl, const tagd::errorable& E) {
+	tagd_template D("error", _res->output_buffer());
+	D.set_value("err_ids", tagd::tag_ids_str(E.errors()));
 	const tagd::errors_t& R	= E.errors();
-	tpl_t tag_tpl = this->get(TAG_TPL_VAL);
+	tpl_t tag_tpl = this->get(TAG_VIEW);
 
 	if (R.size() > 0) {
-		D.ShowSection("errors");
+		D.show_section("errors");
 		for (auto r : R) {
-			ctemplate::TemplateDictionary* s1 = D.AddSectionDictionary("error");
+			auto s1 = D.add_section("error");
 			/*
 			if (r.has_relator(HARD_TAG_CONTEXT)) {
 				tagd::referent ref(r);
 				std::string context{ref.context()};
-				set_tag_link(tpl, s1, "err_id", r.id(), &context);
+				set_tag_link(s1, "err_id", tpl, r.id(), &context);
 			} else {
-				set_tag_link(tpl, s1, "err_id", r.id());
+				set_tag_link(s1, "err_id", tpl, r.id());
 			}
 			*/
-			s1->SetValue("err_id", r.id());
-			set_tag_link(tag_tpl, s1, "err_super_relator", r.super_relator());
-			set_tag_link(tag_tpl, s1, "err_super_object", r.super_object());
+			s1->set_value("err_id", r.id());
+			s1->set_tag_link("err_super_relator", r.super_relator(), tag_tpl, &_context);
+			s1->set_tag_link("err_super_object", r.super_object(), tag_tpl, &_context);
 			if (r.relations.size() > 0) {
-				s1->ShowSection("err_relations");
+				s1->show_section("err_relations");
 				for (auto p : r.relations) {
-					ctemplate::TemplateDictionary* s2 = s1->AddSectionDictionary("err_relation");
-					set_tag_link(tag_tpl, s2, "err_relator", p.relator);
-					set_tag_link(tag_tpl, s2, "err_object", p.object);
+					auto s2 = s1->add_section("err_relation");
+					s2->set_tag_link("err_relator", p.relator, tag_tpl, &_context);
+					s2->set_tag_link("err_object", p.object, tag_tpl, &_context);
 					if (!p.modifier.empty()) {
-						s2->ShowSection("err_has_modifier");
-						s2->SetValue("err_modifier", p.modifier);
+						s2->show_section("err_has_modifier");
+						s2->set_value("err_modifier", p.modifier);
 					}
 				}
 			}
 		}
 	}
 
-	this->expand_template(tpl, D);
+	D.expand(this->fpath(tpl));
 }
 
 
-void template_callback::cmd_get(const tagd::abstract_tag& t) {
+void html_callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag T;
 	tagd::code ts_rc;
 	if (t.pos() == tagd::POS_URL) {
@@ -555,54 +468,54 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 
 	int res;
-	_template.expand_header(t.id());
+	_router.expand_header(t.id());
 
-	if (_template.has_error()) {
-		_res->send_error_str(_template);
+	if (_router.has_error()) {
+		_res->send_error_str(_router);
 		return;
 	}
 
-	ctemplate::TemplateDictionary D("get");
+	tagd_template D("get", _res->output_buffer());
 	if (ts_rc == tagd::TAGD_OK) {
-		tpl_t tpl = _template.get(_req->query_opt("t"));
+		tpl_t tpl = _router.get(_req->query_opt(QUERY_OPT_VIEW));
 		switch (tpl.type) {
 			case TPL_BROWSE:
-				res = _template.expand_browse(tpl, T, D);
-				_template.expand_template(tpl, D);
+				res = _router.expand_browse(tpl, T, D);
+				D.expand(_router.fpath(tpl));
 				break;
 			case TPL_TAG:
-				res = _template.expand_tag(tpl, T, D);
-				_template.expand_template(tpl, D);
+				res = _router.expand_tag(tpl, T, D);
+				D.expand(_router.fpath(tpl));
 				break;
 			case TPL_TREE:
-				res = _template.expand_tree(tpl, T, D);
-				_template.expand_template(tpl, D);
+				res = _router.expand_tree(tpl, T, D);
+				D.expand(_router.fpath(tpl));
 				break;
 			case TPL_RELATIONS:
-				res = _template.expand_relations(tpl, T, D);
-				_template.expand_template(tpl, D);
+				res = _router.expand_relations(tpl, T, D);
+				D.expand(_router.fpath(tpl));
 				break;
 			default:
-				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _req->query_opt("t").c_str());
-				_template.expand_error(_template.get(ERROR_TPL_VAL), *this);
+				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _req->query_opt(QUERY_OPT_VIEW).c_str());
+				_router.expand_error(_router.get(ERROR_VIEW), *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;
 		}
 	} else {
 		// TODO TS_NOT_FOUND does not set error
-		_template.expand_error(_template.get(ERROR_TPL_VAL), *_TS);
+		_router.expand_error(_router.get(ERROR_VIEW), *_TS);
 		res = EVHTP_RES_SERVERR;
 	}
 
-	if (_template.has_error()) {
-		_res->send_error_str(_template);
+	if (_router.has_error()) {
+		_res->send_error_str(_router);
 		return;
 	}
 
-	_template.expand_footer();
+	_router.expand_footer();
 
-	if (_template.has_error()) {
-		_res->send_error_str(_template);
+	if (_router.has_error()) {
+		_res->send_error_str(_router);
 		return;
 	}
 
@@ -611,50 +524,50 @@ void template_callback::cmd_get(const tagd::abstract_tag& t) {
 	if (_trace_on) std::cerr << "cmd_get(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 }
 
-void template_callback::cmd_query(const tagd::interrogator& q) {
+void html_callback::cmd_query(const tagd::interrogator& q) {
 	tagd::tag_set T;
 	tagd::code ts_rc = _TS->query(T, q);
 
 	int res;
-	_template.expand_header(q.id());
+	_router.expand_header(q.id());
 
-	if (_template.has_error()) {
-		_res->send_error_str(_template);
+	if (_router.has_error()) {
+		_res->send_error_str(_router);
 		return;
 	}
 
-	ctemplate::TemplateDictionary D("query");
+	tagd_template D("query", _res->output_buffer());
 	if (ts_rc == tagd::TAGD_OK || ts_rc == tagd::TS_NOT_FOUND) {
-		tpl_t tpl = _template.get(_req->query_opt("t"));
+		tpl_t tpl = _router.get(_req->query_opt(QUERY_OPT_VIEW));
 		switch (tpl.type) {
 			case TPL_BROWSE:
-				tpl = _template.get(QUERY_TPL_VAL);
-				res = _template.expand_query(tpl, q, T, D);
-				_template.expand_template(tpl, D);
+				tpl = _router.get(QUERY_VIEW);
+				res = _router.expand_query(tpl, q, T, D);
+				D.expand(_router.fpath(tpl));
 				break;
 			case TPL_UNKNOWN:
-				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _req->query_opt("t").c_str());
-				_template.expand_error(_template.get(ERROR_TPL_VAL), *this);
+				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _req->query_opt(QUERY_OPT_VIEW).c_str());
+				_router.expand_error(_router.get(ERROR_VIEW), *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;
 			default:
-				res = _template.expand_query(tpl, q, T, D);
-				_template.expand_template(tpl, D);
+				res = _router.expand_query(tpl, q, T, D);
+				D.expand(_router.fpath(tpl));
 		}
 	} else {
-		_template.expand_error(_template.get(ERROR_TPL_VAL), *_TS);
+		_router.expand_error(_router.get(ERROR_VIEW), *_TS);
 		res = EVHTP_RES_SERVERR;
 	}
 
-	if (_template.has_error()) {
-		_res->send_error_str(_template);
+	if (_router.has_error()) {
+		_res->send_error_str(_router);
 		return;
 	}
 
-	_template.expand_footer();
+	_router.expand_footer();
 
-	if (_template.has_error()) {
-		_res->send_error_str(_template);
+	if (_router.has_error()) {
+		_res->send_error_str(_router);
 		return;
 	}
 
@@ -663,14 +576,14 @@ void template_callback::cmd_query(const tagd::interrogator& q) {
 	if (_trace_on) std::cerr << "cmd_query(" << tagd_code_str(ts_rc) << ") : " <<  res << std::endl;
 }
 
-void template_callback::cmd_error() {
-	_template.expand_header(_driver->last_error().id());
-	_template.expand_error(_template.get(ERROR_TPL_VAL), *_driver);
-	_template.expand_footer();
+void html_callback::cmd_error() {
+	_router.expand_header(_driver->last_error().id());
+	_router.expand_error(_router.get(ERROR_VIEW), *_driver);
+	_router.expand_footer();
 
-	if (_template.has_error()) {
+	if (_router.has_error()) {
 		_res->send_error_str(*_driver);
-		_res->send_error_str(_template);
+		_res->send_error_str(_router);
 		return;
 	}
 
@@ -691,34 +604,34 @@ void template_callback::cmd_error() {
 	}
 }
 
-void template_callback::empty() {
-	_template.expand_header("Welcome to tagd");
+void html_callback::empty() {
+	_router.expand_header("Welcome to tagd");
 
-	if (_template.has_error()) {
-		_res->send_error_str(_template);
+	if (_router.has_error()) {
+		_res->send_error_str(_router);
 		return;
 	}
 
-	tpl_t home_tpl = _template.get(HOME_TPL_VAL);
-	ctemplate::TemplateDictionary D("get");
-	int res = _template.expand_home(home_tpl, D);
+	tpl_t home_tpl = _router.get(HOME_VIEW);
+	tagd_template D("get", _res->output_buffer());
+	int res = _router.expand_home(home_tpl, D);
 
-	if (_template.has_error()) {
-		_res->send_error_str(_template);
+	if (_router.has_error()) {
+		_res->send_error_str(_router);
 		return;
 	}
 
-	_template.expand_template(home_tpl, D);
+	D.expand(_router.fpath(home_tpl));
 
-	if (_template.has_error()) {
-		_res->send_error_str(_template);
+	if (_router.has_error()) {
+		_res->send_error_str(_router);
 		return;
 	}
 
-	_template.expand_footer();
+	_router.expand_footer();
 
-	if (_template.has_error()) {
-		_res->send_error_str(_template);
+	if (_router.has_error()) {
+		_res->send_error_str(_router);
 		return;
 	}
 
@@ -727,4 +640,115 @@ void template_callback::empty() {
 	if (_trace_on) std::cerr << "empty: " <<  res << std::endl;
 }
 
+void router::expand_footer() {
+	tagd_template D("footer", _res->output_buffer());
+	D.expand(this->fpath(this->get(FOOTER_VIEW)));
 }
+
+tagd_code tagd_template::expand(const std::string& fname) {
+	if (fname.empty()) {
+		this->ferror( tagd::TAGD_ERR, "template file required" );
+		return tagd::TAGD_ERR;
+	}
+
+	if (!ctemplate::LoadTemplate(fname, ctemplate::DO_NOT_STRIP)) {
+		this->ferror( tagd::TAGD_ERR, "load template failed: %s" , fname.c_str() );
+		return tagd::TAGD_ERR;
+	}
+
+	// this also would load (if not already loaded), but lets load and expand in seperate
+	// steps so we can better trace the source of errors
+	if (!ctemplate::ExpandTemplate(fname, ctemplate::DO_NOT_STRIP, _dict, _output)) {
+		this->ferror( tagd::TAGD_ERR, "load template failed: %s" , fname.c_str() );
+		return tagd::TAGD_ERR;
+	}
+
+	return tagd::TAGD_OK;
+}
+
+tagd_template* tagd_template::add_section(const std::string &id) {
+	return this->new_sub_template(_dict->AddSectionDictionary(id));
+}
+
+void tagd_template::show_section(const std::string &id) {
+	_dict->ShowSection(id);
+}
+
+void tagd_template::set_value(const std::string &k, const std::string &v) {
+	_dict->SetValue(k, v);
+}
+
+void tagd_template::set_int_value(const std::string &k, long v) {
+	_dict->SetIntValue(k, v);
+}
+
+void tagd_template::set_value_show_section(const std::string &k, const std::string &v, const std::string &id) {
+	_dict->SetValueAndShowSection(k, v, id);
+}
+
+tagd_template* tagd_template::include(const std::string &id, const std::string &fname) {
+	auto d = _dict->AddIncludeDictionary(id);
+	d->SetFilename(fname);
+	return this->new_sub_template(d);
+}
+
+void tagd_template::set_tag_link (
+		const std::string& k,
+		const std::string& v,
+		const tpl_t& tpl,
+		const std::string *c) {
+
+	if (v == "*") { // wildcard relator
+		// empty link	
+		this->set_value(k, v);
+		return;
+	}
+
+	std::string context_lnk;
+	if (c!=nullptr && !c->empty()) {
+		context_lnk.append("&c=").append(tagd::uri_encode(*c));
+	}
+
+	if ( tagd::url::looks_like_hduri(v) ) {
+		tagd::url u;
+		u.init_hduri(v);
+		this->set_value( std::string(k).append("_lnk"),
+			std::string("/").append(tagd::uri_encode(u.hduri())).append("?v=").append(tpl.val).append(context_lnk)
+		);
+		this->set_value(k, u.id());
+	} else if ( tagd::url::looks_like_url(v) ) {
+		tagd::url u;
+		u.init(v);
+		this->set_value( std::string(k).append("_lnk"),
+			std::string("/").append(tagd::uri_encode(u.hduri())).append("?v=").append(tpl.val).append(context_lnk)
+		);
+		this->set_value(k, u.id());
+	} else {
+		this->set_value( std::string(k).append("_lnk"),
+			std::string("/").append(tagd::util::esc_and_quote(v)).append("?v=").append(tpl.val).append(context_lnk) );
+		this->set_value(k, v);
+	}
+}
+
+void tagd_template::set_relator_link (
+		const std::string& k,
+		const std::string& v,
+		const tpl_t& tpl,
+		const std::string *c) {
+	if (v.empty())  // wildcard relator
+		set_tag_link(k, "*", tpl, c);
+	else
+		set_tag_link(k, v, tpl, c);
+}
+
+void tagd_template::set_query_link (const std::string& k, const std::string& v) {
+	this->set_value( std::string(k).append("_lnk"),
+		std::string("/").append(tagd::uri_encode(v)).append("/?v=query.html") );
+}
+
+void tagd_template::set_query_related_link (const std::string& k, const std::string& v) {
+	this->set_value( std::string(k).append("_lnk"),
+		std::string("/*/").append(tagd::uri_encode(v)).append("?v=query.html") );
+}
+
+} // namespace httagd
