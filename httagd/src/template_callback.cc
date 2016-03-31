@@ -477,7 +477,11 @@ void html_callback::cmd_get(const tagd::abstract_tag& t) {
 
 	tagd_template D("get", _res->output_buffer());
 	if (ts_rc == tagd::TAGD_OK) {
-		tpl_t tpl = _router.get(_req->query_opt(QUERY_OPT_VIEW));
+		auto opt_view = _req->query_opt(QUERY_OPT_VIEW);
+		if (opt_view.empty())
+			opt_view = _req->svr()->args()->default_view;
+
+		tpl_t tpl = _router.get(opt_view);
 		switch (tpl.type) {
 			case TPL_BROWSE:
 				res = _router.expand_browse(tpl, T, D);
@@ -496,7 +500,7 @@ void html_callback::cmd_get(const tagd::abstract_tag& t) {
 				D.expand(_router.fpath(tpl));
 				break;
 			default:
-				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _req->query_opt(QUERY_OPT_VIEW).c_str());
+				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", opt_view.c_str());
 				_router.expand_error(_router.get(ERROR_VIEW), *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;
@@ -538,7 +542,11 @@ void html_callback::cmd_query(const tagd::interrogator& q) {
 
 	tagd_template D("query", _res->output_buffer());
 	if (ts_rc == tagd::TAGD_OK || ts_rc == tagd::TS_NOT_FOUND) {
-		tpl_t tpl = _router.get(_req->query_opt(QUERY_OPT_VIEW));
+		auto opt_view = _req->query_opt(QUERY_OPT_VIEW);
+		if (opt_view.empty())
+			opt_view = _req->svr()->args()->default_view;
+		
+		tpl_t tpl = _router.get(opt_view);
 		switch (tpl.type) {
 			case TPL_BROWSE:
 				tpl = _router.get(QUERY_VIEW);
@@ -546,7 +554,7 @@ void html_callback::cmd_query(const tagd::interrogator& q) {
 				D.expand(_router.fpath(tpl));
 				break;
 			case TPL_UNKNOWN:
-				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", _req->query_opt(QUERY_OPT_VIEW).c_str());
+				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", opt_view.c_str());
 				_router.expand_error(_router.get(ERROR_VIEW), *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;

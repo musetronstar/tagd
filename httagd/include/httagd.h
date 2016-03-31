@@ -18,6 +18,7 @@ namespace httagd {
 class httagd_args : public cmd_args {
 	public:
 		std::string tpl_dir;
+		std::string default_view;
 		std::string bind_addr;
 		uint16_t bind_port;
 
@@ -25,6 +26,13 @@ class httagd_args : public cmd_args {
 			_cmds["--tpl-dir"] = {
 				[this](char *val) {
 						this->tpl_dir = val;
+				},
+				true
+			};
+
+			_cmds["--default-view"] = {
+				[this](char *val) {
+						this->default_view = val;
 				},
 				true
 			};
