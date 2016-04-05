@@ -166,7 +166,7 @@ int router::expand_browse(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_te
 	auto tree = D.include("tree_html_tpl", fpath(tree_tpl));
 	size_t num_children = 0;
 	this->expand_tree(tpl, t, *tree, &num_children);
-	// std::cerr << "num_children: " << num_children << std::endl;
+	//std::cerr << "num_children: " << num_children << std::endl;
 
 	auto tag = D.include("tag_html_tpl", fpath(tag_tpl));
 	this->expand_tag(browse_tpl, t, *tag);
@@ -674,23 +674,23 @@ tagd_code tagd_template::expand(const std::string& fname) {
 	return tagd::TAGD_OK;
 }
 
-tagd_template* tagd_template::add_section(const std::string &id) {
+inline tagd_template* tagd_template::add_section(const std::string &id) {
 	return this->new_sub_template(_dict->AddSectionDictionary(id));
 }
 
-void tagd_template::show_section(const std::string &id) {
+inline void tagd_template::show_section(const std::string &id) {
 	_dict->ShowSection(id);
 }
 
-void tagd_template::set_value(const std::string &k, const std::string &v) {
+inline void tagd_template::set_value(const std::string &k, const std::string &v) {
 	_dict->SetValue(k, v);
 }
 
-void tagd_template::set_int_value(const std::string &k, long v) {
+inline void tagd_template::set_int_value(const std::string &k, long v) {
 	_dict->SetIntValue(k, v);
 }
 
-void tagd_template::set_value_show_section(const std::string &k, const std::string &v, const std::string &id) {
+inline void tagd_template::set_value_show_section(const std::string &k, const std::string &v, const std::string &id) {
 	_dict->SetValueAndShowSection(k, v, id);
 }
 
