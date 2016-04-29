@@ -9,6 +9,7 @@
 %extra_argument { TAGL::driver *tagl }
 %token_type {std::string *}
 %token_destructor { delete $$; }
+%token_prefix	TOK_
 
 %parse_accept
 {
@@ -20,7 +21,7 @@
 %syntax_error
 {
 	switch(yymajor) { // token that caused error
-		case UNKNOWN:
+		case TOK_UNKNOWN:
 			if (TOKEN != NULL)
 				tagl->error(tagd::TS_NOT_FOUND, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *TOKEN));
 			else
@@ -62,35 +63,35 @@ statement_list ::= statement .
 
 statement ::= set_statement TERMINATOR .
 {
-	tagl->_cmd = CMD_SET;
+	tagl->_cmd = TOK_CMD_SET;
 	if (!tagl->has_error()) {
 		tagl->code(tagd::TAGD_OK);
 	}
 }
 statement ::= get_statement TERMINATOR .
 {
-	tagl->_cmd = CMD_GET;
+	tagl->_cmd = TOK_CMD_GET;
 	if (!tagl->has_error()) 
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
 statement ::= put_statement TERMINATOR .
 {
-	tagl->_cmd = CMD_PUT;
+	tagl->_cmd = TOK_CMD_PUT;
 	if (!tagl->has_error()) 
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
 statement ::= del_statement TERMINATOR .
 {
-	tagl->_cmd = CMD_DEL;
+	tagl->_cmd = TOK_CMD_DEL;
 	if (!tagl->has_error()) 
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
 statement ::= query_statement TERMINATOR .
 {
-	tagl->_cmd = CMD_QUERY;
+	tagl->_cmd = TOK_CMD_QUERY;
 	if (!tagl->has_error()) 
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();

@@ -173,7 +173,7 @@ next:
 			if (*p == '\n')
 				_line_number++;
 		}
-		PARSE(TERMINATOR);
+		PARSE(TOK_TERMINATOR);
 	}
 
 	[ \t]
@@ -189,28 +189,28 @@ next:
 		goto next;
 	}
 		
-	"%%"                 { PARSE(CMD_SET); }
-	"<<"                 { PARSE(CMD_GET); }
-	">>"                 { PARSE(CMD_PUT); }
-	"!!"                 { PARSE(CMD_DEL); }
-	"??"                 { PARSE(CMD_QUERY); }
+	"%%"                 { PARSE(TOK_CMD_SET); }
+	"<<"                 { PARSE(TOK_CMD_GET); }
+	">>"                 { PARSE(TOK_CMD_PUT); }
+	"!!"                 { PARSE(TOK_CMD_DEL); }
+	"??"                 { PARSE(TOK_CMD_QUERY); }
 
-	"*"                  { PARSE(WILDCARD); }
-	"\"\""               { PARSE(EMPTY_STR); }
-	","                  { PARSE(COMMA); }
-	"="                  { PARSE(EQ); }
-	">"                  { PARSE(GT); }
-	">="                 { PARSE(GT_EQ); }
-	"<"                  { PARSE(LT); }
-	"<="                 { PARSE(LT_EQ); }
-	";"                  { PARSE(TERMINATOR); }
+	"*"                  { PARSE(TOK_WILDCARD); }
+	"\"\""               { PARSE(TOK_EMPTY_STR); }
+	","                  { PARSE(TOK_COMMA); }
+	"="                  { PARSE(TOK_EQ); }
+	">"                  { PARSE(TOK_GT); }
+	">="                 { PARSE(TOK_GT_EQ); }
+	"<"                  { PARSE(TOK_LT); }
+	"<="                 { PARSE(TOK_LT_EQ); }
+	";"                  { PARSE(TOK_TERMINATOR); }
 
 	"-"? [0-9]+ ("." [0-9]+)?
 					     { 
-	                        PARSE_VALUE(QUANTIFIER);
+	                        PARSE_VALUE(TOK_QUANTIFIER);
 	                     }
 
-	URL                  {  PARSE_VALUE(URL); }
+	URL                  {  PARSE_VALUE(TOK_URL); }
 
 	[^\000 \t\r\n;,=><'"-]+  { goto lookup_parse; }
 
@@ -287,8 +287,8 @@ parse_quoted_str:
 	_val.append(_beg, sz);
 	// parse the value in quotes, not the quotes themselves
 	_driver->parse_tok(
-		( _driver->_token == CMD_QUERY
-			? QUOTED_STR	// indicates search
+		( _driver->_token == TOK_CMD_QUERY
+			? TOK_QUOTED_STR	// indicates search
 			: _driver->lookup_pos(_val.substr(1, sz-2))
 		),
 		new std::string(_val.substr(1, sz-2))  // parser deletes

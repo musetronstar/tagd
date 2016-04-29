@@ -279,8 +279,8 @@ int tagsh::interpret(const std::string &line) {
 		// force a reduce action when a terminator
 		// hanging on the end of the stack
 		// i.e. cmd_statement TERMINATOR
-		if (!_driver.has_error() && _driver.token() == TERMINATOR)
-			_driver.parse_tok(TERMINATOR, NULL);
+		if (!_driver.has_error() && _driver.token() == TOK_TERMINATOR)
+			_driver.parse_tok(TOK_TERMINATOR, NULL);
 
 		if (_driver.has_error()) {
 			_driver.finish();

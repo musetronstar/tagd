@@ -85,22 +85,22 @@ void driver::do_callback() {
 	}
 
 	switch (_cmd) {
-		case CMD_GET:
+		case TOK_CMD_GET:
 			if (_trace_on)
 				std::cerr << "callback::cmd_get: " << *_tag << std::endl;
 			_callback->cmd_get(*_tag);
 			break;
-		case CMD_PUT:
+		case TOK_CMD_PUT:
 			if (_trace_on)
 				std::cerr << "callback::cmd_put: " << *_tag << std::endl;
 			_callback->cmd_put(*_tag);
 			break;
-		case CMD_DEL:
+		case TOK_CMD_DEL:
 			if (_trace_on)
 				std::cerr << "callback::cmd_del: " << *_tag << std::endl;
 			_callback->cmd_del(*_tag);
 			break;
-		case CMD_QUERY:
+		case TOK_CMD_QUERY:
 			if (_trace_on)
 				std::cerr << "callback::cmd_query: " << *_tag << std::endl;
 			_callback->cmd_query((tagd::interrogator&) *_tag);
@@ -127,8 +127,8 @@ void driver::init() {
 
 void driver::finish() {
 	if (_parser != nullptr) {
-		if (_token != TERMINATOR && !this->has_error())
-			Parse(_parser, TERMINATOR, NULL, this);
+		if (_token != TOK_TERMINATOR && !this->has_error())
+			Parse(_parser, TOK_TERMINATOR, NULL, this);
 		if (_token != -1 || _token != 0)
 			Parse(_parser, 0, NULL, this);
 		ParseFree(_parser, free);
@@ -156,8 +156,8 @@ void driver::trace_off() {
 // looks up a pos type for a tag and returns
 // its equivalent token
 int driver::lookup_pos(const std::string& s) const {
-	if ( _token == EQ ) // '=' separates object and modifier
-		return MODIFIER;
+	if ( _token == TOK_EQ ) // '=' separates object and modifier
+		return TOK_MODIFIER;
 
 	int token;
 	tagd::part_of_speech pos = _TS->pos(s);
@@ -171,37 +171,37 @@ int driver::lookup_pos(const std::string& s) const {
 
 	switch(pos) {
 		case tagd::POS_TAG:
-			token = TAG;
+			token = TOK_TAG;
 			break;
 		case tagd::POS_SUPER_RELATOR:
-			token = SUPER_RELATOR;
+			token = TOK_SUPER_RELATOR;
 			break;
 		case tagd::POS_RELATOR:
-			token = RELATOR;
+			token = TOK_RELATOR;
 			break;
 		case tagd::POS_INTERROGATOR:
-			token = INTERROGATOR;
+			token = TOK_INTERROGATOR;
 			break;
 		case tagd::POS_REFERENT:
-			token = REFERENT;
+			token = TOK_REFERENT;
 			break;
 		case tagd::POS_REFERS:
-			token = REFERS;
+			token = TOK_REFERS;
 			break;
 		case tagd::POS_REFERS_TO:
-			token = REFERS_TO;
+			token = TOK_REFERS_TO;
 			break;
 		case tagd::POS_CONTEXT:
-			token = CONTEXT;
+			token = TOK_CONTEXT;
 			break;
 		case tagd::POS_URL:
-			token = URL;
+			token = TOK_URL;
 			break;
 		case tagd::POS_FLAG:
-			token = FLAG;
+			token = TOK_FLAG;
 			break;
 		default:  // POS_UNKNOWN
-			token = UNKNOWN;
+			token = TOK_UNKNOWN;
 	}
 
 	return token;
@@ -217,14 +217,14 @@ void driver::parse_tok(int tok, std::string *s) {
 /* parses an entire string, replace end of input with a newline
  * init() should be called before calls to parseln and
  * finish() should be called afterwards
- * empty line will result in passing a TERMINATOR token to the parser
+ * empty line will result in passing a TOK_TERMINATOR token to the parser
  */
 tagd_code driver::parseln(const std::string& line) {
 	this->init();
 
 	// end of input
 	if (line.empty()) {
-		Parse(_parser, TERMINATOR, NULL, this);
+		Parse(_parser, TOK_TERMINATOR, NULL, this);
 		_token = 0;
 		Parse(_parser, _token, NULL, this);
 		return this->code();
