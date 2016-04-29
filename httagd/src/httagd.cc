@@ -21,19 +21,19 @@ void htscanner::scan_tagdurl_path(int cmd, const request& R) {
 
 	std::string q_val = R.query_opt(QUERY_OPT_SEARCH);
 	auto f_parse_query_terms = [this, &q_val]() {
-		this->_driver->parse_tok(RELATOR, new std::string(HARD_TAG_HAS));
-		this->_driver->parse_tok(TAG, new std::string(HARD_TAG_TERMS));
-		this->_driver->parse_tok(EQ, NULL);
-		this->_driver->parse_tok(QUOTED_STR, new std::string(q_val.c_str()));
+		this->_driver->parse_tok(TOK_RELATOR, new std::string(HARD_TAG_HAS));
+		this->_driver->parse_tok(TOK_TAG, new std::string(HARD_TAG_TERMS));
+		this->_driver->parse_tok(TOK_EQ, NULL);
+		this->_driver->parse_tok(TOK_QUOTED_STR, new std::string(q_val.c_str()));
 	};
 
-	if ((path == "" || path == "/") && cmd == CMD_GET) {
+	if ((path == "" || path == "/") && cmd == TOK_CMD_GET) {
 		if (q_val.empty()) {	// home page
 			dynamic_cast<tagl_callback*>(_driver->callback_ptr())->empty();
 		}
 		else {	// FTS query
-			_driver->parse_tok(CMD_QUERY, NULL);
-			_driver->parse_tok(QUOTED_STR, new std::string(q_val.c_str()));
+			_driver->parse_tok(TOK_CMD_QUERY, NULL);
+			_driver->parse_tok(TOK_QUOTED_STR, new std::string(q_val.c_str()));
 		}
 		return;
 	}
@@ -56,7 +56,7 @@ void htscanner::scan_tagdurl_path(int cmd, const request& R) {
 
 	size_t num_seps = sep_i;
 
-	if (cmd == CMD_PUT && num_seps > 1) {
+	if (cmd == TOK_CMD_PUT && num_seps > 1) {
 		_driver->error(tagd::TAGL_ERR, "malformed path: trailing '/'");
 		return;
 	}
@@ -76,19 +76,19 @@ void htscanner::scan_tagdurl_path(int cmd, const request& R) {
 	}
 
 	auto f_parse_cmd_query = [this, &cmd]() {
-		cmd = CMD_QUERY;
+		cmd = TOK_CMD_QUERY;
 		this->_driver->parse_tok(cmd, NULL);
-		this->_driver->parse_tok(INTERROGATOR,
+		this->_driver->parse_tok(TOK_INTERROGATOR,
 			(new std::string(HARD_TAG_INTERROGATOR)) );  // parser deletes
 	};
 
-	if (cmd == CMD_GET) {
+	if (cmd == TOK_CMD_GET) {
 		if (num_seps > 1) {
 			f_parse_cmd_query();
 
 			// first segment of "*" is a placeholder for super relation, so ignore it
 			if (segment != "*") {  // how is it related
-				_driver->parse_tok(SUPER_RELATOR, (new std::string(HARD_TAG_SUPER)));
+				_driver->parse_tok(TOK_SUPER_RELATOR, (new std::string(HARD_TAG_SUPER)));
 				this->scan(tagd::uri_decode(segment).c_str());
 			}
 		} else {
@@ -117,18 +117,18 @@ void htscanner::scan_tagdurl_path(int cmd, const request& R) {
 	segment = path.substr(seps[sep_i]+1);
 
 	if (!segment.empty()) {
-		_driver->parse_tok(WILDCARD, NULL);
+		_driver->parse_tok(TOK_WILDCARD, NULL);
 		this->scan(tagd::uri_decode(segment).c_str());
 	}
 
-	if (cmd == CMD_QUERY && !q_val.empty())
+	if (cmd == TOK_CMD_QUERY && !q_val.empty())
 		f_parse_query_terms();
 }
 
 tagd_code httagl::tagdurl_get(const request& R) {
 	this->init();
 
-	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(CMD_GET, R);
+	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_GET, R);
 
 	return this->code();
 }
@@ -136,7 +136,7 @@ tagd_code httagl::tagdurl_get(const request& R) {
 tagd_code httagl::tagdurl_put(const request& R) {
 	this->init();
 
-	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(CMD_PUT, R);
+	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_PUT, R);
 
 	return this->code();
 }
@@ -144,7 +144,7 @@ tagd_code httagl::tagdurl_put(const request& R) {
 tagd_code httagl::tagdurl_del(const request& R) {
 	this->init();
 
-	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(CMD_DEL, R);
+	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_DEL, R);
 
 	return this->code();
 }
@@ -280,9 +280,9 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 		opt_view = svr->args()->default_view;
 
 	if (opt_view.empty() || opt_view == "tagl") {
-		CB = new httagd::tagl_callback(TS, &req, &res);
+		CB = new httagd::tagl_callback(TS, &req, &res, opt_context);
 	} else {
-		CB = new httagd::html_callback(TS, &req, &res);
+		CB = new httagd::html_callback(TS, &req, &res, opt_context);
 	}
 	tagl.callback_ptr(CB);
 
