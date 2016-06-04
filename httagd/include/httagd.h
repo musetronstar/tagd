@@ -59,13 +59,13 @@ class server : public tagsh, public tagd::errorable {
 	protected:
 		httagd_args *_args;
 		std::string _bind_addr;
-		uint16_t _bind_port;	
+		uint16_t _bind_port;
 		evbase_t *_evbase;
 		evhtp_t  *_htp;
 
 		void init() {
 			_evbase = event_base_new();
-			_htp = evhtp_new(_evbase, NULL);	
+			_htp = evhtp_new(_evbase, NULL);
 		}
 	public:
 		server(tagspace::sqlite *ts)
@@ -282,53 +282,46 @@ class httagl : public TAGL::driver {
 		tagd_code tagdurl_del(const request&);
 };
 
-class tagl_callback : public TAGL::callback {
-	protected:
-		tagspace::tagspace *_TS;
-		request *_req;
-		response *_res;
+struct transaction;
+struct view;
+class tagd_template;
 
-	public:
-		tagl_callback(
-				tagspace::tagspace* ts,
-				request* req,
-				response* res
-			) : _TS{ts}, _req{req}, _res{res}
-			{
-				_res->content_type = "text/plain; charset=utf-8";
-			}
+typedef std::function<int(transaction&, const view&, tagd_template&)> home_handler_t;
+typedef std::function<int(transaction&, const view&, tagd_template&, const tagd::abstract_tag&)> tag_handler_t;
+typedef std::function<int(transaction&, const view&, tagd_template&, const tagd::abstract_tag&, size_t *num_children)> tree_handler_t;
+typedef std::function<int(transaction&, const view&, tagd_template&, const tagd::interrogator&, const tagd::tag_set&)> interrogator_handler_t;
+typedef std::function<void(transaction&, const view&, tagd_template&, const tagd::errorable& E)> error_handler_t;
 
-		void cmd_get(const tagd::abstract_tag&);
-		void cmd_put(const tagd::abstract_tag&);
-		void cmd_del(const tagd::abstract_tag&);
-		void cmd_query(const tagd::interrogator&); 
-        void cmd_error();
-        virtual void empty();  // welcome message or home page
-        void finish();
+struct view {
+	std::string name;  // view query option: v=name
+	std::string tpl_fname;
+
+	enum {
+		UNKNOWN,
+		HOME,
+		TAG,
+		TREE,
+		RELATIONS,
+		BROWSE,
+		QUERY,
+		HEADER,
+		FOOTER,
+		ERROR
+	} type;  // specifies the union handler
+
+	union handler {
+		tag_handler_t tag_handler;
+		tree_handler_t tree_handler;
+		interrogator_handler_t interrogator_handler;
+		error_handler_t error_handler;
+		~handler(){}
+	};
 };
 
-typedef enum {
-	TPL_UNKNOWN,
-	TPL_HOME,
-	TPL_TAG,
-	TPL_TREE,
-	TPL_RELATIONS,
-	TPL_BROWSE,
-	TPL_QUERY,
-	TPL_HEADER,
-	TPL_FOOTER,
-	TPL_ERROR
-} tpl_type;
+const view UNKNOWN_VIEW{"", "", view::UNKNOWN};
 
-struct tpl_t {
-	std::string val;
-	std::string fname;
-	tpl_type type;
-};
+typedef std::map< std::string, view > view_map_t;
 
-typedef std::map< std::string, tpl_t > view_map_t;
-
-const tpl_t UNKNOWN_TPL{"", "", TPL_UNKNOWN};
 const std::string HOME_VIEW{"home.html"};
 const std::string TAG_VIEW{"tag.html"};
 const std::string TREE_VIEW{"tree.html"};
@@ -339,12 +332,118 @@ const std::string ERROR_VIEW{"error.html"};
 const std::string HEADER_VIEW{"header.html"};
 const std::string FOOTER_VIEW{"footer.html"};
 
-/*\
-|*| Class for using mustache style templates.
-|*| We are currently wrapping ctemplate::TemplateDictionary so,
-|*| that in case we decide to replace it, all the logic will be encapsulated here.
-\*/ 
-class tagd_template;
+
+// container of views, templates and handlers
+class router : public tagd::errorable {
+		tagspace::tagspace *_TS;
+		request *_req;
+		response *_res;
+		std::string _tpl_dir;
+		std::string _context;
+		view_map_t _views;
+
+	public:
+		router(tagspace::tagspace* ts, request *req, response *res) :
+			_TS{ts}, _req{req}, _res{res}, _tpl_dir{req->svr()->args()->tpl_dir},
+			_context{req->query_opt(QUERY_OPT_CONTEXT)}
+		{
+			if (_tpl_dir.empty()) {
+				_tpl_dir = "./tpl/";
+			} else {
+				if ( _tpl_dir[_tpl_dir.size()-1] != '/' )
+					_tpl_dir.push_back('/');
+			}
+
+			// TODO consider using a memory-only tagspace to store these details
+			_views[HOME_VIEW] = {HOME_VIEW, "home.html.tpl", view::HOME};
+			_views[TAG_VIEW] = {TAG_VIEW, "tag.html.tpl", view::TAG};
+			_views[TREE_VIEW] = {TREE_VIEW, "tree.html.tpl", view::TREE};
+			_views[BROWSE_VIEW] = {BROWSE_VIEW, "browse.html.tpl", view::BROWSE};
+			_views[RELATIONS_VIEW ] = {RELATIONS_VIEW, "relations.html.tpl", view::RELATIONS};
+			_views[QUERY_VIEW] = {QUERY_VIEW, "query.html.tpl", view::QUERY};
+			_views[ERROR_VIEW] = {ERROR_VIEW, "error.html.tpl", view::ERROR};
+			_views[HEADER_VIEW] = {HEADER_VIEW, "header.html.tpl", view::HEADER};
+			_views[FOOTER_VIEW] = {FOOTER_VIEW, "footer.html.tpl", view::FOOTER};
+		}
+
+		/* TODO maybe
+		void put ( const view& tpl ) {
+			_views[tpl.val] = tpl;
+		}  */
+
+		view get(const std::string&);
+
+		std::string fpath(const view &tpl) {
+			return std::string(_tpl_dir)  // has trailing '/'
+					.append( tpl.tpl_fname );
+		}
+
+		//void expand_template(const view& tpl, const tagd_template& D);
+		void expand_header(const std::string& title);
+		void expand_footer();
+		int expand_home(const view& tpl, tagd_template& D);
+		int expand_tag(const view& tpl, const tagd::abstract_tag& t, tagd_template& D);
+		int expand_browse(const view& tpl, const tagd::abstract_tag& t, tagd_template& D);
+		int expand_relations(const view& tpl, const tagd::abstract_tag& t, tagd_template& D);
+		int expand_tree(const view& tpl, const tagd::abstract_tag& t, tagd_template& D, size_t *num_children=nullptr);
+		int expand_query(const view& tpl, const tagd::interrogator& q, const tagd::tag_set& R, tagd_template& D);
+		void expand_error(const view& tpl, const tagd::errorable& E);
+};
+
+
+// holds members passed to every callback
+struct transaction {
+	tagspace::tagspace *TS;
+	request *req;
+	response *res;
+	httagd::router *router;
+	std::string context;
+
+	bool has_error() const {
+		return (
+			TS->has_error() ||
+			router->has_error()
+		);
+	}
+
+	void send_errors_res() {
+		if (TS->has_error()) res->send_error_str(*TS);
+		if (router->has_error()) res->send_error_str(*router);
+	}
+};
+
+
+class tagl_callback : public TAGL::callback {
+	protected:
+		tagspace::tagspace *_TS;
+		request *_req;
+		response *_res;
+		router _router;
+		transaction _transaction;
+
+	public:
+		tagl_callback(
+				tagspace::tagspace* ts,
+				request* req,
+				response* res,
+				const std::string& ctx
+			) : _TS{ts}, _req{req}, _res{res},
+				_router(ts, req, res), _transaction{ts, req, res, &_router, ctx}
+			{
+				_res->content_type = "text/plain; charset=utf-8";
+			}
+
+		void cmd_get(const tagd::abstract_tag&);
+		void cmd_put(const tagd::abstract_tag&);
+		void cmd_del(const tagd::abstract_tag&);
+		void cmd_query(const tagd::interrogator&);
+        void cmd_error();
+        virtual void empty();  // welcome message or home page
+        void finish();
+		transaction tx() const {
+			return _transaction;
+		}
+};
 
 // ExpandEmitter class allows ctemplate to output directly to an evbuffer
 class  evbuffer_emitter : public ctemplate::ExpandEmitter {
@@ -371,6 +470,11 @@ class  evbuffer_emitter : public ctemplate::ExpandEmitter {
 		}
 };
 
+/*\
+|*| Class for using mustache style templates.
+|*| We are currently wrapping ctemplate::TemplateDictionary so,
+|*| that in case we decide to replace it, all the logic will be encapsulated here.
+\*/
 class tagd_template : public tagd::errorable {
 	protected:
 		ctemplate::TemplateDictionary* _dict;
@@ -443,13 +547,13 @@ class tagd_template : public tagd::errorable {
 		void set_tag_link(
 				const std::string&,
 				const std::string&,
-				const tpl_t&,
+				const view&,
 				const std::string *c = nullptr);
 
 		void set_relator_link(
 				const std::string&,
 				const std::string&,
-				const tpl_t&,
+				const view&,
 				const std::string *c = nullptr);
 
 		void set_query_link(const std::string& k, const std::string& v);
@@ -466,81 +570,17 @@ class tagd_template : public tagd::errorable {
 };
 
 
-// container of views, templates and handlers
-class router : public tagd::errorable {
-		tagspace::tagspace *_TS;
-		request *_req;
-		response *_res;
-		std::string _tpl_dir;
-		std::string _context;
-		view_map_t _views;
-
-	public: 
-		router(tagspace::tagspace* ts, request *req, response *res) :
-			_TS{ts}, _req{req}, _res{res}, _tpl_dir{req->svr()->args()->tpl_dir},
-			_context{req->query_opt(QUERY_OPT_CONTEXT)}
-		{
-			if (_tpl_dir.empty()) {
-				_tpl_dir = "./tpl/";
-			} else {
-				if ( _tpl_dir[_tpl_dir.size()-1] != '/' )
-					_tpl_dir.push_back('/');
-			}
-
-			// TODO consider using a memory-only tagspace to store these details
-			_views[ HOME_VIEW ] = {HOME_VIEW, "home.html.tpl", TPL_HOME};
-			_views[ TAG_VIEW ] = {TAG_VIEW, "tag.html.tpl", TPL_TAG};
-			_views[ TREE_VIEW ] = {TREE_VIEW, "tree.html.tpl", TPL_TREE};
-			_views[ BROWSE_VIEW ] = {BROWSE_VIEW, "browse.html.tpl", TPL_BROWSE};
-			_views[ RELATIONS_VIEW ] = {RELATIONS_VIEW, "relations.html.tpl", TPL_RELATIONS};
-			_views[ QUERY_VIEW ] = {QUERY_VIEW, "query.html.tpl", TPL_QUERY};
-			_views[ ERROR_VIEW ] = {ERROR_VIEW, "error.html.tpl", TPL_ERROR};
-			_views[ HEADER_VIEW ] = {HEADER_VIEW, "header.html.tpl", TPL_HEADER};
-			_views[ FOOTER_VIEW ] = {FOOTER_VIEW, "footer.html.tpl", TPL_FOOTER};
-		}
-
-		/* TODO maybe
-		void put ( const tpl_t& tpl ) {
-			_views[tpl.val] = tpl;	
-		}  */
-
-		tpl_t get ( const std::string& key ) {
-			auto it = _views.find(key);
-			if (it == _views.end()) {
-				tpl_t t = UNKNOWN_TPL;
-				t.val = key;
-				return t;
-			}
-
-			return it->second;
-		}
-
-		std::string fpath(const tpl_t &tpl) {
-			return std::string(_tpl_dir)  // has trailing '/'
-					.append( tpl.fname );
-		}
-
-		//void expand_template(const tpl_t& tpl, const tagd_template& D);
-		void expand_header(const std::string& title);
-		void expand_footer();
-		int expand_home(const tpl_t& tpl, tagd_template& D);
-		int expand_tag(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D);
-		int expand_browse(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D);
-		int expand_relations(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D);
-		int expand_tree(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D, size_t *num_children=nullptr);
-		int expand_query(const tpl_t& tpl, const tagd::interrogator& q, const tagd::tag_set& R, tagd_template& D);
-		void expand_error(const tpl_t& tpl, const tagd::errorable& E);
-};
-
 class html_callback : public tagl_callback, public tagd::errorable {
 	protected:
-		router _router;
 		bool _trace_on;
 
 	public:
-		html_callback( tagspace::tagspace* ts, request* req, response *res )
-				: tagl_callback(ts, req, res),
-				  _router(_TS, req, res),
+		html_callback(
+				tagspace::tagspace* ts,
+				request* req,
+				response *res,
+				std::string ctx
+			) : tagl_callback(ts, req, res, ctx),
 					_trace_on(req->svr()->args()->opt_trace)
 			{
 				_res->content_type = "text/html; charset=utf-8";
@@ -549,7 +589,7 @@ class html_callback : public tagl_callback, public tagd::errorable {
 		void cmd_get(const tagd::abstract_tag&);
 		// void cmd_put(const tagd::abstract_tag&);
 		// void cmd_del(const tagd::abstract_tag&);
-		void cmd_query(const tagd::interrogator&); 
+		void cmd_query(const tagd::interrogator&);
         void cmd_error();
 		void empty();
 };
