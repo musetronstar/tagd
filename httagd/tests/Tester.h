@@ -13,7 +13,7 @@ typedef tagspace::flags_t ts_flags_t;
 class tagspace_tester : public tagspace::tagspace {
 	private:
 		tag_map db;
-		
+
 		void put_test_tag(
 			const tagd::id_type& id,
 			const tagd::id_type& super,
@@ -97,13 +97,13 @@ class tagspace_tester : public tagspace::tagspace {
 		tagd::code put(const tagd::abstract_tag& t, ts_flags_t flags = ts_flags_t()) {
 			assert (flags != 999999);  // used param warning
 			if (t.id() == t.super_object())
-				return this->error(tagd::TS_MISUSE, "_id == _super not allowed!"); 
+				return this->error(tagd::TS_MISUSE, "_id == _super not allowed!");
 
 			if (t.pos() == tagd::POS_UNKNOWN) {
 				tagd::abstract_tag parent;
 				if (this->get(parent, t.super_object()) == tagd::TAGD_OK) {
 					tagd::abstract_tag cpy = t;
-					cpy.pos(parent.pos());	
+					cpy.pos(parent.pos());
 					db[cpy.id()] = cpy;
 				} else {
 					return this->code();
@@ -137,11 +137,11 @@ class tagspace_tester : public tagspace::tagspace {
 						if (p.modifier.empty()) {
 							this->ferror(tagd::TS_NOT_FOUND,
 								"cannot delete non-existent relation: %s %s %s",
-									t.id().c_str(), p.relator.c_str(), p.object.c_str()); 
+									t.id().c_str(), p.relator.c_str(), p.object.c_str());
 						} else {
 							this->ferror(tagd::TS_NOT_FOUND,
 								"cannot delete non-existent relation: %s %s %s = %s",
-									t.id().c_str(), p.relator.c_str(), p.object.c_str(), p.modifier.c_str()); 
+									t.id().c_str(), p.relator.c_str(), p.object.c_str(), p.modifier.c_str());
 						}
 					}
 				}
@@ -149,7 +149,7 @@ class tagspace_tester : public tagspace::tagspace {
 				return this->put(existing, flags);
 			}
 
-			assert(false);  // shouldn't get here 
+			assert(false);  // shouldn't get here
 			return this->error(tagd::TS_INTERNAL_ERR, "fix del() method");
 		}
 
@@ -210,14 +210,14 @@ class callback_tester : public TAGL::callback {
 		tagd::tag_set last_tag_set;
 		int cmd;
 		int err_cmd;
-		
+
 		callback_tester(tagspace::tagspace *ts) :
 			last_code(), last_tag(NULL), err_cmd(-1) {
 			_TS = ts;
 		}
 
 		void cmd_get(const tagd::abstract_tag& t) {
-			cmd = CMD_GET;
+			cmd = TOK_CMD_GET;
 			renew_last_tag(t.pos());
 			last_code = _TS->get(*last_tag, t.id());
 			if(t.pos() == tagd::POS_URL)
@@ -229,7 +229,7 @@ class callback_tester : public TAGL::callback {
 				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as super");
 				return;
 			}
-			cmd = CMD_PUT;
+			cmd = TOK_CMD_PUT;
 			renew_last_tag(t.pos());
 			*last_tag = t;
 			if (t.pos() == tagd::POS_URL)
@@ -242,7 +242,7 @@ class callback_tester : public TAGL::callback {
 				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as super");
 				return;
 			}
-			cmd = CMD_DEL;
+			cmd = TOK_CMD_DEL;
 			renew_last_tag(t.pos());
 			*last_tag = t;
 			if (t.pos() == tagd::POS_URL)
@@ -253,7 +253,7 @@ class callback_tester : public TAGL::callback {
 		void cmd_query(const tagd::interrogator& q) {
 			assert (q.pos() == tagd::POS_INTERROGATOR);
 
-			cmd = CMD_QUERY;
+			cmd = TOK_CMD_QUERY;
 			renew_last_tag();
 
 			*last_tag = q;
@@ -281,7 +281,7 @@ class Tester : public CxxTest::TestSuite {
 		tagl.tagdurl_get(httagd::request("/dog"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tagl.cmd() , CMD_GET )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_GET )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
 	}
 
@@ -292,7 +292,7 @@ class Tester : public CxxTest::TestSuite {
 		tagl.finish();
 		// two path separators indicate a query
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tagl.cmd() , CMD_QUERY )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_QUERY )
 		TS_ASSERT_EQUALS( tagl.tag().id() , HARD_TAG_INTERROGATOR )
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "dog" )
 	}
@@ -303,7 +303,7 @@ class Tester : public CxxTest::TestSuite {
 		tagl.tagdurl_put(httagd::request("/dog"));
 		tagl.execute("_is_a animal _has legs _can bark");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tagl.cmd() , CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
 		TS_ASSERT( tagl.tag().related("_has", "legs") )
@@ -322,7 +322,7 @@ class Tester : public CxxTest::TestSuite {
 		tagl.tagdurl_del(httagd::request("/dog"));
 		tagl.execute("_has legs _can bark");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tagl.cmd() , CMD_DEL )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_DEL )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
 		TS_ASSERT( tagl.tag().related("_has", "legs") )
 		TS_ASSERT( tagl.tag().related("_can", "bark") )
@@ -339,7 +339,7 @@ class Tester : public CxxTest::TestSuite {
 		evbuffer_add(input, s.c_str(), s.size());
 		tagl.evbuffer_execute(input);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tagl.cmd() , CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
 		TS_ASSERT( tagl.tag().related("_has", "legs") )
@@ -360,7 +360,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( cb.last_tag->related("legs") )
 		TS_ASSERT( cb.last_tag->related("tail") )
 
-		TS_ASSERT_EQUALS( tagl.cmd() , CMD_QUERY )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_QUERY )
 		TS_ASSERT_EQUALS( tagl.tag().id() , HARD_TAG_INTERROGATOR )
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
 		TS_ASSERT( tagl.tag().related("legs") )
@@ -392,7 +392,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( cb.last_tag->related("legs") )
 		TS_ASSERT( cb.last_tag->related("tail") )
 
-		TS_ASSERT_EQUALS( tagl.cmd() , CMD_QUERY )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_QUERY )
 		TS_ASSERT_EQUALS( tagl.tag().id() , HARD_TAG_INTERROGATOR )
 		TS_ASSERT( tagl.tag().super_object().empty() )
 		TS_ASSERT( tagl.tag().related("legs") )

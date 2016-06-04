@@ -253,10 +253,10 @@ void tagl_callback::finish() {
 void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagd::server *svr = (httagd::server*)arg;
 	// for now, this request uses the servers tagspace reference
-	// TODO allow requests to use other tagspaces (given the request)  
+	// TODO allow requests to use other tagspaces (given the request)
 	auto *TS = svr->tagspace();
 	bool trace_on = svr->args()->opt_trace;
-	
+
 	httagd::request req(svr, ev_req);
 	httagd::response res(svr, ev_req);
 

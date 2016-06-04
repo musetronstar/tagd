@@ -5,30 +5,31 @@
 
 namespace httagd {
 
-void router::expand_header(const std::string& title) {
-	tagd_template D("header", _res->output_buffer());
-	D.set_value("title", title);
-	if ( _req->query_map().size() > 0 ) {
-		D.show_section("query_options");
-		auto d = D.add_section("query_option");
-		for ( auto &kv : _req->query_map() ) {
-			d->set_value("query_key", kv.first);
-			d->set_value("query_value", kv.second);	
+void expand_header(transaction& tx, const view& vw, tagd_template& tpl, const std::string& title) {
+	tpl.set_value("title", title);
+	if ( tx.req->query_map().size() > 0 ) {
+		tpl.show_section("query_options");
+		auto t = tpl.add_section("query_option");
+		for ( auto &kv : tx.req->query_map() ) {
+			t->set_value("query_key", kv.first);
+			t->set_value("query_value", kv.second);
 		}
 	}
 
-	D.expand(this->fpath(this->get(HEADER_VIEW)));
+	tpl.expand(tx.router->fpath(vw));
 }
 
-int router::expand_home(const tpl_t& tpl, tagd_template& D) {
+home_handler_t f_home_handler =
+[](transaction& T, const view& V, tagd_template& L) -> int {
+
 	// TODO messages should be internationalized
 	// a _home_page tag might suffice for these type of definitions
-	D.set_value("msg", "Welcome to tagd!");
+	L.set_value("msg", "Welcome to tagd!");
 
 	return EVHTP_RES_OK;
-}
+};
 
-int router::expand_tag(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D) {
+int router::expand_tag(const view& tpl, const tagd::abstract_tag& t, tagd_template& D) {
 	if (t.pos() == tagd::POS_URL) {
 		tagd::url u;
 		u.init_hduri(t.id());
@@ -91,7 +92,7 @@ int router::expand_tag(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_templ
 	}
 	*/
 
-	tpl_t query_tpl = this->get(QUERY_VIEW);
+	view query_tpl = this->get(QUERY_VIEW);
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0)
 			this->expand_query(query_tpl, q_refers_to, S, D);
@@ -148,7 +149,7 @@ int router::expand_tag(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_templ
 	return EVHTP_RES_OK;
 }
 
-int router::expand_browse(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D) {
+int router::expand_browse(const view& tpl, const tagd::abstract_tag& t, tagd_template& D) {
 	// tagd_template D("browse");
 	if (t.pos() == tagd::POS_URL) {
 		tagd::url u;
@@ -158,10 +159,10 @@ int router::expand_browse(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_te
 		D.set_value("id", t.id());
 	}
 
-	tpl_t tag_tpl = this->get(TAG_VIEW);
-	tpl_t tree_tpl = this->get(TREE_VIEW);
-	tpl_t browse_tpl = this->get(BROWSE_VIEW);
-	tpl_t query_tpl = this->get(QUERY_VIEW);
+	view tag_tpl = this->get(TAG_VIEW);
+	view tree_tpl = this->get(TREE_VIEW);
+	view browse_tpl = this->get(BROWSE_VIEW);
+	view query_tpl = this->get(QUERY_VIEW);
 
 	auto tree = D.include("tree_html_tpl", fpath(tree_tpl));
 	size_t num_children = 0;
@@ -197,7 +198,7 @@ int router::expand_browse(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_te
 	return EVHTP_RES_OK;
 }
 
-int router::expand_relations(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D) {
+int router::expand_relations(const view& tpl, const tagd::abstract_tag& t, tagd_template& D) {
 /*
 	if (t.pos() == tagd::POS_URL) {
 		tagd::url u;
@@ -288,7 +289,7 @@ int router::expand_relations(const tpl_t& tpl, const tagd::abstract_tag& t, tagd
 	return EVHTP_RES_OK;
 }
 
-int router::expand_tree(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_template& D, size_t *num_children) {
+int router::expand_tree(const view& tpl, const tagd::abstract_tag& t, tagd_template& D, size_t *num_children) {
 	if (t.pos() == tagd::POS_URL) {
 		tagd::url u;
 		u.init_hduri(t.id());
@@ -352,23 +353,23 @@ int router::expand_tree(const tpl_t& tpl, const tagd::abstract_tag& t, tagd_temp
 	return EVHTP_RES_OK;
 }
 
-int router::expand_query(const tpl_t& tpl, const tagd::interrogator& q, const tagd::tag_set& R, tagd_template& D) {
-	// tagd_template D("query");
+int router::expand_query(const view& vw, const tagd::interrogator& q, const tagd::tag_set& R, tagd_template& tpl) {
+	// tagd_template tpl("query");
 
-	D.set_value("interrogator", q.id());
-	tpl_t tag_tpl = this->get(TAG_VIEW);
-	tpl_t browse_tpl = this->get(BROWSE_VIEW);
+	tpl.set_value("interrogator", q.id());
+	view tag_tpl = this->get(TAG_VIEW);
+	view browse_tpl = this->get(BROWSE_VIEW);
 	if (!q.super_object().empty()) {
-		D.show_section("super_relations");
-		auto s1 = D.add_section("super_relation");
+		tpl.show_section("super_relations");
+		auto s1 = tpl.add_section("super_relation");
 		s1->set_tag_link("super_relator", q.super_relator(), tag_tpl, &_context);
 		s1->set_tag_link("super_object", q.super_object(), tag_tpl, &_context);
 	}
 
 	if (q.relations.size() > 0) {
-		D.show_section("relations");
+		tpl.show_section("relations");
 		for (auto p : q.relations) {
-			auto s1 = D.add_section("relation");
+			auto s1 = tpl.add_section("relation");
 			s1->set_relator_link("relator", p.relator, tag_tpl, &_context);
 			s1->set_tag_link("object", p.object, tag_tpl, &_context);
 			if (!p.modifier.empty()) {
@@ -378,12 +379,12 @@ int router::expand_query(const tpl_t& tpl, const tagd::interrogator& q, const ta
 		}
 	}
 
-	D.set_int_value("num_results", R.size());
+	tpl.set_int_value("num_results", R.size());
 
 	if (R.size() > 0) {
-		D.show_section("results");
+		tpl.show_section("results");
 		for (auto r : R) {
-			auto s1 = D.add_section("result");
+			auto s1 = tpl.add_section("result");
 			if (r.has_relator(HARD_TAG_CONTEXT)) {
 				tagd::referent ref(r);
 				std::string context{ref.context()};
@@ -411,17 +412,17 @@ int router::expand_query(const tpl_t& tpl, const tagd::interrogator& q, const ta
 	if (_TS->has_error()) {
 		std::stringstream ss;
 		_TS->print_errors(ss);
-		D.set_value("errors", ss.str());
+		tpl.set_value("errors", ss.str());
 	}
 
 	return EVHTP_RES_OK;
 }
 
-void router::expand_error(const tpl_t& tpl, const tagd::errorable& E) {
+void router::expand_error(const view& vw, const tagd::errorable& E) {
 	tagd_template D("error", _res->output_buffer());
 	D.set_value("err_ids", tagd::tag_ids_str(E.errors()));
 	const tagd::errors_t& R	= E.errors();
-	tpl_t tag_tpl = this->get(TAG_VIEW);
+	view tag_vw = this->get(TAG_VIEW);
 
 	if (R.size() > 0) {
 		D.show_section("errors");
@@ -431,20 +432,20 @@ void router::expand_error(const tpl_t& tpl, const tagd::errorable& E) {
 			if (r.has_relator(HARD_TAG_CONTEXT)) {
 				tagd::referent ref(r);
 				std::string context{ref.context()};
-				set_tag_link(s1, "err_id", tpl, r.id(), &context);
+				set_tag_link(s1, "err_id", vw, r.id(), &context);
 			} else {
-				set_tag_link(s1, "err_id", tpl, r.id());
+				set_tag_link(s1, "err_id", vw, r.id());
 			}
 			*/
 			s1->set_value("err_id", r.id());
-			s1->set_tag_link("err_super_relator", r.super_relator(), tag_tpl, &_context);
-			s1->set_tag_link("err_super_object", r.super_object(), tag_tpl, &_context);
+			s1->set_tag_link("err_super_relator", r.super_relator(), tag_vw, &_context);
+			s1->set_tag_link("err_super_object", r.super_object(), tag_vw, &_context);
 			if (r.relations.size() > 0) {
 				s1->show_section("err_relations");
 				for (auto p : r.relations) {
 					auto s2 = s1->add_section("err_relation");
-					s2->set_tag_link("err_relator", p.relator, tag_tpl, &_context);
-					s2->set_tag_link("err_object", p.object, tag_tpl, &_context);
+					s2->set_tag_link("err_relator", p.relator, tag_vw, &_context);
+					s2->set_tag_link("err_object", p.object, tag_vw, &_context);
 					if (!p.modifier.empty()) {
 						s2->show_section("err_has_modifier");
 						s2->set_value("err_modifier", p.modifier);
@@ -454,7 +455,7 @@ void router::expand_error(const tpl_t& tpl, const tagd::errorable& E) {
 		}
 	}
 
-	D.expand(this->fpath(tpl));
+	D.expand(this->fpath(vw));
 }
 
 
@@ -468,36 +469,38 @@ void html_callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 
 	int res;
-	_router.expand_header(t.id());
+	auto tx = this->tx();
+	tagd_template hdr_tpl("header", _res->output_buffer());
+	expand_header(tx, tx.router->get(HEADER_VIEW), hdr_tpl, t.id());
 
 	if (_router.has_error()) {
 		_res->send_error_str(_router);
 		return;
 	}
 
-	tagd_template D("get", _res->output_buffer());
+	tagd_template get_tpl("get", _res->output_buffer());
 	if (ts_rc == tagd::TAGD_OK) {
 		auto opt_view = _req->query_opt(QUERY_OPT_VIEW);
 		if (opt_view.empty())
 			opt_view = _req->svr()->args()->default_view;
 
-		tpl_t tpl = _router.get(opt_view);
+		view tpl = _router.get(opt_view);
 		switch (tpl.type) {
-			case TPL_BROWSE:
-				res = _router.expand_browse(tpl, T, D);
-				D.expand(_router.fpath(tpl));
+			case view::BROWSE:
+				res = _router.expand_browse(tpl, T, get_tpl);
+				get_tpl.expand(_router.fpath(tpl));
 				break;
-			case TPL_TAG:
-				res = _router.expand_tag(tpl, T, D);
-				D.expand(_router.fpath(tpl));
+			case view::TAG:
+				res = _router.expand_tag(tpl, T, get_tpl);
+				get_tpl.expand(_router.fpath(tpl));
 				break;
-			case TPL_TREE:
-				res = _router.expand_tree(tpl, T, D);
-				D.expand(_router.fpath(tpl));
+			case view::TREE:
+				res = _router.expand_tree(tpl, T, get_tpl);
+				get_tpl.expand(_router.fpath(tpl));
 				break;
-			case TPL_RELATIONS:
-				res = _router.expand_relations(tpl, T, D);
-				D.expand(_router.fpath(tpl));
+			case view::RELATIONS:
+				res = _router.expand_relations(tpl, T, get_tpl);
+				get_tpl.expand(_router.fpath(tpl));
 				break;
 			default:
 				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", opt_view.c_str());
@@ -533,7 +536,9 @@ void html_callback::cmd_query(const tagd::interrogator& q) {
 	tagd::code ts_rc = _TS->query(T, q);
 
 	int res;
-	_router.expand_header(q.id());
+	auto tx = this->tx();
+	tagd_template hdr_tpl("header", _res->output_buffer());
+	expand_header(tx, tx.router->get(HEADER_VIEW), hdr_tpl, q.id());
 
 	if (_router.has_error()) {
 		_res->send_error_str(_router);
@@ -545,15 +550,15 @@ void html_callback::cmd_query(const tagd::interrogator& q) {
 		auto opt_view = _req->query_opt(QUERY_OPT_VIEW);
 		if (opt_view.empty())
 			opt_view = _req->svr()->args()->default_view;
-		
-		tpl_t tpl = _router.get(opt_view);
+
+		view tpl = _router.get(opt_view);
 		switch (tpl.type) {
-			case TPL_BROWSE:
+			case view::BROWSE:
 				tpl = _router.get(QUERY_VIEW);
 				res = _router.expand_query(tpl, q, T, D);
 				D.expand(_router.fpath(tpl));
 				break;
-			case TPL_UNKNOWN:
+			case view::UNKNOWN:
 				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", opt_view.c_str());
 				_router.expand_error(_router.get(ERROR_VIEW), *this);
 				res = EVHTP_RES_NOTFOUND;
@@ -585,7 +590,9 @@ void html_callback::cmd_query(const tagd::interrogator& q) {
 }
 
 void html_callback::cmd_error() {
-	_router.expand_header(_driver->last_error().id());
+	auto tx = this->tx();
+	tagd_template hdr_tpl("header", _res->output_buffer());
+	expand_header(tx, tx.router->get(HEADER_VIEW), hdr_tpl, _driver->last_error().id());
 	_router.expand_error(_router.get(ERROR_VIEW), *_driver);
 	_router.expand_footer();
 
@@ -613,23 +620,30 @@ void html_callback::cmd_error() {
 }
 
 void html_callback::empty() {
-	_router.expand_header("Welcome to tagd");
+	auto tx = this->tx();
+	tagd_template tpl("header", tx.res->output_buffer());
+	expand_header(tx, tx.router->get(HEADER_VIEW), tpl, "Welcome to tagd");
 
-	if (_router.has_error()) {
-		_res->send_error_str(_router);
+	if (tx.has_error()) {
+		tx.send_errors_res();
 		return;
 	}
 
-	tpl_t home_tpl = _router.get(HOME_VIEW);
+	view home_view = _router.get(HOME_VIEW);
 	tagd_template D("get", _res->output_buffer());
-	int res = _router.expand_home(home_tpl, D);
+	int res = f_home_handler(tx, home_view, D);
 
-	if (_router.has_error()) {
-		_res->send_error_str(_router);
+	if (tx.has_error()) {
+		tx.send_errors_res();
 		return;
 	}
 
-	D.expand(_router.fpath(home_tpl));
+	D.expand(tx.router->fpath(home_view));
+
+	if (tx.has_error()) {
+		tx.send_errors_res();
+		return;
+	}
 
 	if (_router.has_error()) {
 		_res->send_error_str(_router);
@@ -652,6 +666,18 @@ void router::expand_footer() {
 	tagd_template D("footer", _res->output_buffer());
 	D.expand(this->fpath(this->get(FOOTER_VIEW)));
 }
+
+view router::get (const std::string& key) {
+	auto it = _views.find(key);
+	if (it == _views.end()) {
+		view t = UNKNOWN_VIEW;
+		t.name = key;
+		return t;
+	}
+
+	return it->second;
+}
+
 
 tagd_code tagd_template::expand(const std::string& fname) {
 	if (fname.empty()) {
@@ -703,11 +729,11 @@ tagd_template* tagd_template::include(const std::string &id, const std::string &
 void tagd_template::set_tag_link (
 		const std::string& k,
 		const std::string& v,
-		const tpl_t& tpl,
+		const view& vw,
 		const std::string *c) {
 
 	if (v == "*") { // wildcard relator
-		// empty link	
+		// empty link
 		this->set_value(k, v);
 		return;
 	}
@@ -721,19 +747,19 @@ void tagd_template::set_tag_link (
 		tagd::url u;
 		u.init_hduri(v);
 		this->set_value( std::string(k).append("_lnk"),
-			std::string("/").append(tagd::uri_encode(u.hduri())).append("?v=").append(tpl.val).append(context_lnk)
+			std::string("/").append(tagd::uri_encode(u.hduri())).append("?v=").append(vw.name).append(context_lnk)
 		);
 		this->set_value(k, u.id());
 	} else if ( tagd::url::looks_like_url(v) ) {
 		tagd::url u;
 		u.init(v);
 		this->set_value( std::string(k).append("_lnk"),
-			std::string("/").append(tagd::uri_encode(u.hduri())).append("?v=").append(tpl.val).append(context_lnk)
+			std::string("/").append(tagd::uri_encode(u.hduri())).append("?v=").append(vw.name).append(context_lnk)
 		);
 		this->set_value(k, u.id());
 	} else {
 		this->set_value( std::string(k).append("_lnk"),
-			std::string("/").append(tagd::util::esc_and_quote(v)).append("?v=").append(tpl.val).append(context_lnk) );
+			std::string("/").append(tagd::util::esc_and_quote(v)).append("?v=").append(vw.name).append(context_lnk) );
 		this->set_value(k, v);
 	}
 }
@@ -741,12 +767,12 @@ void tagd_template::set_tag_link (
 void tagd_template::set_relator_link (
 		const std::string& k,
 		const std::string& v,
-		const tpl_t& tpl,
+		const view& vw,
 		const std::string *c) {
 	if (v.empty())  // wildcard relator
-		set_tag_link(k, "*", tpl, c);
+		set_tag_link(k, "*", vw, c);
 	else
-		set_tag_link(k, v, tpl, c);
+		set_tag_link(k, v, vw, c);
 }
 
 void tagd_template::set_query_link (const std::string& k, const std::string& v) {
@@ -758,5 +784,6 @@ void tagd_template::set_query_related_link (const std::string& k, const std::str
 	this->set_value( std::string(k).append("_lnk"),
 		std::string("/*/").append(tagd::uri_encode(v)).append("?v=query.html") );
 }
+
 
 } // namespace httagd

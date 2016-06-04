@@ -22,6 +22,6 @@ int main(int argc, char ** argv) {
 	if (svr.has_error())
 		svr.print_errors();
 
-	return svr.code(); 
+	return svr.code();
 }
 
