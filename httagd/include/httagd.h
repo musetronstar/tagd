@@ -375,6 +375,15 @@ struct transaction {
 	httagd::router *router;
 	std::string context;
 
+	transaction(
+		tagspace::tagspace* ts,
+		request* rq,
+		response* rs,
+		httagd::router *rt,
+		const std::string& ctx
+	) : TS{ts}, req{rq}, res{rs}, router{rt}, context{ctx}
+	{}
+
 	bool has_error() const {
 		return (
 			TS->has_error() ||
@@ -404,7 +413,7 @@ class tagl_callback : public TAGL::callback {
 				response* res,
 				const std::string& ctx
 			) : _TS{ts}, _req{req}, _res{res},
-				_router(ts, req, res), _transaction{ts, req, res, &_router, ctx}
+				_router(ts, req, res), _transaction(ts, req, res, &_router, ctx)
 			{
 				_res->content_type = "text/plain; charset=utf-8";
 			}
