@@ -1,4 +1,4 @@
-#include <sstream> 
+#include <sstream>
 #include <exception> // std::terminate
 #include <ctemplate/template.h>
 #include "httagd.h"
@@ -460,6 +460,15 @@ void router::expand_error(const view& vw, const tagd::errorable& E) {
 
 
 void html_callback::cmd_get(const tagd::abstract_tag& t) {
+	/*
+	 * In the case of HEAD requests, we are still adding
+	 * content to the buffer just like GET requests.
+	 * This is because evhtp will count the bytes and add
+	 * a Content-Length header for us, even though the content
+	 * will not be sent to the client.
+	 * TODO surely, there must be a less wasteful way to do this.
+	 */
+
 	tagd::abstract_tag T;
 	tagd::code ts_rc;
 	if (t.pos() == tagd::POS_URL) {

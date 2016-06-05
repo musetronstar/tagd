@@ -55,6 +55,7 @@ class httagd_args : public cmd_args {
 		}
 };
 
+
 class server : public tagsh, public tagd::errorable {
 	protected:
 		httagd_args *_args;
@@ -99,6 +100,7 @@ class server : public tagsh, public tagd::errorable {
 		tagd::code start();
 };
 
+
 class response {
 	protected:
 		server *_server;
@@ -142,9 +144,23 @@ class response {
 		void add_header(const std::string &k, const std::string &v) {
 			if (_server->args()->opt_trace)
 				std::cerr << "add_header(" << '"' << k << '"' << ", " << '"' << v << '"' << ")" << std::endl;
-			evhtp_headers_add_header(_ev_req->headers_out,
-				evhtp_header_new(k.c_str(), v.c_str(), 0, 0)
+
+/* from evhtp.h
+ * evhtp_header_new
+ * @param key null terminated string
+ * @param val null terminated string
+ * @param kalloc if set to 1, the key will be copied, if 0 no copy is done.
+ * @param valloc if set to 1, the val will be copied, if 0 no copy is done.
+ */
+			evhtp_headers_add_header(
+				_ev_req->headers_out,
+				// params 3,4 must be set, else strings from previous calls can get intermingled
+				evhtp_header_new(k.c_str(), v.c_str(), 1, 1)
 			);
+		}
+
+		void add_header_content_length(size_t sz) {
+			this->add_header("Content-Length", std::to_string(sz));
 		}
 
 		void send_error_str(const tagd::errorable &err) {
@@ -166,6 +182,15 @@ typedef enum {
 	MEDIA_TYPE_TEXT_HTML
 } media_type_t;
 
+// supported HTTP methods
+typedef enum {
+	HTTP_GET = 0,
+	HTTP_HEAD,
+	HTTP_POST,
+	HTTP_PUT,
+	HTTP_DELETE
+} http_method;
+
 class request {
 	private:
 		url_query_map_t _query_map;
@@ -176,6 +201,8 @@ class request {
 		std::string _path; // for testing
 
 	public:
+		http_method method;
+
 		request(server* S, evhtp_request_t *ev_req)
 			: _server{S}, _ev_req{ev_req}
 		{
@@ -208,58 +235,7 @@ class request {
 			return _path;
 		}
 
-		std::string url() const {
-
-			std::string url;
-			switch ( _ev_req->uri->scheme ) {
-				case htp_scheme_ftp:
-					url.append("ftp://");
-					break;
-				case htp_scheme_https:
-					url.append("https://");
-					break;
-				case htp_scheme_nfs:
-					url.append("nfs://");
-					break;
-				case htp_scheme_http:
-				case htp_scheme_none:
-				case htp_scheme_unknown:
-				default:
-					url.append("http://");
-			}
-
-			if ( _ev_req->uri->authority ) {
-				if ( _ev_req->uri->authority->username )
-					url.append( _ev_req->uri->authority->username );
-
-				if ( _ev_req->uri->authority->password )
-					url.append(":").append( _ev_req->uri->authority->password );
-
-				if ( _ev_req->uri->authority->username )
-					url.append("@");
-
-				if ( _ev_req->uri->authority->hostname )
-					url.append( _ev_req->uri->authority->hostname );
-
-				if ( _ev_req->uri->authority->port && _ev_req->uri->authority->port != 80 )
-					url.append( std::to_string(_ev_req->uri->authority->port) );
-			} else {
-				// TODO not sure this is a good way to do it
-				url.append( _server->bind_addr() );
-				url.append(":").append( std::to_string(_server->bind_port()) );
-			}
-
-			if ( _ev_req->uri->path->full )
-				url.append( _ev_req->uri->path->full );
-
-			if ( _ev_req->uri->query_raw )
-				url.append("?").append( reinterpret_cast<const char *>(_ev_req->uri->query_raw) );
-
-			if ( _ev_req->uri->fragment )
-				url.append("#").append( reinterpret_cast<const char *>(_ev_req->uri->fragment) );
-
-			return url;
-		}
+		std::string url() const;
 };
 
 class httagl;
