@@ -159,8 +159,16 @@ void tagl_callback::cmd_get(const tagd::abstract_tag& t) {
 	} else {
 		_TS->print_errors(ss);
 	}
-	if (ss.str().size())
+
+	if (_req->method == HTTP_HEAD) {
+		/* even though evhtp will not send content added for HEAD requests,
+		 * we will short circuit that by not adding content
+		 * _evhtp_create_reply() adds Content-Length header if not exists so lets create one
+		 */
+		_res->add_header_content_length(ss.str().size());
+	} else if (ss.str().size()) {
 		_res->add(ss.str());
+	}
 }
 
 void tagl_callback::cmd_put(const tagd::abstract_tag& t) {
@@ -250,6 +258,60 @@ void tagl_callback::finish() {
 	_res->send_reply(res);
 }
 
+std::string request::url() const {
+
+			std::string url;
+			switch ( _ev_req->uri->scheme ) {
+				case htp_scheme_ftp:
+					url.append("ftp://");
+					break;
+				case htp_scheme_https:
+					url.append("https://");
+					break;
+				case htp_scheme_nfs:
+					url.append("nfs://");
+					break;
+				case htp_scheme_http:
+				case htp_scheme_none:
+				case htp_scheme_unknown:
+				default:
+					url.append("http://");
+			}
+
+			if ( _ev_req->uri->authority ) {
+				if ( _ev_req->uri->authority->username )
+					url.append( _ev_req->uri->authority->username );
+
+				if ( _ev_req->uri->authority->password )
+					url.append(":").append( _ev_req->uri->authority->password );
+
+				if ( _ev_req->uri->authority->username )
+					url.append("@");
+
+				if ( _ev_req->uri->authority->hostname )
+					url.append( _ev_req->uri->authority->hostname );
+
+				if ( _ev_req->uri->authority->port && _ev_req->uri->authority->port != 80 )
+					url.append( std::to_string(_ev_req->uri->authority->port) );
+			} else {
+				// TODO not sure this is a good way to do it
+				url.append( _server->bind_addr() );
+				url.append(":").append( std::to_string(_server->bind_port()) );
+			}
+
+			if ( _ev_req->uri->path->full )
+				url.append( _ev_req->uri->path->full );
+
+			if ( _ev_req->uri->query_raw )
+				url.append("?").append( reinterpret_cast<const char *>(_ev_req->uri->query_raw) );
+
+			if ( _ev_req->uri->fragment )
+				url.append("#").append( reinterpret_cast<const char *>(_ev_req->uri->fragment) );
+
+			return url;
+		}
+
+
 void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagd::server *svr = (httagd::server*)arg;
 	// for now, this request uses the servers tagspace reference
@@ -288,27 +350,36 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 
 	// route request
 	switch(method) {
+		case htp_method_HEAD:
+			req.method = HTTP_HEAD;
+			// identical to GET request, but content body not added
+			tagl.tagdurl_get(req);
+			tagl.finish();
+			break;
 		case htp_method_GET:
+			req.method = HTTP_GET;
 			tagl.tagdurl_get(req);
 			tagl.finish();
 			break;
 		case htp_method_PUT:
+			req.method = HTTP_PUT;
 			tagl.tagdurl_put(req);
 			tagl.evbuffer_execute(ev_req->buffer_in);
 			tagl.finish();
 			break;
 		case htp_method_POST:
+			req.method = HTTP_POST;
 			// TODO check path
 			tagl.evbuffer_execute(ev_req->buffer_in);
 			tagl.finish();
 			break;
 		case htp_method_DELETE:
+			req.method = HTTP_DELETE;
 			tagl.tagdurl_del(req);
 			tagl.evbuffer_execute(ev_req->buffer_in);
 			tagl.finish();
 			break;
 /*
-		htp_method_HEAD,
 		htp_method_MKCOL,
 		htp_method_COPY,
 		htp_method_MOVE,
@@ -318,9 +389,9 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 		htp_method_LOCK,
 		htp_method_UNLOCK,
 		htp_method_TRACE,
-		htp_method_CONNECT, // RFC 2616 
-		htp_method_PATCH,   // RFC 5789 
-		htp_method_UNKNOWN,	
+		htp_method_CONNECT, // RFC 2616
+		htp_method_PATCH,   // RFC 5789
+		htp_method_UNKNOWN,
   */
 
 		default:
@@ -331,7 +402,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 			res.add(ss.str());
 			// TODO 10.4.6 405 Method Not Allowed
 			// The method specified in the Request-Line is not allowed for the resource identified by the Request-URI.
-			// The response MUST include an Allow header containing a list of valid methods for the requested resource. 
+			// The response MUST include an Allow header containing a list of valid methods for the requested resource.
 			res.send_reply(EVHTP_RES_METHNALLOWED);
 	}
 
