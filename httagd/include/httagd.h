@@ -354,8 +354,6 @@ class router : public tagd::errorable {
 					.append( tpl.tpl_fname );
 		}
 
-		//void expand_template(const view& tpl, const tagd_template& D);
-		void expand_header(const std::string& title);
 		void expand_footer();
 		int expand_home(const view& tpl, tagd_template& D);
 		int expand_tag(const view& tpl, const tagd::abstract_tag& t, tagd_template& D);

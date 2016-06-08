@@ -92,10 +92,10 @@ int router::expand_tag(const view& tpl, const tagd::abstract_tag& t, tagd_templa
 	}
 	*/
 
-	view query_tpl = this->get(QUERY_VIEW);
+	view query_view = this->get(QUERY_VIEW);
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0)
-			this->expand_query(query_tpl, q_refers_to, S, D);
+			this->expand_query(query_view, q_refers_to, S, D);
 	}
 
 	/*
@@ -106,7 +106,7 @@ int router::expand_tag(const view& tpl, const tagd::abstract_tag& t, tagd_templa
 
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0)
-			this->expand_query(query_tpl, q_refers, S, D);
+			this->expand_query(query_view, q_refers, S, D);
 	}
 
 	S.clear();
@@ -117,7 +117,7 @@ int router::expand_tag(const view& tpl, const tagd::abstract_tag& t, tagd_templa
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0) {
 			set_query_related_link(&D, "query_related", t.id());
-			this->expand_query(query_tpl, q_related, S, D);
+			this->expand_query(query_view, q_related, S, D);
 		}
 	}
 
@@ -128,7 +128,7 @@ int router::expand_tag(const view& tpl, const tagd::abstract_tag& t, tagd_templa
 	set_query_link(&D, "query_siblings", t.super_object());
 	if (tc == tagd::TAGD_OK && S.size() > 1) {
 		if (S.size() > 0)
-			this->expand_query(query_tpl, q_siblings, S, D);
+			this->expand_query(query_view, q_siblings, S, D);
 	}
 
 	S.clear();
@@ -137,7 +137,7 @@ int router::expand_tag(const view& tpl, const tagd::abstract_tag& t, tagd_templa
 
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0)
-			this->expand_query(query_tpl, q_children, S, D);
+			this->expand_query(query_view, q_children, S, D);
 	}
 */
 	if (_TS->has_error()) {
@@ -357,21 +357,21 @@ int router::expand_query(const view& vw, const tagd::interrogator& q, const tagd
 	// tagd_template tpl("query");
 
 	tpl.set_value("interrogator", q.id());
-	view tag_tpl = this->get(TAG_VIEW);
-	view browse_tpl = this->get(BROWSE_VIEW);
+	view tag_view = this->get(TAG_VIEW);
+	view browse_view = this->get(BROWSE_VIEW);
 	if (!q.super_object().empty()) {
 		tpl.show_section("super_relations");
 		auto s1 = tpl.add_section("super_relation");
-		s1->set_tag_link("super_relator", q.super_relator(), tag_tpl, &_context);
-		s1->set_tag_link("super_object", q.super_object(), tag_tpl, &_context);
+		s1->set_tag_link("super_relator", q.super_relator(), tag_view, &_context);
+		s1->set_tag_link("super_object", q.super_object(), tag_view, &_context);
 	}
 
 	if (q.relations.size() > 0) {
 		tpl.show_section("relations");
 		for (auto p : q.relations) {
 			auto s1 = tpl.add_section("relation");
-			s1->set_relator_link("relator", p.relator, tag_tpl, &_context);
-			s1->set_tag_link("object", p.object, tag_tpl, &_context);
+			s1->set_relator_link("relator", p.relator, tag_view, &_context);
+			s1->set_tag_link("object", p.object, tag_view, &_context);
 			if (!p.modifier.empty()) {
 				s1->show_section("has_modifier");
 				s1->set_value("modifier", p.modifier);
@@ -388,18 +388,18 @@ int router::expand_query(const view& vw, const tagd::interrogator& q, const tagd
 			if (r.has_relator(HARD_TAG_CONTEXT)) {
 				tagd::referent ref(r);
 				std::string context{ref.context()};
-				s1->set_tag_link("res_id", r.id(), browse_tpl, &context);
+				s1->set_tag_link("res_id", r.id(), browse_view, &context);
 			} else {
-				s1->set_tag_link("res_id", r.id(), browse_tpl, &_context);
+				s1->set_tag_link("res_id", r.id(), browse_view, &_context);
 			}
-			s1->set_tag_link("res_super_relator", r.super_relator(), tag_tpl, &_context);
-			s1->set_tag_link("res_super_object", r.super_object(), tag_tpl, &_context);
+			s1->set_tag_link("res_super_relator", r.super_relator(), tag_view, &_context);
+			s1->set_tag_link("res_super_object", r.super_object(), tag_view, &_context);
 			if (r.relations.size() > 0) {
 				s1->show_section("res_relations");
 				for (auto p : r.relations) {
 					auto s2 = s1->add_section("res_relation");
-					s2->set_relator_link("res_relator", p.relator, browse_tpl, &_context);
-					s2->set_tag_link("res_object", p.object, browse_tpl, &_context);
+					s2->set_relator_link("res_relator", p.relator, browse_view, &_context);
+					s2->set_tag_link("res_object", p.object, browse_view, &_context);
 					if (!p.modifier.empty()) {
 						s2->show_section("res_has_modifier");
 						s2->set_value("res_modifier", p.modifier);
