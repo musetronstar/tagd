@@ -267,6 +267,7 @@ void init_view_handlers();
 // TODO these should return a tagd::code instead of an int EVHTP_RES_* code
 typedef std::function<int(transaction&, const view&, tagd_template&)> empty_handler_t;
 typedef std::function<int(transaction&, const view&, tagd_template&, const tagd::abstract_tag&)> tag_handler_t;
+// TODO consider accepting a null pointer that allows users to pass whatever they want, then get rid of tree_handler_t, just pass a size_t pointer and cast from null
 typedef std::function<int(transaction&, const view&, tagd_template&, const tagd::abstract_tag&, size_t *num_children)> tree_handler_t;
 typedef std::function<int(transaction&, const view&, tagd_template&, const tagd::interrogator&, const tagd::tag_set&)> interrogator_handler_t;
 typedef std::function<void(transaction&, const view&, tagd_template&, const tagd::errorable& E)> error_handler_t;
@@ -289,6 +290,7 @@ struct view {
 	} type;  // specifies the union handler
 
 	union handler {
+		empty_handler_t empty_handler;
 		tag_handler_t tag_handler;
 		tree_handler_t tree_handler;
 		interrogator_handler_t interrogator_handler;
@@ -312,8 +314,9 @@ const std::string HEADER_VIEW{"header.html"};
 const std::string FOOTER_VIEW{"footer.html"};
 
 
-// container of views, templates and handlers
-class router : public tagd::errorable {
+// container of views(templates and handlers)
+// TODO (someday) extend it from tagspace::tagspace so views can be stored in a tagspace
+class viewspace : public tagd::errorable {
 		tagspace::tagspace *_TS;
 		request *_req;
 		response *_res;
@@ -322,7 +325,7 @@ class router : public tagd::errorable {
 		view_map_t _views;
 
 	public:
-		router(tagspace::tagspace* ts, request *req, response *res) :
+		viewspace(tagspace::tagspace* ts, request *req, response *res) :
 			_TS{ts}, _req{req}, _res{res}, _tpl_dir{req->svr()->args()->tpl_dir},
 			_context{req->query_opt(QUERY_OPT_CONTEXT)}
 		{
@@ -364,7 +367,7 @@ struct transaction {
 	tagspace::tagspace *TS;
 	request *req;
 	response *res;
-	httagd::router *router;
+	httagd::viewspace *VS;
 	std::string context;
 	bool trace_on;
 
@@ -372,22 +375,22 @@ struct transaction {
 		tagspace::tagspace* ts,
 		request* rq,
 		response* rs,
-		httagd::router *rt,
+		httagd::viewspace *vs,
 		const std::string& ctx
-	) : TS{ts}, req{rq}, res{rs}, router{rt}, context{ctx},
+	) : TS{ts}, req{rq}, res{rs}, VS{vs}, context{ctx},
 		trace_on{rq->svr()->args()->opt_trace}
 	{}
 
 	bool has_error() const {
 		return (
 			TS->has_error() ||
-			router->has_error()
+			VS->has_error()
 		);
 	}
 
 	void send_errors_res() {
 		if (TS->has_error()) res->send_error_str(*TS);
-		if (router->has_error()) res->send_error_str(*router);
+		if (VS->has_error()) res->send_error_str(*VS);
 	}
 };
 
@@ -397,7 +400,8 @@ class tagl_callback : public TAGL::callback {
 		tagspace::tagspace *_TS;
 		request *_req;
 		response *_res;
-		router _router;
+		viewspace _VS;
+		// TODO get rid of the above instances, they are all contained in transaction
 		transaction _transaction;
 
 	public:
@@ -407,7 +411,7 @@ class tagl_callback : public TAGL::callback {
 				response* res,
 				const std::string& ctx
 			) : _TS{ts}, _req{req}, _res{res},
-				_router(ts, req, res), _transaction(ts, req, res, &_router, ctx)
+				_VS(ts, req, res), _transaction(ts, req, res, &_VS, ctx)
 			{
 				_res->content_type = "text/plain; charset=utf-8";
 			}

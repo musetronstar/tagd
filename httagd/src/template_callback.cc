@@ -30,7 +30,7 @@ void init_view_handlers() {
 			}
 		}
 
-		tpl.expand(tx.router->fpath(vw));
+		tpl.expand(tx.VS->fpath(vw));
 
 		// TODO return tagd::code
 		return 0;
@@ -110,7 +110,7 @@ void init_view_handlers() {
 		}
 		*/
 
-		view query_view = tx.router->get(QUERY_VIEW);
+		view query_view = tx.VS->get(QUERY_VIEW);
 		if (tc == tagd::TAGD_OK) {
 			if (S.size() > 0)
 				f_interrogator_handler(tx, query_view, tpl, q_refers_to, S);
@@ -177,17 +177,17 @@ void init_view_handlers() {
 			tpl.set_value("id", t.id());
 		}
 
-		view tag_view = tx.router->get(TAG_VIEW);
-		view tree_view = tx.router->get(TREE_VIEW);
-		view browse_view = tx.router->get(BROWSE_VIEW);
-		view query_view = tx.router->get(QUERY_VIEW);
+		view tag_view = tx.VS->get(TAG_VIEW);
+		view tree_view = tx.VS->get(TREE_VIEW);
+		view browse_view = tx.VS->get(BROWSE_VIEW);
+		view query_view = tx.VS->get(QUERY_VIEW);
 
-		auto tree_tpl = tpl.include("tree_html_tpl", tx.router->fpath(tree_view));
+		auto tree_tpl = tpl.include("tree_html_tpl", tx.VS->fpath(tree_view));
 		size_t num_children = 0;
 		f_tree_handler(tx, vw, *tree_tpl, t, &num_children);
 		//std::cerr << "num_children: " << num_children << std::endl;
 
-		auto tag_tpl = tpl.include("tag_html_tpl", tx.router->fpath(tag_view));
+		auto tag_tpl = tpl.include("tag_html_tpl", tx.VS->fpath(tag_view));
 		f_tag_handler(tx, browse_view, *tag_tpl, t);
 
 		tagd::tag_set S;
@@ -200,7 +200,7 @@ void init_view_handlers() {
 
 		// std::cerr << "q_related(" << S.size() << "): " << q_related << std::endl;
 
-		auto results_tpl = tpl.include("results_html_tpl", tx.router->fpath(query_view));
+		auto results_tpl = tpl.include("results_html_tpl", tx.VS->fpath(query_view));
 		if (tc == tagd::TAGD_OK) {
 			if (S.size() > 0) {
 				f_interrogator_handler(tx, query_view, *results_tpl, q_related, S);
@@ -359,8 +359,8 @@ void init_view_handlers() {
 	f_interrogator_handler =
 	[](transaction& tx, const view& vw, tagd_template& tpl, const tagd::interrogator& q, const tagd::tag_set& R) -> int {
 		tpl.set_value("interrogator", q.id());
-		view tag_view = tx.router->get(TAG_VIEW);
-		view browse_view = tx.router->get(BROWSE_VIEW);
+		view tag_view = tx.VS->get(TAG_VIEW);
+		view browse_view = tx.VS->get(BROWSE_VIEW);
 		if (!q.super_object().empty()) {
 			tpl.show_section("super_relations");
 			auto s1 = tpl.add_section("super_relation");
@@ -424,7 +424,7 @@ void init_view_handlers() {
 	[](transaction& tx, const view& vw, tagd_template& tpl, const tagd::errorable& E) -> void {
 		tpl.set_value("err_ids", tagd::tag_ids_str(E.errors()));
 		const tagd::errors_t& R	= E.errors();
-		view tag_vw = tx.router->get(TAG_VIEW);
+		view tag_vw = tx.VS->get(TAG_VIEW);
 
 		if (R.size() > 0) {
 			tpl.show_section("errors");
@@ -457,12 +457,12 @@ void init_view_handlers() {
 			}
 		}
 
-		tpl.expand(tx.router->fpath(vw));
+		tpl.expand(tx.VS->fpath(vw));
 	};
 
 	f_footer_handler =
 	[](transaction& tx, const view& vw, tagd_template& tpl) -> int {
-		tpl.expand(tx.router->fpath(vw));
+		tpl.expand(tx.VS->fpath(vw));
 
 		// TODO return tagd::code
 		return 0;
@@ -491,10 +491,10 @@ void html_callback::cmd_get(const tagd::abstract_tag& t) {
 	int res;
 	auto tx = this->tx();
 	tagd_template hdr_tpl("header", tx.res->output_buffer());
-	f_header_handler(tx, tx.router->get(HEADER_VIEW), hdr_tpl, t);
+	f_header_handler(tx, tx.VS->get(HEADER_VIEW), hdr_tpl, t);
 
-	if (tx.router->has_error()) {
-		tx.res->send_error_str(*tx.router);
+	if (tx.VS->has_error()) {
+		tx.res->send_error_str(*tx.VS);
 		return;
 	}
 
@@ -504,45 +504,45 @@ void html_callback::cmd_get(const tagd::abstract_tag& t) {
 		if (opt_view.empty())
 			opt_view = tx.req->svr()->args()->default_view;
 
-		view vw = tx.router->get(opt_view);
+		view vw = tx.VS->get(opt_view);
 		switch (vw.type) {
 			case view::BROWSE:
 				res = f_browse_handler(tx, vw, get_tpl, T);
-				get_tpl.expand(tx.router->fpath(vw));
+				get_tpl.expand(tx.VS->fpath(vw));
 				break;
 			case view::TAG:
 				res = f_tag_handler(tx, vw, get_tpl, T);
-				get_tpl.expand(tx.router->fpath(vw));
+				get_tpl.expand(tx.VS->fpath(vw));
 				break;
 			case view::TREE:
 				res = f_tree_handler(tx, vw, get_tpl, T, nullptr);
-				get_tpl.expand(tx.router->fpath(vw));
+				get_tpl.expand(tx.VS->fpath(vw));
 				break;
 			case view::RELATIONS:
 				res = f_relations_handler(tx, vw, get_tpl, T);
-				get_tpl.expand(tx.router->fpath(vw));
+				get_tpl.expand(tx.VS->fpath(vw));
 				break;
 			default:
 				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", opt_view.c_str());
-				f_error_handler(tx, tx.router->get(ERROR_VIEW), get_tpl, *this);
+				f_error_handler(tx, tx.VS->get(ERROR_VIEW), get_tpl, *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;
 		}
 	} else {
 		// TODO TS_NOT_FOUND does not set error
-		f_error_handler(tx, tx.router->get(ERROR_VIEW), get_tpl, *_TS);
+		f_error_handler(tx, tx.VS->get(ERROR_VIEW), get_tpl, *_TS);
 		res = EVHTP_RES_SERVERR;
 	}
 
-	if (tx.router->has_error()) {
-		tx.res->send_error_str(*tx.router);
+	if (tx.VS->has_error()) {
+		tx.res->send_error_str(*tx.VS);
 		return;
 	}
 
-	f_footer_handler(tx, tx.router->get(FOOTER_VIEW), get_tpl);
+	f_footer_handler(tx, tx.VS->get(FOOTER_VIEW), get_tpl);
 
-	if (tx.router->has_error()) {
-		tx.res->send_error_str(*tx.router);
+	if (tx.VS->has_error()) {
+		tx.res->send_error_str(*tx.VS);
 		return;
 	}
 
@@ -558,10 +558,10 @@ void html_callback::cmd_query(const tagd::interrogator& q) {
 	int res;
 	auto tx = this->tx();
 	tagd_template hdr_tpl("header", tx.res->output_buffer());
-	f_header_handler(tx, tx.router->get(HEADER_VIEW), hdr_tpl, q);
+	f_header_handler(tx, tx.VS->get(HEADER_VIEW), hdr_tpl, q);
 
-	if (tx.router->has_error()) {
-		tx.res->send_error_str(*tx.router);
+	if (tx.VS->has_error()) {
+		tx.res->send_error_str(*tx.VS);
 		return;
 	}
 
@@ -571,36 +571,36 @@ void html_callback::cmd_query(const tagd::interrogator& q) {
 		if (opt_view.empty())
 			opt_view = tx.req->svr()->args()->default_view;
 
-		view vw = tx.router->get(opt_view);
+		view vw = tx.VS->get(opt_view);
 		switch (vw.type) {
 			case view::BROWSE:
-				vw = tx.router->get(QUERY_VIEW);
+				vw = tx.VS->get(QUERY_VIEW);
 				res = f_interrogator_handler(tx, vw, tpl, q, T);
-				tpl.expand(tx.router->fpath(vw));
+				tpl.expand(tx.VS->fpath(vw));
 				break;
 			case view::UNKNOWN:
 				this->ferror(tagd::TS_NOT_FOUND, "resource not found: %s", opt_view.c_str());
-				f_error_handler(tx, tx.router->get(ERROR_VIEW), tpl, *this);
+				f_error_handler(tx, tx.VS->get(ERROR_VIEW), tpl, *this);
 				res = EVHTP_RES_NOTFOUND;
 				break;
 			default:
 				res = f_interrogator_handler(tx, vw, tpl, q, T);
-				tpl.expand(tx.router->fpath(vw));
+				tpl.expand(tx.VS->fpath(vw));
 		}
 	} else {
-		f_error_handler(tx, tx.router->get(ERROR_VIEW), tpl, *_TS);
+		f_error_handler(tx, tx.VS->get(ERROR_VIEW), tpl, *_TS);
 		res = EVHTP_RES_SERVERR;
 	}
 
-	if (tx.router->has_error()) {
-		tx.res->send_error_str(*tx.router);
+	if (tx.VS->has_error()) {
+		tx.res->send_error_str(*tx.VS);
 		return;
 	}
 
-	f_footer_handler(tx, tx.router->get(FOOTER_VIEW), tpl);
+	f_footer_handler(tx, tx.VS->get(FOOTER_VIEW), tpl);
 
-	if (tx.router->has_error()) {
-		tx.res->send_error_str(*tx.router);
+	if (tx.VS->has_error()) {
+		tx.res->send_error_str(*tx.VS);
 		return;
 	}
 
@@ -612,13 +612,13 @@ void html_callback::cmd_query(const tagd::interrogator& q) {
 void html_callback::cmd_error() {
 	auto tx = this->tx();
 	tagd_template hdr_tpl("header", _res->output_buffer());
-	f_header_handler(tx, tx.router->get(HEADER_VIEW), hdr_tpl, _driver->last_error());
-	f_error_handler(tx, _router.get(ERROR_VIEW), hdr_tpl, *_driver);
-	f_footer_handler(tx, tx.router->get(FOOTER_VIEW), hdr_tpl);
+	f_header_handler(tx, tx.VS->get(HEADER_VIEW), hdr_tpl, _driver->last_error());
+	f_error_handler(tx, _VS.get(ERROR_VIEW), hdr_tpl, *_driver);
+	f_footer_handler(tx, tx.VS->get(FOOTER_VIEW), hdr_tpl);
 
-	if (_router.has_error()) {
+	if (_VS.has_error()) {
 		_res->send_error_str(*_driver);
-		_res->send_error_str(_router);
+		_res->send_error_str(_VS);
 		return;
 	}
 
@@ -642,14 +642,14 @@ void html_callback::cmd_error() {
 void html_callback::empty() {
 	auto tx = this->tx();
 	tagd_template header_tpl("header", tx.res->output_buffer());
-	f_header_handler(tx, tx.router->get(HEADER_VIEW), header_tpl, tagd::abstract_tag("Welcomd to tagd"));
+	f_header_handler(tx, tx.VS->get(HEADER_VIEW), header_tpl, tagd::abstract_tag("Welcomd to tagd"));
 
 	if (tx.has_error()) {
 		tx.send_errors_res();
 		return;
 	}
 
-	view home_view = _router.get(HOME_VIEW);
+	view home_view = _VS.get(HOME_VIEW);
 	tagd_template get_tpl("get", _res->output_buffer());
 	int res = f_home_handler(tx, home_view, get_tpl);
 
@@ -658,22 +658,22 @@ void html_callback::empty() {
 		return;
 	}
 
-	get_tpl.expand(tx.router->fpath(home_view));
+	get_tpl.expand(tx.VS->fpath(home_view));
 
 	if (tx.has_error()) {
 		tx.send_errors_res();
 		return;
 	}
 
-	if (_router.has_error()) {
-		_res->send_error_str(_router);
+	if (_VS.has_error()) {
+		_res->send_error_str(_VS);
 		return;
 	}
 
-	f_footer_handler(tx, tx.router->get(FOOTER_VIEW), get_tpl);
+	f_footer_handler(tx, tx.VS->get(FOOTER_VIEW), get_tpl);
 
-	if (_router.has_error()) {
-		_res->send_error_str(_router);
+	if (_VS.has_error()) {
+		_res->send_error_str(_VS);
 		return;
 	}
 
@@ -682,7 +682,7 @@ void html_callback::empty() {
 	if (_trace_on) std::cerr << "empty: " <<  res << std::endl;
 }
 
-view router::get (const std::string& key) {
+view viewspace::get (const std::string& key) {
 	auto it = _views.find(key);
 	if (it == _views.end()) {
 		view t = UNKNOWN_VIEW;

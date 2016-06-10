@@ -338,6 +338,9 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagd::tagl_callback *CB;
 	// determine TAGL::callback pointer based on media type
 
+	// TODO create a httagd::transaction object here and pass to
+	// callbacks rather than (TS, &req, &res, opt_context);
+
 	if (opt_view.empty())
 		opt_view = svr->args()->default_view;
 
