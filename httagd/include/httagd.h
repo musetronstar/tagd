@@ -262,7 +262,10 @@ struct transaction;
 struct view;
 class tagd_template;
 
-typedef std::function<int(transaction&, const view&, tagd_template&)> home_handler_t;
+
+void init_view_handlers();
+// TODO these should return a tagd::code instead of an int EVHTP_RES_* code
+typedef std::function<int(transaction&, const view&, tagd_template&)> empty_handler_t;
 typedef std::function<int(transaction&, const view&, tagd_template&, const tagd::abstract_tag&)> tag_handler_t;
 typedef std::function<int(transaction&, const view&, tagd_template&, const tagd::abstract_tag&, size_t *num_children)> tree_handler_t;
 typedef std::function<int(transaction&, const view&, tagd_template&, const tagd::interrogator&, const tagd::tag_set&)> interrogator_handler_t;
@@ -353,15 +356,6 @@ class router : public tagd::errorable {
 			return std::string(_tpl_dir)  // has trailing '/'
 					.append( tpl.tpl_fname );
 		}
-
-		void expand_footer();
-		int expand_home(const view& tpl, tagd_template& D);
-		int expand_tag(const view& tpl, const tagd::abstract_tag& t, tagd_template& D);
-		int expand_browse(const view& tpl, const tagd::abstract_tag& t, tagd_template& D);
-		int expand_relations(const view& tpl, const tagd::abstract_tag& t, tagd_template& D);
-		int expand_tree(const view& tpl, const tagd::abstract_tag& t, tagd_template& D, size_t *num_children=nullptr);
-		int expand_query(const view& tpl, const tagd::interrogator& q, const tagd::tag_set& R, tagd_template& D);
-		void expand_error(const view& tpl, const tagd::errorable& E);
 };
 
 
@@ -372,6 +366,7 @@ struct transaction {
 	response *res;
 	httagd::router *router;
 	std::string context;
+	bool trace_on;
 
 	transaction(
 		tagspace::tagspace* ts,
@@ -379,7 +374,8 @@ struct transaction {
 		response* rs,
 		httagd::router *rt,
 		const std::string& ctx
-	) : TS{ts}, req{rq}, res{rs}, router{rt}, context{ctx}
+	) : TS{ts}, req{rq}, res{rs}, router{rt}, context{ctx},
+		trace_on{rq->svr()->args()->opt_trace}
 	{}
 
 	bool has_error() const {

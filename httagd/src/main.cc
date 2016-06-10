@@ -16,6 +16,8 @@ int main(int argc, char ** argv) {
 		return TS.code();
 	}
 
+	httagd::init_view_handlers();
+
 	httagd::server svr(&TS, &args);
 	svr.start();
 
