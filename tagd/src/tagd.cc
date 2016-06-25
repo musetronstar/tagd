@@ -467,14 +467,15 @@ id_type error::message() const {
         if (it->object == HARD_TAG_MESSAGE)
             return it->modifier;
     }
-   
+
     return id_type();
 }
 
 // error helper class
 tagd_code errorable::error(const tagd::error& err) {
+	this->init_errors();
 	_code = err.code();
-	_errors.push_back(err);
+	_errors->push_back(err);
 	return _code;
 }
 
@@ -499,26 +500,30 @@ tagd_code errorable::ferror(tagd::code c, const char *errfmt, ...) {
 }
 
 tagd_code errorable::verror(tagd::code c, const char *errfmt, va_list& args) {
-	_code = c;
+	this->init_errors();
 
+	_code = c;
 	char *msg = util::csprintf(errfmt, args);
 	if (msg == NULL)
-		_errors.push_back(tagd::error(c, "errorable::error() failed"));
+		_errors->push_back(tagd::error(c, "errorable::error() failed"));
 	else {
-		_errors.push_back(tagd::error(c, msg));
+		_errors->push_back(tagd::error(c, msg));
 	}
 
 	return c;
 }
 
 void errorable::print_errors(std::ostream& os) const {
-	errors_t::const_iterator it = _errors.begin();
-	if (it != _errors.end()) {
+	if (_errors == nullptr)
+		return;
+
+	errors_t::const_iterator it = _errors->begin();
+	if (it != _errors->end()) {
 		os << *it << std::endl;
 		++it;
 	}
 
-    for(; it != _errors.end(); ++it)
+    for(; it != _errors->end(); ++it)
 		os << std::endl << *it << std::endl;
 }
 

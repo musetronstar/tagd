@@ -537,28 +537,51 @@ class errorable {
 	protected:
 		tagd_code _init;
 		tagd_code _code;
-		errors_t _errors;
+
+		// errors_t pointer uses lazy initialization
+		// so that non-error states don't get penalized
+		// creating a new and uneeded errors_t
+		errors_t* _errors;
+
+		void init_errors() {
+			if (_errors == nullptr)
+				_errors = new errors_t();
+		}
 
 	public:
-		errorable() : _init{TAGD_OK}, _code{TAGD_OK}, _errors{} {}
-		errorable(tagd_code c) : _init{c}, _code{c}, _errors{} {}
-		virtual ~errorable() {}
+		errorable() : _init{TAGD_OK}, _code{TAGD_OK}, _errors{nullptr} {}
+
+		errorable(tagd_code c) : _init{c}, _code{c}, _errors{nullptr} {}
+
+		virtual ~errorable() {
+			if (_errors != nullptr)
+				delete _errors;
+		}
 
 		bool ok() const { return _code == TAGD_OK; }
-		bool has_error() const { return (_code >= TAGD_ERR || _errors.size() > 0); }
+
+		size_t size() const {
+			if (_errors == nullptr)
+				return 0;
+			return _errors->size();
+		}
+
+		bool has_error() const { return (_code >= TAGD_ERR || this->size() > 0); }
+
 		tagd_code code() const { return _code; }
+
 		tagd::error last_error() const {
-			if (_errors.size() == 0)
+			if (this->size() == 0)
 				return tagd::error();
 			else
-				return _errors[_errors.size()-1];
+				return (*_errors)[_errors->size()-1];
 		}
 
 		tagd_code last_error_relation(predicate p) {
-			if (_errors.size() == 0)
+			if (this->size() == 0)
 				return tagd::TS_NOT_FOUND;
 
-			return _errors[_errors.size()-1].relation(p);
+			return (*_errors)[_errors->size()-1].relation(p);
 		}
 
 		// set and return
@@ -568,8 +591,9 @@ class errorable {
 		tagd_code error(tagd::code, const predicate&);
 		tagd_code error(tagd::code, const std::string&);
 
-		tagd_code errors( const errorable &E ) {
-			_errors.insert( _errors.end(), E._errors.begin(), E._errors.end() );
+		tagd_code errors(const errorable &E) {
+			this->init_errors();
+			_errors->insert(_errors->end(), E._errors->begin(), E._errors->end());
 			return E.code();
 		}
 
@@ -577,11 +601,19 @@ class errorable {
 		tagd_code ferror(tagd::code, const char *, ...);
 		tagd_code verror(tagd::code, const char *, va_list&);
 
-		void clear_errors() { _code = _init; _errors.clear(); }
+		void clear_errors() {
+			_code = _init;
+			if (_errors != nullptr)
+				_errors->clear();
+		}
 
 		void print_errors(std::ostream& os = std::cerr) const;
 
-		const errors_t& errors() const { return _errors; }
+		const errors_t& errors() const {
+			if (_errors == nullptr)
+				return std::move(errors_t());
+			return *_errors;
+		}
 };
 
 struct util {
