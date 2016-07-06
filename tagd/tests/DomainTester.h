@@ -15,7 +15,7 @@ const char* public_suffix(const char *dom) {
     tagd::domain d(dom);
 
     // std::cout << "tld_code: " << tld_code_str(d.code()) << std::endl;
-    
+
 /*
     if (d.is_registrable())
         return d.reg().c_str();
@@ -170,34 +170,34 @@ class Tester : public CxxTest::TestSuite {
     }
 
     void test_domain_wildcard(void) {
-        tagd::domain d("il");  // rule is *.il, but no wildcard given
+        tagd::domain d("ck");  // rule is *.ck, but no wildcard given
         TS_ASSERT_EQUALS( tld_code_str(d.code()), "TLD_ICANN" );
-        TS_ASSERT_EQUALS( d.pub(), "il" );
+        TS_ASSERT_EQUALS( d.pub(), "ck" );
         TS_ASSERT_EQUALS( d.reg(), "" );
         TS_ASSERT_EQUALS( d.priv(), "" );
         TS_ASSERT_EQUALS( d.priv_label(), "" );
         TS_ASSERT_EQUALS( d.sub(), "" );
-        TS_ASSERT_EQUALS( d.str(), "il" );
+        TS_ASSERT_EQUALS( d.str(), "ck" );
         TS_ASSERT( !d.is_registrable() );
 
-        tld_code tld_c = d.init("com.il");
+        tld_code tld_c = d.init("com.ck");
         TS_ASSERT_EQUALS( tld_code_str(tld_c), "TLD_WILDCARD" );
-        TS_ASSERT_EQUALS( d.pub(), "com.il" );
+        TS_ASSERT_EQUALS( d.pub(), "com.ck" );
         TS_ASSERT_EQUALS( d.reg(), "" );
         TS_ASSERT_EQUALS( d.priv(), "" );
         TS_ASSERT_EQUALS( d.priv_label(), "" );
         TS_ASSERT_EQUALS( d.sub(), "" );
-        TS_ASSERT_EQUALS( d.str(), "com.il" );
+        TS_ASSERT_EQUALS( d.str(), "com.ck" );
         TS_ASSERT( !d.is_registrable() );
 
-        tld_c = d.init("www.example.com.il");
+        tld_c = d.init("www.example.com.ck");
         TS_ASSERT_EQUALS( tld_code_str(tld_c), "TLD_WILDCARD_REG" );
-        TS_ASSERT_EQUALS( d.pub(), "com.il" );
-        TS_ASSERT_EQUALS( d.reg(), "example.com.il" );
+        TS_ASSERT_EQUALS( d.pub(), "com.ck" );
+        TS_ASSERT_EQUALS( d.reg(), "example.com.ck" );
         TS_ASSERT_EQUALS( d.priv(), "www.example" );
         TS_ASSERT_EQUALS( d.priv_label(), "example" );
         TS_ASSERT_EQUALS( d.sub(), "www" );
-        TS_ASSERT_EQUALS( d.str(), "www.example.com.il" );
+        TS_ASSERT_EQUALS( d.str(), "www.example.com.ck" );
         TS_ASSERT( d.is_registrable() );
     }
 

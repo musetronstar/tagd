@@ -17,7 +17,7 @@ struct hash_value {
 };
 %%
 #  ===BEGIN ICANN DOMAINS===
-#  ac : http://en.wikipedia.org/wiki/.ac
+#  ac : https://en.wikipedia.org/wiki/.ac
 ac, TLD_ICANN
 com.ac, TLD_ICANN
 edu.ac, TLD_ICANN
@@ -25,10 +25,10 @@ gov.ac, TLD_ICANN
 net.ac, TLD_ICANN
 mil.ac, TLD_ICANN
 org.ac, TLD_ICANN
-#  ad : http://en.wikipedia.org/wiki/.ad
+#  ad : https://en.wikipedia.org/wiki/.ad
 ad, TLD_ICANN
 nom.ad, TLD_ICANN
-#  ae : http://en.wikipedia.org/wiki/.ae
+#  ae : https://en.wikipedia.org/wiki/.ae
 #  see also: "Domain Name Eligibility Policy" at http://www.aeda.ae/eng/aepolicy.php
 ae, TLD_ICANN
 co.ae, TLD_ICANN
@@ -38,7 +38,7 @@ sch.ae, TLD_ICANN
 ac.ae, TLD_ICANN
 gov.ae, TLD_ICANN
 mil.ae, TLD_ICANN
-#  aero : see http://www.information.aero/index.php?id=66
+#  aero : see https://www.information.aero/index.php?id=66
 aero, TLD_ICANN
 accident-investigation.aero, TLD_ICANN
 accident-prevention.aero, TLD_ICANN
@@ -99,7 +99,6 @@ leasing.aero, TLD_ICANN
 logistics.aero, TLD_ICANN
 magazine.aero, TLD_ICANN
 maintenance.aero, TLD_ICANN
-marketplace.aero, TLD_ICANN
 media.aero, TLD_ICANN
 microlight.aero, TLD_ICANN
 modelling.aero, TLD_ICANN
@@ -122,7 +121,6 @@ show.aero, TLD_ICANN
 skydiving.aero, TLD_ICANN
 software.aero, TLD_ICANN
 student.aero, TLD_ICANN
-taxi.aero, TLD_ICANN
 trader.aero, TLD_ICANN
 trading.aero, TLD_ICANN
 trainer.aero, TLD_ICANN
@@ -157,15 +155,9 @@ gov.al, TLD_ICANN
 mil.al, TLD_ICANN
 net.al, TLD_ICANN
 org.al, TLD_ICANN
-#  am : http://en.wikipedia.org/wiki/.am
+#  am : https://en.wikipedia.org/wiki/.am
 am, TLD_ICANN
-#  an : http://www.una.an/an_domreg/default.asp
-an, TLD_ICANN
-com.an, TLD_ICANN
-net.an, TLD_ICANN
-org.an, TLD_ICANN
-edu.an, TLD_ICANN
-#  ao : http://en.wikipedia.org/wiki/.ao
+#  ao : https://en.wikipedia.org/wiki/.ao
 #  http://www.dns.ao/REGISTR.DOC
 ao, TLD_ICANN
 ed.ao, TLD_ICANN
@@ -174,7 +166,7 @@ og.ao, TLD_ICANN
 co.ao, TLD_ICANN
 pb.ao, TLD_ICANN
 it.ao, TLD_ICANN
-#  aq : http://en.wikipedia.org/wiki/.aq
+#  aq : https://en.wikipedia.org/wiki/.aq
 aq, TLD_ICANN
 #  ar : https://nic.ar/normativa-vigente.xhtml
 ar, TLD_ICANN
@@ -187,7 +179,7 @@ mil.ar, TLD_ICANN
 net.ar, TLD_ICANN
 org.ar, TLD_ICANN
 tur.ar, TLD_ICANN
-#  arpa : http://en.wikipedia.org/wiki/.arpa
+#  arpa : https://en.wikipedia.org/wiki/.arpa
 #  Confirmed by registry <iana-questions@icann.org> 2008-06-18
 arpa, TLD_ICANN
 e164.arpa, TLD_ICANN
@@ -196,19 +188,19 @@ ip6.arpa, TLD_ICANN
 iris.arpa, TLD_ICANN
 uri.arpa, TLD_ICANN
 urn.arpa, TLD_ICANN
-#  as : http://en.wikipedia.org/wiki/.as
+#  as : https://en.wikipedia.org/wiki/.as
 as, TLD_ICANN
 gov.as, TLD_ICANN
-#  asia : http://en.wikipedia.org/wiki/.asia
+#  asia : https://en.wikipedia.org/wiki/.asia
 asia, TLD_ICANN
-#  at : http://en.wikipedia.org/wiki/.at
+#  at : https://en.wikipedia.org/wiki/.at
 #  Confirmed by registry <it@nic.at> 2008-06-17
 at, TLD_ICANN
 ac.at, TLD_ICANN
 co.at, TLD_ICANN
 gv.at, TLD_ICANN
 or.at, TLD_ICANN
-#  au : http://en.wikipedia.org/wiki/.au
+#  au : https://en.wikipedia.org/wiki/.au
 #  http://www.auda.org.au/
 au, TLD_ICANN
 #  2LDs
@@ -249,12 +241,12 @@ sa.gov.au, TLD_ICANN
 tas.gov.au, TLD_ICANN
 vic.gov.au, TLD_ICANN
 wa.gov.au, TLD_ICANN
-#  aw : http://en.wikipedia.org/wiki/.aw
+#  aw : https://en.wikipedia.org/wiki/.aw
 aw, TLD_ICANN
 com.aw, TLD_ICANN
-#  ax : http://en.wikipedia.org/wiki/.ax
+#  ax : https://en.wikipedia.org/wiki/.ax
 ax, TLD_ICANN
-#  az : http://en.wikipedia.org/wiki/.az
+#  az : https://en.wikipedia.org/wiki/.az
 az, TLD_ICANN
 com.az, TLD_ICANN
 net.az, TLD_ICANN
@@ -268,19 +260,15 @@ mil.az, TLD_ICANN
 name.az, TLD_ICANN
 pro.az, TLD_ICANN
 biz.az, TLD_ICANN
-#  ba : http://en.wikipedia.org/wiki/.ba
+#  ba : http://nic.ba/users_data/files/pravilnik_o_registraciji.pdf
 ba, TLD_ICANN
-org.ba, TLD_ICANN
-net.ba, TLD_ICANN
+com.ba, TLD_ICANN
 edu.ba, TLD_ICANN
 gov.ba, TLD_ICANN
 mil.ba, TLD_ICANN
-unsa.ba, TLD_ICANN
-unbi.ba, TLD_ICANN
-co.ba, TLD_ICANN
-com.ba, TLD_ICANN
-rs.ba, TLD_ICANN
-#  bb : http://en.wikipedia.org/wiki/.bb
+net.ba, TLD_ICANN
+org.ba, TLD_ICANN
+#  bb : https://en.wikipedia.org/wiki/.bb
 bb, TLD_ICANN
 biz.bb, TLD_ICANN
 co.bb, TLD_ICANN
@@ -292,16 +280,16 @@ net.bb, TLD_ICANN
 org.bb, TLD_ICANN
 store.bb, TLD_ICANN
 tv.bb, TLD_ICANN
-#  bd : http://en.wikipedia.org/wiki/.bd
+#  bd : https://en.wikipedia.org/wiki/.bd
 bd, TLD_WILDCARD
-#  be : http://en.wikipedia.org/wiki/.be
+#  be : https://en.wikipedia.org/wiki/.be
 #  Confirmed by registry <tech@dns.be> 2008-06-08
 be, TLD_ICANN
 ac.be, TLD_ICANN
-#  bf : http://en.wikipedia.org/wiki/.bf
+#  bf : https://en.wikipedia.org/wiki/.bf
 bf, TLD_ICANN
 gov.bf, TLD_ICANN
-#  bg : http://en.wikipedia.org/wiki/.bg
+#  bg : https://en.wikipedia.org/wiki/.bg
 #  https://www.register.bg/user/static/rules/en/index.html
 bg, TLD_ICANN
 a.bg, TLD_ICANN
@@ -340,14 +328,14 @@ z.bg, TLD_ICANN
 7.bg, TLD_ICANN
 8.bg, TLD_ICANN
 9.bg, TLD_ICANN
-#  bh : http://en.wikipedia.org/wiki/.bh
+#  bh : https://en.wikipedia.org/wiki/.bh
 bh, TLD_ICANN
 com.bh, TLD_ICANN
 edu.bh, TLD_ICANN
 net.bh, TLD_ICANN
 org.bh, TLD_ICANN
 gov.bh, TLD_ICANN
-#  bi : http://en.wikipedia.org/wiki/.bi
+#  bi : https://en.wikipedia.org/wiki/.bi
 #  http://whois.nic.bi/
 bi, TLD_ICANN
 co.bi, TLD_ICANN
@@ -355,9 +343,9 @@ com.bi, TLD_ICANN
 edu.bi, TLD_ICANN
 or.bi, TLD_ICANN
 org.bi, TLD_ICANN
-#  biz : http://en.wikipedia.org/wiki/.biz
+#  biz : https://en.wikipedia.org/wiki/.biz
 biz, TLD_ICANN
-#  bj : http://en.wikipedia.org/wiki/.bj
+#  bj : https://en.wikipedia.org/wiki/.bj
 bj, TLD_ICANN
 asso.bj, TLD_ICANN
 barreau.bj, TLD_ICANN
@@ -369,7 +357,7 @@ edu.bm, TLD_ICANN
 gov.bm, TLD_ICANN
 net.bm, TLD_ICANN
 org.bm, TLD_ICANN
-#  bn : http://en.wikipedia.org/wiki/.bn
+#  bn : https://en.wikipedia.org/wiki/.bn
 bn, TLD_WILDCARD
 #  bo : http://www.nic.bo/
 bo, TLD_ICANN
@@ -383,7 +371,7 @@ net.bo, TLD_ICANN
 mil.bo, TLD_ICANN
 tv.bo, TLD_ICANN
 #  br : http://registro.br/dominio/categoria.html
-#  Submitted by registry <fneves@registro.br> 2014-08-11
+#  Submitted by registry <fneves@registro.br>
 br, TLD_ICANN
 adm.br, TLD_ICANN
 adv.br, TLD_ICANN
@@ -462,7 +450,7 @@ net.bs, TLD_ICANN
 org.bs, TLD_ICANN
 edu.bs, TLD_ICANN
 gov.bs, TLD_ICANN
-#  bt : http://en.wikipedia.org/wiki/.bt
+#  bt : https://en.wikipedia.org/wiki/.bt
 bt, TLD_ICANN
 com.bt, TLD_ICANN
 edu.bt, TLD_ICANN
@@ -470,15 +458,15 @@ gov.bt, TLD_ICANN
 net.bt, TLD_ICANN
 org.bt, TLD_ICANN
 #  bv : No registrations at this time.
-#  Submitted by registry <jarle@uninett.no> 2006-06-16
+#  Submitted by registry <jarle@uninett.no>
 bv, TLD_ICANN
-#  bw : http://en.wikipedia.org/wiki/.bw
+#  bw : https://en.wikipedia.org/wiki/.bw
 #  http://www.gobin.info/domainname/bw.doc
 #  list of other 2nd level tlds ?
 bw, TLD_ICANN
 co.bw, TLD_ICANN
 org.bw, TLD_ICANN
-#  by : http://en.wikipedia.org/wiki/.by
+#  by : https://en.wikipedia.org/wiki/.by
 #  http://tld.by/rules_2006_en.html
 #  list of other 2nd level tlds ?
 by, TLD_ICANN
@@ -490,7 +478,7 @@ mil.by, TLD_ICANN
 com.by, TLD_ICANN
 #  http://hoster.by/
 of.by, TLD_ICANN
-#  bz : http://en.wikipedia.org/wiki/.bz
+#  bz : https://en.wikipedia.org/wiki/.bz
 #  http://www.belizenic.bz/
 bz, TLD_ICANN
 com.bz, TLD_ICANN
@@ -498,7 +486,7 @@ net.bz, TLD_ICANN
 org.bz, TLD_ICANN
 edu.bz, TLD_ICANN
 gov.bz, TLD_ICANN
-#  ca : http://en.wikipedia.org/wiki/.ca
+#  ca : https://en.wikipedia.org/wiki/.ca
 ca, TLD_ICANN
 #  ca geographical names
 ab.ca, TLD_ICANN
@@ -515,24 +503,24 @@ pe.ca, TLD_ICANN
 qc.ca, TLD_ICANN
 sk.ca, TLD_ICANN
 yk.ca, TLD_ICANN
-#  gc.ca: http://en.wikipedia.org/wiki/.gc.ca
+#  gc.ca: https://en.wikipedia.org/wiki/.gc.ca
 #  see also: http://registry.gc.ca/en/SubdomainFAQ
 gc.ca, TLD_ICANN
-#  cat : http://en.wikipedia.org/wiki/.cat
+#  cat : https://en.wikipedia.org/wiki/.cat
 cat, TLD_ICANN
-#  cc : http://en.wikipedia.org/wiki/.cc
+#  cc : https://en.wikipedia.org/wiki/.cc
 cc, TLD_ICANN
-#  cd : http://en.wikipedia.org/wiki/.cd
+#  cd : https://en.wikipedia.org/wiki/.cd
 #  see also: https://www.nic.cd/domain/insertDomain_2.jsp?act=1
 cd, TLD_ICANN
 gov.cd, TLD_ICANN
-#  cf : http://en.wikipedia.org/wiki/.cf
+#  cf : https://en.wikipedia.org/wiki/.cf
 cf, TLD_ICANN
-#  cg : http://en.wikipedia.org/wiki/.cg
+#  cg : https://en.wikipedia.org/wiki/.cg
 cg, TLD_ICANN
-#  ch : http://en.wikipedia.org/wiki/.ch
+#  ch : https://en.wikipedia.org/wiki/.ch
 ch, TLD_ICANN
-#  ci : http://en.wikipedia.org/wiki/.ci
+#  ci : https://en.wikipedia.org/wiki/.ci
 #  http://www.nic.ci/index.php?page=charte
 ci, TLD_ICANN
 org.ci, TLD_ICANN
@@ -551,23 +539,23 @@ int.ci, TLD_ICANN
 presse.ci, TLD_ICANN
 md.ci, TLD_ICANN
 gouv.ci, TLD_ICANN
-#  ck : http://en.wikipedia.org/wiki/.ck
+#  ck : https://en.wikipedia.org/wiki/.ck
 ck, TLD_WILDCARD
 www.ck, TLD_EXCEPTION_REG
-#  cl : http://en.wikipedia.org/wiki/.cl
+#  cl : https://en.wikipedia.org/wiki/.cl
 cl, TLD_ICANN
 gov.cl, TLD_ICANN
 gob.cl, TLD_ICANN
 co.cl, TLD_ICANN
 mil.cl, TLD_ICANN
-#  cm : http://en.wikipedia.org/wiki/.cm plus bug 981927
+#  cm : https://en.wikipedia.org/wiki/.cm plus bug 981927
 cm, TLD_ICANN
 co.cm, TLD_ICANN
 com.cm, TLD_ICANN
 gov.cm, TLD_ICANN
 net.cm, TLD_ICANN
-#  cn : http://en.wikipedia.org/wiki/.cn
-#  Submitted by registry <tanyaling@cnnic.cn> 2008-06-11
+#  cn : https://en.wikipedia.org/wiki/.cn
+#  Submitted by registry <tanyaling@cnnic.cn>
 cn, TLD_ICANN
 ac.cn, TLD_ICANN
 com.cn, TLD_ICANN
@@ -617,8 +605,8 @@ zj.cn, TLD_ICANN
 hk.cn, TLD_ICANN
 mo.cn, TLD_ICANN
 tw.cn, TLD_ICANN
-#  co : http://en.wikipedia.org/wiki/.co
-#  Submitted by registry <tecnico@uniandes.edu.co> 2008-06-11
+#  co : https://en.wikipedia.org/wiki/.co
+#  Submitted by registry <tecnico@uniandes.edu.co>
 co, TLD_ICANN
 arts.co, TLD_ICANN
 com.co, TLD_ICANN
@@ -633,9 +621,9 @@ nom.co, TLD_ICANN
 org.co, TLD_ICANN
 rec.co, TLD_ICANN
 web.co, TLD_ICANN
-#  com : http://en.wikipedia.org/wiki/.com
+#  com : https://en.wikipedia.org/wiki/.com
 com, TLD_ICANN
-#  coop : http://en.wikipedia.org/wiki/.coop
+#  coop : https://en.wikipedia.org/wiki/.coop
 coop, TLD_ICANN
 #  cr : http://www.nic.cr/niccr_publico/showRegistroDominiosScreen.do
 cr, TLD_ICANN
@@ -646,7 +634,7 @@ fi.cr, TLD_ICANN
 go.cr, TLD_ICANN
 or.cr, TLD_ICANN
 sa.cr, TLD_ICANN
-#  cu : http://en.wikipedia.org/wiki/.cu
+#  cu : https://en.wikipedia.org/wiki/.cu
 cu, TLD_ICANN
 com.cu, TLD_ICANN
 edu.cu, TLD_ICANN
@@ -654,7 +642,7 @@ org.cu, TLD_ICANN
 net.cu, TLD_ICANN
 gov.cu, TLD_ICANN
 inf.cu, TLD_ICANN
-#  cv : http://en.wikipedia.org/wiki/.cv
+#  cv : https://en.wikipedia.org/wiki/.cv
 cv, TLD_ICANN
 #  cw : http://www.una.cw/cw_registry/
 #  Confirmed by registry <registry@una.net> 2013-03-26
@@ -663,11 +651,11 @@ com.cw, TLD_ICANN
 edu.cw, TLD_ICANN
 net.cw, TLD_ICANN
 org.cw, TLD_ICANN
-#  cx : http://en.wikipedia.org/wiki/.cx
+#  cx : https://en.wikipedia.org/wiki/.cx
 #  list of other 2nd level tlds ?
 cx, TLD_ICANN
 gov.cx, TLD_ICANN
-#  cy : http://en.wikipedia.org/wiki/.cy
+#  cy : https://en.wikipedia.org/wiki/.cy
 ac.cy, TLD_ICANN
 biz.cy, TLD_ICANN
 com.cy, TLD_ICANN
@@ -681,25 +669,25 @@ parliament.cy, TLD_ICANN
 press.cy, TLD_ICANN
 pro.cy, TLD_ICANN
 tm.cy, TLD_ICANN
-#  cz : http://en.wikipedia.org/wiki/.cz
+#  cz : https://en.wikipedia.org/wiki/.cz
 cz, TLD_ICANN
-#  de : http://en.wikipedia.org/wiki/.de
+#  de : https://en.wikipedia.org/wiki/.de
 #  Confirmed by registry <ops@denic.de> (with technical
 #  reservations) 2008-07-01
 de, TLD_ICANN
-#  dj : http://en.wikipedia.org/wiki/.dj
+#  dj : https://en.wikipedia.org/wiki/.dj
 dj, TLD_ICANN
-#  dk : http://en.wikipedia.org/wiki/.dk
+#  dk : https://en.wikipedia.org/wiki/.dk
 #  Confirmed by registry <robert@dk-hostmaster.dk> 2008-06-17
 dk, TLD_ICANN
-#  dm : http://en.wikipedia.org/wiki/.dm
+#  dm : https://en.wikipedia.org/wiki/.dm
 dm, TLD_ICANN
 com.dm, TLD_ICANN
 net.dm, TLD_ICANN
 org.dm, TLD_ICANN
 edu.dm, TLD_ICANN
 gov.dm, TLD_ICANN
-#  do : http://en.wikipedia.org/wiki/.do
+#  do : https://en.wikipedia.org/wiki/.do
 do, TLD_ICANN
 art.do, TLD_ICANN
 com.do, TLD_ICANN
@@ -711,7 +699,7 @@ net.do, TLD_ICANN
 org.do, TLD_ICANN
 sld.do, TLD_ICANN
 web.do, TLD_ICANN
-#  dz : http://en.wikipedia.org/wiki/.dz
+#  dz : https://en.wikipedia.org/wiki/.dz
 dz, TLD_ICANN
 com.dz, TLD_ICANN
 org.dz, TLD_ICANN
@@ -722,7 +710,7 @@ asso.dz, TLD_ICANN
 pol.dz, TLD_ICANN
 art.dz, TLD_ICANN
 #  ec : http://www.nic.ec/reg/paso1.asp
-#  Submitted by registry <vabboud@nic.ec> 2008-07-04
+#  Submitted by registry <vabboud@nic.ec>
 ec, TLD_ICANN
 com.ec, TLD_ICANN
 info.ec, TLD_ICANN
@@ -736,7 +724,7 @@ edu.ec, TLD_ICANN
 gov.ec, TLD_ICANN
 gob.ec, TLD_ICANN
 mil.ec, TLD_ICANN
-#  edu : http://en.wikipedia.org/wiki/.edu
+#  edu : https://en.wikipedia.org/wiki/.edu
 edu, TLD_ICANN
 #  ee : http://www.eenet.ee/EENet/dom_reeglid.html#lisa_B
 ee, TLD_ICANN
@@ -750,7 +738,7 @@ pri.ee, TLD_ICANN
 aip.ee, TLD_ICANN
 org.ee, TLD_ICANN
 fie.ee, TLD_ICANN
-#  eg : http://en.wikipedia.org/wiki/.eg
+#  eg : https://en.wikipedia.org/wiki/.eg
 eg, TLD_ICANN
 com.eg, TLD_ICANN
 edu.eg, TLD_ICANN
@@ -761,7 +749,7 @@ name.eg, TLD_ICANN
 net.eg, TLD_ICANN
 org.eg, TLD_ICANN
 sci.eg, TLD_ICANN
-#  er : http://en.wikipedia.org/wiki/.er
+#  er : https://en.wikipedia.org/wiki/.er
 er, TLD_WILDCARD
 #  es : https://www.nic.es/site_ingles/ingles/dominios/index.html
 es, TLD_ICANN
@@ -770,7 +758,7 @@ nom.es, TLD_ICANN
 org.es, TLD_ICANN
 gob.es, TLD_ICANN
 edu.es, TLD_ICANN
-#  et : http://en.wikipedia.org/wiki/.et
+#  et : https://en.wikipedia.org/wiki/.et
 et, TLD_ICANN
 com.et, TLD_ICANN
 gov.et, TLD_ICANN
@@ -780,23 +768,23 @@ biz.et, TLD_ICANN
 name.et, TLD_ICANN
 info.et, TLD_ICANN
 net.et, TLD_ICANN
-#  eu : http://en.wikipedia.org/wiki/.eu
+#  eu : https://en.wikipedia.org/wiki/.eu
 eu, TLD_ICANN
-#  fi : http://en.wikipedia.org/wiki/.fi
+#  fi : https://en.wikipedia.org/wiki/.fi
 fi, TLD_ICANN
-#  aland.fi : http://en.wikipedia.org/wiki/.ax
+#  aland.fi : https://en.wikipedia.org/wiki/.ax
 #  This domain is being phased out in favor of .ax. As there are still many
 #  domains under aland.fi, we still keep it on the list until aland.fi is
 #  completely removed.
 #  TODO: Check for updates (expected to be phased out around Q1/2009)
 aland.fi, TLD_ICANN
-#  fj : http://en.wikipedia.org/wiki/.fj
+#  fj : https://en.wikipedia.org/wiki/.fj
 fj, TLD_WILDCARD
-#  fk : http://en.wikipedia.org/wiki/.fk
+#  fk : https://en.wikipedia.org/wiki/.fk
 fk, TLD_WILDCARD
-#  fm : http://en.wikipedia.org/wiki/.fm
+#  fm : https://en.wikipedia.org/wiki/.fm
 fm, TLD_ICANN
-#  fo : http://en.wikipedia.org/wiki/.fo
+#  fo : https://en.wikipedia.org/wiki/.fo
 fo, TLD_ICANN
 #  fr : http://www.afnic.fr/
 #  domaines descriptifs : http://www.afnic.fr/obtenir/chartes/nommage-fr/annexe-descriptifs
@@ -825,12 +813,12 @@ notaires.fr, TLD_ICANN
 pharmacien.fr, TLD_ICANN
 port.fr, TLD_ICANN
 veterinaire.fr, TLD_ICANN
-#  ga : http://en.wikipedia.org/wiki/.ga
+#  ga : https://en.wikipedia.org/wiki/.ga
 ga, TLD_ICANN
 #  gb : This registry is effectively dormant
-#  Submitted by registry <Damien.Shaw@ja.net> 2008-06-12
+#  Submitted by registry <Damien.Shaw@ja.net>
 gb, TLD_ICANN
-#  gd : http://en.wikipedia.org/wiki/.gd
+#  gd : https://en.wikipedia.org/wiki/.gd
 gd, TLD_ICANN
 #  ge : http://www.nic.net.ge/policy_en.pdf
 ge, TLD_ICANN
@@ -841,7 +829,7 @@ org.ge, TLD_ICANN
 mil.ge, TLD_ICANN
 net.ge, TLD_ICANN
 pvt.ge, TLD_ICANN
-#  gf : http://en.wikipedia.org/wiki/.gf
+#  gf : https://en.wikipedia.org/wiki/.gf
 gf, TLD_ICANN
 #  gg : http://www.channelisles.net/register-domains/
 #  Confirmed by registry <nigel@channelisles.net> 2013-11-28
@@ -849,7 +837,7 @@ gg, TLD_ICANN
 co.gg, TLD_ICANN
 net.gg, TLD_ICANN
 org.gg, TLD_ICANN
-#  gh : http://en.wikipedia.org/wiki/.gh
+#  gh : https://en.wikipedia.org/wiki/.gh
 #  see also: http://www.nic.gh/reg_now.php
 #  Although domains directly at second level are not possible at the moment,
 #  they have been possible for some time and may come back.
@@ -867,7 +855,7 @@ gov.gi, TLD_ICANN
 mod.gi, TLD_ICANN
 edu.gi, TLD_ICANN
 org.gi, TLD_ICANN
-#  gl : http://en.wikipedia.org/wiki/.gl
+#  gl : https://en.wikipedia.org/wiki/.gl
 #  http://nic.gl
 gl, TLD_ICANN
 co.gl, TLD_ICANN
@@ -878,7 +866,7 @@ org.gl, TLD_ICANN
 #  gm : http://www.nic.gm/htmlpages%5Cgm-policy.htm
 gm, TLD_ICANN
 #  gn : http://psg.com/dns/gn/gn.txt
-#  Submitted by registry <randy@psg.com> 2008-06-17
+#  Submitted by registry <randy@psg.com>
 gn, TLD_ICANN
 ac.gn, TLD_ICANN
 com.gn, TLD_ICANN
@@ -886,7 +874,7 @@ edu.gn, TLD_ICANN
 gov.gn, TLD_ICANN
 org.gn, TLD_ICANN
 net.gn, TLD_ICANN
-#  gov : http://en.wikipedia.org/wiki/.gov
+#  gov : https://en.wikipedia.org/wiki/.gov
 gov, TLD_ICANN
 #  gp : http://www.nic.gp/index.php?lang=en
 gp, TLD_ICANN
@@ -896,17 +884,17 @@ mobi.gp, TLD_ICANN
 edu.gp, TLD_ICANN
 org.gp, TLD_ICANN
 asso.gp, TLD_ICANN
-#  gq : http://en.wikipedia.org/wiki/.gq
+#  gq : https://en.wikipedia.org/wiki/.gq
 gq, TLD_ICANN
 #  gr : https://grweb.ics.forth.gr/english/1617-B-2005.html
-#  Submitted by registry <segred@ics.forth.gr> 2008-06-09
+#  Submitted by registry <segred@ics.forth.gr>
 gr, TLD_ICANN
 com.gr, TLD_ICANN
 edu.gr, TLD_ICANN
 net.gr, TLD_ICANN
 org.gr, TLD_ICANN
 gov.gr, TLD_ICANN
-#  gs : http://en.wikipedia.org/wiki/.gs
+#  gs : https://en.wikipedia.org/wiki/.gs
 gs, TLD_ICANN
 #  gt : http://www.gt/politicas_de_registro.html
 gt, TLD_ICANN
@@ -919,16 +907,19 @@ net.gt, TLD_ICANN
 org.gt, TLD_ICANN
 #  gu : http://gadao.gov.gu/registration.txt
 gu, TLD_WILDCARD
-#  gw : http://en.wikipedia.org/wiki/.gw
+#  gw : https://en.wikipedia.org/wiki/.gw
 gw, TLD_ICANN
-#  gy : http://en.wikipedia.org/wiki/.gy
+#  gy : https://en.wikipedia.org/wiki/.gy
 #  http://registry.gy/
 gy, TLD_ICANN
 co.gy, TLD_ICANN
 com.gy, TLD_ICANN
+edu.gy, TLD_ICANN
+gov.gy, TLD_ICANN
 net.gy, TLD_ICANN
+org.gy, TLD_ICANN
 #  hk : https://www.hkdnr.hk
-#  Submitted by registry <hk.tech@hkirc.hk> 2008-06-11
+#  Submitted by registry <hk.tech@hkirc.hk>
 hk, TLD_ICANN
 com.hk, TLD_ICANN
 edu.hk, TLD_ICANN
@@ -966,7 +957,7 @@ xn--tn0ag.hk, TLD_ICANN
 xn--uc0atv.hk, TLD_ICANN
 # 組织.hk
 xn--uc0ay4a.hk, TLD_ICANN
-#  hm : http://en.wikipedia.org/wiki/.hm
+#  hm : https://en.wikipedia.org/wiki/.hm
 hm, TLD_ICANN
 #  hn : http://www.nic.hn/politicas/ps02,,05.html
 hn, TLD_ICANN
@@ -1048,13 +1039,21 @@ net.id, TLD_ICANN
 or.id, TLD_ICANN
 sch.id, TLD_ICANN
 web.id, TLD_ICANN
-#  ie : http://en.wikipedia.org/wiki/.ie
+#  ie : https://en.wikipedia.org/wiki/.ie
 ie, TLD_ICANN
 gov.ie, TLD_ICANN
-#  il : http://en.wikipedia.org/wiki/.il
-il, TLD_WILDCARD
+#  il : http://www.isoc.org.il/domains/
+il, TLD_ICANN
+ac.il, TLD_ICANN
+co.il, TLD_ICANN
+gov.il, TLD_ICANN
+idf.il, TLD_ICANN
+k12.il, TLD_ICANN
+muni.il, TLD_ICANN
+net.il, TLD_ICANN
+org.il, TLD_ICANN
 #  im : https://www.nic.im/
-#  Submitted by registry <info@nic.im> 2013-11-15
+#  Submitted by registry <info@nic.im>
 im, TLD_ICANN
 ac.im, TLD_ICANN
 co.im, TLD_ICANN
@@ -1065,9 +1064,9 @@ org.im, TLD_ICANN
 plc.co.im, TLD_ICANN
 tt.im, TLD_ICANN
 tv.im, TLD_ICANN
-#  in : http://en.wikipedia.org/wiki/.in
+#  in : https://en.wikipedia.org/wiki/.in
 #  see also: https://registry.in/Policies
-#  Please note, that nic.in is not an offical eTLD, but used by most
+#  Please note, that nic.in is not an official eTLD, but used by most
 #  government institutions.
 in, TLD_ICANN
 co.in, TLD_ICANN
@@ -1082,9 +1081,9 @@ edu.in, TLD_ICANN
 res.in, TLD_ICANN
 gov.in, TLD_ICANN
 mil.in, TLD_ICANN
-#  info : http://en.wikipedia.org/wiki/.info
+#  info : https://en.wikipedia.org/wiki/.info
 info, TLD_ICANN
-#  int : http://en.wikipedia.org/wiki/.int
+#  int : https://en.wikipedia.org/wiki/.int
 #  Confirmed by registry <iana-questions@icann.org> 2008-06-18
 int, TLD_ICANN
 eu.int, TLD_ICANN
@@ -1126,7 +1125,7 @@ edu.is, TLD_ICANN
 gov.is, TLD_ICANN
 org.is, TLD_ICANN
 int.is, TLD_ICANN
-#  it : http://en.wikipedia.org/wiki/.it
+#  it : https://en.wikipedia.org/wiki/.it
 it, TLD_ICANN
 gov.it, TLD_ICANN
 edu.it, TLD_ICANN
@@ -1520,11 +1519,11 @@ sch.jo, TLD_ICANN
 gov.jo, TLD_ICANN
 mil.jo, TLD_ICANN
 name.jo, TLD_ICANN
-#  jobs : http://en.wikipedia.org/wiki/.jobs
+#  jobs : https://en.wikipedia.org/wiki/.jobs
 jobs, TLD_ICANN
-#  jp : http://en.wikipedia.org/wiki/.jp
+#  jp : https://en.wikipedia.org/wiki/.jp
 #  http://jprs.co.jp/en/jpdomain.html
-#  Submitted by registry <info@jprs.jp> 2014-10-30
+#  Submitted by registry <info@jprs.jp>
 jp, TLD_ICANN
 #  jp organizational type names
 ac.jp, TLD_ICANN
@@ -2502,7 +2501,6 @@ hitoyoshi.kumamoto.jp, TLD_ICANN
 kamiamakusa.kumamoto.jp, TLD_ICANN
 kashima.kumamoto.jp, TLD_ICANN
 kikuchi.kumamoto.jp, TLD_ICANN
-kosa.kumamoto.jp, TLD_ICANN
 kumamoto.kumamoto.jp, TLD_ICANN
 mashiki.kumamoto.jp, TLD_ICANN
 mifune.kumamoto.jp, TLD_ICANN
@@ -2587,7 +2585,6 @@ iwanuma.miyagi.jp, TLD_ICANN
 kakuda.miyagi.jp, TLD_ICANN
 kami.miyagi.jp, TLD_ICANN
 kawasaki.miyagi.jp, TLD_ICANN
-kesennuma.miyagi.jp, TLD_ICANN
 marumori.miyagi.jp, TLD_ICANN
 matsushima.miyagi.jp, TLD_ICANN
 minamisanriku.miyagi.jp, TLD_ICANN
@@ -3393,7 +3390,7 @@ org.ki, TLD_ICANN
 gov.ki, TLD_ICANN
 info.ki, TLD_ICANN
 com.ki, TLD_ICANN
-#  km : http://en.wikipedia.org/wiki/.km
+#  km : https://en.wikipedia.org/wiki/.km
 #  http://www.domaine.km/documents/charte.doc
 km, TLD_ICANN
 org.km, TLD_ICANN
@@ -3406,7 +3403,7 @@ mil.km, TLD_ICANN
 ass.km, TLD_ICANN
 com.km, TLD_ICANN
 #  These are only mentioned as proposed suggestions at domaine.km, but
-#  http://en.wikipedia.org/wiki/.km says they're available for registration:
+#  https://en.wikipedia.org/wiki/.km says they're available for registration:
 coop.km, TLD_ICANN
 asso.km, TLD_ICANN
 presse.km, TLD_ICANN
@@ -3415,7 +3412,7 @@ notaires.km, TLD_ICANN
 pharmaciens.km, TLD_ICANN
 veterinaire.km, TLD_ICANN
 gouv.km, TLD_ICANN
-#  kn : http://en.wikipedia.org/wiki/.kn
+#  kn : https://en.wikipedia.org/wiki/.kn
 #  http://www.dot.kn/domainRules.html
 kn, TLD_ICANN
 net.kn, TLD_ICANN
@@ -3430,7 +3427,7 @@ gov.kp, TLD_ICANN
 org.kp, TLD_ICANN
 rep.kp, TLD_ICANN
 tra.kp, TLD_ICANN
-#  kr : http://en.wikipedia.org/wiki/.kr
+#  kr : https://en.wikipedia.org/wiki/.kr
 #  see also: http://domain.nida.or.kr/eng/registration.jsp
 kr, TLD_ICANN
 ac.kr, TLD_ICANN
@@ -3463,7 +3460,7 @@ jeonbuk.kr, TLD_ICANN
 jeonnam.kr, TLD_ICANN
 seoul.kr, TLD_ICANN
 ulsan.kr, TLD_ICANN
-#  kw : http://en.wikipedia.org/wiki/.kw
+#  kw : https://en.wikipedia.org/wiki/.kw
 kw, TLD_WILDCARD
 #  ky : http://www.icta.ky/da_ky_reg_dom.php
 #  Confirmed by registry <kysupport@perimeterusa.com> 2008-06-17
@@ -3473,7 +3470,7 @@ gov.ky, TLD_ICANN
 com.ky, TLD_ICANN
 org.ky, TLD_ICANN
 net.ky, TLD_ICANN
-#  kz : http://en.wikipedia.org/wiki/.kz
+#  kz : https://en.wikipedia.org/wiki/.kz
 #  see also: http://www.nic.kz/rules/index.jsp
 kz, TLD_ICANN
 org.kz, TLD_ICANN
@@ -3482,8 +3479,8 @@ net.kz, TLD_ICANN
 gov.kz, TLD_ICANN
 mil.kz, TLD_ICANN
 com.kz, TLD_ICANN
-#  la : http://en.wikipedia.org/wiki/.la
-#  Submitted by registry <gavin.brown@nic.la> 2008-06-10
+#  la : https://en.wikipedia.org/wiki/.la
+#  Submitted by registry <gavin.brown@nic.la>
 la, TLD_ICANN
 int.la, TLD_ICANN
 net.la, TLD_ICANN
@@ -3493,15 +3490,15 @@ gov.la, TLD_ICANN
 per.la, TLD_ICANN
 com.la, TLD_ICANN
 org.la, TLD_ICANN
-#  lb : http://en.wikipedia.org/wiki/.lb
-#  Submitted by registry <randy@psg.com> 2008-06-17
+#  lb : https://en.wikipedia.org/wiki/.lb
+#  Submitted by registry <randy@psg.com>
 lb, TLD_ICANN
 com.lb, TLD_ICANN
 edu.lb, TLD_ICANN
 gov.lb, TLD_ICANN
 net.lb, TLD_ICANN
 org.lb, TLD_ICANN
-#  lc : http://en.wikipedia.org/wiki/.lc
+#  lc : https://en.wikipedia.org/wiki/.lc
 #  see also: http://www.nic.lc/rules.htm
 lc, TLD_ICANN
 com.lc, TLD_ICANN
@@ -3510,7 +3507,7 @@ co.lc, TLD_ICANN
 org.lc, TLD_ICANN
 edu.lc, TLD_ICANN
 gov.lc, TLD_ICANN
-#  li : http://en.wikipedia.org/wiki/.li
+#  li : https://en.wikipedia.org/wiki/.li
 li, TLD_ICANN
 #  lk : http://www.nic.lk/seclevpr.html
 lk, TLD_ICANN
@@ -3530,18 +3527,18 @@ grp.lk, TLD_ICANN
 hotel.lk, TLD_ICANN
 ac.lk, TLD_ICANN
 #  lr : http://psg.com/dns/lr/lr.txt
-#  Submitted by registry <randy@psg.com> 2008-06-17
+#  Submitted by registry <randy@psg.com>
 lr, TLD_ICANN
 com.lr, TLD_ICANN
 edu.lr, TLD_ICANN
 gov.lr, TLD_ICANN
 org.lr, TLD_ICANN
 net.lr, TLD_ICANN
-#  ls : http://en.wikipedia.org/wiki/.ls
+#  ls : https://en.wikipedia.org/wiki/.ls
 ls, TLD_ICANN
 co.ls, TLD_ICANN
 org.ls, TLD_ICANN
-#  lt : http://en.wikipedia.org/wiki/.lt
+#  lt : https://en.wikipedia.org/wiki/.lt
 lt, TLD_ICANN
 #  gov.lt : http://www.gov.lt/index_en.php
 gov.lt, TLD_ICANN
@@ -3569,7 +3566,7 @@ sch.ly, TLD_ICANN
 med.ly, TLD_ICANN
 org.ly, TLD_ICANN
 id.ly, TLD_ICANN
-#  ma : http://en.wikipedia.org/wiki/.ma
+#  ma : https://en.wikipedia.org/wiki/.ma
 #  http://www.anrt.ma/fr/admin/download/upload/file_fr782.pdf
 ma, TLD_ICANN
 co.ma, TLD_ICANN
@@ -3582,9 +3579,9 @@ press.ma, TLD_ICANN
 mc, TLD_ICANN
 tm.mc, TLD_ICANN
 asso.mc, TLD_ICANN
-#  md : http://en.wikipedia.org/wiki/.md
+#  md : https://en.wikipedia.org/wiki/.md
 md, TLD_ICANN
-#  me : http://en.wikipedia.org/wiki/.me
+#  me : https://en.wikipedia.org/wiki/.me
 me, TLD_ICANN
 co.me, TLD_ICANN
 net.me, TLD_ICANN
@@ -3605,11 +3602,11 @@ edu.mg, TLD_ICANN
 mil.mg, TLD_ICANN
 com.mg, TLD_ICANN
 co.mg, TLD_ICANN
-#  mh : http://en.wikipedia.org/wiki/.mh
+#  mh : https://en.wikipedia.org/wiki/.mh
 mh, TLD_ICANN
-#  mil : http://en.wikipedia.org/wiki/.mil
+#  mil : https://en.wikipedia.org/wiki/.mil
 mil, TLD_ICANN
-#  mk : http://en.wikipedia.org/wiki/.mk
+#  mk : https://en.wikipedia.org/wiki/.mk
 #  see also: http://dns.marnet.net.mk/postapka.php
 mk, TLD_ICANN
 com.mk, TLD_ICANN
@@ -3620,7 +3617,7 @@ gov.mk, TLD_ICANN
 inf.mk, TLD_ICANN
 name.mk, TLD_ICANN
 #  ml : http://www.gobin.info/domainname/ml-template.doc
-#  see also: http://en.wikipedia.org/wiki/.ml
+#  see also: https://en.wikipedia.org/wiki/.ml
 ml, TLD_ICANN
 com.ml, TLD_ICANN
 edu.ml, TLD_ICANN
@@ -3629,9 +3626,9 @@ gov.ml, TLD_ICANN
 net.ml, TLD_ICANN
 org.ml, TLD_ICANN
 presse.ml, TLD_ICANN
-#  mm : http://en.wikipedia.org/wiki/.mm
+#  mm : https://en.wikipedia.org/wiki/.mm
 mm, TLD_WILDCARD
-#  mn : http://en.wikipedia.org/wiki/.mn
+#  mn : https://en.wikipedia.org/wiki/.mn
 mn, TLD_ICANN
 gov.mn, TLD_ICANN
 edu.mn, TLD_ICANN
@@ -3643,14 +3640,14 @@ net.mo, TLD_ICANN
 org.mo, TLD_ICANN
 edu.mo, TLD_ICANN
 gov.mo, TLD_ICANN
-#  mobi : http://en.wikipedia.org/wiki/.mobi
+#  mobi : https://en.wikipedia.org/wiki/.mobi
 mobi, TLD_ICANN
 #  mp : http://www.dot.mp/
 #  Confirmed by registry <dcamacho@saipan.com> 2008-06-17
 mp, TLD_ICANN
-#  mq : http://en.wikipedia.org/wiki/.mq
+#  mq : https://en.wikipedia.org/wiki/.mq
 mq, TLD_ICANN
-#  mr : http://en.wikipedia.org/wiki/.mr
+#  mr : https://en.wikipedia.org/wiki/.mr
 mr, TLD_ICANN
 gov.mr, TLD_ICANN
 #  ms : http://www.nic.ms/pdf/MS_Domain_Name_Rules.pdf
@@ -3661,13 +3658,13 @@ gov.ms, TLD_ICANN
 net.ms, TLD_ICANN
 org.ms, TLD_ICANN
 #  mt : https://www.nic.org.mt/go/policy
-#  Submitted by registry <help@nic.org.mt> 2013-11-19
+#  Submitted by registry <help@nic.org.mt>
 mt, TLD_ICANN
 com.mt, TLD_ICANN
 edu.mt, TLD_ICANN
 net.mt, TLD_ICANN
 org.mt, TLD_ICANN
-#  mu : http://en.wikipedia.org/wiki/.mu
+#  mu : https://en.wikipedia.org/wiki/.mu
 mu, TLD_ICANN
 com.mu, TLD_ICANN
 net.mu, TLD_ICANN
@@ -4232,7 +4229,7 @@ zoology.museum, TLD_ICANN
 xn--9dbhblg6di.museum, TLD_ICANN
 # иком.museum
 xn--h1aegh.museum, TLD_ICANN
-#  mv : http://en.wikipedia.org/wiki/.mv
+#  mv : https://en.wikipedia.org/wiki/.mv
 #  "mv" included because, contra Wikipedia, google.mv exists.
 mv, TLD_ICANN
 aero.mv, TLD_ICANN
@@ -4263,7 +4260,7 @@ museum.mw, TLD_ICANN
 net.mw, TLD_ICANN
 org.mw, TLD_ICANN
 #  mx : http://www.nic.mx/
-#  Submitted by registry <farias@nic.mx> 2008-06-19
+#  Submitted by registry <farias@nic.mx>
 mx, TLD_ICANN
 com.mx, TLD_ICANN
 org.mx, TLD_ICANN
@@ -4307,11 +4304,11 @@ name, TLD_ICANN
 #  nc : http://www.cctld.nc/
 nc, TLD_ICANN
 asso.nc, TLD_ICANN
-#  ne : http://en.wikipedia.org/wiki/.ne
+#  ne : https://en.wikipedia.org/wiki/.ne
 ne, TLD_ICANN
-#  net : http://en.wikipedia.org/wiki/.net
+#  net : https://en.wikipedia.org/wiki/.net
 net, TLD_ICANN
-#  nf : http://en.wikipedia.org/wiki/.nf
+#  nf : https://en.wikipedia.org/wiki/.nf
 nf, TLD_ICANN
 com.nf, TLD_ICANN
 net.nf, TLD_ICANN
@@ -4323,20 +4320,34 @@ firm.nf, TLD_ICANN
 info.nf, TLD_ICANN
 other.nf, TLD_ICANN
 store.nf, TLD_ICANN
-#  ng : http://psg.com/dns/ng/
+#  ng : http://www.nira.org.ng/index.php/join-us/register-ng-domain/189-nira-slds
 ng, TLD_ICANN
 com.ng, TLD_ICANN
 edu.ng, TLD_ICANN
+gov.ng, TLD_ICANN
+i.ng, TLD_ICANN
+mil.ng, TLD_ICANN
+mobi.ng, TLD_ICANN
 name.ng, TLD_ICANN
 net.ng, TLD_ICANN
 org.ng, TLD_ICANN
 sch.ng, TLD_ICANN
-gov.ng, TLD_ICANN
-mil.ng, TLD_ICANN
-mobi.ng, TLD_ICANN
-#  ni : http://www.nic.ni/dominios.htm
-ni, TLD_WILDCARD
-#  nl : http://en.wikipedia.org/wiki/.nl
+#  ni : http://www.nic.ni/
+com.ni, TLD_ICANN
+gob.ni, TLD_ICANN
+edu.ni, TLD_ICANN
+org.ni, TLD_ICANN
+nom.ni, TLD_ICANN
+net.ni, TLD_ICANN
+mil.ni, TLD_ICANN
+co.ni, TLD_ICANN
+biz.ni, TLD_ICANN
+web.ni, TLD_ICANN
+int.ni, TLD_ICANN
+ac.ni, TLD_ICANN
+in.ni, TLD_ICANN
+info.ni, TLD_ICANN
+#  nl : https://en.wikipedia.org/wiki/.nl
 #       https://www.sidn.nl/
 #       ccTLD for the Netherlands
 nl, TLD_ICANN
@@ -5284,7 +5295,7 @@ xn--vler-qoa.hedmark.no, TLD_ICANN
 #  np : http://www.mos.com.np/register.html
 np, TLD_WILDCARD
 #  nr : http://cenpac.net.nr/dns/index.html
-#  Confirmed by registry <technician@cenpac.net.nr> 2008-06-17
+#  Submitted by registry <technician@cenpac.net.nr>
 nr, TLD_ICANN
 biz.nr, TLD_ICANN
 info.nr, TLD_ICANN
@@ -5293,10 +5304,10 @@ edu.nr, TLD_ICANN
 org.nr, TLD_ICANN
 net.nr, TLD_ICANN
 com.nr, TLD_ICANN
-#  nu : http://en.wikipedia.org/wiki/.nu
+#  nu : https://en.wikipedia.org/wiki/.nu
 nu, TLD_ICANN
-#  nz : http://en.wikipedia.org/wiki/.nz
-#  Confirmed by registry <jay@nzrs.net.nz> 2014-05-19
+#  nz : https://en.wikipedia.org/wiki/.nz
+#  Submitted by registry <jay@nzrs.net.nz>
 nz, TLD_ICANN
 ac.nz, TLD_ICANN
 co.nz, TLD_ICANN
@@ -5315,7 +5326,7 @@ net.nz, TLD_ICANN
 org.nz, TLD_ICANN
 parliament.nz, TLD_ICANN
 school.nz, TLD_ICANN
-#  om : http://en.wikipedia.org/wiki/.om
+#  om : https://en.wikipedia.org/wiki/.om
 om, TLD_ICANN
 co.om, TLD_ICANN
 com.om, TLD_ICANN
@@ -5326,7 +5337,7 @@ museum.om, TLD_ICANN
 net.om, TLD_ICANN
 org.om, TLD_ICANN
 pro.om, TLD_ICANN
-#  org : http://en.wikipedia.org/wiki/.org
+#  org : https://en.wikipedia.org/wiki/.org
 org, TLD_ICANN
 #  pa : http://www.nic.pa/
 #  Some additional second level "domains" resolve directly as hostnames, such as
@@ -5357,10 +5368,10 @@ pf, TLD_ICANN
 com.pf, TLD_ICANN
 org.pf, TLD_ICANN
 edu.pf, TLD_ICANN
-#  pg : http://en.wikipedia.org/wiki/.pg
+#  pg : https://en.wikipedia.org/wiki/.pg
 pg, TLD_WILDCARD
 #  ph : http://www.domains.ph/FAQ2.asp
-#  Submitted by registry <jed@email.com.ph> 2008-06-13
+#  Submitted by registry <jed@email.com.ph>
 ph, TLD_ICANN
 com.ph, TLD_ICANN
 net.ph, TLD_ICANN
@@ -5387,7 +5398,7 @@ gop.pk, TLD_ICANN
 gos.pk, TLD_ICANN
 info.pk, TLD_ICANN
 #  pl http://www.dns.pl/english/index.html
-#  updated by .PL registry on 2015-04-28
+#  Submitted by registry
 pl, TLD_ICANN
 com.pl, TLD_ICANN
 net.pl, TLD_ICANN
@@ -5601,7 +5612,7 @@ co.pn, TLD_ICANN
 org.pn, TLD_ICANN
 edu.pn, TLD_ICANN
 net.pn, TLD_ICANN
-#  post : http://en.wikipedia.org/wiki/.post
+#  post : https://en.wikipedia.org/wiki/.post
 post, TLD_ICANN
 #  pr : http://www.nic.pr/index.asp?f=1
 pr, TLD_ICANN
@@ -5615,20 +5626,24 @@ pro.pr, TLD_ICANN
 biz.pr, TLD_ICANN
 info.pr, TLD_ICANN
 name.pr, TLD_ICANN
-#  these aren't mentioned on nic.pr, but on http://en.wikipedia.org/wiki/.pr
+#  these aren't mentioned on nic.pr, but on https://en.wikipedia.org/wiki/.pr
 est.pr, TLD_ICANN
 prof.pr, TLD_ICANN
 ac.pr, TLD_ICANN
-#  pro : http://www.nic.pro/support_faq.htm
+#  pro : http://registry.pro/get-pro
 pro, TLD_ICANN
+aaa.pro, TLD_ICANN
 aca.pro, TLD_ICANN
+acct.pro, TLD_ICANN
+avocat.pro, TLD_ICANN
 bar.pro, TLD_ICANN
 cpa.pro, TLD_ICANN
+eng.pro, TLD_ICANN
 jur.pro, TLD_ICANN
 law.pro, TLD_ICANN
 med.pro, TLD_ICANN
-eng.pro, TLD_ICANN
-#  ps : http://en.wikipedia.org/wiki/.ps
+recht.pro, TLD_ICANN
+#  ps : https://en.wikipedia.org/wiki/.ps
 #  http://www.nic.ps/registration/policy.html#reg
 ps, TLD_ICANN
 edu.ps, TLD_ICANN
@@ -5648,7 +5663,7 @@ int.pt, TLD_ICANN
 publ.pt, TLD_ICANN
 com.pt, TLD_ICANN
 nome.pt, TLD_ICANN
-#  pw : http://en.wikipedia.org/wiki/.pw
+#  pw : https://en.wikipedia.org/wiki/.pw
 pw, TLD_ICANN
 co.pw, TLD_ICANN
 ne.pw, TLD_ICANN
@@ -5657,7 +5672,7 @@ ed.pw, TLD_ICANN
 go.pw, TLD_ICANN
 belau.pw, TLD_ICANN
 #  py : http://www.nic.py/pautas.html#seccion_9
-#  Confirmed by registry 2012-10-03
+#  Submitted by registry
 py, TLD_ICANN
 com.py, TLD_ICANN
 coop.py, TLD_ICANN
@@ -5678,30 +5693,30 @@ org.qa, TLD_ICANN
 sch.qa, TLD_ICANN
 #  re : http://www.afnic.re/obtenir/chartes/nommage-re/annexe-descriptifs
 re, TLD_ICANN
-com.re, TLD_ICANN
 asso.re, TLD_ICANN
+com.re, TLD_ICANN
 nom.re, TLD_ICANN
 #  ro : http://www.rotld.ro/
 ro, TLD_ICANN
-com.ro, TLD_ICANN
-org.ro, TLD_ICANN
-tm.ro, TLD_ICANN
-nt.ro, TLD_ICANN
-nom.ro, TLD_ICANN
-info.ro, TLD_ICANN
-rec.ro, TLD_ICANN
 arts.ro, TLD_ICANN
+com.ro, TLD_ICANN
 firm.ro, TLD_ICANN
+info.ro, TLD_ICANN
+nom.ro, TLD_ICANN
+nt.ro, TLD_ICANN
+org.ro, TLD_ICANN
+rec.ro, TLD_ICANN
 store.ro, TLD_ICANN
+tm.ro, TLD_ICANN
 www.ro, TLD_ICANN
-#  rs : http://en.wikipedia.org/wiki/.rs
+#  rs : https://www.rnids.rs/en/domains/national-domains
 rs, TLD_ICANN
-co.rs, TLD_ICANN
-org.rs, TLD_ICANN
-edu.rs, TLD_ICANN
 ac.rs, TLD_ICANN
+co.rs, TLD_ICANN
+edu.rs, TLD_ICANN
 gov.rs, TLD_ICANN
 in.rs, TLD_ICANN
+org.rs, TLD_ICANN
 #  ru : http://www.cctld.ru/ru/docs/aktiv_8.php
 #  Industry domains
 ru, TLD_ICANN
@@ -5824,7 +5839,6 @@ kms.ru, TLD_ICANN
 k-uralsk.ru, TLD_ICANN
 kustanai.ru, TLD_ICANN
 kuzbass.ru, TLD_ICANN
-magnitka.ru, TLD_ICANN
 mytis.ru, TLD_ICANN
 nakhodka.ru, TLD_ICANN
 nkz.ru, TLD_ICANN
@@ -5863,7 +5877,7 @@ pub.sa, TLD_ICANN
 edu.sa, TLD_ICANN
 sch.sa, TLD_ICANN
 #  sb : http://www.sbnic.net.sb/
-#  Submitted by registry <lee.humphries@telekom.com.sb> 2008-06-08
+#  Submitted by registry <lee.humphries@telekom.com.sb>
 sb, TLD_ICANN
 com.sb, TLD_ICANN
 edu.sb, TLD_ICANN
@@ -5878,7 +5892,7 @@ net.sc, TLD_ICANN
 org.sc, TLD_ICANN
 edu.sc, TLD_ICANN
 #  sd : http://www.isoc.sd/sudanic.isoc.sd/billing_pricing.htm
-#  Submitted by registry <admin@isoc.sd> 2008-06-17
+#  Submitted by registry <admin@isoc.sd>
 sd, TLD_ICANN
 com.sd, TLD_ICANN
 net.sd, TLD_ICANN
@@ -5888,8 +5902,8 @@ med.sd, TLD_ICANN
 tv.sd, TLD_ICANN
 gov.sd, TLD_ICANN
 info.sd, TLD_ICANN
-#  se : http://en.wikipedia.org/wiki/.se
-#  Submitted by registry <patrik.wallstrom@iis.se> 2014-03-18
+#  se : https://en.wikipedia.org/wiki/.se
+#  Submitted by registry <patrik.wallstrom@iis.se>
 se, TLD_ICANN
 a.se, TLD_ICANN
 ac.se, TLD_ICANN
@@ -5945,25 +5959,25 @@ net.sh, TLD_ICANN
 gov.sh, TLD_ICANN
 org.sh, TLD_ICANN
 mil.sh, TLD_ICANN
-#  si : http://en.wikipedia.org/wiki/.si
+#  si : https://en.wikipedia.org/wiki/.si
 si, TLD_ICANN
 #  sj : No registrations at this time.
-#  Submitted by registry <jarle@uninett.no> 2008-06-16
+#  Submitted by registry <jarle@uninett.no>
 sj, TLD_ICANN
-#  sk : http://en.wikipedia.org/wiki/.sk
+#  sk : https://en.wikipedia.org/wiki/.sk
 #  list of 2nd level domains ?
 sk, TLD_ICANN
 #  sl : http://www.nic.sl
-#  Submitted by registry <adam@neoip.com> 2008-06-12
+#  Submitted by registry <adam@neoip.com>
 sl, TLD_ICANN
 com.sl, TLD_ICANN
 net.sl, TLD_ICANN
 edu.sl, TLD_ICANN
 gov.sl, TLD_ICANN
 org.sl, TLD_ICANN
-#  sm : http://en.wikipedia.org/wiki/.sm
+#  sm : https://en.wikipedia.org/wiki/.sm
 sm, TLD_ICANN
-#  sn : http://en.wikipedia.org/wiki/.sn
+#  sn : https://en.wikipedia.org/wiki/.sn
 sn, TLD_ICANN
 art.sn, TLD_ICANN
 com.sn, TLD_ICANN
@@ -5977,7 +5991,7 @@ so, TLD_ICANN
 com.so, TLD_ICANN
 net.so, TLD_ICANN
 org.so, TLD_ICANN
-#  sr : http://en.wikipedia.org/wiki/.sr
+#  sr : https://en.wikipedia.org/wiki/.sr
 sr, TLD_ICANN
 #  st : http://www.nic.st/html/policyrules/
 st, TLD_ICANN
@@ -5993,7 +6007,7 @@ org.st, TLD_ICANN
 principe.st, TLD_ICANN
 saotome.st, TLD_ICANN
 store.st, TLD_ICANN
-#  su : http://en.wikipedia.org/wiki/.su
+#  su : https://en.wikipedia.org/wiki/.su
 su, TLD_ICANN
 adygeya.su, TLD_ICANN
 arkhangelsk.su, TLD_ICANN
@@ -6034,11 +6048,11 @@ edu.sv, TLD_ICANN
 gob.sv, TLD_ICANN
 org.sv, TLD_ICANN
 red.sv, TLD_ICANN
-#  sx : http://en.wikipedia.org/wiki/.sx
-#  Confirmed by registry <jcvignes@openregistry.com> 2012-05-31
+#  sx : https://en.wikipedia.org/wiki/.sx
+#  Submitted by registry <jcvignes@openregistry.com>
 sx, TLD_ICANN
 gov.sx, TLD_ICANN
-#  sy : http://en.wikipedia.org/wiki/.sy
+#  sy : https://en.wikipedia.org/wiki/.sy
 #  see also: http://www.gobin.info/domainname/sy.doc
 sy, TLD_ICANN
 edu.sy, TLD_ICANN
@@ -6047,26 +6061,26 @@ net.sy, TLD_ICANN
 mil.sy, TLD_ICANN
 com.sy, TLD_ICANN
 org.sy, TLD_ICANN
-#  sz : http://en.wikipedia.org/wiki/.sz
+#  sz : https://en.wikipedia.org/wiki/.sz
 #  http://www.sispa.org.sz/
 sz, TLD_ICANN
 co.sz, TLD_ICANN
 ac.sz, TLD_ICANN
 org.sz, TLD_ICANN
-#  tc : http://en.wikipedia.org/wiki/.tc
+#  tc : https://en.wikipedia.org/wiki/.tc
 tc, TLD_ICANN
-#  td : http://en.wikipedia.org/wiki/.td
+#  td : https://en.wikipedia.org/wiki/.td
 td, TLD_ICANN
-#  tel: http://en.wikipedia.org/wiki/.tel
+#  tel: https://en.wikipedia.org/wiki/.tel
 #  http://www.telnic.org/
 tel, TLD_ICANN
-#  tf : http://en.wikipedia.org/wiki/.tf
+#  tf : https://en.wikipedia.org/wiki/.tf
 tf, TLD_ICANN
-#  tg : http://en.wikipedia.org/wiki/.tg
+#  tg : https://en.wikipedia.org/wiki/.tg
 #  http://www.nic.tg/
 tg, TLD_ICANN
-#  th : http://en.wikipedia.org/wiki/.th
-#  Submitted by registry <krit@thains.co.th> 2008-06-17
+#  th : https://en.wikipedia.org/wiki/.th
+#  Submitted by registry <krit@thains.co.th>
 th, TLD_ICANN
 ac.th, TLD_ICANN
 co.th, TLD_ICANN
@@ -6092,9 +6106,9 @@ nic.tj, TLD_ICANN
 org.tj, TLD_ICANN
 test.tj, TLD_ICANN
 web.tj, TLD_ICANN
-#  tk : http://en.wikipedia.org/wiki/.tk
+#  tk : https://en.wikipedia.org/wiki/.tk
 tk, TLD_ICANN
-#  tl : http://en.wikipedia.org/wiki/.tl
+#  tl : https://en.wikipedia.org/wiki/.tl
 tl, TLD_ICANN
 gov.tl, TLD_ICANN
 #  tm : http://www.nic.tm/local.html
@@ -6107,7 +6121,7 @@ nom.tm, TLD_ICANN
 gov.tm, TLD_ICANN
 mil.tm, TLD_ICANN
 edu.tm, TLD_ICANN
-#  tn : http://en.wikipedia.org/wiki/.tn
+#  tn : https://en.wikipedia.org/wiki/.tn
 #  http://whois.ati.tn/
 tn, TLD_ICANN
 com.tn, TLD_ICANN
@@ -6130,8 +6144,8 @@ mincom.tn, TLD_ICANN
 agrinet.tn, TLD_ICANN
 defense.tn, TLD_ICANN
 turen.tn, TLD_ICANN
-#  to : http://en.wikipedia.org/wiki/.to
-#  Submitted by registry <egullich@colo.to> 2008-06-17
+#  to : https://en.wikipedia.org/wiki/.to
+#  Submitted by registry <egullich@colo.to>
 to, TLD_ICANN
 com.to, TLD_ICANN
 gov.to, TLD_ICANN
@@ -6139,12 +6153,9 @@ net.to, TLD_ICANN
 org.to, TLD_ICANN
 edu.to, TLD_ICANN
 mil.to, TLD_ICANN
-#  tp : No registrations at this time.
-#  Submitted by Ryan Sleevi <ryan.sleevi@gmail.com> 2014-01-03
-tp, TLD_ICANN
 #  subTLDs: https://www.nic.tr/forms/eng/policies.pdf
 #      and: https://www.nic.tr/forms/politikalar.pdf
-#  Submitted by <mehmetgurevin@gmail.com> 2014-07-19
+#  Submitted by <mehmetgurevin@gmail.com>
 tr, TLD_ICANN
 com.tr, TLD_ICANN
 info.tr, TLD_ICANN
@@ -6170,7 +6181,7 @@ kep.tr, TLD_ICANN
 nc.tr, TLD_ICANN
 #  Used by government agencies of Northern Cyprus
 gov.nc.tr, TLD_ICANN
-#  travel : http://en.wikipedia.org/wiki/.travel
+#  travel : https://en.wikipedia.org/wiki/.travel
 travel, TLD_ICANN
 #  tt : http://www.nic.tt/
 tt, TLD_ICANN
@@ -6191,11 +6202,11 @@ aero.tt, TLD_ICANN
 name.tt, TLD_ICANN
 gov.tt, TLD_ICANN
 edu.tt, TLD_ICANN
-#  tv : http://en.wikipedia.org/wiki/.tv
+#  tv : https://en.wikipedia.org/wiki/.tv
 #  Not listing any 2LDs as reserved since none seem to exist in practice,
 #  Wikipedia notwithstanding.
 tv, TLD_ICANN
-#  tw : http://en.wikipedia.org/wiki/.tw
+#  tw : https://en.wikipedia.org/wiki/.tw
 tw, TLD_ICANN
 edu.tw, TLD_ICANN
 gov.tw, TLD_ICANN
@@ -6214,7 +6225,7 @@ xn--uc0atv.tw, TLD_ICANN
 # 商業.tw
 xn--czrw28b.tw, TLD_ICANN
 #  tz : http://www.tznic.or.tz/index.php/domains
-#  Confirmed by registry <manager@tznic.or.tz> 2013-01-22
+#  Submitted by registry <manager@tznic.or.tz>
 tz, TLD_ICANN
 ac.tz, TLD_ICANN
 co.tz, TLD_ICANN
@@ -6229,7 +6240,7 @@ or.tz, TLD_ICANN
 sc.tz, TLD_ICANN
 tv.tz, TLD_ICANN
 #  ua : https://hostmaster.ua/policy/?ua
-#  Submitted by registry <dk@cctld.ua> 2012-04-27
+#  Submitted by registry <dk@cctld.ua>
 ua, TLD_ICANN
 #  ua 2LD
 com.ua, TLD_ICANN
@@ -6320,7 +6331,7 @@ go.ug, TLD_ICANN
 ne.ug, TLD_ICANN
 com.ug, TLD_ICANN
 org.ug, TLD_ICANN
-#  uk : http://en.wikipedia.org/wiki/.uk
+#  uk : https://en.wikipedia.org/wiki/.uk
 #  Submitted by registry <Michael.Daly@nominet.org.uk>
 uk, TLD_ICANN
 ac.uk, TLD_ICANN
@@ -6334,7 +6345,7 @@ org.uk, TLD_ICANN
 plc.uk, TLD_ICANN
 police.uk, TLD_ICANN
 sch.uk, TLD_WILDCARD
-#  us : http://en.wikipedia.org/wiki/.us
+#  us : https://en.wikipedia.org/wiki/.us
 us, TLD_ICANN
 dni.us, TLD_ICANN
 fed.us, TLD_ICANN
@@ -6569,8 +6580,8 @@ lib.wi.us, TLD_ICANN
 #  lib.wv.us  Bug 941670 - Removed at request of Larry W Arnold <arnold@wvlc.lib.wv.us>
 lib.wy.us, TLD_ICANN
 #  k12.ma.us contains school districts in Massachusetts. The 4LDs are
-#   managed indepedently except for private (PVT), charter (CHTR) and
-#   parochial (PAROCH) schools.  Those are delegated dorectly to the
+#   managed independently except for private (PVT), charter (CHTR) and
+#   parochial (PAROCH) schools.  Those are delegated directly to the
 #   5LD operators.   <k12-ma-hostmaster _ at _ rsuc.gweep.net>
 pvt.k12.ma.us, TLD_ICANN
 chtr.k12.ma.us, TLD_ICANN
@@ -6589,10 +6600,10 @@ co.uz, TLD_ICANN
 com.uz, TLD_ICANN
 net.uz, TLD_ICANN
 org.uz, TLD_ICANN
-#  va : http://en.wikipedia.org/wiki/.va
+#  va : https://en.wikipedia.org/wiki/.va
 va, TLD_ICANN
-#  vc : http://en.wikipedia.org/wiki/.vc
-#  Submitted by registry <kshah@ca.afilias.info> 2008-06-13
+#  vc : https://en.wikipedia.org/wiki/.vc
+#  Submitted by registry <kshah@ca.afilias.info>
 vc, TLD_ICANN
 com.vc, TLD_ICANN
 net.vc, TLD_ICANN
@@ -6601,8 +6612,7 @@ gov.vc, TLD_ICANN
 mil.vc, TLD_ICANN
 edu.vc, TLD_ICANN
 #  ve : https://registro.nic.ve/
-#  Confirmed by registry 2012-10-04
-#  Updated 2014-05-20 - Bug 940478
+#  Submitted by registry
 ve, TLD_ICANN
 arts.ve, TLD_ICANN
 co.ve, TLD_ICANN
@@ -6621,7 +6631,7 @@ rec.ve, TLD_ICANN
 store.ve, TLD_ICANN
 tec.ve, TLD_ICANN
 web.ve, TLD_ICANN
-#  vg : http://en.wikipedia.org/wiki/.vg
+#  vg : https://en.wikipedia.org/wiki/.vg
 vg, TLD_ICANN
 #  vi : http://www.nic.vi/newdomainform.htm
 #  http://www.nic.vi/Domain_Rules/body_domain_rules.html indicates some other
@@ -6647,7 +6657,7 @@ info.vn, TLD_ICANN
 name.vn, TLD_ICANN
 pro.vn, TLD_ICANN
 health.vn, TLD_ICANN
-#  vu : http://en.wikipedia.org/wiki/.vu
+#  vu : https://en.wikipedia.org/wiki/.vu
 #  http://www.vunic.vu/
 vu, TLD_ICANN
 com.vu, TLD_ICANN
@@ -6656,7 +6666,7 @@ net.vu, TLD_ICANN
 org.vu, TLD_ICANN
 #  wf : http://www.afnic.fr/medias/documents/AFNIC-naming-policy2012.pdf
 wf, TLD_ICANN
-#  ws : http://en.wikipedia.org/wiki/.ws
+#  ws : https://en.wikipedia.org/wiki/.ws
 #  http://samoanic.ws/index.dhtml
 ws, TLD_ICANN
 com.ws, TLD_ICANN
@@ -6704,6 +6714,9 @@ xn--lgbbat1ad8j, TLD_ICANN
 #  http://www.dotmasr.eg/
 # مصر
 xn--wgbh1c, TLD_ICANN
+#  xn--e1a4c ("eu", Cyrillic) : EU
+# ею
+xn--e1a4c, TLD_ICANN
 #  xn--node ("ge", Georgian Mkhedruli) : GE
 # გე
 xn--node, TLD_ICANN
@@ -6807,7 +6820,7 @@ xn--mgbai9a5eva00b, TLD_ICANN
 # فلسطين
 xn--ygbi2ammx, TLD_ICANN
 #  xn--90a3ac ("srb", Cyrillic) : RS
-#  http://www.rnids.rs/en/the-.срб-domain
+#  https://www.rnids.rs/en/domains/national-domains
 # срб
 xn--90a3ac, TLD_ICANN
 # пр.срб
@@ -6890,7 +6903,7 @@ xxx, TLD_ICANN
 ye, TLD_WILDCARD
 #  za : http://www.zadna.org.za/content/page/domain-information
 ac.za, TLD_ICANN
-agrica.za, TLD_ICANN
+agric.za, TLD_ICANN
 alt.za, TLD_ICANN
 co.za, TLD_ICANN
 edu.za, TLD_ICANN
@@ -6906,11 +6919,23 @@ org.za, TLD_ICANN
 school.za, TLD_ICANN
 tm.za, TLD_ICANN
 web.za, TLD_ICANN
-#  zm : http://en.wikipedia.org/wiki/.zm
-zm, TLD_WILDCARD
-#  zw : http://en.wikipedia.org/wiki/.zw
+#  zm : https://zicta.zm/
+#  Submitted by registry <info@zicta.zm>
+zm, TLD_ICANN
+ac.zm, TLD_ICANN
+biz.zm, TLD_ICANN
+co.zm, TLD_ICANN
+com.zm, TLD_ICANN
+edu.zm, TLD_ICANN
+gov.zm, TLD_ICANN
+info.zm, TLD_ICANN
+mil.zm, TLD_ICANN
+net.zm, TLD_ICANN
+org.zm, TLD_ICANN
+sch.zm, TLD_ICANN
+#  zw : https://en.wikipedia.org/wiki/.zw
 zw, TLD_WILDCARD
-#  List of new gTLDs imported from https://newgtlds.icann.org/newgtlds.csv on 2015-08-08T00:32:21Z
+#  List of new gTLDs imported from https://newgtlds.icann.org/newgtlds.csv on 2016-05-09T22:17:27Z
 #  aaa : 2015-02-26 American Automobile Association, Inc.
 aaa, TLD_ICANN
 #  aarp : 2015-05-21 AARP
@@ -7015,6 +7040,8 @@ android, TLD_ICANN
 anquan, TLD_ICANN
 #  anz : 2015-07-31 Australia and New Zealand Banking Group Limited
 anz, TLD_ICANN
+#  aol : 2015-09-17 AOL Inc.
+aol, TLD_ICANN
 #  apartments : 2014-12-11 June Maple, LLC
 apartments, TLD_ICANN
 #  app : 2015-05-14 Charleston Road Registry Inc.
@@ -7023,12 +7050,16 @@ app, TLD_ICANN
 apple, TLD_ICANN
 #  aquarelle : 2014-07-24 Aquarelle.com
 aquarelle, TLD_ICANN
+#  arab : 2015-11-12 League of Arab States
+arab, TLD_ICANN
 #  aramco : 2014-11-20 Aramco Services Company
 aramco, TLD_ICANN
 #  archi : 2014-02-06 STARTING DOT LIMITED
 archi, TLD_ICANN
 #  army : 2014-03-06 United TLD Holdco Ltd.
 army, TLD_ICANN
+#  art : 2016-03-24 UK Creative Ideas Limited
+art, TLD_ICANN
 #  arte : 2014-12-11 Association Relative à la Télévision Européenne G.E.I.E.
 arte, TLD_ICANN
 #  asda : 2015-07-31 Wal-Mart Stores, Inc.
@@ -7047,6 +7078,8 @@ audi, TLD_ICANN
 audible, TLD_ICANN
 #  audio : 2014-03-20 Uniregistry, Corp.
 audio, TLD_ICANN
+#  auspost : 2015-08-13 Australian Postal Corporation
+auspost, TLD_ICANN
 #  author : 2014-12-18 Amazon EU S.à r.l.
 author, TLD_ICANN
 #  auto : 2014-11-13
@@ -7085,6 +7118,10 @@ barclays, TLD_ICANN
 barefoot, TLD_ICANN
 #  bargains : 2013-11-14 Half Hallow, LLC
 bargains, TLD_ICANN
+#  baseball : 2015-10-29 MLB Advanced Media DH, LLC
+baseball, TLD_ICANN
+#  basketball : 2015-08-20 Fédération Internationale de Basketball (FIBA)
+basketball, TLD_ICANN
 #  bauhaus : 2014-04-17 Werkhaus GmbH
 bauhaus, TLD_ICANN
 #  bayern : 2014-01-23 Bayern Connect GmbH
@@ -7101,6 +7138,8 @@ bcg, TLD_ICANN
 bcn, TLD_ICANN
 #  beats : 2015-05-14 Beats Electronics, LLC
 beats, TLD_ICANN
+#  beauty : 2015-12-03 L'Oréal
+beauty, TLD_ICANN
 #  beer : 2014-01-09 Top Level Domain Holdings Limited
 beer, TLD_ICANN
 #  bentley : 2014-12-18 Bentley Motors Limited
@@ -7161,6 +7200,8 @@ bom, TLD_ICANN
 bond, TLD_ICANN
 #  boo : 2014-01-30 Charleston Road Registry Inc.
 boo, TLD_ICANN
+#  book : 2015-08-27 Amazon EU S.à r.l.
+book, TLD_ICANN
 #  booking : 2015-07-16 Booking.com B.V.
 booking, TLD_ICANN
 #  boots : 2015-01-08 THE BOOTS COMPANY PLC
@@ -7169,10 +7210,14 @@ boots, TLD_ICANN
 bosch, TLD_ICANN
 #  bostik : 2015-05-28 Bostik SA
 bostik, TLD_ICANN
+#  boston : 2015-12-10 Boston Globe Media Partners, LLC
+boston, TLD_ICANN
 #  bot : 2014-12-18 Amazon EU S.à r.l.
 bot, TLD_ICANN
 #  boutique : 2013-11-14 Over Galley, LLC
 boutique, TLD_ICANN
+#  box : 2015-11-12 NS1 Limited
+box, TLD_ICANN
 #  bradesco : 2014-12-18 Banco Bradesco S.A.
 bradesco, TLD_ICANN
 #  bridgestone : 2014-12-18 Bridgestone Corporation
@@ -7211,6 +7256,8 @@ cal, TLD_ICANN
 call, TLD_ICANN
 #  calvinklein : 2015-07-30 PVH gTLD Holdings LLC
 calvinklein, TLD_ICANN
+#  cam : 2016-04-21 AC Webconnecting Holding B.V.
+cam, TLD_ICANN
 #  camera : 2013-08-27 Atomic Maple, LLC
 camera, TLD_ICANN
 #  camp : 2013-11-07 Delta Dynamite, LLC
@@ -7243,12 +7290,18 @@ cars, TLD_ICANN
 cartier, TLD_ICANN
 #  casa : 2013-11-21 Top Level Domain Holdings Limited
 casa, TLD_ICANN
+#  case : 2015-09-03 CNH Industrial N.V.
+case, TLD_ICANN
+#  caseih : 2015-09-03 CNH Industrial N.V.
+caseih, TLD_ICANN
 #  cash : 2014-03-06 Delta Lake, LLC
 cash, TLD_ICANN
 #  casino : 2014-12-18 Binky Sky, LLC
 casino, TLD_ICANN
 #  catering : 2013-12-05 New Falls. LLC
 catering, TLD_ICANN
+#  catholic : 2015-10-21 Pontificium Consilium de Comunicationibus Socialibus (PCCS) (Pontifical Council for Social Communication)
+catholic, TLD_ICANN
 #  cba : 2014-06-26 COMMONWEALTH BANK OF AUSTRALIA
 cba, TLD_ICANN
 #  cbn : 2014-08-22 The Christian Broadcasting Network, Inc.
@@ -7315,6 +7368,8 @@ cleaning, TLD_ICANN
 click, TLD_ICANN
 #  clinic : 2014-03-20 Goose Park, LLC
 clinic, TLD_ICANN
+#  clinique : 2015-10-01 The Estée Lauder Companies Inc.
+clinique, TLD_ICANN
 #  clothing : 2013-08-27 Steel Lake, LLC
 clothing, TLD_ICANN
 #  cloud : 2015-04-16 ARUBA S.p.A.
@@ -7341,6 +7396,8 @@ commbank, TLD_ICANN
 community, TLD_ICANN
 #  company : 2013-11-07 Silver Avenue, LLC
 company, TLD_ICANN
+#  compare : 2015-10-08 iSelect Ltd
+compare, TLD_ICANN
 #  computer : 2013-10-24 Pine Mill, LLC
 computer, TLD_ICANN
 #  comsec : 2015-01-08 VeriSign, Inc.
@@ -7383,6 +7440,8 @@ cricket, TLD_ICANN
 crown, TLD_ICANN
 #  crs : 2014-04-03 Federated Co-operatives Limited
 crs, TLD_ICANN
+#  cruise : 2015-12-10 Viking River Cruises (Bermuda) Ltd.
+cruise, TLD_ICANN
 #  cruises : 2013-12-05 Spring Way, LLC
 cruises, TLD_ICANN
 #  csc : 2014-09-25 Alliance-One Services, Inc.
@@ -7457,6 +7516,8 @@ discount, TLD_ICANN
 discover, TLD_ICANN
 #  dish : 2015-07-30 Dish DBS Corporation
 dish, TLD_ICANN
+#  diy : 2015-11-05 Lifestyle Domain Holdings, Inc.
+diy, TLD_ICANN
 #  dnp : 2013-12-13 Dai Nippon Printing Co., Ltd.
 dnp, TLD_ICANN
 #  docs : 2014-10-16 Charleston Road Registry Inc.
@@ -7469,8 +7530,6 @@ dog, TLD_ICANN
 doha, TLD_ICANN
 #  domains : 2013-10-17 Sugar Cross, LLC
 domains, TLD_ICANN
-#  doosan : 2014-04-03 Doosan Corporation
-doosan, TLD_ICANN
 #  dot : 2015-05-21 Dish DBS Corporation
 dot, TLD_ICANN
 #  download : 2014-11-20 dot Support Limited
@@ -7489,7 +7548,7 @@ duck, TLD_ICANN
 dunlop, TLD_ICANN
 #  duns : 2015-08-06 The Dun & Bradstreet Corporation
 duns, TLD_ICANN
-#  dupont : 2015-06-25 E.I. du Pont de Nemours and Company
+#  dupont : 2015-06-25 E. I. du Pont de Nemours and Company
 dupont, TLD_ICANN
 #  durban : 2014-03-24 ZA Central Registry NPC trading as ZA Central Registry
 durban, TLD_ICANN
@@ -7535,6 +7594,8 @@ esq, TLD_ICANN
 estate, TLD_ICANN
 #  esurance : 2015-07-23 Esurance Insurance Company
 esurance, TLD_ICANN
+#  etisalat : 2015-09-03 Emirates Telecommunications Corporation (trading as Etisalat)
+etisalat, TLD_ICANN
 #  eurovision : 2014-04-24 European Broadcasting Union (EBU)
 eurovision, TLD_ICANN
 #  eus : 2013-12-12 Puntueus Fundazioa
@@ -7627,6 +7688,8 @@ flsmidth, TLD_ICANN
 fly, TLD_ICANN
 #  foo : 2014-01-23 Charleston Road Registry Inc.
 foo, TLD_ICANN
+#  food : 2016-04-21 Lifestyle Domain Holdings, Inc.
+food, TLD_ICANN
 #  foodnetwork : 2015-07-02 Lifestyle Domain Holdings, Inc.
 foodnetwork, TLD_ICANN
 #  football : 2014-12-18 Foggy Farms, LLC
@@ -7641,6 +7704,10 @@ forsale, TLD_ICANN
 forum, TLD_ICANN
 #  foundation : 2013-12-05 John Dale, LLC
 foundation, TLD_ICANN
+#  fox : 2015-09-11 FOX Registry, LLC
+fox, TLD_ICANN
+#  free : 2015-12-10 Amazon EU S.à r.l.
+free, TLD_ICANN
 #  fresenius : 2015-07-30 Fresenius Immobilien-Verwaltungs-GmbH
 fresenius, TLD_ICANN
 #  frl : 2014-05-15 FRLregistry B.V.
@@ -7657,6 +7724,8 @@ ftr, TLD_ICANN
 fujitsu, TLD_ICANN
 #  fujixerox : 2015-07-23 Xerox DNHC LLC
 fujixerox, TLD_ICANN
+#  fun : 2016-01-14 Oriental Trading Company, Inc.
+fun, TLD_ICANN
 #  fund : 2014-03-20 John Castle, LLC
 fund, TLD_ICANN
 #  furniture : 2014-03-20 Lone Fields, LLC
@@ -7715,6 +7784,8 @@ global, TLD_ICANN
 globo, TLD_ICANN
 #  gmail : 2014-05-01 Charleston Road Registry Inc.
 gmail, TLD_ICANN
+#  gmbh : 2016-01-29 Extra Dynamite, LLC
+gmbh, TLD_ICANN
 #  gmo : 2014-01-09 GMO Internet, Inc.
 gmo, TLD_ICANN
 #  gmx : 2014-04-24 1&1 Mail & Media GmbH
@@ -7767,6 +7838,8 @@ guide, TLD_ICANN
 guitars, TLD_ICANN
 #  guru : 2013-08-27 Pioneer Cypress, LLC
 guru, TLD_ICANN
+#  hair : 2015-12-03 L'Oréal
+hair, TLD_ICANN
 #  hamburg : 2014-02-20 Hamburg Top-Level-Domain GmbH
 hamburg, TLD_ICANN
 #  hangout : 2014-11-13 Charleston Road Registry Inc.
@@ -7799,7 +7872,7 @@ hiphop, TLD_ICANN
 hisamitsu, TLD_ICANN
 #  hitachi : 2014-10-31 Hitachi, Ltd.
 hitachi, TLD_ICANN
-#  hiv : 2014-03-13 dotHIV gemeinnuetziger e.V.
+#  hiv : 2014-03-13
 hiv, TLD_ICANN
 #  hkt : 2015-05-14 PCCW-HKT DataCom Services Limited
 hkt, TLD_ICANN
@@ -7827,8 +7900,12 @@ horse, TLD_ICANN
 host, TLD_ICANN
 #  hosting : 2014-05-29 Uniregistry, Corp.
 hosting, TLD_ICANN
+#  hot : 2015-08-27 Amazon EU S.à r.l.
+hot, TLD_ICANN
 #  hoteles : 2015-03-05 Travel Reservations SRL
 hoteles, TLD_ICANN
+#  hotels : 2016-04-07 Booking.com B.V.
+hotels, TLD_ICANN
 #  hotmail : 2014-12-18 Microsoft Corporation
 hotmail, TLD_ICANN
 #  house : 2013-11-07 Sugar Park, LLC
@@ -7907,6 +7984,8 @@ istanbul, TLD_ICANN
 itau, TLD_ICANN
 #  itv : 2015-07-09 ITV Services Limited
 itv, TLD_ICANN
+#  iveco : 2015-09-03 CNH Industrial N.V.
+iveco, TLD_ICANN
 #  iwc : 2014-06-23 Richemont DNS Inc.
 iwc, TLD_ICANN
 #  jaguar : 2014-11-13 Jaguar Land Rover Ltd
@@ -7919,7 +7998,7 @@ jcb, TLD_ICANN
 jcp, TLD_ICANN
 #  jeep : 2015-07-30 FCA US LLC.
 jeep, TLD_ICANN
-#  jetzt : 2014-01-09 New TLD Company AB
+#  jetzt : 2014-01-09
 jetzt, TLD_ICANN
 #  jewelry : 2015-03-05 Wild Bloom, LLC
 jewelry, TLD_ICANN
@@ -7975,6 +8054,8 @@ kiwi, TLD_ICANN
 koeln, TLD_ICANN
 #  komatsu : 2015-01-08 Komatsu Ltd.
 komatsu, TLD_ICANN
+#  kosher : 2015-08-20 Kosher Marketing Assets LLC
+kosher, TLD_ICANN
 #  kpmg : 2015-04-23 KPMG International Cooperative (KPMG International Genossenschaft)
 kpmg, TLD_ICANN
 #  kpn : 2015-01-08 Koninklijke KPN N.V.
@@ -7995,6 +8076,8 @@ lacaixa, TLD_ICANN
 ladbrokes, TLD_ICANN
 #  lamborghini : 2015-06-04 Automobili Lamborghini S.p.A.
 lamborghini, TLD_ICANN
+#  lamer : 2015-10-01 The Estée Lauder Companies Inc.
+lamer, TLD_ICANN
 #  lancaster : 2015-02-12 LANCASTER
 lancaster, TLD_ICANN
 #  lancia : 2015-07-31 Fiat Chrysler Automobiles N.V.
@@ -8197,6 +8280,8 @@ mom, TLD_ICANN
 monash, TLD_ICANN
 #  money : 2014-10-16 Outer McCook, LLC
 money, TLD_ICANN
+#  monster : 2015-09-11 Monster Worldwide, Inc.
+monster, TLD_ICANN
 #  montblanc : 2014-06-23 Richemont DNS Inc.
 montblanc, TLD_ICANN
 #  mopar : 2015-07-30 FCA US LLC.
@@ -8233,6 +8318,8 @@ mutual, TLD_ICANN
 mutuelle, TLD_ICANN
 #  mzansimagic : 2015-03-05 Electronic Media Network (Pty) Ltd
 mzansimagic, TLD_ICANN
+#  nab : 2015-08-20 National Australia Bank Limited
+nab, TLD_ICANN
 #  nadex : 2014-12-11 IG Group Holdings PLC
 nadex, TLD_ICANN
 #  nagoya : 2013-10-24 GMO Registry, Inc.
@@ -8259,6 +8346,8 @@ network, TLD_ICANN
 neustar, TLD_ICANN
 #  new : 2014-01-30 Charleston Road Registry Inc.
 new, TLD_ICANN
+#  newholland : 2015-09-03 CNH Industrial N.V.
+newholland, TLD_ICANN
 #  news : 2014-12-18
 news, TLD_ICANN
 #  next : 2015-06-18 Next plc
@@ -8283,6 +8372,8 @@ nikon, TLD_ICANN
 ninja, TLD_ICANN
 #  nissan : 2014-03-27 NISSAN MOTOR CO., LTD.
 nissan, TLD_ICANN
+#  nissay : 2015-10-29 Nippon Life Insurance Company
+nissay, TLD_ICANN
 #  nokia : 2015-01-08 Nokia Corporation
 nokia, TLD_ICANN
 #  northwesternmutual : 2015-06-18 Northwestern Mutual Registry, LLC
@@ -8345,6 +8436,8 @@ orange, TLD_ICANN
 organic, TLD_ICANN
 #  orientexpress : 2015-02-05 Belmond Ltd.
 orientexpress, TLD_ICANN
+#  origins : 2015-10-01 The Estée Lauder Companies Inc.
+origins, TLD_ICANN
 #  osaka : 2014-09-04 Interlink Co., Ltd.
 osaka, TLD_ICANN
 #  otsuka : 2013-10-11 Otsuka Holdings Co., Ltd.
@@ -8373,12 +8466,16 @@ parts, TLD_ICANN
 party, TLD_ICANN
 #  passagens : 2015-03-05 Travel Reservations SRL
 passagens, TLD_ICANN
+#  pay : 2015-08-27 Amazon EU S.à r.l.
+pay, TLD_ICANN
 #  payu : 2015-02-12 MIH PayU B.V.
 payu, TLD_ICANN
 #  pccw : 2015-05-14 PCCW Enterprises Limited
 pccw, TLD_ICANN
 #  pet : 2015-05-07 Afilias plc
 pet, TLD_ICANN
+#  pfizer : 2015-09-11 Pfizer Inc.
+pfizer, TLD_ICANN
 #  pharmacy : 2014-06-19 National Association of Boards of Pharmacy
 pharmacy, TLD_ICANN
 #  philips : 2014-11-07 Koninklijke Philips N.V.
@@ -8427,6 +8524,8 @@ pnc, TLD_ICANN
 pohl, TLD_ICANN
 #  poker : 2014-07-03 Afilias Domains No. 5 Limited
 poker, TLD_ICANN
+#  politie : 2015-08-20 Politie Nederland
+politie, TLD_ICANN
 #  porn : 2014-10-16 ICM Registry PN LLC
 porn, TLD_ICANN
 #  pramerica : 2015-07-30 Prudential Financial, Inc.
@@ -8445,7 +8544,7 @@ productions, TLD_ICANN
 prof, TLD_ICANN
 #  progressive : 2015-07-23 Progressive Casualty Insurance Company
 progressive, TLD_ICANN
-#  promo : 2014-12-18 Play.PROMO Oy
+#  promo : 2014-12-18
 promo, TLD_ICANN
 #  properties : 2013-12-05 Big Pass, LLC
 properties, TLD_ICANN
@@ -8459,6 +8558,8 @@ pru, TLD_ICANN
 prudential, TLD_ICANN
 #  pub : 2013-12-12 United TLD Holdco Ltd.
 pub, TLD_ICANN
+#  pwc : 2015-10-29 PricewaterhouseCoopers LLP
+pwc, TLD_ICANN
 #  qpon : 2013-11-14 dotCOOL, Inc.
 qpon, TLD_ICANN
 #  quebec : 2013-12-19 PointQuébec Inc
@@ -8473,6 +8574,8 @@ racing, TLD_ICANN
 raid, TLD_ICANN
 #  read : 2014-12-18 Amazon EU S.à r.l.
 read, TLD_ICANN
+#  realestate : 2015-09-11 dotRealEstate LLC
+realestate, TLD_ICANN
 #  realtor : 2014-05-29 Real Estate Domains LLC
 realtor, TLD_ICANN
 #  realty : 2015-03-19 Fegistry, LLC
@@ -8531,6 +8634,8 @@ ril, TLD_ICANN
 rio, TLD_ICANN
 #  rip : 2014-07-10 United TLD Holdco Ltd.
 rip, TLD_ICANN
+#  rmit : 2015-11-19 Royal Melbourne Institute of Technology
+rmit, TLD_ICANN
 #  rocher : 2014-12-18 Ferrero Trading Lux S.A.
 rocher, TLD_ICANN
 #  rocks : 2013-11-14
@@ -8615,10 +8720,14 @@ scor, TLD_ICANN
 scot, TLD_ICANN
 #  seat : 2014-05-22 SEAT, S.A. (Sociedad Unipersonal)
 seat, TLD_ICANN
+#  secure : 2015-08-27 Amazon EU S.à r.l.
+secure, TLD_ICANN
 #  security : 2015-05-14
 security, TLD_ICANN
 #  seek : 2014-12-04 Seek Limited
 seek, TLD_ICANN
+#  select : 2015-10-08 iSelect Ltd
+select, TLD_ICANN
 #  sener : 2014-10-24 Sener Ingeniería y Sistemas, S.A.
 sener, TLD_ICANN
 #  services : 2014-02-27 Fox Castle, LLC
@@ -8633,6 +8742,10 @@ sew, TLD_ICANN
 sex, TLD_ICANN
 #  sexy : 2013-09-11 Uniregistry, Corp.
 sexy, TLD_ICANN
+#  sfr : 2015-08-13 Societe Francaise du Radiotelephone - SFR
+sfr, TLD_ICANN
+#  shangrila : 2015-09-03 Shangri‐La International Hotel Management Limited
+shangrila, TLD_ICANN
 #  sharp : 2014-05-01 Sharp Corporation
 sharp, TLD_ICANN
 #  shaw : 2015-04-23 Shaw Cablesystems G.P.
@@ -8645,6 +8758,10 @@ shia, TLD_ICANN
 shiksha, TLD_ICANN
 #  shoes : 2013-10-02 Binky Galley, LLC
 shoes, TLD_ICANN
+#  shop : 2016-04-08 GMO Registry, Inc.
+shop, TLD_ICANN
+#  shopping : 2016-03-31
+shopping, TLD_ICANN
 #  shouji : 2015-01-08 QIHOO 360 TECHNOLOGY CO. LTD.
 shouji, TLD_ICANN
 #  show : 2015-03-05 Snow Beach, LLC
@@ -8715,7 +8832,7 @@ stada, TLD_ICANN
 staples, TLD_ICANN
 #  star : 2015-01-08 Star India Private Limited
 star, TLD_ICANN
-#  starhub : 2015-02-05 StarHub Limited
+#  starhub : 2015-02-05 StarHub Ltd
 starhub, TLD_ICANN
 #  statebank : 2015-03-12 STATE BANK OF INDIA
 statebank, TLD_ICANN
@@ -8733,6 +8850,8 @@ stockholm, TLD_ICANN
 storage, TLD_ICANN
 #  store : 2015-04-09 DotStore Inc.
 store, TLD_ICANN
+#  stream : 2016-01-08 dot Stream Limited
+stream, TLD_ICANN
 #  studio : 2015-02-11
 studio, TLD_ICANN
 #  study : 2014-12-11 OPEN UNIVERSITIES AUSTRALIA PTY LTD
@@ -8885,10 +9004,14 @@ tunes, TLD_ICANN
 tushu, TLD_ICANN
 #  tvs : 2015-02-19 T V SUNDRAM IYENGAR  & SONS LIMITED
 tvs, TLD_ICANN
+#  ubank : 2015-08-20 National Australia Bank Limited
+ubank, TLD_ICANN
 #  ubs : 2014-12-11 UBS AG
 ubs, TLD_ICANN
 #  uconnect : 2015-07-30 FCA US LLC.
 uconnect, TLD_ICANN
+#  unicom : 2015-10-15 China United Network Communications Corporation Limited
+unicom, TLD_ICANN
 #  university : 2014-03-06 Little Station, LLC
 university, TLD_ICANN
 #  uno : 2013-09-11 Dot Latin LLC
@@ -8901,10 +9024,14 @@ ups, TLD_ICANN
 vacations, TLD_ICANN
 #  vana : 2014-12-11 Lifestyle Domain Holdings, Inc.
 vana, TLD_ICANN
+#  vanguard : 2015-09-03 The Vanguard Group, Inc.
+vanguard, TLD_ICANN
 #  vegas : 2014-01-16 Dot Vegas, Inc.
 vegas, TLD_ICANN
 #  ventures : 2013-08-27 Binky Lake, LLC
 ventures, TLD_ICANN
+#  verisign : 2015-08-13 VeriSign, Inc.
+verisign, TLD_ICANN
 #  versicherung : 2014-03-20 dotversicherung-registry GmbH
 versicherung, TLD_ICANN
 #  vet : 2014-03-06
@@ -8943,6 +9070,8 @@ vlaanderen, TLD_ICANN
 vodka, TLD_ICANN
 #  volkswagen : 2015-05-14 Volkswagen Group of America Inc.
 volkswagen, TLD_ICANN
+#  volvo : 2015-11-12 Volvo Holding Sverige Aktiebolag
+volvo, TLD_ICANN
 #  vote : 2013-11-21 Monolith Registry LLC
 vote, TLD_ICANN
 #  voting : 2013-11-13 Valuetainment Corp.
@@ -9015,6 +9144,8 @@ work, TLD_ICANN
 works, TLD_ICANN
 #  world : 2014-06-12 Bitter Fields, LLC
 world, TLD_ICANN
+#  wow : 2015-10-08 Amazon EU S.à r.l.
+wow, TLD_ICANN
 #  wtc : 2013-12-19 World Trade Centers Association, Inc.
 wtc, TLD_ICANN
 #  wtf : 2014-03-06 Hidden Way, LLC
@@ -9071,6 +9202,9 @@ xn--55qw42g, TLD_ICANN
 #  xn--55qx5d : 2013-11-14 Computer Network Information Center of Chinese Academy of Sciences （China Internet Network Information Center）
 # 公司
 xn--55qx5d, TLD_ICANN
+#  xn--5su34j936bgsg : 2015-09-03 Shangri‐La International Hotel Management Limited
+# 香格里拉
+xn--5su34j936bgsg, TLD_ICANN
 #  xn--5tzm5g : 2014-12-22 Global Website TLD Asia Limited
 # 网站
 xn--5tzm5g, TLD_ICANN
@@ -9083,6 +9217,9 @@ xn--6qq986b3xl, TLD_ICANN
 #  xn--80adxhks : 2013-12-19 Foundation for Assistance for Internet Technologies and Infrastructure Development (FAITID)
 # москва
 xn--80adxhks, TLD_ICANN
+#  xn--80aqecdr1a : 2015-10-21 Pontificium Consilium de Comunicationibus Socialibus (PCCS) (Pontifical Council for Social Communication)
+# католик
+xn--80aqecdr1a, TLD_ICANN
 #  xn--80asehdb : 2013-07-14 CORE Association
 # онлайн
 xn--80asehdb, TLD_ICANN
@@ -9167,6 +9304,9 @@ xn--g2xx48c, TLD_ICANN
 #  xn--gckr3f0f : 2015-02-26 Amazon EU S.à r.l.
 # クラウド
 xn--gckr3f0f, TLD_ICANN
+#  xn--gk3at1e : 2015-10-08 Amazon EU S.à r.l.
+# 通販
+xn--gk3at1e, TLD_ICANN
 #  xn--hxt814e : 2014-05-15 Zodiac Libra Limited
 # 网店
 xn--hxt814e, TLD_ICANN
@@ -9203,6 +9343,9 @@ xn--mgba3a3ejt, TLD_ICANN
 #  xn--mgba7c0bbn0a : 2015-05-14 Crescent Holding GmbH
 # العليان
 xn--mgba7c0bbn0a, TLD_ICANN
+#  xn--mgbaakc7dvf : 2015-09-03 Emirates Telecommunications Corporation (trading as Etisalat)
+# اتصالات
+xn--mgbaakc7dvf, TLD_ICANN
 #  xn--mgbab2bd : 2013-10-31 CORE Association
 # بازار
 xn--mgbab2bd, TLD_ICANN
@@ -9212,6 +9355,9 @@ xn--mgbb9fbpob, TLD_ICANN
 #  xn--mgbca7dzdo : 2015-07-30 Abu Dhabi Systems and Information Centre
 # ابوظبي
 xn--mgbca7dzdo, TLD_ICANN
+#  xn--mgbi4ecexp : 2015-10-21 Pontificium Consilium de Comunicationibus Socialibus (PCCS) (Pontifical Council for Social Communication)
+# كاثوليك
+xn--mgbi4ecexp, TLD_ICANN
 #  xn--mgbt3dhd : 2014-09-04 Asia Green IT System Bilgisayar San. ve Tic. Ltd. Sti.
 # همراه
 xn--mgbt3dhd, TLD_ICANN
@@ -9227,6 +9373,9 @@ xn--ngbc5azd, TLD_ICANN
 #  xn--ngbe9e0a : 2014-12-04 Kuwait Finance House
 # بيتك
 xn--ngbe9e0a, TLD_ICANN
+#  xn--ngbrx : 2015-11-12 League of Arab States
+# عرب
+xn--ngbrx, TLD_ICANN
 #  xn--nqv7f : 2013-11-14 Public Interest Registry
 # 机构
 xn--nqv7f, TLD_ICANN
@@ -9266,6 +9415,9 @@ xn--t60b56a, TLD_ICANN
 #  xn--tckwe : 2015-01-15 VeriSign Sarl
 # コム
 xn--tckwe, TLD_ICANN
+#  xn--tiq49xqyj : 2015-10-21 Pontificium Consilium de Comunicationibus Socialibus (PCCS) (Pontifical Council for Social Communication)
+# 天主教
+xn--tiq49xqyj, TLD_ICANN
 #  xn--unup4y : 2013-07-14 Spring Fields, LLC
 # 游戏
 xn--unup4y, TLD_ICANN
@@ -9334,55 +9486,83 @@ zuerich, TLD_ICANN
 #  ===END ICANN DOMAINS===
 #  ===BEGIN PRIVATE DOMAINS===
 #  (Note: these are in alphabetical order by company name)
+#  Agnat sp. z o.o. : https://domena.pl
+#  Submitted by Przemyslaw Plewa <it-admin@domena.pl>
+beep.pl, TLD_PRIVATE
+#  Alces Software Ltd : http://alces-software.com
+#  Submitted by Mark J. Titorenko <mark.titorenko@alces-software.com>
+compute.estate, TLD_WILDCARD
+alces.network, TLD_WILDCARD
 #  Amazon CloudFront : https://aws.amazon.com/cloudfront/
-#  Submitted by Donavan Miller <donavanm@amazon.com> 2013-03-22
+#  Submitted by Donavan Miller <donavanm@amazon.com>
 cloudfront.net, TLD_PRIVATE
 #  Amazon Elastic Compute Cloud: https://aws.amazon.com/ec2/
-#  Submitted by Osman Surkatty <osmans@amazon.com> 2014-12-16
+#  Submitted by Philip Allchin <pallchin@amazon.com>
+compute.amazonaws.com, TLD_PRIVATE
 ap-northeast-1.compute.amazonaws.com, TLD_PRIVATE
+ap-northeast-2.compute.amazonaws.com, TLD_PRIVATE
 ap-southeast-1.compute.amazonaws.com, TLD_PRIVATE
 ap-southeast-2.compute.amazonaws.com, TLD_PRIVATE
-cn-north-1.compute.amazonaws.cn, TLD_PRIVATE
-compute.amazonaws.cn, TLD_PRIVATE
-compute.amazonaws.com, TLD_PRIVATE
-compute-1.amazonaws.com, TLD_PRIVATE
-eu-west-1.compute.amazonaws.com, TLD_PRIVATE
 eu-central-1.compute.amazonaws.com, TLD_PRIVATE
+eu-west-1.compute.amazonaws.com, TLD_PRIVATE
 sa-east-1.compute.amazonaws.com, TLD_PRIVATE
-us-east-1.amazonaws.com, TLD_PRIVATE
 us-gov-west-1.compute.amazonaws.com, TLD_PRIVATE
 us-west-1.compute.amazonaws.com, TLD_PRIVATE
 us-west-2.compute.amazonaws.com, TLD_PRIVATE
+us-east-1.amazonaws.com, TLD_PRIVATE
+compute-1.amazonaws.com, TLD_PRIVATE
 z-1.compute-1.amazonaws.com, TLD_PRIVATE
 z-2.compute-1.amazonaws.com, TLD_PRIVATE
+compute.amazonaws.com.cn, TLD_PRIVATE
+cn-north-1.compute.amazonaws.com.cn, TLD_PRIVATE
 #  Amazon Elastic Beanstalk : https://aws.amazon.com/elasticbeanstalk/
-#  Submitted by Adam Stein <astein@amazon.com> 2013-04-02
+#  Submitted by Adam Stein <astein@amazon.com>
 elasticbeanstalk.com, TLD_PRIVATE
 #  Amazon Elastic Load Balancing : https://aws.amazon.com/elasticloadbalancing/
-#  Submitted by Scott Vidmar <svidmar@amazon.com> 2013-03-27
+#  Submitted by Scott Vidmar <svidmar@amazon.com>
 elb.amazonaws.com, TLD_PRIVATE
 #  Amazon S3 : https://aws.amazon.com/s3/
-#  Submitted by Eric Kinolik <kilo@amazon.com> 2015-04-08
+#  Submitted by Luke Wells <lawells@amazon.com>
 s3.amazonaws.com, TLD_PRIVATE
 s3-ap-northeast-1.amazonaws.com, TLD_PRIVATE
+s3-ap-northeast-2.amazonaws.com, TLD_PRIVATE
 s3-ap-southeast-1.amazonaws.com, TLD_PRIVATE
 s3-ap-southeast-2.amazonaws.com, TLD_PRIVATE
+s3-eu-central-1.amazonaws.com, TLD_PRIVATE
+s3-eu-west-1.amazonaws.com, TLD_PRIVATE
 s3-external-1.amazonaws.com, TLD_PRIVATE
 s3-external-2.amazonaws.com, TLD_PRIVATE
 s3-fips-us-gov-west-1.amazonaws.com, TLD_PRIVATE
-s3-eu-central-1.amazonaws.com, TLD_PRIVATE
-s3-eu-west-1.amazonaws.com, TLD_PRIVATE
 s3-sa-east-1.amazonaws.com, TLD_PRIVATE
 s3-us-gov-west-1.amazonaws.com, TLD_PRIVATE
 s3-us-west-1.amazonaws.com, TLD_PRIVATE
 s3-us-west-2.amazonaws.com, TLD_PRIVATE
+s3.ap-northeast-2.amazonaws.com, TLD_PRIVATE
 s3.cn-north-1.amazonaws.com.cn, TLD_PRIVATE
 s3.eu-central-1.amazonaws.com, TLD_PRIVATE
+#  Aptible : https://www.aptible.com/
+#  Submitted by Thomas Orozco <thomas@aptible.com>
+on-aptible.com, TLD_PRIVATE
+#  Association potager.org : https://potager.org/
+#  Submitted by Lunar <jardiniers@potager.org>
+potager.org, TLD_PRIVATE
+poivron.org, TLD_PRIVATE
+sweetpepper.org, TLD_PRIVATE
+pimienta.org, TLD_PRIVATE
+#  AVM : https://avm.de
+#  Submitted by Andreas Weise <a.weise@avm.de>
+myfritz.net, TLD_PRIVATE
 #  BetaInABox
-#  Submitted by adrian@betainabox.com 2012-09-13
+#  Submitted by Adrian <adrian@betainabox.com>
 betainabox.com, TLD_PRIVATE
+#  Boxfuse : https://boxfuse.com
+#  Submitted by Axel Fontaine <axel@boxfuse.com>
+boxfuse.io, TLD_PRIVATE
+#  callidomus: https://www.callidomus.com/
+#  Submitted by Marcus Popp <admin@callidomus.com>
+mycd.eu, TLD_PRIVATE
 #  CentralNic : http://www.centralnic.com/names/domains
-#  Submitted by registry <gavin.brown@centralnic.com> 2012-09-27
+#  Submitted by registry <gavin.brown@centralnic.com>
 ae.org, TLD_PRIVATE
 ar.com, TLD_PRIVATE
 br.com, TLD_PRIVATE
@@ -9412,30 +9592,42 @@ uy.com, TLD_PRIVATE
 za.bz, TLD_PRIVATE
 za.com, TLD_PRIVATE
 #  Africa.com Web Solutions Ltd : https://registry.africa.com
-#  Submitted by Gavin Brown <gavin.brown@centralnic.com> 2014-02-04
+#  Submitted by Gavin Brown <gavin.brown@centralnic.com>
 africa.com, TLD_PRIVATE
 #  iDOT Services Limited : http://www.domain.gr.com
-#  Submitted by Gavin Brown <gavin.brown@centralnic.com> 2014-02-04
+#  Submitted by Gavin Brown <gavin.brown@centralnic.com>
 gr.com, TLD_PRIVATE
 #  Radix FZC : http://domains.in.net
-#  Submitted by Gavin Brown <gavin.brown@centralnic.com> 2014-02-04
+#  Submitted by Gavin Brown <gavin.brown@centralnic.com>
 in.net, TLD_PRIVATE
 #  US REGISTRY LLC : http://us.org
-#  Submitted by Gavin Brown <gavin.brown@centralnic.com> 2014-02-04
+#  Submitted by Gavin Brown <gavin.brown@centralnic.com>
 us.org, TLD_PRIVATE
 #  co.com Registry, LLC : https://registry.co.com
-#  Submitted by Gavin Brown <gavin.brown@centralnic.com> 2014-02-04
+#  Submitted by Gavin Brown <gavin.brown@centralnic.com>
 co.com, TLD_PRIVATE
 #  c.la : http://www.c.la/
 c.la, TLD_PRIVATE
+#  certmgr.org : https://certmgr.org
+#  Submitted by B. Blechschmidt <hostmaster@certmgr.org>
+certmgr.org, TLD_PRIVATE
+#  Citrix : https://citrix.com
+#  Submitted by Alex Stoddard <alex.stoddard@citrix.com>
+xenapponazure.com, TLD_PRIVATE
+#  ClearVox : http://www.clearvox.nl/
+#  Submitted by Leon Rowland <leon@clearvox.nl>
+virtueeldomein.nl, TLD_PRIVATE
 #  cloudControl : https://www.cloudcontrol.com/
-#  Submitted by Tobias Wilken <tw@cloudcontrol.com> 2013-07-23
+#  Submitted by Tobias Wilken <tw@cloudcontrol.com>
 cloudcontrolled.com, TLD_PRIVATE
 cloudcontrolapp.com, TLD_PRIVATE
 #  co.ca : http://registry.co.ca/
 co.ca, TLD_PRIVATE
+#  i-registry s.r.o. : http://www.i-registry.cz/
+#  Submitted by Martin Semrad <semrad@i-registry.cz>
+co.cz, TLD_PRIVATE
 #  CDN77.com : http://www.cdn77.com
-#  Submitted by Jan Krpes <jan.krpes@cdn77.com> 2015-07-13
+#  Submitted by Jan Krpes <jan.krpes@cdn77.com>
 c.cdn77.org, TLD_PRIVATE
 cdn77-ssl.net, TLD_PRIVATE
 r.cdn77.net, TLD_PRIVATE
@@ -9445,17 +9637,50 @@ ssl.origin.cdn77-secure.org, TLD_PRIVATE
 co.nl, TLD_PRIVATE
 co.no, TLD_PRIVATE
 #  Commerce Guys, SAS
-#  Submitted by Damien Tournoud <damien@commerceguys.com> 2015-01-22
+#  Submitted by Damien Tournoud <damien@commerceguys.com>
 platform.sh, TLD_WILDCARD
+#  Craynic, s.r.o. : http://www.craynic.com/
+#  Submitted by Ales Krajnik <ales.krajnik@craynic.com>
+realm.cz, TLD_PRIVATE
+#  Cryptonomic : https://cryptonomic.net/
+#  Submitted by Andrew Cady <public-suffix-list@cryptonomic.net>
+cryptonomic.net, TLD_WILDCARD
 #  Cupcake : https://cupcake.io/
-#  Submitted by Jonathan Rudenberg <jonathan@cupcake.io> 2013-10-08
+#  Submitted by Jonathan Rudenberg <jonathan@cupcake.io>
 cupcake.is, TLD_PRIVATE
+#  cyon GmbH : https://www.cyon.ch/
+#  Submitted by Dominic Luechinger <dol@cyon.ch>
+cyon.link, TLD_PRIVATE
+cyon.site, TLD_PRIVATE
+#  Daplie, Inc : https://daplie.com
+#  Submitted by AJ ONeal <aj@daplie.com>
+daplie.me, TLD_PRIVATE
+#  Dansk.net : http://www.dansk.net/
+#  Submitted by Anani Voule <digital@digital.co.dk>
+biz.dk, TLD_PRIVATE
+co.dk, TLD_PRIVATE
+firm.dk, TLD_PRIVATE
+reg.dk, TLD_PRIVATE
+store.dk, TLD_PRIVATE
+#  deSEC : https://desec.io/
+#  Submitted by Peter Thomassen <peter@desec.io>
+dedyn.io, TLD_PRIVATE
+#  DNShome : https://www.dnshome.de/
+#  Submitted by Norbert Auler <mail@dnshome.de>
+dnshome.de, TLD_PRIVATE
 #  DreamHost : http://www.dreamhost.com/
-#  Submitted by Andrew Farmer <andrew.farmer@dreamhost.com> 2012-10-02
+#  Submitted by Andrew Farmer <andrew.farmer@dreamhost.com>
 dreamhosters.com, TLD_PRIVATE
+#  Drobo : http://www.drobo.com/
+#  Submitted by Ricardo Padilha <rpadilha@drobo.com>
+mydrobo.com, TLD_PRIVATE
 #  DuckDNS : http://www.duckdns.org/
-#  Submitted by Richard Harper <richard@duckdns.org> 2015-05-17
+#  Submitted by Richard Harper <richard@duckdns.org>
 duckdns.org, TLD_PRIVATE
+#  dy.fi : http://dy.fi/
+#  Submitted by Heikki Hannikainen <hessu@hes.iki.fi>
+dy.fi, TLD_PRIVATE
+tunk.org, TLD_PRIVATE
 #  DynDNS.com : http://www.dyndns.com/services/dns/dyndns/
 dyndns-at-home.com, TLD_PRIVATE
 dyndns-at-work.com, TLD_PRIVATE
@@ -9736,8 +9961,14 @@ webhop.net, TLD_PRIVATE
 webhop.org, TLD_PRIVATE
 worse-than.tv, TLD_PRIVATE
 writesthisblog.com, TLD_PRIVATE
+#  dynv6 : https://dynv6.com
+#  Submitted by Dominik Menke <dom@digineo.de> 2016-01-18
+dynv6.net, TLD_PRIVATE
+#  E4YOU spol. s.r.o. : https://e4you.cz/
+#  Submitted by Vladimir Dudr <info@e4you.cz>
+e4.cz, TLD_PRIVATE
 #  EU.org https://eu.org/
-#  Submitted by Pierre Beyssac <hostmaster@eu.org> 2015-04-17
+#  Submitted by Pierre Beyssac <hostmaster@eu.org>
 eu.org, TLD_PRIVATE
 al.eu.org, TLD_PRIVATE
 asso.eu.org, TLD_PRIVATE
@@ -9794,31 +10025,60 @@ sk.eu.org, TLD_PRIVATE
 tr.eu.org, TLD_PRIVATE
 uk.eu.org, TLD_PRIVATE
 us.eu.org, TLD_PRIVATE
+#  Evennode : http://www.evennode.com/
+#  Submitted by Michal Kralik <support@evennode.com>
+eu-1.evennode.com, TLD_PRIVATE
+eu-2.evennode.com, TLD_PRIVATE
+us-1.evennode.com, TLD_PRIVATE
+us-2.evennode.com, TLD_PRIVATE
+#  Facebook, Inc.
+#  Submitted by Peter Ruibal <public-suffix@fb.com>
+apps.fbsbx.com, TLD_PRIVATE
 #  Fastly Inc. http://www.fastly.com/
-#  Submitted by Vladimir Vuksan <vladimir@fastly.com> 2013-05-31
+#  Submitted by Vladimir Vuksan <vladimir@fastly.com>
 a.ssl.fastly.net, TLD_PRIVATE
 b.ssl.fastly.net, TLD_PRIVATE
 global.ssl.fastly.net, TLD_PRIVATE
 a.prod.fastly.net, TLD_PRIVATE
 global.prod.fastly.net, TLD_PRIVATE
+#  Featherhead : https://featherhead.xyz/
+#  Submitted by Simon Menke <simon@featherhead.xyz>
+fhapp.xyz, TLD_PRIVATE
 #  Firebase, Inc.
-#  Submitted by Chris Raynor <chris@firebase.com> 2014-01-21
+#  Submitted by Chris Raynor <chris@firebase.com>
 firebaseapp.com, TLD_PRIVATE
 #  Flynn : https://flynn.io
-#  Submitted by Jonathan Rudenberg <jonathan@flynn.io> 2014-07-12
+#  Submitted by Jonathan Rudenberg <jonathan@flynn.io>
 flynnhub.com, TLD_PRIVATE
+#  Freebox : http://www.freebox.fr
+#  Submitted by Romain Fliedel <rfliedel@freebox.fr>
+freebox-os.com, TLD_PRIVATE
+freeboxos.com, TLD_PRIVATE
+fbx-os.fr, TLD_PRIVATE
+fbxos.fr, TLD_PRIVATE
+freebox-os.fr, TLD_PRIVATE
+freeboxos.fr, TLD_PRIVATE
 #  GDS : https://www.gov.uk/service-manual/operations/operating-servicegovuk-subdomains
-#  Submitted by David Illsley <david.illsley@digital.cabinet-office.gov.uk> 2014-08-28
+#  Submitted by David Illsley <david.illsley@digital.cabinet-office.gov.uk>
 service.gov.uk, TLD_PRIVATE
 #  GitHub, Inc.
-#  Submitted by Ben Toews <btoews@github.com> 2014-02-06
+#  Submitted by Patrick Toomey <security@github.com>
 github.io, TLD_PRIVATE
 githubusercontent.com, TLD_PRIVATE
+githubcloud.com, TLD_PRIVATE
+api.githubcloud.com, TLD_WILDCARD
+ext.githubcloud.com, TLD_WILDCARD
+gist.githubcloud.com, TLD_PRIVATE
+githubcloudusercontent.com, TLD_WILDCARD
 #  GlobeHosting, Inc.
-#  Submitted by Zoltan Egresi <egresi@globehosting.com> 2013-07-12
+#  Submitted by Zoltan Egresi <egresi@globehosting.com>
 ro.com, TLD_PRIVATE
+#  GoIP DNS Services : http://www.goip.de
+#  Submitted by Christian Poulter <milchstrasse@goip.de>
+goip.de, TLD_PRIVATE
 #  Google, Inc.
-#  Submitted by Eduardo Vela <evn@google.com> 2014-12-19
+#  Submitted by Eduardo Vela <evn@google.com>
+0emm.com, TLD_WILDCARD
 appspot.com, TLD_PRIVATE
 blogspot.ae, TLD_PRIVATE
 blogspot.al, TLD_PRIVATE
@@ -9894,49 +10154,168 @@ blogspot.td, TLD_PRIVATE
 blogspot.tw, TLD_PRIVATE
 blogspot.ug, TLD_PRIVATE
 blogspot.vn, TLD_PRIVATE
+cloudfunctions.net, TLD_PRIVATE
 codespot.com, TLD_PRIVATE
 googleapis.com, TLD_PRIVATE
 googlecode.com, TLD_PRIVATE
 pagespeedmobilizer.com, TLD_PRIVATE
 withgoogle.com, TLD_PRIVATE
+withyoutube.com, TLD_PRIVATE
+#  Hashbang : https://hashbang.sh
+hashbang.sh, TLD_PRIVATE
+#  Hasura : https://hasura.io
+#  Submitted by Shahidh K Muhammed <shahidh@hasura.io>
+hasura-app.io, TLD_PRIVATE
+#  Hepforge : https://www.hepforge.org
+#  Submitted by David Grellscheid <admin@hepforge.org>
+hepforge.org, TLD_PRIVATE
 #  Heroku : https://www.heroku.com/
-#  Submitted by Tom Maher <tmaher@heroku.com> 2013-05-02
+#  Submitted by Tom Maher <tmaher@heroku.com>
 herokuapp.com, TLD_PRIVATE
 herokussl.com, TLD_PRIVATE
 #  iki.fi
-#  Submitted by Hannu Aronsson <haa@iki.fi> 2009-11-05
+#  Submitted by Hannu Aronsson <haa@iki.fi>
 iki.fi, TLD_PRIVATE
 #  info.at : http://www.info.at/
 biz.at, TLD_PRIVATE
 info.at, TLD_PRIVATE
+#  Magento Commerce
+#  Submitted by Damien Tournoud <dtournoud@magento.cloud>
+magentosite.cloud, TLD_WILDCARD
 #  Michau Enterprises Limited : http://www.co.pl/
 co.pl, TLD_PRIVATE
 #  Microsoft : http://microsoft.com
-#  Submitted by Barry Dorrans <bdorrans@microsoft.com> 2014-01-24
+#  Submitted by Barry Dorrans <bdorrans@microsoft.com>
 azurewebsites.net, TLD_PRIVATE
 azure-mobile.net, TLD_PRIVATE
 cloudapp.net, TLD_PRIVATE
 #  Mozilla Foundation : https://mozilla.org/
-#  Submited by glob <glob@mozilla.com> 2015-07-06
+#  Submitted by glob <glob@mozilla.com>
 bmoattachments.org, TLD_PRIVATE
 #  Neustar Inc.
-#  Submitted by Trung Tran <Trung.Tran@neustar.biz> 2015-04-23
+#  Submitted by Trung Tran <Trung.Tran@neustar.biz>
 4u.com, TLD_PRIVATE
+#  ngrok : https://ngrok.com/
+#  Submitted by Alan Shreve <alan@ngrok.com>
+ngrok.io, TLD_PRIVATE
 #  NFSN, Inc. : https://www.NearlyFreeSpeech.NET/
-#  Submitted by Jeff Wheelhouse <support@nearlyfreespeech.net> 2014-02-02
+#  Submitted by Jeff Wheelhouse <support@nearlyfreespeech.net>
 nfshost.com, TLD_PRIVATE
+#  nsupdate.info : https://www.nsupdate.info/
+#  Submitted by Thomas Waldmann <info@nsupdate.info>
+nsupdate.info, TLD_PRIVATE
+nerdpol.ovh, TLD_PRIVATE
+#  No-IP.com : https://noip.com/
+#  Submitted by Deven Reza <publicsuffixlist@noip.com>
+blogsyte.com, TLD_PRIVATE
+brasilia.me, TLD_PRIVATE
+cable-modem.org, TLD_PRIVATE
+ciscofreak.com, TLD_PRIVATE
+collegefan.org, TLD_PRIVATE
+couchpotatofries.org, TLD_PRIVATE
+damnserver.com, TLD_PRIVATE
+ddns.me, TLD_PRIVATE
+ditchyourip.com, TLD_PRIVATE
+dnsfor.me, TLD_PRIVATE
+dnsiskinky.com, TLD_PRIVATE
+dvrcam.info, TLD_PRIVATE
+dynns.com, TLD_PRIVATE
+eating-organic.net, TLD_PRIVATE
+fantasyleague.cc, TLD_PRIVATE
+geekgalaxy.com, TLD_PRIVATE
+golffan.us, TLD_PRIVATE
+health-carereform.com, TLD_PRIVATE
+homesecuritymac.com, TLD_PRIVATE
+homesecuritypc.com, TLD_PRIVATE
+hopto.me, TLD_PRIVATE
+ilovecollege.info, TLD_PRIVATE
+loginto.me, TLD_PRIVATE
+mlbfan.org, TLD_PRIVATE
+mmafan.biz, TLD_PRIVATE
+myactivedirectory.com, TLD_PRIVATE
+mydissent.net, TLD_PRIVATE
+myeffect.net, TLD_PRIVATE
+mymediapc.net, TLD_PRIVATE
+mypsx.net, TLD_PRIVATE
+mysecuritycamera.com, TLD_PRIVATE
+mysecuritycamera.net, TLD_PRIVATE
+mysecuritycamera.org, TLD_PRIVATE
+net-freaks.com, TLD_PRIVATE
+nflfan.org, TLD_PRIVATE
+nhlfan.net, TLD_PRIVATE
+no-ip.ca, TLD_PRIVATE
+no-ip.co.uk, TLD_PRIVATE
+no-ip.net, TLD_PRIVATE
+noip.us, TLD_PRIVATE
+onthewifi.com, TLD_PRIVATE
+pgafan.net, TLD_PRIVATE
+point2this.com, TLD_PRIVATE
+pointto.us, TLD_PRIVATE
+privatizehealthinsurance.net, TLD_PRIVATE
+quicksytes.com, TLD_PRIVATE
+read-books.org, TLD_PRIVATE
+securitytactics.com, TLD_PRIVATE
+serveexchange.com, TLD_PRIVATE
+servehumour.com, TLD_PRIVATE
+servep2p.com, TLD_PRIVATE
+servesarcasm.com, TLD_PRIVATE
+stufftoread.com, TLD_PRIVATE
+ufcfan.org, TLD_PRIVATE
+unusualperson.com, TLD_PRIVATE
+workisboring.com, TLD_PRIVATE
+3utilities.com, TLD_PRIVATE
+bounceme.net, TLD_PRIVATE
+ddns.net, TLD_PRIVATE
+ddnsking.com, TLD_PRIVATE
+gotdns.ch, TLD_PRIVATE
+hopto.org, TLD_PRIVATE
+myftp.biz, TLD_PRIVATE
+myftp.org, TLD_PRIVATE
+myvnc.com, TLD_PRIVATE
+no-ip.biz, TLD_PRIVATE
+no-ip.info, TLD_PRIVATE
+no-ip.org, TLD_PRIVATE
+noip.me, TLD_PRIVATE
+redirectme.net, TLD_PRIVATE
+servebeer.com, TLD_PRIVATE
+serveblog.net, TLD_PRIVATE
+servecounterstrike.com, TLD_PRIVATE
+serveftp.com, TLD_PRIVATE
+servegame.com, TLD_PRIVATE
+servehalflife.com, TLD_PRIVATE
+servehttp.com, TLD_PRIVATE
+serveirc.com, TLD_PRIVATE
+serveminecraft.net, TLD_PRIVATE
+servemp3.com, TLD_PRIVATE
+servepics.com, TLD_PRIVATE
+servequake.com, TLD_PRIVATE
+sytes.net, TLD_PRIVATE
+webhop.me, TLD_PRIVATE
+zapto.org, TLD_PRIVATE
 #  NYC.mn : http://www.information.nyc.mn
-#  Submitted by Matthew Brown <mattbrown@nyc.mn> 2013-03-11
+#  Submitted by Matthew Brown <mattbrown@nyc.mn>
 nyc.mn, TLD_PRIVATE
 #  One Fold Media : http://www.onefoldmedia.com/
-#  Submitted by Eddie Jones <eddie@onefoldmedia.com> 2014-06-10
+#  Submitted by Eddie Jones <eddie@onefoldmedia.com>
 nid.io, TLD_PRIVATE
 #  Opera Software, A.S.A.
-#  Submitted by Yngve Pettersen <yngve@opera.com> 2009-11-26
+#  Submitted by Yngve Pettersen <yngve@opera.com>
 operaunite.com, TLD_PRIVATE
 #  OutSystems
-#  Submitted by Duarte Santos <domain-admin@outsystemscloud.com> 2014-03-11
+#  Submitted by Duarte Santos <domain-admin@outsystemscloud.com>
 outsystemscloud.com, TLD_PRIVATE
+#  OwnProvider : http://www.ownprovider.com
+#  Submitted by Jan Moennich <jan.moennich@ownprovider.com>
+ownprovider.com, TLD_PRIVATE
+#  oy.lc
+#  Submitted by Charly Coste <changaco@changaco.oy.lc>
+oy.lc, TLD_PRIVATE
+#  Pagefog : https://pagefog.com/
+#  Submitted by Derek Myers <derek@pagefog.com>
+pgfog.com, TLD_PRIVATE
+#  Pagefront : https://www.pagefronthq.com/
+#  Submitted by Jason Kriss <jason@pagefronthq.com>
+pagefrontapp.com, TLD_PRIVATE
 #  .pl domains (grandfathered)
 art.pl, TLD_PRIVATE
 gliwice.pl, TLD_PRIVATE
@@ -9944,45 +10323,105 @@ krakow.pl, TLD_PRIVATE
 poznan.pl, TLD_PRIVATE
 wroc.pl, TLD_PRIVATE
 zakopane.pl, TLD_PRIVATE
+#  Pantheon Systems, Inc. : https://pantheon.io/
+#  Submitted by Gary Dylina <gary@pantheon.io>
+pantheonsite.io, TLD_PRIVATE
+gotpantheon.com, TLD_PRIVATE
+#  Peplink | Pepwave : http://peplink.com/
+#  Submitted by Steve Leung <steveleung@peplink.com>
+mypep.link, TLD_PRIVATE
+#  prgmr.com : https://prgmr.com/
+#  Submitted by Sarah Newman <owner@prgmr.com>
+xen.prgmr.com, TLD_PRIVATE
 #  priv.at : http://www.nic.priv.at/
-#  Submitted by registry <lendl@nic.at> 2008-06-09
+#  Submitted by registry <lendl@nic.at>
 priv.at, TLD_PRIVATE
+#  Publication Presse Communication SARL : https://ppcom.fr
+#  Submitted by Yaacov Akiba Slama <admin@chirurgiens-dentistes-en-france.fr>
+chirurgiens-dentistes-en-france.fr, TLD_PRIVATE
 #  QA2
-#  Submitted by Daniel Dent (https://www.danieldent.com/) 2015-07-16
+#  Submitted by Daniel Dent (https://www.danieldent.com/)
 qa2.com, TLD_PRIVATE
+#  Rackmaze LLC : https://www.rackmaze.com
+#  Submitted by Kirill Pertsev <kika@rackmaze.com>
+rackmaze.com, TLD_PRIVATE
+rackmaze.net, TLD_PRIVATE
 #  Red Hat, Inc. OpenShift : https://openshift.redhat.com/
-#  Submitted by Tim Kramer <tkramer@rhcloud.com> 2012-10-24
+#  Submitted by Tim Kramer <tkramer@rhcloud.com>
 rhcloud.com, TLD_PRIVATE
+#  RethinkDB : https://www.rethinkdb.com/
+#  Submitted by Chris Kastorff <info@rethinkdb.com>
+hzc.io, TLD_PRIVATE
 #  Sandstorm Development Group, Inc. : https://sandcats.io/
-#  Submitted by Asheesh Laroia <asheesh@sandstorm.io> 2015-07-21
+#  Submitted by Asheesh Laroia <asheesh@sandstorm.io>
 sandcats.io, TLD_PRIVATE
+#  SBE network solutions GmbH : https://www.sbe.de/
+#  Submitted by Norman Meilick <nm@sbe.de>
+logoip.de, TLD_PRIVATE
+logoip.com, TLD_PRIVATE
 #  Service Online LLC : http://drs.ua/
-#  Submitted by Serhii Bulakh <support@drs.ua> 2015-07-30
+#  Submitted by Serhii Bulakh <support@drs.ua>
 biz.ua, TLD_PRIVATE
 co.ua, TLD_PRIVATE
 pp.ua, TLD_PRIVATE
+#  Shopblocks : http://www.shopblocks.com/
+#  Submitted by Alex Bowers <alex@shopblocks.com>
+myshopblocks.com, TLD_PRIVATE
 #  SinaAppEngine : http://sae.sina.com.cn/
-#  Submitted by SinaAppEngine <saesupport@sinacloud.com> 2015-02-02
+#  Submitted by SinaAppEngine <saesupport@sinacloud.com>
 sinaapp.com, TLD_PRIVATE
 vipsinaapp.com, TLD_PRIVATE
 1kapp.com, TLD_PRIVATE
+#  Skyhat : http://www.skyhat.io
+#  Submitted by Shante Adam <shante@skyhat.io>
+bounty-full.com, TLD_PRIVATE
+alpha.bounty-full.com, TLD_PRIVATE
+beta.bounty-full.com, TLD_PRIVATE
+#  SpaceKit : https://www.spacekit.io/
+#  Submitted by Reza Akhavan <spacekit.io@gmail.com>
+spacekit.io, TLD_PRIVATE
+#  Synology, Inc. : https://www.synology.com/
+#  Submitted by Rony Weng <ronyweng@synology.com>
+diskstation.me, TLD_PRIVATE
+dscloud.biz, TLD_PRIVATE
+dscloud.me, TLD_PRIVATE
+dscloud.mobi, TLD_PRIVATE
+dsmynas.com, TLD_PRIVATE
+dsmynas.net, TLD_PRIVATE
+dsmynas.org, TLD_PRIVATE
+familyds.com, TLD_PRIVATE
+familyds.net, TLD_PRIVATE
+familyds.org, TLD_PRIVATE
+i234.me, TLD_PRIVATE
+myds.me, TLD_PRIVATE
+synology.me, TLD_PRIVATE
 #  TASK geographical domains (www.task.gda.pl/uslugi/dns)
 gda.pl, TLD_PRIVATE
 gdansk.pl, TLD_PRIVATE
 gdynia.pl, TLD_PRIVATE
 med.pl, TLD_PRIVATE
 sopot.pl, TLD_PRIVATE
+#  TownNews.com : http://www.townnews.com
+#  Submitted by Dustin Ward <dward@townnews.com>
+bloxcms.com, TLD_PRIVATE
+townnews-staging.com, TLD_PRIVATE
+#  TuxFamily : http://tuxfamily.org
+#  Submitted by TuxFamily administrators <adm@staff.tuxfamily.org>
+tuxfamily.org, TLD_PRIVATE
 #  UDR Limited : http://www.udr.hk.com
-#  Submitted by registry <hostmaster@udr.hk.com> 2014-11-07
+#  Submitted by registry <hostmaster@udr.hk.com>
 hk.com, TLD_PRIVATE
 hk.org, TLD_PRIVATE
 ltd.hk, TLD_PRIVATE
 inc.hk, TLD_PRIVATE
+#  Viprinet Europe GmbH : http://www.viprinet.com
+#  Submitted by Simon Kissel <hostmaster@viprinet.com>
+router.management, TLD_PRIVATE
 #  Yola : https://www.yola.com/
-#  Submitted by Stefano Rivera <stefano@yola.com> 2014-07-09
+#  Submitted by Stefano Rivera <stefano@yola.com>
 yolasite.com, TLD_PRIVATE
 #  ZaNiC : http://www.za.net/
-#  Submitted by registry <hostmaster@nic.za.net> 2009-10-03
+#  Submitted by registry <hostmaster@nic.za.net>
 za.net, TLD_PRIVATE
 za.org, TLD_PRIVATE
 #  ===END PRIVATE DOMAINS===
