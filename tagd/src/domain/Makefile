@@ -22,8 +22,8 @@ $(OBJS): $(GPERF_H) $(INC_DIR)/tagd/domain.h domain.cc
 $(GPERF_H): $(GPERF)
 	gperf $? > $@
 
-effective_tld_names.dat :
-	wget https://mxr.mozilla.org/mozilla-central/source/netwerk/dns/effective_tld_names.dat?raw=1 -O effective_tld_names.dat
+effective_tld_names.dat:
+	wget https://publicsuffix.org/list/effective_tld_names.dat -O $@
 
 $(GPERF): effective_tld_names.dat
 	./gen-gperf-tlds.pl $? > $@
