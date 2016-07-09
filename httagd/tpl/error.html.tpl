@@ -1,9 +1,8 @@
 {{#errors}}
-<ol>
+<ul>
  {{#error}}
  <li>
- <h2>{{err_id}}</h2>
- &rarr;
+ <strong>{{err_id}}</strong>
  <a href="{{err_super_relator_lnk}}">{{err_super_relator}}</a>
  <a href="{{err_super_object_lnk}}">{{err_super_object}}</a>
 {{#err_relations}}
@@ -18,5 +17,5 @@
 {{/err_relations}}
  </li>
  {{/error}}
- </ol>
+</ul>
 {{/errors}}

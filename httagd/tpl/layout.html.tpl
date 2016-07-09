@@ -255,3 +255,8 @@ smaller than 560
  </span>
  <hr>
 </header>
+
+{{>main_html_tpl}}
+
+</body>
+</html>

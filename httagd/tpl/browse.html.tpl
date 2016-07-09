@@ -1,3 +1,4 @@
+{{>header_html_tpl}}
 <aside id="sidebar">
 <nav>
 {{>tree_html_tpl}}
@@ -12,4 +13,4 @@
 {{>results_html_tpl}}
 </section>
 </article>
-
+{{>footer_html_tpl}}

@@ -151,41 +151,44 @@ tagd_code httagl::tagdurl_del(const request& R) {
 
 void tagl_callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag T;
-	tagd::code ts_rc = _TS->get(T, t.id(), _driver->flags());
+	tagd::code ts_rc = _tx->TS->get(T, t.id(), _driver->flags());
 
+	// TODO, if outputting to an iostream is still desirable,
+	// but more efficient to ouput to an evbuffer directly,
+	// want to use std::ios_base::register_callback
 	std::stringstream ss;
 	if (ts_rc == tagd::TAGD_OK) {
 		ss << T << std::endl;
 	} else {
-		_TS->print_errors(ss);
+		_tx->TS->print_errors(ss);
 	}
 
-	if (_req->method == HTTP_HEAD) {
+	if (_tx->req->method == HTTP_HEAD) {
 		/* even though evhtp will not send content added for HEAD requests,
 		 * we will short circuit that by not adding content
 		 * _evhtp_create_reply() adds Content-Length header if not exists so lets create one
 		 */
-		_res->add_header_content_length(ss.str().size());
+		_tx->res->add_header_content_length(ss.str().size());
 	} else if (ss.str().size()) {
-		_res->add(ss.str());
+		_tx->res->add(ss.str());
 	}
 }
 
 void tagl_callback::cmd_put(const tagd::abstract_tag& t) {
-	_TS->put(t, _driver->flags());
+	_tx->TS->put(t, _driver->flags());
 	std::stringstream ss;
-	if (_TS->has_error()) {
-		_TS->print_errors(ss);
-		_res->add(ss.str());
+	if (_tx->TS->has_error()) {
+		_tx->TS->print_errors(ss);
+		_tx->res->add(ss.str());
 	}
 }
 
 void tagl_callback::cmd_del(const tagd::abstract_tag& t) {
-	_TS->del(t, _driver->flags());
+	_tx->TS->del(t, _driver->flags());
 	std::stringstream ss;
-	if (_TS->has_error()) {
-		_TS->print_errors(ss);
-		_res->add(ss.str());
+	if (_tx->TS->has_error()) {
+		_tx->TS->print_errors(ss);
+		_tx->res->add(ss.str());
 	}
 }
 
@@ -193,7 +196,7 @@ void tagl_callback::cmd_query(const tagd::interrogator& q) {
 	std::cerr << "tagl_callback::cmd_query:\n";
 	std::cerr << q << std::endl;
 	tagd::tag_set T;
-	tagd::code ts_rc = _TS->query(T, q, _driver->flags());
+	tagd::code ts_rc = _tx->TS->query(T, q, _driver->flags());
 	std::cerr << tagd_code_str(ts_rc) << ", size: " << T.size() << std::endl;
 
 	std::stringstream ss;
@@ -201,122 +204,91 @@ void tagl_callback::cmd_query(const tagd::interrogator& q) {
 		tagd::print_tag_ids(T, ss);
 		ss << std::endl;
 	} else {
-		_TS->print_errors(ss);
+		_tx->TS->print_errors(ss);
 	}
 	if (ss.str().size())
-		_res->add(ss.str());
+		_tx->res->add(ss.str());
 }
 
 void tagl_callback::cmd_error() {
 	std::stringstream ss;
 	_driver->print_errors(ss);
-	_res->add(ss.str());
+	_tx->res->add(ss.str());
 }
 
 void tagl_callback::empty() {
-	_res->add("This is tagd");
-	_res->send_reply(EVHTP_RES_OK);
+	_tx->res->add("This is tagd");
+	_tx->res->send_reply(EVHTP_RES_OK);
 }
 
 void tagl_callback::finish() {
+	if (_tx->res->reply_sent()) return;
 
-	if (_res->reply_sent()) return;
-
-	// determine the most severe error and send a corresponding response code,
-	// or OK if no error 
-	tagd::code most_severe = _driver->code();
-
-	for (auto e : _driver->errors() ) {
-		if (e.code() > most_severe)
-			most_severe = e.code();
-	}
-
-	for (auto e : _TS->errors() ) {
-		if (e.code() > most_severe)
-			most_severe = e.code();
-	}
-
-	int res;
-	switch (most_severe) {
-		case tagd::TAGD_OK:
-			res = EVHTP_RES_OK;
-			break;
-		case tagd::TS_NOT_FOUND:
-			res = EVHTP_RES_NOTFOUND;
-			break;
-		case tagd::TS_DUPLICATE:
-			// using 409 - Conflict, 422 - Unprocessable Entity might also be exceptable
-			res = EVHTP_RES_CONFLICT;
-			break;
-		default:
-			res = EVHTP_RES_SERVERR;
-	}
-
-	if (_req->svr()->args()->opt_trace)
-		std::cerr << "res(" << tagd_code_str(most_severe) << "): " << res << " " << evhtp_res_str(res) << std::endl;
-
-	_res->send_reply(res);
+	_tx->res->send_reply(
+		_driver->most_severe(
+			_tx->TS->most_severe(tagd::TAGD_OK)
+		)
+	);
 }
 
 std::string request::url() const {
+	std::string url;
+	switch ( _ev_req->uri->scheme ) {
+		case htp_scheme_ftp:
+			url.append("ftp://");
+			break;
+		case htp_scheme_https:
+			url.append("https://");
+			break;
+		case htp_scheme_nfs:
+			url.append("nfs://");
+			break;
+		case htp_scheme_http:
+		case htp_scheme_none:
+		case htp_scheme_unknown:
+		default:
+			url.append("http://");
+	}
 
-			std::string url;
-			switch ( _ev_req->uri->scheme ) {
-				case htp_scheme_ftp:
-					url.append("ftp://");
-					break;
-				case htp_scheme_https:
-					url.append("https://");
-					break;
-				case htp_scheme_nfs:
-					url.append("nfs://");
-					break;
-				case htp_scheme_http:
-				case htp_scheme_none:
-				case htp_scheme_unknown:
-				default:
-					url.append("http://");
-			}
+	if ( _ev_req->uri->authority ) {
+		if ( _ev_req->uri->authority->username )
+			url.append( _ev_req->uri->authority->username );
 
-			if ( _ev_req->uri->authority ) {
-				if ( _ev_req->uri->authority->username )
-					url.append( _ev_req->uri->authority->username );
+		if ( _ev_req->uri->authority->password )
+			url.append(":").append( _ev_req->uri->authority->password );
 
-				if ( _ev_req->uri->authority->password )
-					url.append(":").append( _ev_req->uri->authority->password );
+		if ( _ev_req->uri->authority->username )
+			url.append("@");
 
-				if ( _ev_req->uri->authority->username )
-					url.append("@");
+		if ( _ev_req->uri->authority->hostname )
+			url.append( _ev_req->uri->authority->hostname );
 
-				if ( _ev_req->uri->authority->hostname )
-					url.append( _ev_req->uri->authority->hostname );
+		if ( _ev_req->uri->authority->port && _ev_req->uri->authority->port != 80 )
+			url.append( std::to_string(_ev_req->uri->authority->port) );
+	} else {
+		// TODO not sure this is a good way to do it
+		url.append( _server->bind_addr() );
+		url.append(":").append( std::to_string(_server->bind_port()) );
+	}
 
-				if ( _ev_req->uri->authority->port && _ev_req->uri->authority->port != 80 )
-					url.append( std::to_string(_ev_req->uri->authority->port) );
-			} else {
-				// TODO not sure this is a good way to do it
-				url.append( _server->bind_addr() );
-				url.append(":").append( std::to_string(_server->bind_port()) );
-			}
+	if ( _ev_req->uri->path->full )
+		url.append( _ev_req->uri->path->full );
 
-			if ( _ev_req->uri->path->full )
-				url.append( _ev_req->uri->path->full );
+	if ( _ev_req->uri->query_raw )
+		url.append("?").append( reinterpret_cast<const char *>(_ev_req->uri->query_raw) );
 
-			if ( _ev_req->uri->query_raw )
-				url.append("?").append( reinterpret_cast<const char *>(_ev_req->uri->query_raw) );
+	if ( _ev_req->uri->fragment )
+		url.append("#").append( reinterpret_cast<const char *>(_ev_req->uri->fragment) );
 
-			if ( _ev_req->uri->fragment )
-				url.append("#").append( reinterpret_cast<const char *>(_ev_req->uri->fragment) );
-
-			return url;
-		}
+	return url;
+}
 
 
 void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagd::server *svr = (httagd::server*)arg;
 	// for now, this request uses the servers tagspace reference
 	// TODO allow requests to use other tagspaces (given the request)
-	auto *TS = svr->tagspace();
+	auto *TS = svr->TS();
 	bool trace_on = svr->args()->opt_trace;
 
 	httagd::request req(svr, ev_req);
@@ -336,18 +308,19 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 
 	httagl tagl(TS);
 	httagd::tagl_callback *CB;
-	// determine TAGL::callback pointer based on media type
 
-	// TODO create a httagd::transaction object here and pass to
-	// callbacks rather than (TS, &req, &res, opt_context);
+	// TODO add server obj to transaction, get rid of viewspace cus server has a ref
+	// get rid of context cus its accessible through request
+	transaction tx(TS, &req, &res, svr->VS(), opt_context);
 
 	if (opt_view.empty())
 		opt_view = svr->args()->default_view;
 
+	// determine TAGL::callback pointer based on media type
 	if (opt_view.empty() || opt_view == "tagl") {
-		CB = new httagd::tagl_callback(TS, &req, &res, opt_context);
+		CB = new httagd::tagl_callback(&tx);
 	} else {
-		CB = new httagd::html_callback(TS, &req, &res, opt_context);
+		CB = new httagd::html_callback(&tx);
 	}
 	tagl.callback_ptr(CB);
 
