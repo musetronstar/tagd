@@ -500,17 +500,9 @@ tagd_code errorable::ferror(tagd::code c, const char *errfmt, ...) {
 }
 
 tagd_code errorable::verror(tagd::code c, const char *errfmt, va_list& args) {
-	this->init_errors();
-
 	_code = c;
 	char *msg = util::csprintf(errfmt, args);
-	if (msg == NULL)
-		_errors->push_back(tagd::error(c, "errorable::error() failed"));
-	else {
-		_errors->push_back(tagd::error(c, msg));
-	}
-
-	return c;
+	return this->error(c, (msg == NULL ? "errorable::error() failed" : msg));
 }
 
 void errorable::print_errors(std::ostream& os) const {

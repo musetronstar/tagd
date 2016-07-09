@@ -1045,6 +1045,19 @@ class Tester : public CxxTest::TestSuite {
 
 		R.last_error_relation(tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23"));
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23") )
+
+		TS_ASSERT_EQUALS( R.most_severe() , tagd::TS_MISUSE )
+		TS_ASSERT_EQUALS( R.most_severe(tagd::TAGL_ERR) , tagd::TAGL_ERR )
+
+		// test iterating errors_t
+		size_t num_rel = 0;
+		const tagd::errors_t E	= R.errors();
+		for (auto e : E) {
+			for (auto p : e.relations) {
+				num_rel++;
+			}
+		}
+		TS_ASSERT_EQUALS( num_rel, 4 )
     }
 
     void test_modifier_comma_quotes(void) {

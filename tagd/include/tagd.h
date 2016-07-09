@@ -587,6 +587,21 @@ class errorable {
 		// set and return
         tagd_code code(tagd_code c) { if(_code != c) _code = c; return c; }
 
+		// return the most severe error code in the set
+		// compared to tagd::code passed in
+        tagd_code most_severe(tagd_code c) {
+			tagd::code most_severe = c;
+			if (_errors != nullptr) {
+				for (auto e : *_errors) {
+					if (e.code() > most_severe)
+						most_severe = e.code();
+				}
+			}
+			return most_severe;
+		}
+
+        tagd_code most_severe() { return most_severe(_init); }
+
 		tagd_code error(const tagd::error&);
 		tagd_code error(tagd::code, const predicate&);
 		tagd_code error(tagd::code, const std::string&);
@@ -609,9 +624,9 @@ class errorable {
 
 		void print_errors(std::ostream& os = std::cerr) const;
 
-		const errors_t& errors() const {
+		errors_t errors() const {
 			if (_errors == nullptr)
-				return std::move(errors_t());
+				return errors_t();
 			return *_errors;
 		}
 };
