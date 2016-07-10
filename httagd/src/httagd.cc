@@ -429,7 +429,7 @@ void output_errors(transaction& tx, tagd::code ret_tc, const tagd::errorable* E=
 
 	view vw;
 	// get the error_function view
-	if (tx.VS->get(vw, error_view_id(tx.req->query_opt_view())) != tagd::TAGD_OK) {
+	if (tx.VS->get(vw, error_view_id(tx.req->effective_opt_view())) != tagd::TAGD_OK) {
 		// adds plain text errors to response output buffer
 		// for errorable objects contained by transaction
 		tx.add_errors();
@@ -482,7 +482,7 @@ void html_callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 
 	view vw;
-	tc = _tx->VS->get(vw, get_view_id(_tx->req->query_opt_view()));
+	tc = _tx->VS->get(vw, get_view_id(_tx->req->effective_opt_view()));
 	if (tc != tagd::TAGD_OK) {
 		output_errors(*_tx, tc, _tx->VS);
 		return;
@@ -507,7 +507,7 @@ void html_callback::cmd_query(const tagd::interrogator& q) {
 	}
 
 	view vw;
-	tc = _tx->VS->get(vw, query_view_id(_tx->req->query_opt_view()));
+	tc = _tx->VS->get(vw, query_view_id(_tx->req->effective_opt_view()));
 	if (tc != tagd::TAGD_OK) {
 		output_errors(*_tx, tc, _tx->VS);
 		return;
@@ -535,7 +535,7 @@ void html_callback::empty() {
 	if (_tx->trace_on) std::cerr << "empty()" <<  std::endl;
 
 	view vw;
-	tagd::code tc = _tx->VS->get(vw, empty_view_id(_tx->req->query_opt_view()));
+	tagd::code tc = _tx->VS->get(vw, empty_view_id(_tx->req->effective_opt_view()));
 	if (tc != tagd::TAGD_OK) {
 		output_errors(*_tx, tc, _tx->VS);
 		return;
@@ -577,12 +577,7 @@ tagd_template* tagd_template::include(const std::string &id, const std::string &
 
 // sets the value of a template marker to <key> and also its
 // corresponding <key>_lnk marker to the hyperlink representation of <key>
-void tagd_template::set_tag_link (
-		const std::string& key,
-		const std::string& val,
-		const std::string& view_name,
-		const std::string& context) {
-
+void tagd_template::set_tag_link (transaction& tx, const std::string& key, const std::string& val) {
 	if (val == "*") { // wildcard relator
 		// empty link
 		this->set_value(key, val);
@@ -590,6 +585,8 @@ void tagd_template::set_tag_link (
 	}
 
 	std::string opt_str;
+
+	std::string view_name = tx.req->query_opt_view();
 	if (!view_name.empty()) {
 		opt_str.push_back(opt_str.empty() ? '?' : '&');
 		opt_str.append(QUERY_OPT_VIEW);
@@ -597,6 +594,7 @@ void tagd_template::set_tag_link (
 		opt_str.append(tagd::uri_encode(view_name));
 	}
 
+	std::string context = tx.req->query_opt_context();
 	if (!context.empty()) {
 		opt_str.push_back(opt_str.empty() ? '?' : '&');
 		opt_str.append(QUERY_OPT_CONTEXT);
@@ -624,17 +622,6 @@ void tagd_template::set_tag_link (
 	} else {
 		f_set_vals(val, tagd::util::esc_and_quote(val));
 	}
-}
-
-void tagd_template::set_relator_link (
-		const std::string& key,
-		const std::string& val,
-		const std::string& view_name,
-		const std::string& context) {
-	if (val.empty())  // wildcard relator
-		set_tag_link(key, "*", view_name, context);
-	else
-		set_tag_link(key, val, view_name, context);
 }
 
 } // namespace httagd

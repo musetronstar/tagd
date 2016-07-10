@@ -252,11 +252,16 @@ class request {
 			return this->query_opt(QUERY_OPT_SEARCH);
 		}
 
-		std::string query_opt_view() const {
+		// opt view if not empty, or the default
+		std::string effective_opt_view() const {
 			std::string view_opt = this->query_opt(QUERY_OPT_VIEW);
 			if (view_opt.empty())
 				return _server->args()->default_view;
 			return view_opt;
+		}
+
+		std::string query_opt_view() const {
+			return this->query_opt(QUERY_OPT_VIEW);
 		}
 
 		std::string query_opt_context() const {
@@ -1000,7 +1005,6 @@ class tagd_template : public tagd::errorable {
 			return _output_str;
 		}
 
-
 		// include dictionary subsection given id and template file
 		tagd_template* include(const std::string &, const std::string&);
 
@@ -1030,16 +1034,18 @@ class tagd_template : public tagd::errorable {
 		}
 
 		void set_tag_link(
-				const std::string&,
-				const std::string&,
-				const std::string&,
-				const std::string&);
+				transaction&,
+				const std::string&,  // key
+				const std::string&); // val
 
-		void set_relator_link(
-				const std::string&,
-				const std::string&,
-				const std::string&,
-				const std::string&);
+		void set_relator_link (
+				transaction& tx,
+				const std::string& key,
+				const std::string& val) {
+			                                   // * = wildcard relator
+			set_tag_link(tx, key, (val.empty() ? "*" : val));
+		}
+
 
 	protected:
 		// ctemplate::ShowSection() and others return ctemplate::TemplateDictionary*

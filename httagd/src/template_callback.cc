@@ -70,8 +70,8 @@ tagd::code fill_tag(transaction& tx, const view& vw, tagd_template& tpl, const t
 	}
 
 	const std::string context = tx.req->query_opt_context();
-	tpl.set_tag_link("super_relator", t.super_relator(), vw.name(), context);
-	tpl.set_tag_link("super_object", t.super_object(), vw.name(), context);
+	tpl.set_tag_link(tx, "super_relator", t.super_relator());
+	tpl.set_tag_link(tx, "super_object", t.super_object());
 
 	tagd::tag_set img_urls;
 	if (t.relations.size() > 0) {
@@ -89,13 +89,13 @@ tagd::code fill_tag(transaction& tx, const view& vw, tagd_template& tpl, const t
 			if (p.relator != last_relator) {
 				last_relator = p.relator;
 				relator_dict = tpl.add_section("relation_set");
-				relator_dict->set_relator_link("relator", p.relator, vw.name(), context);
+				relator_dict->set_relator_link(tx, "relator", p.relator);
 			}
 
 			if (!relator_dict) continue;
 
 			auto sub_dict = relator_dict->add_section("relation");
-			sub_dict->set_tag_link("object", p.object, vw.name(), context);
+			sub_dict->set_tag_link(tx, "object", p.object);
 			if (!p.modifier.empty()) {
 				sub_dict->show_section("has_modifier");
 				sub_dict->set_value("modifier", p.modifier);
@@ -188,8 +188,8 @@ tagd::code fill_tree(transaction& tx, const view& vw, tagd_template& tpl, const 
 	} else {
 		tpl.set_value("id", t.id());
 	}
-	tpl.set_tag_link("super_relator", t.super_relator(), vw.name(), context);
-	tpl.set_tag_link("super_object", t.super_object(), vw.name(), context);
+	tpl.set_tag_link(tx, "super_relator", t.super_relator());
+	tpl.set_tag_link(tx, "super_object", t.super_object());
 
 	tagd::tag_set S;
 	tagd::code tc = tx.TS->query(S,
@@ -201,13 +201,13 @@ tagd::code fill_tree(transaction& tx, const view& vw, tagd_template& tpl, const 
 				if (it != S.begin()) {
 					--it;
 					auto s1 = tpl.add_section("has_prev");
-					s1->set_tag_link("prev", it->id(), vw.name(), context);
+					s1->set_tag_link(tx, "prev", it->id());
 					++it;
 				}
 				++it;
 				if (it != S.end()) {
 					auto s1 = tpl.add_section("has_next");
-					s1->set_tag_link("next", it->id(), vw.name(), context);
+					s1->set_tag_link(tx, "next", it->id());
 				}
 				break;
 			}
@@ -227,7 +227,7 @@ tagd::code fill_tree(transaction& tx, const view& vw, tagd_template& tpl, const 
 		for (auto s : S) {
 			auto s2 = s1->add_section("children");
 			if (s.id() != t.id()) {
-				s2->set_tag_link("child", s.id(), vw.name(), context);
+				s2->set_tag_link(tx, "child", s.id());
 			}
 		}
 	}
@@ -250,16 +250,16 @@ tagd::code fill_query(transaction& tx, const view& vw, tagd_template& tpl, const
 	if (!q.super_object().empty()) {
 		tpl.show_section("super_relations");
 		auto s1 = tpl.add_section("super_relation");
-		s1->set_tag_link("super_relator", q.super_relator(), vw.name(), context);
-		s1->set_tag_link("super_object", q.super_object(), vw.name(), context);
+		s1->set_tag_link(tx, "super_relator", q.super_relator());
+		s1->set_tag_link(tx, "super_object", q.super_object());
 	}
 
 	if (q.relations.size() > 0) {
 		tpl.show_section("relations");
 		for (auto p : q.relations) {
 			auto s1 = tpl.add_section("relation");
-			s1->set_relator_link("relator", p.relator, vw.name(), context);
-			s1->set_tag_link("object", p.object, vw.name(), context);
+			s1->set_relator_link(tx, "relator", p.relator);
+			s1->set_tag_link(tx, "object", p.object);
 			if (!p.modifier.empty()) {
 				s1->show_section("has_modifier");
 				s1->set_value("modifier", p.modifier);
@@ -275,18 +275,18 @@ tagd::code fill_query(transaction& tx, const view& vw, tagd_template& tpl, const
 			auto s1 = tpl.add_section("result");
 			if (r.has_relator(HARD_TAG_CONTEXT)) {
 				tagd::referent ref(r);
-				s1->set_tag_link("res_id", r.id(), vw.name(), ref.context());
+				s1->set_tag_link(tx, "res_id", r.id());
 			} else {
-				s1->set_tag_link("res_id", r.id(), vw.name(), context);
+				s1->set_tag_link(tx, "res_id", r.id());
 			}
-			s1->set_tag_link("res_super_relator", r.super_relator(), vw.name(), context);
-			s1->set_tag_link("res_super_object", r.super_object(), vw.name(), context);
+			s1->set_tag_link(tx, "res_super_relator", r.super_relator());
+			s1->set_tag_link(tx, "res_super_object", r.super_object());
 			if (r.relations.size() > 0) {
 				s1->show_section("res_relations");
 				for (auto p : r.relations) {
 					auto s2 = s1->add_section("res_relation");
-					s2->set_relator_link("res_relator", p.relator, vw.name(), context);
-					s2->set_tag_link("res_object", p.object, vw.name(), context);
+					s2->set_relator_link(tx, "res_relator", p.relator);
+					s2->set_tag_link(tx, "res_object", p.object);
 					if (!p.modifier.empty()) {
 						s2->show_section("res_has_modifier");
 						s2->set_value("res_modifier", p.modifier);
@@ -374,14 +374,14 @@ void fill_error(transaction& tx, tagd_template& tpl, const view& vw, const tagd:
 		for (auto r : E.errors()) {
 			auto s1 = tpl.add_section("error");
 			s1->set_value("err_id", r.id());
-			s1->set_tag_link("err_super_relator", r.super_relator(), vw.name(), context);
-			s1->set_tag_link("err_super_object", r.super_object(), vw.name(), context);
+			s1->set_tag_link(tx, "err_super_relator", r.super_relator());
+			s1->set_tag_link(tx, "err_super_object", r.super_object());
 			if (r.relations.size() > 0) {
 				s1->show_section("err_relations");
 				for (auto p : r.relations) {
 					auto s2 = s1->add_section("err_relation");
-					s2->set_tag_link("err_relator", p.relator, vw.name(), context);
-					s2->set_tag_link("err_object", p.object, vw.name(), context);
+					s2->set_tag_link(tx, "err_relator", p.relator);
+					s2->set_tag_link(tx, "err_object", p.object);
 					if (!p.modifier.empty()) {
 						s2->show_section("err_has_modifier");
 						s2->set_value("err_modifier", p.modifier);
