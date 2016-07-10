@@ -471,7 +471,64 @@ id_type error::message() const {
     return id_type();
 }
 
-// error helper class
+tagd::error errorable::last_error() const {
+	if (this->size() == 0)
+		return tagd::error();
+	else
+		return (*_errors)[_errors->size()-1];
+}
+
+tagd_code errorable::last_error_relation(predicate p) {
+	if (this->size() == 0)
+		return tagd::TS_NOT_FOUND;
+
+	return (*_errors)[_errors->size()-1].relation(p);
+}
+
+tagd_code errorable::most_severe(tagd_code c) {
+	tagd::code most_severe = c;
+	if (_errors != nullptr) {
+		for (auto e : *_errors) {
+			if (e.code() > most_severe)
+				most_severe = e.code();
+		}
+	}
+	return most_severe;
+}
+
+tagd_code errorable::errors(const errorable &E) {
+	if (E._errors != nullptr) {
+		this->init_errors();
+		_errors->insert(_errors->end(), E._errors->begin(), E._errors->end());
+	}
+	return E.code();
+}
+
+errorable& errorable::share_errors(errorable &E) {
+	E.init_errors();  // can't be nullptr
+
+	if (_owner && _errors != nullptr && _errors != E._errors) {
+		E.errors(*this);
+		delete _errors;
+	}
+	_errors = E._errors;
+	_owner = false;
+
+	return *this;
+}
+
+void errorable::clear_errors() {
+	_code = _init;
+	if (_errors != nullptr)
+		_errors->clear();
+}
+
+errors_t errorable::errors() const {
+	if (_errors == nullptr)
+		return errors_t();
+	return *_errors;
+}
+
 tagd_code errorable::error(const tagd::error& err) {
 	this->init_errors();
 	_code = err.code();

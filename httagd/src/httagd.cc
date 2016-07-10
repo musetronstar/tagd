@@ -313,6 +313,15 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	// get rid of context cus its accessible through request
 	transaction tx(TS, &req, &res, svr->VS(), opt_context);
 
+	// shared pointer between internal errors structure
+	tx.share_errors(
+		tagl.share_errors(
+			TS->share_errors(
+				*(svr->VS())
+			)
+		)
+	);
+
 	if (opt_view.empty())
 		opt_view = svr->args()->default_view;
 
@@ -421,7 +430,7 @@ tagd::code server::start() {
 }
 
 // TODO add to httagd::callback
-void output_errors(transaction& tx, tagd::code ret_tc, const tagd::errorable* E=nullptr) {
+void output_errors(transaction& tx, tagd::code ret_tc) {
 	if (!tx.size())
 		tx.ferror(tagd::TS_INTERNAL_ERR, "no errors to output, returned: %s", tagd_code_str(ret_tc));
 
@@ -448,13 +457,7 @@ void output_errors(transaction& tx, tagd::code ret_tc, const tagd::errorable* E=
 		return tagd::TAGD_OK;
 	};
 
-	if (E == nullptr) {
-		// have transaction call f_err on each errorable object it contains
-		tx.add_errors(f_err);
-	} else {
-		// adds error_function response for the errorable object pointed to
-		f_err(*E);
-	}
+	tx.add_errors(f_err);
 }
 
 void html_callback::cmd_get(const tagd::abstract_tag& t) {
@@ -477,14 +480,14 @@ void html_callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 
 	if (tc != tagd::TAGD_OK) {
-		output_errors(*_tx, tc, _tx->TS);
+		output_errors(*_tx, tc);
 		return;
 	}
 
 	view vw;
 	tc = _tx->VS->get(vw, get_view_id(_tx->req->effective_opt_view()));
 	if (tc != tagd::TAGD_OK) {
-		output_errors(*_tx, tc, _tx->VS);
+		output_errors(*_tx, tc);
 		return;
 	}
 
@@ -502,14 +505,14 @@ void html_callback::cmd_query(const tagd::interrogator& q) {
 	tagd::code tc = _tx->TS->query(R, q);
 
 	if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND) {
-		output_errors(*_tx, tc, _tx->TS);
+		output_errors(*_tx, tc);
 		return;
 	}
 
 	view vw;
 	tc = _tx->VS->get(vw, query_view_id(_tx->req->effective_opt_view()));
 	if (tc != tagd::TAGD_OK) {
-		output_errors(*_tx, tc, _tx->VS);
+		output_errors(*_tx, tc);
 		return;
 	}
 
@@ -523,9 +526,6 @@ void html_callback::cmd_query(const tagd::interrogator& q) {
 void html_callback::cmd_error() {
 	if (_tx->trace_on) std::cerr << "cmd_error()" << std::endl;
 
-	if (_driver->has_error())
-		output_errors(*_tx, _driver->code(), _driver);
-
 	if (_tx->has_error())
 		output_errors(*_tx, _tx->code());
 }
@@ -537,7 +537,7 @@ void html_callback::empty() {
 	view vw;
 	tagd::code tc = _tx->VS->get(vw, empty_view_id(_tx->req->effective_opt_view()));
 	if (tc != tagd::TAGD_OK) {
-		output_errors(*_tx, tc, _tx->VS);
+		output_errors(*_tx, tc);
 		return;
 	}
 

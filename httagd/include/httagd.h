@@ -843,46 +843,17 @@ class transaction : public tagd::errorable {
 			trace_on{rq->svr()->args()->opt_trace}
 		{}
 
-		bool has_error() const {
-			return (
-				errorable::has_error() ||  // this has error
-				TS->has_error() ||
-				VS->has_error()
-			);
-		}
-
-		size_t size() const {
-			return errorable::size()
-				+ TS->size()
-				+ VS->size();
-		}
-
-		void print_errors(std::ostream& os = std::cerr) const {
-			errorable::print_errors(os);
-			TS->print_errors(os);
-			VS->print_errors(os);
-		}
-
 		// adds errors to response ouput buffer in plain text
 		void add_errors() const {
-			if (errorable::has_error()) res->add_error_str(*this);
-			if (TS->has_error()) res->add_error_str(*TS);
-			if (VS->has_error()) res->add_error_str(*VS);
+			if (this->has_error())
+				res->add_error_str(*this);
 		}
 
 		// calls errorable functor on each erroable object
 		// failure on one results in adding all in plain text
 		void add_errors(const errorable_function_t &f) const {
-			if (errorable::has_error()) {
+			if (this->has_error()) {
 				if (f(*this) != tagd::TAGD_OK)
-					this->add_errors();
-			}
-			if (TS->has_error()) {
-				if (f(*TS) != tagd::TAGD_OK)
-					this->add_errors();
-			}
-			if (VS->has_error()) {
-				if (f(*VS) != tagd::TAGD_OK)
 					this->add_errors();
 			}
 		}
@@ -1057,8 +1028,7 @@ class tagd_template : public tagd::errorable {
 		}
 };
 
-
-class html_callback : public tagl_callback, public tagd::errorable {
+class html_callback : public tagl_callback {
 	public:
 		html_callback(transaction *tx) : tagl_callback(tx)
 			{
