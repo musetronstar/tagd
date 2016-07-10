@@ -283,6 +283,14 @@ std::string request::url() const {
 	return url;
 }
 
+std::string request::effective_opt_view() const {
+	std::string view_opt = this->query_opt(QUERY_OPT_VIEW);
+	if (view_opt.empty())
+		view_opt = _server->args()->default_view;
+	if (view_opt.empty())
+		view_opt = "tagl";
+	return view_opt;
+}
 
 void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagd::server *svr = (httagd::server*)arg;

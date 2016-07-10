@@ -252,13 +252,8 @@ class request {
 			return this->query_opt(QUERY_OPT_SEARCH);
 		}
 
-		// opt view if not empty, or the default
-		std::string effective_opt_view() const {
-			std::string view_opt = this->query_opt(QUERY_OPT_VIEW);
-			if (view_opt.empty())
-				return _server->args()->default_view;
-			return view_opt;
-		}
+		// opt view if not empty, or the default if not empty, or "tagl"
+		std::string effective_opt_view() const;
 
 		std::string query_opt_view() const {
 			return this->query_opt(QUERY_OPT_VIEW);
@@ -451,9 +446,6 @@ class error_view_id : public view_id {
 };
 
 class view : public view_id {
-	public:
-		std::string tpl_fname;
-
 	private:
 		/*\
 		|*| enum discriminated anonymous union of non-trivial types
@@ -574,12 +566,12 @@ class view : public view_id {
 			dtor_handler();
 		}
 
-		view(const view& v) : view_id(v), tpl_fname{v.tpl_fname} {
+		view(const view& v) : view_id(v) {
 			ctor_handler();
 			copy_handler(v);
 		}
 
-		view(view&& v) : view_id(std::move(v)), tpl_fname(std::move(v.tpl_fname)) {
+		view(view&& v) : view_id(std::move(v))  {
 			ctor_handler();
 			move_handler(std::move(v));
 		}
@@ -587,12 +579,10 @@ class view : public view_id {
 		view& operator=(const view& v) {
 			if (_action == v._action) {
 				_name = v._name;
-				tpl_fname = v.tpl_fname;
 			} else {
 				dtor_handler(); // destruct current handler
 				_name = v._name;
 				_action = v._action;
-				tpl_fname = v.tpl_fname;
 				ctor_handler(); // construct handler of new action
 			}
 			copy_handler(v);
@@ -603,12 +593,10 @@ class view : public view_id {
 		view& operator=(view&& v) {
 			if (_action == v._action) {
 				_name = std::move(v._name);
-				tpl_fname = std::move(v.tpl_fname);
 			} else {
 				dtor_handler(); // destruct current handler
 				_name = std::move(v._name);
 				_action = std::move(v._action);
-				tpl_fname = std::move(v.tpl_fname);
 				ctor_handler(); // construct handler of new action
 			}
 			move_handler(std::move(v));
@@ -616,79 +604,79 @@ class view : public view_id {
 			return *this;
 		}
 
-		view(const std::string& n, const std::string& tn, const empty_handler_t& h)
-		: view_id{n, h.action}, tpl_fname{tn} {
+		view(const std::string& n, const empty_handler_t& h)
+		: view_id{n, h.action} {
 				ctor_handler();
 				_empty_handler = h;
 		}
 
-		view(const std::string& n, const std::string& tn, const get_handler_t& h)
-		: view_id{n, h.action}, tpl_fname{tn} {
+		view(const std::string& n, const get_handler_t& h)
+		: view_id{n, h.action} {
 				ctor_handler();
 				_get_handler = h;
 		}
 
-		view(const std::string& n, const std::string& tn, const put_handler_t& h)
-		: view_id{n, h.action}, tpl_fname{tn} {
+		view(const std::string& n, const put_handler_t& h)
+		: view_id{n, h.action} {
 				ctor_handler();
 				_put_handler = h;
 		}
 
-		view(const std::string& n, const std::string& tn, const del_handler_t& h)
-		: view_id{n, h.action}, tpl_fname{tn} {
+		view(const std::string& n, const del_handler_t& h)
+		: view_id{n, h.action} {
 				ctor_handler();
 				_del_handler = h;
 		}
 
-		view(const std::string& n, const std::string& tn, const query_handler_t& h)
-		: view_id{n, h.action}, tpl_fname{tn} {
+		view(const std::string& n, const query_handler_t& h)
+		: view_id{n, h.action} {
 				ctor_handler();
 				_query_handler = h;
 		}
 
-		view(const std::string& n, const std::string& tn, const error_handler_t& h)
-		: view_id{n, h.action}, tpl_fname{tn} {
+		view(const std::string& n, const error_handler_t& h)
+		: view_id{n, h.action} {
 				ctor_handler();
 				_error_handler = h;
 		}
 
-		view(const empty_view_id& v, const std::string& tn, const empty_handler_t& h)
-		: view_id{v}, tpl_fname{tn} {
+		view(const empty_view_id& v, const empty_handler_t& h)
+		: view_id{v} {
 				assert(v.action() == h.action);
 				ctor_handler();
 				_empty_handler = h;
 		}
 
-		view(const get_view_id& v, const std::string& tn, const get_handler_t& h)
-		: view_id{v}, tpl_fname{tn} {
+		view(const get_view_id& v, const get_handler_t& h)
+		: view_id{v} {
 				assert(v.action() == h.action);
 				ctor_handler();
 				_get_handler = h;
 		}
 
-		view(const put_view_id& v, const std::string& tn, const put_handler_t& h)
-		: view_id{v}, tpl_fname{tn} {
+		view(const put_view_id& v, const put_handler_t& h)
+		: view_id{v} {
 				assert(v.action() == h.action);
 				ctor_handler();
 				_put_handler = h;
 		}
 
-		view(const del_view_id& v, const std::string& tn, const del_handler_t& h)
-		: view_id{v}, tpl_fname{tn} {
+		view(const del_view_id& v, const del_handler_t& h)
+		: view_id{v} {
 				assert(v.action() == h.action);
 				ctor_handler();
 				_del_handler = h;
 		}
 
-		view(const query_view_id& v, const std::string& tn, const query_handler_t& h)
-		: view_id{v}, tpl_fname{tn} {
+		view(const query_view_id& v, const query_handler_t& h)
+		: view_id{v} {
 				assert(v.action() == h.action);
 				ctor_handler();
 				_query_handler = h;
 		}
 
-		view(const error_view_id& v, const std::string& tn, const error_handler_t& h)
-		: view_id{v}, tpl_fname{tn} {
+		view(const error_view_id& v, const error_handler_t& h)
+		: view_id{v} {
 				assert(v.action() == h.action);
 				ctor_handler();
 				_error_handler = h;
@@ -788,7 +776,7 @@ class viewspace : public tagd::errorable {
 
 		tagd::code put(const view& vw) {
 			if ( !_views.emplace(std::make_pair(static_cast<view_id>(vw), vw)).second )
-				return this->ferror(tagd::TS_DUPLICATE, "put view failed: %s %s", vw.action_cstr(), vw.name().c_str());
+				return this->ferror(tagd::TS_DUPLICATE, "put view failed: %s, %s", vw.action_cstr(), vw.name().c_str());
 
 			return tagd::TAGD_OK;
 		}
@@ -796,7 +784,7 @@ class viewspace : public tagd::errorable {
 		tagd::code get(view& vw, const view_id& id) {
 			auto it = _views.find(id);
 			if (it == _views.end())
-				return this->ferror(tagd::TS_NOT_FOUND, "get view failed: %s %s", id.action_cstr(), id.name().c_str());
+				return this->ferror(tagd::TS_NOT_FOUND, "get view failed: %s, %s", id.action_cstr(), id.name().c_str());
 
 			vw = it->second;
 			return tagd::TAGD_OK;
@@ -805,7 +793,7 @@ class viewspace : public tagd::errorable {
 		tagd::code get(view&& vw, const view_id& id) {
 			auto it = _views.find(id);
 			if (it == _views.end())
-				return this->ferror(tagd::TS_NOT_FOUND, "get view failed: %s %s", id.action_cstr(), id.name().c_str());
+				return this->ferror(tagd::TS_NOT_FOUND, "get view failed: %s, %s", id.action_cstr(), id.name().c_str());
 
 			vw = std::move(it->second);
 			return tagd::TAGD_OK;
@@ -814,10 +802,6 @@ class viewspace : public tagd::errorable {
 		std::string fpath(const std::string& tpl_fname) {
 			return std::string(_tpl_dir)  // has trailing '/'
 					.append(tpl_fname);
-		}
-
-		std::string fpath(const view& vw) {
-			return this->fpath(vw.tpl_fname);
 		}
 };
 
@@ -965,10 +949,6 @@ class tagd_template : public tagd::errorable {
 				return VS.errors(*this);  // add this errors to viewspace and return last code
 
 			return tagd::TAGD_OK;
-		}
-
-		tagd::code expand(viewspace& VS, const view& vw) {
-			return this->expand(VS, vw.tpl_fname);
 		}
 
 		// output of the last expansion

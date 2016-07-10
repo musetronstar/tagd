@@ -1,7 +1,19 @@
 #include <sstream>
+#include <map>
 #include "httagd.h"
 
 using namespace httagd;
+
+// view => <tagd_template fname>
+std::map< view_id, std::string > tpl_map;
+tagd::code tpl_fname(std::string& fname, tagd::errorable& E, const view_id& id) {
+	auto it = tpl_map.find(id);
+	if (it == tpl_map.end())
+		return E.ferror(tagd::TS_NOT_FOUND, "no tpl fname for view_id: %s, %s", id.action_cstr(), id.name().c_str());
+	fname = it->second;
+
+	return tagd::TAGD_OK;
+}
 
 const empty_view_id HOME_VIEW_ID{"browse.html"};
 const std::string HOME_TPL{"home.html.tpl"};
@@ -49,7 +61,11 @@ empty_handler_t home_handler(
 		tagd_template tpl("home", tx.res->output_buffer());
 		fill_header(tx, tpl, t.id());
 
-		auto home_tpl = tpl.include("main_html_tpl", tx.VS->fpath(vw));
+		std::string fname;
+		tagd::code tc = tpl_fname(fname, tx, vw);
+		if (tc != tagd::TAGD_OK) return tc;
+
+		auto home_tpl = tpl.include("main_html_tpl", tx.VS->fpath(fname));
 		home_tpl->set_value("msg", t.id());
 
 		return tpl.expand(*tx.VS, LAYOUT_TPL);
@@ -175,7 +191,12 @@ get_handler_t tag_handler(
 	[](transaction& tx, const view& vw, const tagd::abstract_tag& t) -> tagd::code {
 		tagd_template tpl("tag", tx.res->output_buffer());
 		fill_tag(tx, vw, tpl, t);
-		return tpl.expand(*tx.VS, vw);
+
+		std::string fname;
+		tagd::code tc = tpl_fname(fname, tx, vw);
+		if (tc != tagd::TAGD_OK) return tc;
+
+		return tpl.expand(*tx.VS, fname);
 	}
 );
 
@@ -240,7 +261,12 @@ get_handler_t tree_handler(
 		tagd_template tpl("tree", tx.res->output_buffer());
 		tagd::code tc = fill_tree(tx, vw, tpl, t);
 		if (tc != tagd::TAGD_OK) return tc;
-		return tpl.expand(*tx.VS, vw);
+
+		std::string fname;
+		tc = tpl_fname(fname, tx, vw);
+		if (tc != tagd::TAGD_OK) return tc;
+
+		return tpl.expand(*tx.VS, fname);
 	}
 );
 
@@ -311,9 +337,13 @@ query_handler_t query_handler(
 
 		fill_header(tx, tpl, ss.str());
 
-		auto main_tpl = tpl.include("main_html_tpl", tx.VS->fpath(vw));
+		std::string fname;
+		tagd::code tc = tpl_fname(fname, tx, vw);
+		if (tc != tagd::TAGD_OK) return tc;
 
-		tagd::code tc = fill_query(tx, vw, *main_tpl, q, R);
+		auto main_tpl = tpl.include("main_html_tpl", tx.VS->fpath(fname));
+
+		tc = fill_query(tx, vw, *main_tpl, q, R);
 		if (tc != tagd::TAGD_OK) return tc;
 
 		return tpl.expand(*tx.VS, LAYOUT_TPL);
@@ -326,7 +356,11 @@ get_handler_t browse_handler(
 
 		fill_header(tx, tpl, t.id());
 
-		auto main_tpl = tpl.include("main_html_tpl", tx.VS->fpath(vw));
+		std::string fname;
+		tagd::code tc = tpl_fname(fname, tx, vw);
+		if (tc != tagd::TAGD_OK) return tc;
+
+		auto main_tpl = tpl.include("main_html_tpl", tx.VS->fpath(fname));
 
 		if (t.pos() == tagd::POS_URL) {
 			tagd::url u;
@@ -337,7 +371,7 @@ get_handler_t browse_handler(
 		}
 
 		auto tree_tpl = main_tpl->include("tree_html_tpl", tx.VS->fpath(TREE_TPL));
-		tagd::code tc = fill_tree(tx, vw, *tree_tpl, t);
+		tc = fill_tree(tx, vw, *tree_tpl, t);
 		if (tc != tagd::TAGD_OK) return tc;
 
 		auto tag_tpl = main_tpl->include("tag_html_tpl", tx.VS->fpath(TAG_TPL));
@@ -397,7 +431,11 @@ error_handler_t error_handler(
 		tagd_template tpl("error", tx.res->output_buffer());
 		fill_header(tx, tpl, tagd::tag_ids_str(E.errors()));
 
-		auto err_tpl = tpl.include("main_html_tpl", tx.VS->fpath(vw));
+		std::string fname;
+		tagd::code tc = tpl_fname(fname, tx, vw);
+		if (tc != tagd::TAGD_OK) return tc;
+
+		auto err_tpl = tpl.include("main_html_tpl", tx.VS->fpath(fname));
 		fill_error(tx, *err_tpl, vw, E);
 
 		return tpl.expand(*tx.VS, LAYOUT_TPL);
@@ -408,20 +446,35 @@ error_handler_t partial_error_handler(
 	[](transaction& tx, const view& vw, const tagd::errorable& E) -> tagd::code {
 		tagd_template tpl("error", tx.res->output_buffer());
 		fill_error(tx, tpl, vw, E);
-		return tpl.expand(*tx.VS, vw);
+
+		std::string fname;
+		tagd::code tc = tpl_fname(fname, tx, vw);
+		if (tc != tagd::TAGD_OK) return tc;
+
+		return tpl.expand(*tx.VS, fname);
 	}
 );
 
 void init_viewspace(viewspace &VS) {
 	// full html using LAYOUT_TPL
-	VS.put({HOME_VIEW_ID, HOME_TPL, home_handler});
-	VS.put({BROWSE_VIEW_ID, BROWSE_TPL, browse_handler});
-	VS.put({QUERY_VIEW_ID, QUERY_TPL, query_handler});
-	VS.put({ERROR_VIEW_ID, ERROR_TPL, error_handler});
+	tpl_map[HOME_VIEW_ID] = HOME_TPL;
+	tpl_map[BROWSE_VIEW_ID] = BROWSE_TPL;
+	tpl_map[QUERY_VIEW_ID] = QUERY_TPL;
+	tpl_map[ERROR_VIEW_ID] = ERROR_TPL;
+
+	VS.put({HOME_VIEW_ID, home_handler});
+	VS.put({BROWSE_VIEW_ID, browse_handler});
+	VS.put({QUERY_VIEW_ID, query_handler});
+	VS.put({ERROR_VIEW_ID, error_handler});
 
 	// html partials
-	VS.put({TAG_VIEW_ID, TAG_TPL, tag_handler});
-	VS.put({TAG_ERROR_VIEW_ID, ERROR_TPL, partial_error_handler});
-	VS.put({TREE_VIEW_ID, TREE_TPL, tree_handler});
-	VS.put({TREE_ERROR_VIEW_ID, ERROR_TPL, partial_error_handler});
+	tpl_map[TAG_VIEW_ID] = TAG_TPL;
+	tpl_map[TAG_ERROR_VIEW_ID] = ERROR_TPL;
+	tpl_map[TREE_VIEW_ID] = TREE_TPL;
+	tpl_map[TREE_ERROR_VIEW_ID] = ERROR_TPL;
+
+	VS.put({TAG_VIEW_ID, tag_handler});
+	VS.put({TAG_ERROR_VIEW_ID, partial_error_handler});
+	VS.put({TREE_VIEW_ID, tree_handler});
+	VS.put({TREE_ERROR_VIEW_ID, partial_error_handler});
 }
