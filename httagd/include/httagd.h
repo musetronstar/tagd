@@ -56,7 +56,6 @@ class httagd_args : public cmd_args {
 };
 
 struct viewspace;
-void init_viewspace(viewspace &VS);
 
 class server : public tagsh, public tagd::errorable {
 	protected:
@@ -985,31 +984,50 @@ class tagd_template : public tagd::errorable {
 		tagd_code expand(const std::string&);
 
 		// expand template; add errors to viewspace if they occur
-		tagd_code expand(viewspace&, const std::string&);
-		tagd_code expand(viewspace&, const view&);
+		tagd::code expand(viewspace& VS, const std::string& fname) {
+			if (this->expand(VS.fpath(fname)) != tagd::TAGD_OK)
+				return VS.errors(*this);  // add this errors to viewspace and return last code
+
+			return tagd::TAGD_OK;
+		}
+
+		tagd::code expand(viewspace& VS, const view& vw) {
+			return this->expand(VS, vw.tpl_fname);
+		}
 
 		// output of the last expansion
 		const std::string& output_str() const {
 			return _output_str;
 		}
 
-		// add dictionary subsection given id
-		tagd_template* add_section(const std::string &);
 
 		// include dictionary subsection given id and template file
 		tagd_template* include(const std::string &, const std::string&);
 
+		// add dictionary subsection given id
+		tagd_template* add_section(const std::string &id) {
+			return this->new_sub_template(_dict->AddSectionDictionary(id));
+		}
+
 		// show subsection given marker
-		void show_section(const std::string &);
+		void show_section(const std::string &id) {
+			_dict->ShowSection(id);
+		}
 
 		// set key in template to value
-		void set_value(const std::string &k, const std::string &v);
+		void set_value(const std::string &k, const std::string &v) {
+			_dict->SetValue(k, v);
+		}
 
 		// set key in template to int value
-		void set_int_value(const std::string &k, long v );
+		void set_int_value(const std::string &k, long v) {
+			_dict->SetIntValue(k, v);
+		}
 
 		// set marker key in template to value if marker found and value non-empty
-		void set_value_show_section(const std::string &k, const std::string &v, const std::string &id);
+		void set_value_show_section(const std::string &k, const std::string &v, const std::string &id) {
+			_dict->SetValueAndShowSection(k, v, id);
+		}
 
 		void set_tag_link(
 				const std::string&,
@@ -1050,3 +1068,6 @@ class html_callback : public tagl_callback, public tagd::errorable {
 };
 
 } // namespace httagd
+
+// defined by the user, called before server::start
+void init_viewspace(httagd::viewspace &);

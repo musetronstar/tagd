@@ -17,7 +17,7 @@ int main(int argc, char ** argv) {
 	}
 
 	httagd::viewspace VS(args.tpl_dir);
-	httagd::init_viewspace(VS);
+	init_viewspace(VS);
 	if (VS.has_error()) {
 		VS.print_errors();
 		return VS.code();

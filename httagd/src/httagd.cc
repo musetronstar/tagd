@@ -420,5 +420,222 @@ tagd::code server::start() {
 	return tagd::TAGD_OK;
 }
 
+// TODO add to httagd::callback
+void output_errors(transaction& tx, tagd::code ret_tc, const tagd::errorable* E=nullptr) {
+	if (!tx.size())
+		tx.ferror(tagd::TS_INTERNAL_ERR, "no errors to output, returned: %s", tagd_code_str(ret_tc));
+
+	if (tx.trace_on) tx.print_errors();
+
+	view vw;
+	// get the error_function view
+	if (tx.VS->get(vw, error_view_id(tx.req->query_opt_view())) != tagd::TAGD_OK) {
+		// adds plain text errors to response output buffer
+		// for errorable objects contained by transaction
+		tx.add_errors();
+		return;
+	}
+
+	// attempts to add error_function response for the errorable object
+	// adds plain text of error_function fails
+	errorable_function_t f_err = [&tx, &vw](const tagd::errorable& e) -> tagd::code {
+		tagd::code tc = vw.error_function(tx, vw, e);
+		if (tc != tagd::TAGD_OK) {
+			tx.add_errors();  // add all errors plain text
+			return tc;
+		}
+
+		return tagd::TAGD_OK;
+	};
+
+	if (E == nullptr) {
+		// have transaction call f_err on each errorable object it contains
+		tx.add_errors(f_err);
+	} else {
+		// adds error_function response for the errorable object pointed to
+		f_err(*E);
+	}
+}
+
+void html_callback::cmd_get(const tagd::abstract_tag& t) {
+	if (_tx->trace_on) std::cerr << "cmd_get()" << std::endl;
+	/*
+	 * In the case of HEAD requests, we are still adding
+	 * content to the buffer just like GET requests.
+	 * This is because evhtp will count the bytes and add
+	 * a Content-Length header for us, even though the content
+	 * will not be sent to the client.
+	 * TODO surely, there must be a less wasteful way to do this.
+	 */
+
+	tagd::abstract_tag T;
+	tagd::code tc;
+	if (t.pos() == tagd::POS_URL) {
+		tc = _tx->TS->get(static_cast<tagd::url&>(T), t.id());
+	} else {
+		tc = _tx->TS->get(T, t.id());
+	}
+
+	if (tc != tagd::TAGD_OK) {
+		output_errors(*_tx, tc, _tx->TS);
+		return;
+	}
+
+	view vw;
+	tc = _tx->VS->get(vw, get_view_id(_tx->req->query_opt_view()));
+	if (tc != tagd::TAGD_OK) {
+		output_errors(*_tx, tc, _tx->VS);
+		return;
+	}
+
+	tc = vw.get_function(*_tx, vw, T);
+	if (tc != tagd::TAGD_OK) {
+		output_errors(*_tx, tc);
+		return;
+	}
+}
+
+void html_callback::cmd_query(const tagd::interrogator& q) {
+	if (_tx->trace_on) std::cerr << "cmd_query()" << std::endl;
+
+	tagd::tag_set R;
+	tagd::code tc = _tx->TS->query(R, q);
+
+	if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND) {
+		output_errors(*_tx, tc, _tx->TS);
+		return;
+	}
+
+	view vw;
+	tc = _tx->VS->get(vw, query_view_id(_tx->req->query_opt_view()));
+	if (tc != tagd::TAGD_OK) {
+		output_errors(*_tx, tc, _tx->VS);
+		return;
+	}
+
+	tc = vw.query_function(*_tx, vw, q, R);
+	if (tc != tagd::TAGD_OK) {
+		output_errors(*_tx, tc);
+		return;
+	}
+}
+
+void html_callback::cmd_error() {
+	if (_tx->trace_on) std::cerr << "cmd_error()" << std::endl;
+
+	if (_driver->has_error())
+		output_errors(*_tx, _driver->code(), _driver);
+
+	if (_tx->has_error())
+		output_errors(*_tx, _tx->code());
+}
+
+
+void html_callback::empty() {
+	if (_tx->trace_on) std::cerr << "empty()" <<  std::endl;
+
+	view vw;
+	tagd::code tc = _tx->VS->get(vw, empty_view_id(_tx->req->query_opt_view()));
+	if (tc != tagd::TAGD_OK) {
+		output_errors(*_tx, tc, _tx->VS);
+		return;
+	}
+
+	tc = vw.empty_function(*_tx, vw);
+	if (tc != tagd::TAGD_OK) {
+		output_errors(*_tx, tc);
+		return;
+	}
+}
+
+tagd::code tagd_template::expand(const std::string& fname) {
+	if (fname.empty()) {
+		this->ferror( tagd::TAGD_ERR, "template file required" );
+		return tagd::TAGD_ERR;
+	}
+
+	if (!ctemplate::LoadTemplate(fname, ctemplate::DO_NOT_STRIP)) {
+		this->ferror( tagd::TAGD_ERR, "load template failed: %s" , fname.c_str() );
+		return tagd::TAGD_ERR;
+	}
+
+	// this also would load (if not already loaded), but lets load and expand in seperate
+	// steps so we can better trace the source of errors
+	if (!ctemplate::ExpandTemplate(fname, ctemplate::DO_NOT_STRIP, _dict, _output)) {
+		this->ferror( tagd::TAGD_ERR, "expand template failed: %s" , fname.c_str() );
+		return tagd::TAGD_ERR;
+	}
+
+	return tagd::TAGD_OK;
+}
+
+tagd_template* tagd_template::include(const std::string &id, const std::string &fname) {
+	auto d = _dict->AddIncludeDictionary(id);
+	d->SetFilename(fname);
+	return this->new_sub_template(d);
+}
+
+// sets the value of a template marker to <key> and also its
+// corresponding <key>_lnk marker to the hyperlink representation of <key>
+void tagd_template::set_tag_link (
+		const std::string& key,
+		const std::string& val,
+		const std::string& view_name,
+		const std::string& context) {
+
+	if (val == "*") { // wildcard relator
+		// empty link
+		this->set_value(key, val);
+		return;
+	}
+
+	std::string opt_str;
+	if (!view_name.empty()) {
+		opt_str.push_back(opt_str.empty() ? '?' : '&');
+		opt_str.append(QUERY_OPT_VIEW);
+		opt_str.push_back(('='));
+		opt_str.append(tagd::uri_encode(view_name));
+	}
+
+	if (!context.empty()) {
+		opt_str.push_back(opt_str.empty() ? '?' : '&');
+		opt_str.append(QUERY_OPT_CONTEXT);
+		opt_str.push_back(('='));
+		opt_str.append(tagd::uri_encode(context));
+	}
+
+	// sets template key and key_lnk with their corresponding values
+	auto f_set_vals = [this, &key, &opt_str](const std::string& key_val, const std::string& lnk_val) {
+		this->set_value(
+			std::string(key).append("_lnk"),
+			std::string("/").append(lnk_val).append(opt_str)
+		);
+		this->set_value(key, key_val);
+	};
+
+	if ( tagd::url::looks_like_hduri(val) ) {
+		tagd::url u;
+		u.init_hduri(val);
+		f_set_vals(u.id(), tagd::uri_encode(u.hduri()));
+	} else if ( tagd::url::looks_like_url(val) ) {
+		tagd::url u;
+		u.init(val);
+		f_set_vals(u.id(), tagd::uri_encode(u.hduri()));
+	} else {
+		f_set_vals(val, tagd::util::esc_and_quote(val));
+	}
+}
+
+void tagd_template::set_relator_link (
+		const std::string& key,
+		const std::string& val,
+		const std::string& view_name,
+		const std::string& context) {
+	if (val.empty())  // wildcard relator
+		set_tag_link(key, "*", view_name, context);
+	else
+		set_tag_link(key, val, view_name, context);
+}
+
 } // namespace httagd
 
