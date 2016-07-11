@@ -26,6 +26,9 @@ int main(int argc, char ** argv) {
 	httagd::server svr(&TS, &VS, &args);
 	svr.start();
 
+	// NOTE: at this point, main_cb will have replaced
+	// the errors pointer of VS and TS
+
 	if (svr.has_error())
 		svr.print_errors();
 

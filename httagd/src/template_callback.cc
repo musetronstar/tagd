@@ -54,11 +54,13 @@ void fill_header(transaction& tx, tagd_template& tpl, const std::string& title) 
 
 empty_handler_t home_handler(
 	[](transaction& tx, const view& vw) -> tagd::code {
+		tx.res->content_type = "text/html; charset=utf-8";
+		tagd_template tpl("home", tx.res->output_buffer());
+
 		// TODO don't do this
 		// messages should be internationalized
 		// a _home_page tag might suffice for these type of definitions
 		tagd::abstract_tag t("Welcomd to tagd!");
-		tagd_template tpl("home", tx.res->output_buffer());
 		fill_header(tx, tpl, t.id());
 
 		std::string fname;
@@ -189,6 +191,7 @@ tagd::code fill_tag(transaction& tx, const view& vw, tagd_template& tpl, const t
 
 get_handler_t tag_handler(
 	[](transaction& tx, const view& vw, const tagd::abstract_tag& t) -> tagd::code {
+		tx.res->content_type = "text/html; charset=utf-8";
 		tagd_template tpl("tag", tx.res->output_buffer());
 		fill_tag(tx, vw, tpl, t);
 
@@ -258,6 +261,7 @@ tagd::code fill_tree(transaction& tx, const view& vw, tagd_template& tpl, const 
 
 get_handler_t tree_handler(
 	[](transaction& tx, const view& vw, const tagd::abstract_tag& t) -> tagd::code {
+		tx.res->content_type = "text/html; charset=utf-8";
 		tagd_template tpl("tree", tx.res->output_buffer());
 		tagd::code tc = fill_tree(tx, vw, tpl, t);
 		if (tc != tagd::TAGD_OK) return tc;
@@ -330,6 +334,7 @@ tagd::code fill_query(transaction& tx, const view& vw, tagd_template& tpl, const
 
 query_handler_t query_handler(
 	[](transaction& tx, const view& vw, const tagd::interrogator& q, const tagd::tag_set& R) -> tagd::code {
+		tx.res->content_type = "text/html; charset=utf-8";
 		tagd_template tpl("query", tx.res->output_buffer());
 
 		std::stringstream ss;
@@ -352,6 +357,7 @@ query_handler_t query_handler(
 
 get_handler_t browse_handler(
 	[](transaction& tx, const view& vw, const tagd::abstract_tag& t) -> tagd::code {
+		tx.res->content_type = "text/html; charset=utf-8";
 		tagd_template tpl("browse", tx.res->output_buffer());
 
 		fill_header(tx, tpl, t.id());
@@ -428,6 +434,7 @@ void fill_error(transaction& tx, tagd_template& tpl, const view& vw, const tagd:
 
 error_handler_t error_handler(
 	[](transaction& tx, const view& vw, const tagd::errorable& E) -> tagd::code {
+		tx.res->content_type = "text/html; charset=utf-8";
 		tagd_template tpl("error", tx.res->output_buffer());
 		fill_header(tx, tpl, tagd::tag_ids_str(E.errors()));
 
@@ -444,6 +451,7 @@ error_handler_t error_handler(
 
 error_handler_t partial_error_handler(
 	[](transaction& tx, const view& vw, const tagd::errorable& E) -> tagd::code {
+		tx.res->content_type = "text/html; charset=utf-8";
 		tagd_template tpl("error", tx.res->output_buffer());
 		fill_error(tx, tpl, vw, E);
 

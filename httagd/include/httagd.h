@@ -110,11 +110,17 @@ class response {
 		evhtp_request_t *_ev_req;
 		bool _reply_sent;
 
+		// the res_code sent
+		// when set to >= 0 before sending,
+		// send this code instead of translated tagd::code to EVHTP_RES_*
+		int _res_code;
+
 	public:
 		std::string content_type;
 		response(server* S, evhtp_request_t *req)
-			: _server{S}, _ev_req{req}, _reply_sent{false}
-		{}
+			: _server{S}, _ev_req{req}, _reply_sent{false}, _res_code{-1},
+			// default content type, it is up to view handlers to overwrite
+			content_type{"text/plain; charset=utf-8"} {}
 
 		static evhtp_res tagd_code_evhtp_res(tagd::code tc) {
 			switch (tc) {
@@ -134,6 +140,15 @@ class response {
 			return _reply_sent;
 		}
 
+		int res_code() const {
+			return _res_code;
+		}
+
+		void res_code(int c) {
+			if (!_reply_sent)
+				_res_code = c;
+		}
+
 		void add(const std::string& s) {
 			evbuffer_add(_ev_req->buffer_out, s.c_str(), s.size());
 		}
@@ -147,7 +162,7 @@ class response {
 		}
 
 		void send_reply(tagd::code tc) {
-			this->send_reply(tagd_code_evhtp_res(tc));
+			this->send_reply(_res_code >= 0 ? _res_code : tagd_code_evhtp_res(tc));
 		}
 
 		void send_reply(evhtp_res res) {
@@ -159,6 +174,7 @@ class response {
 			if (_server->args()->opt_trace)
 				std::cerr << "send_reply(" << res << "): " << evhtp_res_str(res) << std::endl;
 			evhtp_send_reply(_ev_req, res);
+			_res_code = res;
 			_reply_sent = true;
 		}
 
@@ -197,6 +213,9 @@ class response {
 const std::string QUERY_OPT_SEARCH{"q"};    // full text search
 const std::string QUERY_OPT_VIEW{"v"};		// view name
 const std::string QUERY_OPT_CONTEXT{"c"};   // tagspace context
+
+// view name when query opt or default-view arg not given
+const std::string DEFAULT_VIEW{"tagl"};     // plain text tagl
 
 typedef enum {
 	MEDIA_TYPE_TEXT_TAGL,
@@ -814,16 +833,14 @@ class transaction : public tagd::errorable {
 		request *req;
 		response *res;
 		httagd::viewspace *VS;
-		std::string context;
 		bool trace_on;
 
 		transaction(
 			tagspace::tagspace* ts,
 			request* rq,
 			response* rs,
-			httagd::viewspace *vs,
-			const std::string& ctx
-		) : TS{ts}, req{rq}, res{rs}, VS{vs}, context{ctx},
+			httagd::viewspace *vs
+		) : TS{ts}, req{rq}, res{rs}, VS{vs},
 			trace_on{rq->svr()->args()->opt_trace}
 		{}
 
@@ -843,24 +860,30 @@ class transaction : public tagd::errorable {
 		}
 };
 
-// TODO rename just httagd::callback
-class tagl_callback : public TAGL::callback {
+class callback : public TAGL::callback {
 	protected:
 		transaction* _tx;
 
 	public:
-		tagl_callback(transaction* tx) : _tx{tx}
-			{
-				_tx->res->content_type = "text/plain; charset=utf-8";
-			}
+		callback(transaction* tx) : _tx{tx} {}
 
 		void cmd_get(const tagd::abstract_tag&);
 		void cmd_put(const tagd::abstract_tag&);
 		void cmd_del(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&);
         void cmd_error();
-        virtual void empty();  // welcome message or home page
         void finish();
+		// welcome message or home page
+		// virtual because it get late binded
+        virtual void empty();
+
+		// methods that handle DEFAULT_VIEW which are not in the tagspace
+		void default_cmd_get(const tagd::abstract_tag&);
+		void default_cmd_put(const tagd::abstract_tag&);
+		void default_cmd_del(const tagd::abstract_tag&);
+		void default_cmd_query(const tagd::interrogator&);
+        void default_cmd_error();
+        void default_empty();  // welcome message or home page
 
 		transaction* tx() {
 			return _tx;
@@ -1006,21 +1029,6 @@ class tagd_template : public tagd::errorable {
 			_sub_templates.push_back(s);
 			return s;
 		}
-};
-
-class html_callback : public tagl_callback {
-	public:
-		html_callback(transaction *tx) : tagl_callback(tx)
-			{
-				_tx->res->content_type = "text/html; charset=utf-8";
-			}
-
-		void cmd_get(const tagd::abstract_tag&);
-		// void cmd_put(const tagd::abstract_tag&);
-		// void cmd_del(const tagd::abstract_tag&);
-		void cmd_query(const tagd::interrogator&);
-        void cmd_error();
-		void empty();
 };
 
 } // namespace httagd
