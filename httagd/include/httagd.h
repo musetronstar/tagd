@@ -963,6 +963,10 @@ class tagd_template : public tagd::errorable {
 				if (s) delete s;
 		}
 
+		// load template filename
+		// static so files can be pre-loaded without instanciating
+		static tagd_code load(tagd::errorable& E, const std::string&);
+
 		// expand template filename into ouput
 		tagd_code expand(const std::string&);
 

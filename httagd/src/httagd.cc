@@ -464,16 +464,23 @@ void callback::empty() {
 	}
 }
 
-tagd::code tagd_template::expand(const std::string& fname) {
+tagd::code tagd_template::load(tagd::errorable& E, const std::string& fname) {
 	if (fname.empty()) {
-		this->ferror( tagd::TAGD_ERR, "template file required" );
+		E.ferror( tagd::TAGD_ERR, "template file required" );
 		return tagd::TAGD_ERR;
 	}
 
 	if (!ctemplate::LoadTemplate(fname, ctemplate::DO_NOT_STRIP)) {
-		this->ferror( tagd::TAGD_ERR, "load template failed: %s" , fname.c_str() );
+		E.ferror( tagd::TAGD_ERR, "load template failed: %s" , fname.c_str() );
 		return tagd::TAGD_ERR;
 	}
+
+	return tagd::TAGD_OK;
+}
+
+tagd::code tagd_template::expand(const std::string& fname) {
+	if (tagd_template::load(*this, fname) != tagd::TAGD_OK)
+		return this->code();
 
 	// this also would load (if not already loaded), but lets load and expand in seperate
 	// steps so we can better trace the source of errors
