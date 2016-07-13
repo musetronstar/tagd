@@ -1,17 +1,16 @@
 #pragma once
 
-#include <string>
-#include <set>
-#include <vector>
-#include <iostream>
-#include <sstream>
-#include <cstdarg>
-
 #include "tagd/codes.h"
 #include "tagd/config.h"
 #include "tagd/hard-tags.h"
 #include "tagd/rank.h"
 
+#include <string>
+#include <set>
+#include <vector>
+#include <memory> // for shared_ptr
+#include <iostream>
+#include <sstream>
 #include <cstdarg>  // for va_list
 
 namespace tagd {
@@ -539,35 +538,27 @@ class errorable {
 		tagd_code _code;
 
 		// errors_t pointer uses lazy initialization
-		// so that non-error states don't get penalized
-		// creating a new and uneeded errors_t
-		errors_t* _errors;
-
-		// whether this own _errors
-		bool _owner;
+		std::shared_ptr<errors_t> _errors;
 
 		void init_errors() {
 			if (_errors == nullptr) {
 				// create even if this is not the owner
 				// the owners destructor will delete it
-				_errors = new errors_t();
+				_errors = std::make_shared<errors_t>();
 			}
 		}
 
 	public:
 		errorable() :
-			_init{TAGD_OK}, _code{TAGD_OK}, _errors{nullptr}, _owner{true} {}
+			_init{TAGD_OK}, _code{TAGD_OK}, _errors{nullptr} {}
 
 		errorable(tagd_code c) :
-			_init{c}, _code{c}, _errors{nullptr}, _owner{true} {}
+			_init{c}, _code{c}, _errors{nullptr} {}
 
-		virtual ~errorable() {
-			if (_owner && _errors != nullptr)
-				delete _errors;
-		}
+		virtual ~errorable() {}
 
 		bool ok() const { return _code == TAGD_OK; }
-		size_t size() const { return (_errors == nullptr ? 0 : _errors->size()); }
+		size_t size() const { return (_errors == nullptr ? 0 : _errors.get()->size()); }
 		bool has_error() const { return (_code >= TAGD_ERR || this->size() > 0); }
 		tagd_code code() const { return _code; }
 
@@ -586,11 +577,11 @@ class errorable {
 		tagd_code error(tagd::code, const predicate&);
 		tagd_code error(tagd::code, const std::string&);
 
-		// copy rhs._errors into this->_errors
-		tagd_code errors(const errorable &);
+		// copy rhs._errors into this->_errors return *this
+		errorable& copy_errors(const errorable &);
 
-		// share rhs _errors pointer with this _errors pointer
-		// copy this _errors to rhs and destroy this _errors
+		// copy rhs _errors to this and
+		// assign this _errors pointer to rhs _errors pointer
 		errorable& share_errors(errorable &);
 
 		// set and return code, set err msg to printf style formatted list

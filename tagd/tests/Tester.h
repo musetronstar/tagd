@@ -1016,6 +1016,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( R.has_error() )  // TS_NOT_FOUND considered an error
 
 		TS_ASSERT_EQUALS( R.ferror(tagd::TAGD_ERR, "bad tag: %s", "oops") , tagd::TAGD_ERR );
+		TS_ASSERT_EQUALS( R.size() , 1 );
 		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
 		TS_ASSERT( !R.ok() )
 		TS_ASSERT( R.has_error() )
@@ -1026,6 +1027,7 @@ class Tester : public CxxTest::TestSuite {
         tagd::error err(tagd::TS_MISUSE);
 		err.relation(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah");
 		R.error(err);
+		TS_ASSERT_EQUALS( R.size() , 2 );
 		TS_ASSERT_EQUALS( R.code() , tagd::TS_MISUSE )
 		TS_ASSERT( !R.ok() )
 		TS_ASSERT( R.has_error() )
@@ -1035,6 +1037,7 @@ class Tester : public CxxTest::TestSuite {
 
 		R.error( tagd::TAGD_ERR,
 			tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") );
+		TS_ASSERT_EQUALS( R.size() , 3 );
 		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
 		TS_ASSERT( !R.ok() )
 		TS_ASSERT( R.has_error() )
@@ -1048,9 +1051,12 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( R.most_severe() , tagd::TS_MISUSE )
 		TS_ASSERT_EQUALS( R.most_severe(tagd::TAGL_ERR) , tagd::TAGL_ERR )
 
+		tagd::errorable R1;
+		R1.copy_errors(R);
+
 		// test iterating errors_t
 		size_t num_rel = 0;
-		const tagd::errors_t E	= R.errors();
+		const tagd::errors_t E	= R1.errors();
 		for (auto e : E) {
 			for (auto p : e.relations) {
 				num_rel++;
@@ -1058,23 +1064,50 @@ class Tester : public CxxTest::TestSuite {
 		}
 		TS_ASSERT_EQUALS( num_rel, 4 )
 
-		tagd::errorable R1, R2;
-		R2.share_errors(R1);
+		R1.clear_errors();
+		TS_ASSERT_EQUALS( R1.size() , 0 );
+
+		tagd::errorable R2;
+		R1.share_errors(R2);
+
 		TS_ASSERT_EQUALS( R1.size() , 0 );
 		TS_ASSERT_EQUALS( R2.size() , 0 );
 
-		TS_ASSERT_EQUALS( R1.ferror(tagd::TAGD_ERR, "bad tag: %s", "oops") , tagd::TAGD_ERR );
+		TS_ASSERT_EQUALS( R1.ferror(tagd::TAG_ILLEGAL, "bad tag: %s", "oops") , tagd::TAG_ILLEGAL );
+		TS_ASSERT_EQUALS( R1.last_error().id(), "TAG_ILLEGAL" )
 		TS_ASSERT_EQUALS( R1.size() , 1 );
 		TS_ASSERT_EQUALS( R2.size() , 1 );
 
-		R1.share_errors(R2.share_errors(R));
+		// should have no effect
+		R2.share_errors(R1);
+		R1.share_errors(R2);
+		TS_ASSERT_EQUALS( R1.size() , 1 );
+		TS_ASSERT_EQUALS( R2.size() , 1 );
+
+		R1.clear_errors();
+		TS_ASSERT_EQUALS( R1.size() , 0 );
+		TS_ASSERT_EQUALS( R2.size() , 0 );
+
+		tagd::errorable R3, R4;
+		TS_ASSERT_EQUALS( R3.ferror(tagd::TAG_UNKNOWN, "bad tag: %s", "oops") , tagd::TAG_UNKNOWN );
+		TS_ASSERT_EQUALS( R3.last_error().id(), "TAG_UNKNOWN" )
+		TS_ASSERT_EQUALS( R3.size() , 1 );
+		TS_ASSERT_EQUALS( R4.size() , 0 );
+
+		R.share_errors(R3).share_errors(R4);
+
+		TS_ASSERT_EQUALS( R.size() , 4 );
+		TS_ASSERT_EQUALS( R3.size() , 4 );
+		TS_ASSERT_EQUALS( R4.size() , 4 );
+
 		TS_ASSERT_EQUALS( R.ferror(tagd::TAGD_ERR, "another bad tag: %s", "oops_again") , tagd::TAGD_ERR );
+
 		TS_ASSERT_EQUALS( R.size() , 5 );
 		TS_ASSERT_EQUALS( R.last_error().id(), "TAGD_ERR" )
-		TS_ASSERT_EQUALS( R1.size() , 5 );
-		TS_ASSERT_EQUALS( R1.last_error().id(), "TAGD_ERR" )
-		TS_ASSERT_EQUALS( R2.size() , 5 );
-		TS_ASSERT_EQUALS( R2.last_error().id(), "TAGD_ERR" )
+		TS_ASSERT_EQUALS( R3.size() , 5 );
+		TS_ASSERT_EQUALS( R3.last_error().id(), "TAGD_ERR" )
+		TS_ASSERT_EQUALS( R4.size() , 5 );
+		TS_ASSERT_EQUALS( R4.last_error().id(), "TAGD_ERR" )
     }
 
     void test_modifier_comma_quotes(void) {

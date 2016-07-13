@@ -472,23 +472,23 @@ id_type error::message() const {
 }
 
 tagd::error errorable::last_error() const {
-	if (this->size() == 0)
+	if (_errors == nullptr || _errors.get()->size() == 0)
 		return tagd::error();
 	else
-		return (*_errors)[_errors->size()-1];
+		return (*_errors.get())[_errors.get()->size()-1];
 }
 
 tagd_code errorable::last_error_relation(predicate p) {
-	if (this->size() == 0)
+	if (_errors == nullptr || _errors.get()->size() == 0)
 		return tagd::TS_NOT_FOUND;
 
-	return (*_errors)[_errors->size()-1].relation(p);
+	return (*_errors.get())[_errors.get()->size()-1].relation(p);
 }
 
 tagd_code errorable::most_severe(tagd_code c) {
 	tagd::code most_severe = c;
 	if (_errors != nullptr) {
-		for (auto e : *_errors) {
+		for (auto e : *_errors.get()) {
 			if (e.code() > most_severe)
 				most_severe = e.code();
 		}
@@ -496,23 +496,22 @@ tagd_code errorable::most_severe(tagd_code c) {
 	return most_severe;
 }
 
-tagd_code errorable::errors(const errorable &E) {
+errorable& errorable::copy_errors(const errorable &E) {
 	if (E._errors != nullptr) {
 		this->init_errors();
-		_errors->insert(_errors->end(), E._errors->begin(), E._errors->end());
+		_errors.get()->insert(_errors.get()->end(), E._errors.get()->begin(), E._errors.get()->end());
 	}
-	return E.code();
+	return *this;
 }
 
 errorable& errorable::share_errors(errorable &E) {
-	E.init_errors();  // can't be nullptr
+	this->init_errors();  // this->_errors can't be nullptr
 
-	if (_owner && _errors != nullptr && _errors != E._errors) {
-		E.errors(*this);
-		delete _errors;
-	}
-	_errors = E._errors;
-	_owner = false;
+	if (E._errors == this->_errors)
+		return *this;
+
+	this->copy_errors(E);
+	E._errors = this->_errors;
 
 	return *this;
 }
@@ -520,19 +519,19 @@ errorable& errorable::share_errors(errorable &E) {
 void errorable::clear_errors() {
 	_code = _init;
 	if (_errors != nullptr)
-		_errors->clear();
+		_errors.get()->clear();
 }
 
 errors_t errorable::errors() const {
 	if (_errors == nullptr)
 		return errors_t();
-	return *_errors;
+	return *_errors.get();
 }
 
 tagd_code errorable::error(const tagd::error& err) {
 	this->init_errors();
 	_code = err.code();
-	_errors->push_back(err);
+	_errors.get()->push_back(err);
 	return _code;
 }
 
@@ -566,13 +565,13 @@ void errorable::print_errors(std::ostream& os) const {
 	if (_errors == nullptr)
 		return;
 
-	errors_t::const_iterator it = _errors->begin();
-	if (it != _errors->end()) {
+	errors_t::const_iterator it = _errors.get()->begin();
+	if (it != _errors.get()->end()) {
 		os << *it << std::endl;
 		++it;
 	}
 
-    for(; it != _errors->end(); ++it)
+    for(; it != _errors.get()->end(); ++it)
 		os << std::endl << *it << std::endl;
 }
 

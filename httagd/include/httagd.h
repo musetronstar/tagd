@@ -973,7 +973,7 @@ class tagd_template : public tagd::errorable {
 		// expand template; add errors to viewspace if they occur
 		tagd::code expand(viewspace& VS, const std::string& fname) {
 			if (this->expand(VS.fpath(fname)) != tagd::TAGD_OK)
-				return VS.errors(*this);  // add this errors to viewspace and return last code
+				return VS.copy_errors(*this).code();
 
 			return tagd::TAGD_OK;
 		}

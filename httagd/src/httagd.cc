@@ -572,11 +572,9 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagl tagl(TS, &CB);
 
 	// all sharing the internal errors pointer of tx
-	tagl.share_errors(
-		TS->share_errors(
-			svr->VS()->share_errors(tx)
-		)
-	);
+	tx.share_errors(tagl)
+	  .share_errors(*TS)
+	  .share_errors(*svr->VS());
 
 	// route request
 	switch(method) {
@@ -639,6 +637,10 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 
 	if (tx.has_error() && trace_on)
 		tx.print_errors();
+
+	// TS will accumulate errors between requests
+	// TODO don't allow this
+	TS->clear_errors();
 }
 
 tagd::code server::start() {
