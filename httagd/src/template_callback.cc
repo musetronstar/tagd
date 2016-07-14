@@ -42,10 +42,17 @@ const std::string LAYOUT_TPL{"layout.html.tpl"};
 
 void fill_header(transaction& tx, tagd_template& tpl, const std::string& title) {
 	tpl.set_value("title", title);
-	if ( tx.req->query_map().size() > 0 ) {
+
+	auto qm = tx.req->query_map();
+	if ( qm.size() > 0 ) {
+		std::string v = qm[QUERY_OPT_VIEW];
+		// don't propagate an error from a bad view name
+		if (!v.empty() && v != BROWSE_VIEW_ID.name())
+				qm[QUERY_OPT_VIEW] = BROWSE_VIEW_ID.name();
+
 		tpl.show_section("query_options");
 		auto t = tpl.add_section("query_option");
-		for ( auto &kv : tx.req->query_map() ) {
+		for ( auto &kv : qm ) {
 			t->set_value("query_key", kv.first);
 			t->set_value("query_value", kv.second);
 		}
@@ -405,23 +412,22 @@ get_handler_t browse_handler(
 	}
 );
 
-void fill_error(transaction& tx, tagd_template& tpl, const view& vw, const tagd::errorable& E) {
+void fill_error(const url_query_map_t& qm, tagd_template& tpl, const tagd::errorable& E) {
 	tpl.set_value("err_ids", tagd::tag_ids_str(E.errors()));
-	auto context = tx.req->query_opt_context();
 
 	if (E.size() > 0) {
 		tpl.show_section("errors");
 		for (auto r : E.errors()) {
 			auto s1 = tpl.add_section("error");
 			s1->set_value("err_id", r.id());
-			s1->set_tag_link(tx, "err_super_relator", r.super_relator());
-			s1->set_tag_link(tx, "err_super_object", r.super_object());
+			s1->set_tag_link(qm, "err_super_relator", r.super_relator());
+			s1->set_tag_link(qm, "err_super_object", r.super_object());
 			if (r.relations.size() > 0) {
 				s1->show_section("err_relations");
 				for (auto p : r.relations) {
 					auto s2 = s1->add_section("err_relation");
-					s2->set_tag_link(tx, "err_relator", p.relator);
-					s2->set_tag_link(tx, "err_object", p.object);
+					s2->set_tag_link(qm, "err_relator", p.relator);
+					s2->set_tag_link(qm, "err_object", p.object);
 					if (!p.modifier.empty()) {
 						s2->show_section("err_has_modifier");
 						s2->set_value("err_modifier", p.modifier);
@@ -442,8 +448,13 @@ error_handler_t error_handler(
 		tagd::code tc = tpl_fname(fname, tx, vw);
 		if (tc != tagd::TAGD_OK) return tc;
 
-		auto err_tpl = tpl.include("main_html_tpl", tx.VS->fpath(fname));
-		fill_error(tx, *err_tpl, vw, E);
+		auto qm = tx.req->query_map();
+		std::string v = qm[QUERY_OPT_VIEW];
+		// don't propagate an error from a bad view name
+		if (!v.empty() && v != BROWSE_VIEW_ID.name())
+			qm[QUERY_OPT_VIEW] = BROWSE_VIEW_ID.name();
+
+		fill_error(qm, *(tpl.include("main_html_tpl", tx.VS->fpath(fname))), E);
 
 		return tpl.expand(*tx.VS, LAYOUT_TPL);
 	}
@@ -453,11 +464,18 @@ error_handler_t partial_error_handler(
 	[](transaction& tx, const view& vw, const tagd::errorable& E) -> tagd::code {
 		tx.res->content_type = "text/html; charset=utf-8";
 		tagd_template tpl("error", tx.res->output_buffer());
-		fill_error(tx, tpl, vw, E);
 
 		std::string fname;
 		tagd::code tc = tpl_fname(fname, tx, vw);
 		if (tc != tagd::TAGD_OK) return tc;
+
+		auto qm = tx.req->query_map();
+		std::string v = qm[QUERY_OPT_VIEW];
+		// don't propagate an error from a bad view name
+		if (!v.empty() && v != TAG_VIEW_ID.name())
+			qm[QUERY_OPT_VIEW] = TAG_VIEW_ID.name();
+
+		fill_error(qm, tpl, E);
 
 		return tpl.expand(*tx.VS, fname);
 	}
@@ -474,6 +492,8 @@ void init_viewspace(viewspace &VS) {
 	VS.put({BROWSE_VIEW_ID, browse_handler});
 	VS.put({QUERY_VIEW_ID, query_handler});
 	VS.put({ERROR_VIEW_ID, error_handler});
+
+	VS.fallback_error_view = {ERROR_VIEW_ID, error_handler};
 
 	// html partials
 	tpl_map[TAG_VIEW_ID] = TAG_TPL;

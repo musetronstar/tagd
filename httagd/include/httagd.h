@@ -313,7 +313,31 @@ class httagl : public TAGL::driver {
 		tagd_code tagdurl_del(const request&);
 };
 
-class transaction;
+// holds members passed to every callback
+class transaction : public tagd::errorable {
+	public:
+		tagspace::tagspace *TS;
+		request *req;
+		response *res;
+		httagd::viewspace *VS;
+		bool trace_on;
+
+		transaction(
+			tagspace::tagspace* ts,
+			request* rq,
+			response* rs,
+			httagd::viewspace *vs
+		) : TS{ts}, req{rq}, res{rs}, VS{vs},
+			trace_on{rq->svr()->args()->opt_trace}
+		{}
+
+		// adds errors to response ouput buffer in plain text
+		void add_errors() const {
+			if (this->has_error())
+				res->add_error_str(*this);
+		}
+};
+
 class view;
 
 typedef std::function<tagd::code(transaction&, const view&)> empty_function_t;
@@ -772,6 +796,20 @@ class view : public view_id {
 \*/
 typedef std::map< view_id, view > view_map_t;
 
+
+const error_function_t default_error_function(
+	[](transaction& tx, const view& /*vw*/, const tagd::errorable& E)
+	-> tagd::code {
+		tx.res->add_error_str(E);
+		return tagd::TAGD_OK;
+	}
+);
+
+const view default_error_view(
+	error_view_id(std::string()),
+	default_error_function
+);
+
 // container of views(templates and handlers)
 // TODO (maybe) extend it from tagspace::tagspace so views can be stored in a tagspace
 class viewspace : public tagd::errorable {
@@ -779,7 +817,11 @@ class viewspace : public tagd::errorable {
 		std::string _tpl_dir;
 
 	public:
-		viewspace(const std::string& tpl_dir) : _tpl_dir{tpl_dir}
+		// called if no error view has been inserted for a given name
+		view fallback_error_view;
+
+		viewspace(const std::string& tpl_dir) :
+			_tpl_dir{tpl_dir}, fallback_error_view(default_error_view)
 		{
 			if (_tpl_dir.empty()) {
 				_tpl_dir = "./tpl/";
@@ -821,42 +863,6 @@ class viewspace : public tagd::errorable {
 		std::string fpath(const std::string& tpl_fname) {
 			return std::string(_tpl_dir)  // has trailing '/'
 					.append(tpl_fname);
-		}
-};
-
-typedef std::function<tagd::code(const tagd::errorable&)> errorable_function_t;
-
-// holds members passed to every callback
-class transaction : public tagd::errorable {
-	public:
-		tagspace::tagspace *TS;
-		request *req;
-		response *res;
-		httagd::viewspace *VS;
-		bool trace_on;
-
-		transaction(
-			tagspace::tagspace* ts,
-			request* rq,
-			response* rs,
-			httagd::viewspace *vs
-		) : TS{ts}, req{rq}, res{rs}, VS{vs},
-			trace_on{rq->svr()->args()->opt_trace}
-		{}
-
-		// adds errors to response ouput buffer in plain text
-		void add_errors() const {
-			if (this->has_error())
-				res->add_error_str(*this);
-		}
-
-		// calls errorable functor on each erroable object
-		// failure on one results in adding all in plain text
-		void add_errors(const errorable_function_t &f) const {
-			if (this->has_error()) {
-				if (f(*this) != tagd::TAGD_OK)
-					this->add_errors();
-			}
 		}
 };
 
@@ -970,13 +976,8 @@ class tagd_template : public tagd::errorable {
 		// expand template filename into ouput
 		tagd_code expand(const std::string&);
 
-		// expand template; add errors to viewspace if they occur
-		tagd::code expand(viewspace& VS, const std::string& fname) {
-			if (this->expand(VS.fpath(fname)) != tagd::TAGD_OK)
-				return VS.copy_errors(*this).code();
-
-			return tagd::TAGD_OK;
-		}
+		// expand template filname; add errors to viewspace if they occur
+		tagd::code expand(viewspace&, const std::string&);
 
 		// output of the last expansion
 		const std::string& output_str() const {
@@ -1012,9 +1013,16 @@ class tagd_template : public tagd::errorable {
 		}
 
 		void set_tag_link(
-				transaction&,
+				const url_query_map_t&,
 				const std::string&,  // key
 				const std::string&); // val
+
+		void set_tag_link(
+				transaction& tx,
+				const std::string& key,
+				const std::string& val) {
+			set_tag_link(tx.req->query_map(), key, val);
+		}
 
 		void set_relator_link (
 				transaction& tx,

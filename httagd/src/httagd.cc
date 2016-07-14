@@ -324,28 +324,21 @@ void output_errors(transaction& tx, tagd::code ret_tc) {
 
 	if (tx.trace_on) tx.print_errors();
 
-	view vw;
 	// get the error_function view
-	if (tx.VS->get(vw, error_view_id(tx.req->effective_opt_view())) != tagd::TAGD_OK) {
-		// adds plain text errors to response output buffer
-		// for errorable objects contained by transaction
+	view vw;
+	tx.VS->report_errors = false;
+	tagd::code tc = tx.VS->get(vw, error_view_id(tx.req->effective_opt_view()));
+	tx.VS->report_errors = true;
+
+	// attempts call error_function_t for the errorable object
+	if (tc == tagd::TAGD_OK)
+		tc = vw.error_function(tx, vw, tx);
+	else
+		tc = tx.VS->fallback_error_view.error_function(tx, tx.VS->fallback_error_view, tx);
+
+	// add plain text errors if the call failed
+	if (tc != tagd::TAGD_OK)
 		tx.add_errors();
-		return;
-	}
-
-	// attempts to add error_function response for the errorable object
-	// adds plain text of error_function fails
-	errorable_function_t f_err = [&tx, &vw](const tagd::errorable& e) -> tagd::code {
-		tagd::code tc = vw.error_function(tx, vw, e);
-		if (tc != tagd::TAGD_OK) {
-			tx.add_errors();  // add all errors plain text
-			return tc;
-		}
-
-		return tagd::TAGD_OK;
-	};
-
-	tx.add_errors(f_err);
 }
 
 void callback::cmd_get(const tagd::abstract_tag& t) {
@@ -492,6 +485,13 @@ tagd::code tagd_template::expand(const std::string& fname) {
 	return tagd::TAGD_OK;
 }
 
+tagd::code tagd_template::expand(viewspace& VS, const std::string& fname) {
+	if (this->expand(VS.fpath(fname)) != tagd::TAGD_OK)
+		return VS.copy_errors(*this).code();
+
+	return tagd::TAGD_OK;
+}
+
 tagd_template* tagd_template::include(const std::string &id, const std::string &fname) {
 	auto d = _dict->AddIncludeDictionary(id);
 	d->SetFilename(fname);
@@ -500,7 +500,7 @@ tagd_template* tagd_template::include(const std::string &id, const std::string &
 
 // sets the value of a template marker to <key> and also its
 // corresponding <key>_lnk marker to the hyperlink representation of <key>
-void tagd_template::set_tag_link (transaction& tx, const std::string& key, const std::string& val) {
+void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::string& key, const std::string& val) {
 	if (val == "*") { // wildcard relator
 		// empty link
 		this->set_value(key, val);
@@ -509,7 +509,8 @@ void tagd_template::set_tag_link (transaction& tx, const std::string& key, const
 
 	std::string opt_str;
 
-	std::string view_name = tx.req->query_opt_view();
+	std::string view_name;
+	tagd::url::query_find(query_map, view_name, QUERY_OPT_VIEW);
 	if (!view_name.empty()) {
 		opt_str.push_back(opt_str.empty() ? '?' : '&');
 		opt_str.append(QUERY_OPT_VIEW);
@@ -517,7 +518,8 @@ void tagd_template::set_tag_link (transaction& tx, const std::string& key, const
 		opt_str.append(tagd::uri_encode(view_name));
 	}
 
-	std::string context = tx.req->query_opt_context();
+	std::string context;
+	tagd::url::query_find(query_map, context, QUERY_OPT_CONTEXT);
 	if (!context.empty()) {
 		opt_str.push_back(opt_str.empty() ? '?' : '&');
 		opt_str.append(QUERY_OPT_CONTEXT);
@@ -627,10 +629,9 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 			// The response MUST include an Allow header containing a list of valid methods for the requested resource.
 	}
 
-	if (!res.reply_sent()) {
-		// evbuffer_execute() will call finish() when at the end of buffer
+	// evbuffer_execute() will call finish() when at the end of buffer
+	if (!res.reply_sent())
 		tagl.finish();
-	}
 
 	if (!req.query_opt_context().empty())
 		TS->pop_context();
