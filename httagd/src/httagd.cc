@@ -317,28 +317,27 @@ std::string request::effective_opt_view() const {
 	return view_opt;
 }
 
-// TODO add to httagd::callback
-void output_errors(transaction& tx, tagd::code ret_tc) {
-	if (!tx.size())
-		tx.ferror(tagd::TS_INTERNAL_ERR, "no errors to output, returned: %s", tagd_code_str(ret_tc));
+void callback::output_errors(tagd::code ret_tc) {
+	if (!_tx->size())
+		_tx->ferror(tagd::TS_INTERNAL_ERR, "no errors to output, returned: %s", tagd_code_str(ret_tc));
 
-	if (tx.trace_on) tx.print_errors();
+	if (_tx->trace_on) _tx->print_errors();
 
 	// get the error_function view
 	view vw;
-	tx.VS->report_errors = false;
-	tagd::code tc = tx.VS->get(vw, error_view_id(tx.req->effective_opt_view()));
-	tx.VS->report_errors = true;
+	_tx->VS->report_errors = false;
+	tagd::code tc = _tx->VS->get(vw, error_view_id(_tx->req->effective_opt_view()));
+	_tx->VS->report_errors = true;
 
-	// attempts call error_function_t for the errorable object
+	// call error_function_t for the errorable object
 	if (tc == tagd::TAGD_OK)
-		tc = vw.error_function(tx, vw, tx);
+		tc = vw.error_function(*_tx, vw, *_tx);
 	else
-		tc = tx.VS->fallback_error_view.error_function(tx, tx.VS->fallback_error_view, tx);
+		tc = _tx->VS->fallback_error_view.error_function(*_tx, _tx->VS->fallback_error_view, *_tx);
 
 	// add plain text errors if the call failed
 	if (tc != tagd::TAGD_OK)
-		tx.add_errors();
+		_tx->add_errors();
 }
 
 void callback::cmd_get(const tagd::abstract_tag& t) {
@@ -366,20 +365,20 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 
 	if (tc != tagd::TAGD_OK) {
-		output_errors(*_tx, tc);
+		output_errors(tc);
 		return;
 	}
 
 	view vw;
 	tc = _tx->VS->get(vw, get_view_id(view_name));
 	if (tc != tagd::TAGD_OK) {
-		output_errors(*_tx, tc);
+		output_errors(tc);
 		return;
 	}
 
 	tc = vw.get_function(*_tx, vw, T);
 	if (tc != tagd::TAGD_OK) {
-		output_errors(*_tx, tc);
+		output_errors(tc);
 		return;
 	}
 }
@@ -408,20 +407,20 @@ void callback::cmd_query(const tagd::interrogator& q) {
 	tagd::code tc = _tx->TS->query(R, q);
 
 	if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND) {
-		output_errors(*_tx, tc);
+		output_errors(tc);
 		return;
 	}
 
 	view vw;
 	tc = _tx->VS->get(vw, query_view_id(view_name));
 	if (tc != tagd::TAGD_OK) {
-		output_errors(*_tx, tc);
+		output_errors(tc);
 		return;
 	}
 
 	tc = vw.query_function(*_tx, vw, q, R);
 	if (tc != tagd::TAGD_OK) {
-		output_errors(*_tx, tc);
+		output_errors(tc);
 		return;
 	}
 }
@@ -432,7 +431,7 @@ void callback::cmd_error() {
 	if (_tx->req->effective_opt_view() == DEFAULT_VIEW)
 		return this->default_cmd_error();
 
-	output_errors(*_tx, _tx->code());
+	output_errors(_tx->code());
 }
 
 
@@ -446,13 +445,13 @@ void callback::empty() {
 	view vw;
 	tagd::code tc = _tx->VS->get(vw, empty_view_id(view_name));
 	if (tc != tagd::TAGD_OK) {
-		output_errors(*_tx, tc);
+		output_errors(tc);
 		return;
 	}
 
 	tc = vw.empty_function(*_tx, vw);
 	if (tc != tagd::TAGD_OK) {
-		output_errors(*_tx, tc);
+		output_errors(tc);
 		return;
 	}
 }

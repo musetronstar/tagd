@@ -894,6 +894,10 @@ class callback : public TAGL::callback {
 		transaction* tx() {
 			return _tx;
 		}
+
+		// output transaction errors, calling a the error handler if given a view name
+		// or a fallback error handler, or to plain text the other handlers fail
+		void output_errors(tagd::code);
 };
 
 // ExpandEmitter class allows ctemplate to output directly to an evbuffer
