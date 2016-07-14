@@ -529,6 +529,8 @@ errors_t errorable::errors() const {
 }
 
 tagd_code errorable::error(const tagd::error& err) {
+	if (!report_errors) return err.code();
+
 	this->init_errors();
 	_code = err.code();
 	_errors.get()->push_back(err);
@@ -536,17 +538,23 @@ tagd_code errorable::error(const tagd::error& err) {
 }
 
 tagd_code errorable::error(tagd::code c, const predicate& p) {
+	if (!report_errors) return c;
+
 	tagd::error err(c);
 	err.relation(p);
 	return this->error(err);
 }
 
 tagd_code errorable::error(tagd::code c, const std::string& s) {
+	if (!report_errors) return c;
+
 	tagd::error err(c, s);
 	return this->error(err);
 }
 
 tagd_code errorable::ferror(tagd::code c, const char *errfmt, ...) {
+	if (!report_errors) return c;
+
 	va_list args;
 	va_start (args, errfmt);
 	tagd::code tc = this->verror(c, errfmt, args);
@@ -556,6 +564,8 @@ tagd_code errorable::ferror(tagd::code c, const char *errfmt, ...) {
 }
 
 tagd_code errorable::verror(tagd::code c, const char *errfmt, va_list& args) {
+	if (!report_errors) return c;
+
 	_code = c;
 	char *msg = util::csprintf(errfmt, args);
 	return this->error(c, (msg == NULL ? "errorable::error() failed" : msg));

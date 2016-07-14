@@ -549,11 +549,13 @@ class errorable {
 		}
 
 	public:
+		bool report_errors;  // turn on/off error reporting
+
 		errorable() :
-			_init{TAGD_OK}, _code{TAGD_OK}, _errors{nullptr} {}
+			_init{TAGD_OK}, _code{TAGD_OK}, _errors{nullptr}, report_errors{true} {}
 
 		errorable(tagd_code c) :
-			_init{c}, _code{c}, _errors{nullptr} {}
+			_init{c}, _code{c}, _errors{nullptr}, report_errors{true} {}
 
 		virtual ~errorable() {}
 

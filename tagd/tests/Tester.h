@@ -1006,6 +1006,7 @@ class Tester : public CxxTest::TestSuite {
 
     void test_errorable(void) {
 		tagd::errorable R;
+		TS_ASSERT( R.report_errors )
 		TS_ASSERT( R.ok() )
 		TS_ASSERT( !R.has_error() )
 		TS_ASSERT( R.last_error().empty() )
@@ -1023,6 +1024,13 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( R.last_error().id(), "TAGD_ERR" )
 		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR )
 		TS_ASSERT_EQUALS( R.last_error().message(), std::string("bad tag: oops") )
+
+		R.report_errors = false;
+		TS_ASSERT_EQUALS( R.error(tagd::error(tagd::TAGL_ERR)) , tagd::TAGL_ERR );
+		// same error as  last reported
+		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
+		TS_ASSERT_EQUALS( R.last_error().id(), "TAGD_ERR" )
+		R.report_errors = true;
 
         tagd::error err(tagd::TS_MISUSE);
 		err.relation(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah");
