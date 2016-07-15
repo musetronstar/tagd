@@ -8,7 +8,7 @@
 
 namespace tagd {
 
-tagd_code url::init(const std::string &url) {
+tagd::code url::init(const std::string &url) {
     if (!this->empty()) this->clear();
 
     size_t sz = url.size();
@@ -281,7 +281,7 @@ url_ok:
     return this->code(TAGD_OK);
 }
 
-tagd_code url::init_hduri(const std::string &hduri) {
+tagd::code url::init_hduri(const std::string &hduri) {
     if (!this->empty()) this->clear();
 
     size_t sz = hduri.size();

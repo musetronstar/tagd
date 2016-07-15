@@ -70,7 +70,7 @@ class sqlite: public tagspace {
 		bool _trace_on;
 
 		// wrapped by init(), sets _doing_init
-        tagd_code _init(const std::string&);
+        tagd::code _init(const std::string&);
 
 		id_transform_func_t  _f_encode_referent;
 
@@ -142,33 +142,33 @@ class sqlite: public tagspace {
         virtual ~sqlite();
 
         // init db file
-        tagd_code init(const std::string&);
+        tagd::code init(const std::string&);
 
         // idempotent, will only open if not already opened
-        tagd_code open();
+        tagd::code open();
 
         // wont fail if already closed
         void close();
 
-		tagd_code push_context(const tagd::id_type& id);
-		tagd_code pop_context();
-		tagd_code clear_context();
+		tagd::code push_context(const tagd::id_type& id);
+		tagd::code pop_context();
+		tagd::code clear_context();
 
         // get into tag given id
-        tagd_code get(tagd::abstract_tag&, const tagd::id_type&, flags_t = flags_t());
-        tagd_code get(tagd::url&, const tagd::id_type&, flags_t = flags_t());
+        tagd::code get(tagd::abstract_tag&, const tagd::id_type&, flags_t = flags_t());
+        tagd::code get(tagd::url&, const tagd::id_type&, flags_t = flags_t());
 
-        tagd_code exists(const tagd::id_type& id); 
+        tagd::code exists(const tagd::id_type& id); 
 
         // put tag, will overrite existing (move + update)
-        tagd_code put(const tagd::abstract_tag&, flags_t = flags_t());
-        tagd_code put(const tagd::url&, flags_t = flags_t());
-        tagd_code put(const tagd::referent&, flags_t = flags_t());
+        tagd::code put(const tagd::abstract_tag&, flags_t = flags_t());
+        tagd::code put(const tagd::url&, flags_t = flags_t());
+        tagd::code put(const tagd::referent&, flags_t = flags_t());
 
 		// delete tag and/or relations
-        tagd_code del(const tagd::abstract_tag&, flags_t = flags_t());
-        tagd_code del(const tagd::url&, flags_t = flags_t());
-        tagd_code del(const tagd::referent&, flags_t = flags_t());
+        tagd::code del(const tagd::abstract_tag&, flags_t = flags_t());
+        tagd::code del(const tagd::url&, flags_t = flags_t());
+        tagd::code del(const tagd::referent&, flags_t = flags_t());
 
 		tagd::part_of_speech term_pos(const tagd::id_type& t) {
 			return this->term_pos(t, NULL);
@@ -176,26 +176,26 @@ class sqlite: public tagspace {
 		tagd::part_of_speech pos(const tagd::id_type&, flags_t = flags_t());
 
 		// get refers_to given refers
-		tagd_code refers_to(tagd::id_type&, const tagd::id_type&);
+		tagd::code refers_to(tagd::id_type&, const tagd::id_type&);
 		// get refers given refers_to
-		tagd_code refers(tagd::id_type&, const tagd::id_type&);
+		tagd::code refers(tagd::id_type&, const tagd::id_type&);
 
-        tagd_code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type&, flags_t = flags_t());
-        tagd_code related(tagd::tag_set &T, const tagd::predicate &p, flags_t f = flags_t()) {
+        tagd::code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type&, flags_t = flags_t());
+        tagd::code related(tagd::tag_set &T, const tagd::predicate &p, flags_t f = flags_t()) {
 			return this->related(T, p, tagd::id_type(), f);
 		}
-        tagd_code query(tagd::tag_set&, const tagd::interrogator&, flags_t = flags_t());
-        tagd_code search(tagd::tag_set&, const std::string&, flags_t = flags_t());
-        tagd_code get_children(tagd::tag_set&, const tagd::id_type&, flags_t = flags_t());
-        tagd_code query_referents(tagd::tag_set&, const tagd::interrogator&);
+        tagd::code query(tagd::tag_set&, const tagd::interrogator&, flags_t = flags_t());
+        tagd::code search(tagd::tag_set&, const std::string&, flags_t = flags_t());
+        tagd::code get_children(tagd::tag_set&, const tagd::id_type&, flags_t = flags_t());
+        tagd::code query_referents(tagd::tag_set&, const tagd::interrogator&);
 
-        tagd_code dump(std::ostream& = std::cout);
-        tagd_code dump_grid(std::ostream& = std::cout);
-        tagd_code dump_terms(std::ostream& = std::cout);
-        tagd_code dump_search(std::ostream& = std::cout);
+        tagd::code dump(std::ostream& = std::cout);
+        tagd::code dump_grid(std::ostream& = std::cout);
+        tagd::code dump_terms(std::ostream& = std::cout);
+        tagd::code dump_search(std::ostream& = std::cout);
 
-        tagd_code dump_uridb(std::ostream& = std::cout);
-        tagd_code dump_uridb_relations(std::ostream& = std::cout);
+        tagd::code dump_uridb(std::ostream& = std::cout);
+        tagd::code dump_uridb_relations(std::ostream& = std::cout);
 
 		void trace_on();
 		void trace_off();
@@ -206,21 +206,21 @@ class sqlite: public tagspace {
 		tagd::part_of_speech term_pos(const tagd::id_type&, rowid_t*);
 		tagd::part_of_speech term_id_pos(rowid_t, tagd::id_type* = nullptr);
 
-        tagd_code insert_term(const tagd::id_type&, const tagd::part_of_speech);
-        tagd_code update_term(const tagd::id_type&, const tagd::part_of_speech);
-        tagd_code delete_term(const tagd::id_type&);
+        tagd::code insert_term(const tagd::id_type&, const tagd::part_of_speech);
+        tagd::code update_term(const tagd::id_type&, const tagd::part_of_speech);
+        tagd::code delete_term(const tagd::id_type&);
 
-        tagd_code insert_fts_tag(const tagd::id_type&, flags_t = flags_t());
-        tagd_code update_fts_tag(const tagd::id_type&, flags_t = flags_t());
-        tagd_code delete_fts_tag(const tagd::id_type&);
+        tagd::code insert_fts_tag(const tagd::id_type&, flags_t = flags_t());
+        tagd::code update_fts_tag(const tagd::id_type&, flags_t = flags_t());
+        tagd::code delete_fts_tag(const tagd::id_type&);
 
         // insert - new, destination (super of new tag)
-        tagd_code insert(const tagd::abstract_tag&, const tagd::abstract_tag&);
+        tagd::code insert(const tagd::abstract_tag&, const tagd::abstract_tag&);
         // update - updated, new destination
-        tagd_code update(const tagd::abstract_tag&, const tagd::abstract_tag&);
+        tagd::code update(const tagd::abstract_tag&, const tagd::abstract_tag&);
 
-        tagd_code insert_relations(const tagd::abstract_tag&, flags_t = flags_t());
-		tagd_code insert_referent(const tagd::referent&, flags_t = flags_t());
+        tagd::code insert_relations(const tagd::abstract_tag&, flags_t = flags_t());
+		tagd::code insert_referent(const tagd::referent&, flags_t = flags_t());
 
 		void encode_referent(tagd::id_type&, const tagd::id_type&);
 		void encode_referents(tagd::predicate_set&, const tagd::predicate_set&);
@@ -230,45 +230,45 @@ class sqlite: public tagspace {
 		void decode_referents(tagd::predicate_set&, const tagd::predicate_set&);
 		void decode_referents(tagd::abstract_tag&, const tagd::abstract_tag&);
 
-		tagd_code insert_context(const tagd::id_type&);
-		tagd_code delete_context(const tagd::id_type&);
-		tagd_code delete_tag(const tagd::id_type&);
+		tagd::code insert_context(const tagd::id_type&);
+		tagd::code delete_context(const tagd::id_type&);
+		tagd::code delete_tag(const tagd::id_type&);
 
 		// deletes all relation for given subject
-		tagd_code delete_relations(const tagd::id_type&);
+		tagd::code delete_relations(const tagd::id_type&);
 
 		// deletes all relation for given subject and predicates
-		tagd_code delete_relations(const tagd::id_type&, const tagd::predicate_set&);
+		tagd::code delete_relations(const tagd::id_type&, const tagd::predicate_set&);
 
-		tagd_code delete_refers_to(const tagd::id_type&);
+		tagd::code delete_refers_to(const tagd::id_type&);
 		tagd::part_of_speech term_pos_occurence(const tagd::id_type&, bool = false);
-		tagd_code update_pos_occurence(const tagd::id_type&);
-        tagd_code get_relations(tagd::predicate_set&, const tagd::id_type&, flags_t = flags_t());
+		tagd::code update_pos_occurence(const tagd::id_type&);
+        tagd::code get_relations(tagd::predicate_set&, const tagd::id_type&, flags_t = flags_t());
 
-        tagd_code next_rank(tagd::rank&, const tagd::abstract_tag&);
-        tagd_code child_ranks(tagd::rank_set&, const tagd::id_type&);
-		tagd_code max_child_rank(tagd::rank&, const tagd::id_type&);
+        tagd::code next_rank(tagd::rank&, const tagd::abstract_tag&);
+        tagd::code child_ranks(tagd::rank_set&, const tagd::id_type&);
+		tagd::code max_child_rank(tagd::rank&, const tagd::id_type&);
 
         // sqlite3 helper funcs
-        tagd_code exec(const char*, const char*label=NULL);
-		tagd_code exec_mprintf(const char *, ...);
-        tagd_code prepare(sqlite3_stmt**, const char*, const char*label=NULL);
-        tagd_code bind_text(sqlite3_stmt**, int, const char*, const char*label=NULL);
-        tagd_code bind_int(sqlite3_stmt**, int, int, const char*label=NULL);
-        tagd_code bind_rowid(sqlite3_stmt**, int, rowid_t, const char*label=NULL);
-        tagd_code bind_null(sqlite3_stmt**, int, const char*label=NULL);
+        tagd::code exec(const char*, const char*label=NULL);
+		tagd::code exec_mprintf(const char *, ...);
+        tagd::code prepare(sqlite3_stmt**, const char*, const char*label=NULL);
+        tagd::code bind_text(sqlite3_stmt**, int, const char*, const char*label=NULL);
+        tagd::code bind_int(sqlite3_stmt**, int, int, const char*label=NULL);
+        tagd::code bind_rowid(sqlite3_stmt**, int, rowid_t, const char*label=NULL);
+        tagd::code bind_null(sqlite3_stmt**, int, const char*label=NULL);
         virtual void finalize();
 
 		// overloaded errorable::ferror
-		tagd_code ferror(tagd::code, const char *, ...);
+		tagd::code ferror(tagd::code, const char *, ...);
 
         // init db funcs
-		tagd_code create_terms_table();
-        tagd_code create_tags_table();
-        tagd_code create_relations_table();
-        tagd_code create_referents_table();
-        tagd_code create_fts_tags_table();
-		tagd_code create_context_stack_table();
+		tagd::code create_terms_table();
+        tagd::code create_tags_table();
+        tagd::code create_relations_table();
+        tagd::code create_referents_table();
+        tagd::code create_fts_tags_table();
+		tagd::code create_context_stack_table();
 
     public:
         // statics

@@ -308,9 +308,9 @@ class httagl : public TAGL::driver {
 		httagl(tagspace::tagspace *ts, TAGL::callback *cb)
 			: TAGL::driver(ts, new htscanner(this), cb) {}
 		~httagl() { delete _scanner; }
-		tagd_code tagdurl_get(const request&);
-		tagd_code tagdurl_put(const request&);
-		tagd_code tagdurl_del(const request&);
+		tagd::code tagdurl_get(const request&);
+		tagd::code tagdurl_put(const request&);
+		tagd::code tagdurl_del(const request&);
 };
 
 // holds members passed to every callback
@@ -975,10 +975,10 @@ class tagd_template : public tagd::errorable {
 
 		// load template filename
 		// static so files can be pre-loaded without instanciating
-		static tagd_code load(tagd::errorable& E, const std::string&);
+		static tagd::code load(tagd::errorable& E, const std::string&);
 
 		// expand template filename into ouput
-		tagd_code expand(const std::string&);
+		tagd::code expand(const std::string&);
 
 		// expand template filname; add errors to viewspace if they occur
 		tagd::code expand(viewspace&, const std::string&);

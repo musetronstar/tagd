@@ -219,7 +219,7 @@ void driver::parse_tok(int tok, std::string *s) {
  * finish() should be called afterwards
  * empty line will result in passing a TOK_TERMINATOR token to the parser
  */
-tagd_code driver::parseln(const std::string& line) {
+tagd::code driver::parseln(const std::string& line) {
 	this->init();
 
 	// end of input
@@ -235,7 +235,7 @@ tagd_code driver::parseln(const std::string& line) {
 	return this->code();
 }
 
-tagd_code driver::execute(const std::string& statement) {
+tagd::code driver::execute(const std::string& statement) {
 	this->init();
 
 	_scanner->scan(statement.c_str());
@@ -243,7 +243,7 @@ tagd_code driver::execute(const std::string& statement) {
 	return this->code();
 }
 
-tagd_code driver::evbuffer_execute(struct evbuffer *input) {
+tagd::code driver::evbuffer_execute(struct evbuffer *input) {
 	this->init();
 
 	size_t sz, read_sz;

@@ -208,7 +208,7 @@ tagd::code sqlite::_init(const std::string& fname) {
 			// HARD_TAG_ENTITY (i==1) already inserted
 			for (size_t i=2; i<rows_end; i++) {
 				tagd::abstract_tag t;
-				tagd_code tc = hard_tag::get(t, hard_tag_rows[i]);
+				tagd::code tc = hard_tag::get(t, hard_tag_rows[i]);
 
 				if (tc != tagd::TAGD_OK) {
 					this->code(tc);
@@ -620,7 +620,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t
 	if (_trace_on)
 		std::cerr << "sqlite::get: " << term << std::endl;
 
-	tagd_code tc = hard_tag::get(t, term);
+	tagd::code tc = hard_tag::get(t, term);
 	if (tc != tagd::TS_NOT_FOUND) {
 		if (_trace_on)
 			std::cerr << "got hard_tag: " << t << " -- " << t.rank().dotted_str() << std::endl;
@@ -862,7 +862,7 @@ tagd::part_of_speech sqlite::pos(const tagd::id_type& id, flags_t flags) {
     }
 }
 
-tagd_code sqlite::refers(tagd::id_type &refers, const tagd::id_type& refers_to) {
+tagd::code sqlite::refers(tagd::id_type &refers, const tagd::id_type& refers_to) {
 	assert(!refers_to.empty());
 
     this->prepare(&_refers_stmt,
@@ -905,7 +905,7 @@ tagd_code sqlite::refers(tagd::id_type &refers, const tagd::id_type& refers_to) 
     }
 }
 
-tagd_code sqlite::refers_to(tagd::id_type &refers_to, const tagd::id_type& refers) {
+tagd::code sqlite::refers_to(tagd::id_type &refers_to, const tagd::id_type& refers) {
 	assert(!refers.empty());
 
     this->prepare(&_refers_to_stmt,
@@ -1529,7 +1529,7 @@ tagd::part_of_speech sqlite::term_pos_occurence(const tagd::id_type& id, bool se
 	return occurence_pos;
 }
 
-tagd_code sqlite::update_pos_occurence(const tagd::id_type& id) {
+tagd::code sqlite::update_pos_occurence(const tagd::id_type& id) {
 	tagd::part_of_speech occurence_pos = this->term_pos_occurence(id);
 	OK_OR_RET_ERR();
 
@@ -2336,7 +2336,7 @@ void sqlite::decode_referents(tagd::abstract_tag&to, const tagd::abstract_tag&fr
 		this->decode_referents(to.relations, from.relations);
 }
 
-tagd_code sqlite::push_context(const tagd::id_type& id) {
+tagd::code sqlite::push_context(const tagd::id_type& id) {
 	this->insert_context(id);
 	if (_code == tagd::TAGD_OK)
 		return tagspace::push_context(id);
@@ -2344,7 +2344,7 @@ tagd_code sqlite::push_context(const tagd::id_type& id) {
 	return this->ferror(tagd::TS_INTERNAL_ERR, "push_context failed: %s", id.c_str());
 }
 
-tagd_code sqlite::pop_context() {
+tagd::code sqlite::pop_context() {
 	if (_context.empty()) return tagd::TAGD_OK;
 
 	if (this->delete_context(_context[_context.size()-1]) == tagd::TAGD_OK)
@@ -2353,7 +2353,7 @@ tagd_code sqlite::pop_context() {
 	return this->ferror(tagd::TS_INTERNAL_ERR, "pop_context failed: %s", _context[_context.size()-1].c_str());
 }
 
-tagd_code sqlite::clear_context() {
+tagd::code sqlite::clear_context() {
 	if (_context.empty()) return tagd::TAGD_OK;
 
     this->prepare(&_truncate_context_stmt,
@@ -3447,7 +3447,7 @@ tagd::code sqlite::bind_null(sqlite3_stmt**stmt, int i, const char*label) {
     return this->code(tagd::TAGD_OK);
 }
 
-tagd_code sqlite::ferror(tagd::code c, const char *errfmt, ...) {
+tagd::code sqlite::ferror(tagd::code c, const char *errfmt, ...) {
 	va_list args;
 	va_start (args, errfmt);
 	va_end (args);

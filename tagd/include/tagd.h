@@ -240,10 +240,10 @@ class abstract_tag {
         id_type _super_object;  // superordinate, parent, or hyponym in tree
         part_of_speech _pos;
         tagd::rank _rank;
-		tagd_code _code;
+		tagd::code _code;
 
         // set and return
-        tagd_code code(tagd_code c) { _code = c; return _code; }
+        tagd::code code(tagd::code c) { _code = c; return _code; }
     public:
         // empty tag
         abstract_tag() :
@@ -306,27 +306,27 @@ class abstract_tag {
         void rank(const tagd::rank& r) { _rank = r; }
 
         // returns code because rank::init() will fail on invalid bytes
-        tagd_code rank(const char *bytes) { return _rank.init(bytes); }
+        tagd::code rank(const char *bytes) { return _rank.init(bytes); }
 
-        tagd_code code() const { return _code; }
+        tagd::code code() const { return _code; }
         bool ok() const { return _code == TAGD_OK; }
 
-        tagd_code relation(const predicate&);
+        tagd::code relation(const predicate&);
                             // relator, object
-        tagd_code relation(const id_type&, const id_type&);
+        tagd::code relation(const id_type&, const id_type&);
                             // relator, object, modifier
-        tagd_code relation(const id_type&, const id_type&, const id_type&);
+        tagd::code relation(const id_type&, const id_type&, const id_type&);
                             // relator, object, modifier, opr8r
-        tagd_code relation(const id_type&, const id_type&, const id_type&, operator_t);
+        tagd::code relation(const id_type&, const id_type&, const id_type&, operator_t);
                             // relator, object, modifier, opr8r, modifier_type
-        tagd_code relation(const id_type&, const id_type&, const id_type&, operator_t, data_t);
+        tagd::code relation(const id_type&, const id_type&, const id_type&, operator_t, data_t);
 
-        tagd_code not_relation(const predicate&);
+        tagd::code not_relation(const predicate&);
                             // relator, object
-        tagd_code not_relation(const id_type&, const id_type&);
+        tagd::code not_relation(const id_type&, const id_type&);
   
 		// modifier not needed for negations (erasing)
-        // tagd_code not_relation(const id_type&, const id_type&, const id_type&);
+        // tagd::code not_relation(const id_type&, const id_type&, const id_type&);
 
         void predicates(const predicate_set&);
 
@@ -514,13 +514,13 @@ class error : public abstract_tag {
         error() : abstract_tag(POS_ERROR)
 		{}
 
-        error(const tagd_code c) :
+        error(const tagd::code c) :
 			abstract_tag(tagd_code_str(c), HARD_TAG_TYPE_OF, HARD_TAG_ERROR, POS_ERROR)
 		{
 			_code = c;
 		}
 
-        error(const tagd_code c, const std::string& msg) :
+        error(const tagd::code c, const std::string& msg) :
 			abstract_tag(tagd_code_str(c), HARD_TAG_TYPE_OF, HARD_TAG_ERROR, POS_ERROR)
 		{
 			_code = c;
@@ -534,8 +534,8 @@ typedef std::vector<tagd::error> errors_t;
 
 class errorable {
 	protected:
-		tagd_code _init;
-		tagd_code _code;
+		tagd::code _init;
+		tagd::code _code;
 
 		// errors_t pointer uses lazy initialization
 		std::shared_ptr<errors_t> _errors;
@@ -554,7 +554,7 @@ class errorable {
 		errorable() :
 			_init{TAGD_OK}, _code{TAGD_OK}, _errors{nullptr}, report_errors{true} {}
 
-		errorable(tagd_code c) :
+		errorable(tagd::code c) :
 			_init{c}, _code{c}, _errors{nullptr}, report_errors{true} {}
 
 		virtual ~errorable() {}
@@ -562,22 +562,22 @@ class errorable {
 		bool ok() const { return _code == TAGD_OK; }
 		size_t size() const { return (_errors == nullptr ? 0 : _errors.get()->size()); }
 		bool has_errors() const { return (_code >= TAGD_ERR || this->size() > 0); }
-		tagd_code code() const { return _code; }
+		tagd::code code() const { return _code; }
 
 		tagd::error last_error() const;
-		tagd_code last_error_relation(predicate);
+		tagd::code last_error_relation(predicate);
 
 		// set and return
-        tagd_code code(tagd_code c) { return _code = c; }
+        tagd::code code(tagd::code c) { return _code = c; }
 
 		// return the most severe error code in the set
 		// compared to tagd::code passed in
-        tagd_code most_severe(tagd_code);
-        tagd_code most_severe() { return most_severe(_init); }
+        tagd::code most_severe(tagd::code);
+        tagd::code most_severe() { return most_severe(_init); }
 
-		tagd_code error(const tagd::error&);
-		tagd_code error(tagd::code, const predicate&);
-		tagd_code error(tagd::code, const std::string&);
+		tagd::code error(const tagd::error&);
+		tagd::code error(tagd::code, const predicate&);
+		tagd::code error(tagd::code, const std::string&);
 
 		// copy rhs._errors into this->_errors return *this
 		errorable& copy_errors(const errorable &);
@@ -587,8 +587,8 @@ class errorable {
 		errorable& share_errors(errorable &);
 
 		// set and return code, set err msg to printf style formatted list
-		tagd_code ferror(tagd::code, const char *, ...);
-		tagd_code verror(tagd::code, const char *, va_list&);
+		tagd::code ferror(tagd::code, const char *, ...);
+		tagd::code verror(tagd::code, const char *, va_list&);
 
 		void clear_errors();
 		void print_errors(std::ostream& os = std::cerr) const;

@@ -151,7 +151,7 @@ void htscanner::scan_tagdurl_path(int cmd, const request& R) {
 		f_parse_query_terms();
 }
 
-tagd_code httagl::tagdurl_get(const request& R) {
+tagd::code httagl::tagdurl_get(const request& R) {
 	this->init();
 
 	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_GET, R);
@@ -159,7 +159,7 @@ tagd_code httagl::tagdurl_get(const request& R) {
 	return this->code();
 }
 
-tagd_code httagl::tagdurl_put(const request& R) {
+tagd::code httagl::tagdurl_put(const request& R) {
 	this->init();
 
 	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_PUT, R);
@@ -167,7 +167,7 @@ tagd_code httagl::tagdurl_put(const request& R) {
 	return this->code();
 }
 
-tagd_code httagl::tagdurl_del(const request& R) {
+tagd::code httagl::tagdurl_del(const request& R) {
 	this->init();
 
 	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_DEL, R);

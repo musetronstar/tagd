@@ -137,8 +137,8 @@ class url : public abstract_tag {
 		const id_type& id() const { return _id; }
 		// id() setter is private
 
-        tagd_code init(const std::string &url);
-        tagd_code init_hduri(const std::string &hduri);
+        tagd::code init(const std::string &url);
+        tagd::code init_hduri(const std::string &hduri);
 
         std::string scheme() const { return url_substr(0, _scheme_len); }
         std::string user() const { return url_substr(_user_offset, _user_len); }

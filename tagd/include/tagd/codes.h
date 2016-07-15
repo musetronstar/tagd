@@ -57,5 +57,3 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
 
 // string for each tagd::code
 const char* tagd_code_str(tagd::code);
-
-#define tagd_code  tagd::code
