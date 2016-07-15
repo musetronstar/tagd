@@ -108,25 +108,6 @@ std::ostream& operator<<(std::ostream&, const predicate&);
 typedef std::set<predicate> predicate_set;
 typedef std::pair<predicate_set::iterator,bool> predicate_pair;
 
-// relator, object, modifier, opr8r, modifier_type
-inline predicate make_predicate(const id_type& r, const id_type& o, const id_type& q, operator_t op, data_t d) {
-    return predicate( r, o, q, op, d );
-}
-
-// relator, object, modifier, opr8r
-inline predicate make_predicate(const id_type& r, const id_type& o, const id_type& q, operator_t op) {
-    return predicate( r, o, q, op );
-}
-// relator, object, modifier
-inline predicate make_predicate(const id_type& r, const id_type& o, const id_type& q) {
-    return predicate( r, o, q );
-}
-
-// relator, object
-inline predicate make_predicate(const id_type& r, const id_type& o) {
-    return predicate( r, o );
-}
-
 // make predicate and insert relator, object, modifier
 void insert_predicate(predicate_set&, const id_type&, const id_type&, const id_type&);
 
@@ -352,7 +333,7 @@ class abstract_tag {
 
         // relator, object, modifier
         bool related(const id_type& r, const id_type& o, const id_type& m) const {
-            return this->related(make_predicate(r, o, m));
+            return this->related(predicate(r, o, m));
 		}
 
         // deep equality - every member is tested for equality

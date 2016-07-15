@@ -14,7 +14,7 @@ void insert_predicate(predicate_set& P,
     if (object.empty())
         return;
 
-    P.insert(make_predicate(relator, object, modifier));
+    P.insert(predicate(relator, object, modifier));
 }
 
 void print_tags(const tag_set& T, std::ostream& os) {
@@ -202,7 +202,7 @@ tagd::code abstract_tag::relation(const id_type &relator, const id_type &object)
     if (relator.empty() && object.empty())
         return TAG_ILLEGAL;
 
-    predicate_pair pr = relations.insert(make_predicate(relator, object));
+    predicate_pair pr = relations.insert(predicate(relator, object));
     return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
@@ -211,7 +211,7 @@ tagd::code abstract_tag::relation(
     if (relator.empty() && object.empty())
         return TAG_ILLEGAL;
 
-    predicate_pair pr = relations.insert(make_predicate(relator, object, modifier));
+    predicate_pair pr = relations.insert(predicate(relator, object, modifier));
     return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
@@ -220,7 +220,7 @@ tagd::code abstract_tag::relation(
     if (relator.empty() && object.empty())
         return TAG_ILLEGAL;
 
-    predicate_pair pr = relations.insert(make_predicate(relator, object, modifier, op));
+    predicate_pair pr = relations.insert(predicate(relator, object, modifier, op));
     return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
@@ -229,7 +229,7 @@ tagd::code abstract_tag::relation(
     if (relator.empty() && object.empty())
         return TAG_ILLEGAL;
 
-    predicate_pair pr = relations.insert(make_predicate(relator, object, modifier, op, d));
+    predicate_pair pr = relations.insert(predicate(relator, object, modifier, op, d));
     return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
@@ -245,7 +245,7 @@ tagd::code abstract_tag::not_relation(const id_type &relator, const id_type &obj
     if (relator.empty() && object.empty())
         return TAG_ILLEGAL;
 
-	size_t erased = relations.erase(make_predicate(relator, object));
+	size_t erased = relations.erase(predicate(relator, object));
     return (erased ? TAGD_OK : TAG_UNKNOWN);
 }
 

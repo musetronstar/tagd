@@ -23,23 +23,23 @@
 	switch(yymajor) { // token that caused error
 		case TOK_UNKNOWN:
 			if (TOKEN != NULL)
-				tagl->error(tagd::TS_NOT_FOUND, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *TOKEN));
+				tagl->error(tagd::TS_NOT_FOUND, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *TOKEN));
 			else
-				tagl->error(tagd::TAGL_ERR, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
+				tagl->error(tagd::TAGL_ERR, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
 			break;
 		default:
 			if (TOKEN != NULL)
 				tagl->ferror(tagd::TAGL_ERR, "parse error near: %s", TOKEN->c_str());
 			else
-				tagl->error(tagd::TAGL_ERR, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
+				tagl->error(tagd::TAGL_ERR, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
 	}
 	if (!tagl->filename().empty()) {
 		tagl->last_error_relation(
-			tagd::make_predicate(HARD_TAG_CAUSED_BY, "_file", tagl->filename()) );
+			tagd::predicate(HARD_TAG_CAUSED_BY, "_file", tagl->filename()) );
 	}
 	if (tagl->line_number()) {
 		tagl->last_error_relation(
-			tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
+			tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
 	}
 
 	if (tagl->is_trace_on()) {
@@ -147,7 +147,7 @@ get_statement ::= CMD_GET unknown .
 get_statement ::= CMD_GET UNKNOWN(U) .
 {
 	tagl->error(tagd::TS_NOT_FOUND,
-		tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *U));
+		tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *U));
 }
 */
 get_statement ::= CMD_GET REFERS(R) .
@@ -166,10 +166,10 @@ del_statement ::= CMD_DEL subject .
 get_statement ::= CMD_DEL UNKNOWN(U) .
 {
 	tagl->error(tagd::TS_NOT_FOUND,
-		tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *U));
+		tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *U));
 	if (tagl->line_number()) {
 		tagl->last_error_relation(
-			tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
+			tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
 	}
 }
 del_statement ::= CMD_DEL del_subject_super_err .
@@ -178,7 +178,7 @@ del_statement ::= CMD_DEL del_subject_super_err .
 		"super must not be specified when deleting tag: %s", tagl->_tag->id().c_str());
 	if (tagl->line_number()) {
 		tagl->last_error_relation(
-			tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
+			tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
 	}
 }
 del_statement ::= CMD_DEL subject relations .

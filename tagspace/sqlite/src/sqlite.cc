@@ -635,7 +635,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t
 			return this->code(tagd::TS_NOT_FOUND);
 		} else {
 			return this->error(tagd::TS_NOT_FOUND,
-				tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, term) );
+				tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, term) );
 		}
 	}
 
@@ -698,7 +698,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, flags_t
 				return this->code(tagd::TS_NOT_FOUND);
 			} else {
 				return this->error(tagd::TS_NOT_FOUND,
-					tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, term) );
+					tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, term) );
 			}
 		}
 	}
@@ -745,7 +745,7 @@ tagd::code sqlite::get_relations(tagd::predicate_set& P, const tagd::id_type& id
 
     int s_rc;
     while ((s_rc = sqlite3_step(_get_relations_stmt)) == SQLITE_ROW) {
-		auto p = tagd::make_predicate(
+		auto p = tagd::predicate(
 			f_transform( (const char*) sqlite3_column_text(_get_relations_stmt, F_RELATOR) ),
 			f_transform( (const char*) sqlite3_column_text(_get_relations_stmt, F_OBJECT) )
 		);
@@ -1040,7 +1040,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, flags_t flags) {
         if (existing_rc == tagd::TS_NOT_FOUND) {
             // can't do anything without knowing what a tag is
 			return this->error(tagd::TS_SUPER_UNK,
-				tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, t.id()) );
+				tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, t.id()) );
         } else {
             if (t.relations.empty())  // duplicate tag and no relations to insert 
                 return this->ferror(tagd::TS_MISUSE, "cannot put a tag without relations: %s", t.id().c_str());
@@ -1517,7 +1517,7 @@ tagd::part_of_speech sqlite::term_pos_occurence(const tagd::id_type& id, bool se
 
 			if (!cause.empty()) {
 				this->error(tagd::TS_FOREIGN_KEY,
-					tagd::make_predicate(HARD_TAG_CAUSED_BY, cause, id) );
+					tagd::predicate(HARD_TAG_CAUSED_BY, cause, id) );
 			}
 		}
 	}
@@ -2538,7 +2538,7 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 		t->pos(pos);
 		t->rank(rank);
 
-		auto pred = tagd::make_predicate(
+		auto pred = tagd::predicate(
 			f_transform( (const char*) sqlite3_column_text(_related_stmt, F_RELATOR) ),
 			f_transform( (const char*) sqlite3_column_text(_related_stmt, F_OBJECT) )
 		);

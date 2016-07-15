@@ -1093,22 +1093,22 @@ class Tester : public CxxTest::TestSuite {
 		tagd::tag t;
 
         tagd::tag_set S;
-        ts_rc = TS.related(S, tagd::make_predicate("has", "legs")); 
+        ts_rc = TS.related(S, tagd::predicate("has", "legs")); 
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 3 );
 
         S.empty();
-        ts_rc = TS.related(S, tagd::make_predicate("has", "legs", "3", tagd::OP_GT)); 
+        ts_rc = TS.related(S, tagd::predicate("has", "legs", "3", tagd::OP_GT)); 
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 3 );
 
         S.empty();
-        ts_rc = TS.related(S, tagd::make_predicate("has", "legs", "30", tagd::OP_GT, tagd::TYPE_INTEGER)); 
+        ts_rc = TS.related(S, tagd::predicate("has", "legs", "30", tagd::OP_GT, tagd::TYPE_INTEGER)); 
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_NOT_FOUND" );
         TS_ASSERT_EQUALS( S.size(), 0 );
 
         S.empty();
-        ts_rc = TS.related(S, tagd::make_predicate("_relator", "body_part")); 
+        ts_rc = TS.related(S, tagd::predicate("_relator", "body_part")); 
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 8 );
         // for(tagd::tag_set::iterator it = S.begin(); it != S.end(); ++it) {
@@ -1117,12 +1117,12 @@ class Tester : public CxxTest::TestSuite {
 
         // TODO test related with existing and not existing supers
 
-        ts_rc = TS.related(S, tagd::make_predicate("snarfs", "cockamamy")); 
+        ts_rc = TS.related(S, tagd::predicate("snarfs", "cockamamy")); 
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_NOT_FOUND" );
         TS_ASSERT_EQUALS( S.size(), 0 );
 
         S.clear();
-        ts_rc = TS.related(S, tagd::make_predicate("can", "")); 
+        ts_rc = TS.related(S, tagd::predicate("can", "")); 
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 5 )
     }
@@ -1536,7 +1536,7 @@ class Tester : public CxxTest::TestSuite {
 
         // _what is 'about' something
         tagd::interrogator what_about(HARD_TAG_INTERROGATOR);
-        what_about.relation(tagd::make_predicate("about", ""));
+        what_about.relation(tagd::predicate("about", ""));
 
         S.clear();
         ts_rc = TS.query(S, what_about);

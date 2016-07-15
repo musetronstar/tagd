@@ -831,8 +831,8 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( dog.related("legs") )
 		TS_ASSERT( dog.related("has", "legs", "4") )
 		TS_ASSERT( !dog.related("has", "legs", "5") )
-		TS_ASSERT( dog.related(tagd::make_predicate("has", "legs", "4")) )
-		TS_ASSERT( !dog.related(tagd::make_predicate("has", "legs", "5")) )
+		TS_ASSERT( dog.related(tagd::predicate("has", "legs", "4")) )
+		TS_ASSERT( !dog.related(tagd::predicate("has", "legs", "5")) )
 
         tagd::predicate_set how;
 		TS_ASSERT_EQUALS( dog.related("legs", how), 1 )
@@ -849,7 +849,7 @@ class Tester : public CxxTest::TestSuite {
 
     void test_insert_relation(void) {
         tagd::tag fish("fish", "animal");
-        fish.relation(tagd::make_predicate("has", "fins"));
+        fish.relation(tagd::predicate("has", "fins"));
 		TS_ASSERT( fish.related("has", "fins") )
     }
 
@@ -857,8 +857,8 @@ class Tester : public CxxTest::TestSuite {
         tagd::tag fish("fish");
         tagd::predicate_set P;
         tagd::predicate_pair pr;
-        pr = P.insert(tagd::make_predicate("has", "fins"));
-        pr = P.insert(tagd::make_predicate("breaths", "water"));
+        pr = P.insert(tagd::predicate("has", "fins"));
+        pr = P.insert(tagd::predicate("breaths", "water"));
         fish.predicates(P);
 
 		TS_ASSERT( fish.related("has", "fins") )
@@ -869,9 +869,9 @@ class Tester : public CxxTest::TestSuite {
         tagd::predicate_set P;
         tagd::predicate_pair pr;
         tagd::interrogator q(HARD_TAG_INTERROGATOR);
-		tagd::code tc = q.relation(tagd::make_predicate("has",""));
+		tagd::code tc = q.relation(tagd::predicate("has",""));
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-        tc = q.relation(tagd::make_predicate("breaths",""));
+        tc = q.relation(tagd::predicate("breaths",""));
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS( q.relations.size() , 2 );
 
@@ -882,9 +882,9 @@ class Tester : public CxxTest::TestSuite {
 	void test_insert_predicate_set_relator(void) {
         tagd::predicate_set P;
         tagd::predicate_pair pr;
-        pr = P.insert(tagd::make_predicate("has",""));
+        pr = P.insert(tagd::predicate("has",""));
 		TS_ASSERT( pr.second )
-        pr = P.insert(tagd::make_predicate("breaths",""));
+        pr = P.insert(tagd::predicate("breaths",""));
 		TS_ASSERT( pr.second )
 		TS_ASSERT_EQUALS( P.size() , 2 )
 
@@ -898,7 +898,7 @@ class Tester : public CxxTest::TestSuite {
 
     void test_tag_copy(void) {
         tagd::tag fish("fish", "is_a", "animal");
-        fish.relation(tagd::make_predicate("has", "fins"));
+        fish.relation(tagd::predicate("has", "fins"));
 
         tagd::abstract_tag a(fish);
 		TS_ASSERT_EQUALS( a.id(), "fish" );
@@ -1044,7 +1044,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah") )
 
 		R.error( tagd::TAGD_ERR,
-			tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") );
+			tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") );
 		TS_ASSERT_EQUALS( R.size() , 3 );
 		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
 		TS_ASSERT( !R.ok() )
@@ -1053,7 +1053,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR )
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") )
 
-		R.last_error_relation(tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23"));
+		R.last_error_relation(tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23"));
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23") )
 
 		TS_ASSERT_EQUALS( R.most_severe() , tagd::TS_MISUSE )

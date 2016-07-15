@@ -217,14 +217,14 @@ next:
 	[\000]               { return; }
 
 	[^]                  { // ANY
-							_driver->error(tagd::TAGL_ERR, tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, std::string(_beg,(_cur-_beg))));
+							_driver->error(tagd::TAGL_ERR, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, std::string(_beg,(_cur-_beg))));
 							if (!_driver->filename().empty()) {
 								_driver->last_error_relation(
-									tagd::make_predicate(HARD_TAG_CAUSED_BY, "_file", _driver->filename()) );
+									tagd::predicate(HARD_TAG_CAUSED_BY, "_file", _driver->filename()) );
 							}
 							if (_line_number) {
 								_driver->last_error_relation(
-									tagd::make_predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(_line_number)) );
+									tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(_line_number)) );
 							}
 	                        return;
 	                     }
