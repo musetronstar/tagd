@@ -333,7 +333,7 @@ class transaction : public tagd::errorable {
 
 		// adds errors to response ouput buffer in plain text
 		void add_errors() const {
-			if (this->has_error())
+			if (this->has_errors())
 				res->add_error_str(*this);
 		}
 };

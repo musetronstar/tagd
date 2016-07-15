@@ -73,7 +73,7 @@ driver::~driver() {
 void driver::do_callback() {
 	if (_callback == nullptr)  return;
 
-	if (this->has_error()) {
+	if (this->has_errors()) {
 		_callback->cmd_error();
 		return;
 	}
@@ -127,7 +127,7 @@ void driver::init() {
 
 void driver::finish() {
 	if (_parser != nullptr) {
-		if (_token != TOK_TERMINATOR && !this->has_error())
+		if (_token != TOK_TERMINATOR && !this->has_errors())
 			Parse(_parser, TOK_TERMINATOR, NULL, this);
 		if (_token != -1 || _token != 0)
 			Parse(_parser, 0, NULL, this);

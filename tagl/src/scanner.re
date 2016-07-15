@@ -125,13 +125,13 @@ void scanner::scan(const char *cur, size_t sz) {
 #define YYLIMIT	_lim
 #define YYGETSTATE()    _state
 #define YYSETSTATE(x)   { _state = (x);  }
-#define	YYFILL(n)	{ if(_do_fill && _evbuf && !_eof){ this->fill(); if(_driver->has_error()) return; } }
+#define	YYFILL(n)	{ if(_do_fill && _evbuf && !_eof){ this->fill(); if(_driver->has_errors()) return; } }
 #define YYMARKER        _mark
 #define YYDEBUG(s,c) { if(driver::_trace_on) std::cerr << "scanner debug: s = " << s << ", c = " << c << ", _cur = " << *_cur <<", _beg = " << *_beg << std::endl; }
 
 next:
 
-	if (_driver->has_error()) return;
+	if (_driver->has_errors()) return;
 
 /*!re2c
 	re2c:define:YYCTYPE  = "char";

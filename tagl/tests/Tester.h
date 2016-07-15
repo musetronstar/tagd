@@ -780,7 +780,7 @@ class Tester : public CxxTest::TestSuite {
 			"--_can bark, bite"
 		);
 		//TAGL::driver::trace_off();
-		if (d.has_error())
+		if (d.has_errors())
 			d.print_errors();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( d.cmd() , TOK_CMD_PUT )
@@ -927,8 +927,8 @@ class Tester : public CxxTest::TestSuite {
 		tagl.parseln(">> my_title _is_a title");
 		tagl.parseln("_has message = \"my title!\";");
 		tagl.finish();
-		TS_ASSERT( !tagl.has_error() )
-		if (tagl.has_error()) tagl.print_errors();
+		TS_ASSERT( !tagl.has_errors() )
+		if (tagl.has_errors()) tagl.print_errors();
 		TS_ASSERT_EQUALS( cb.last_tag->id(), "my_title" )
 		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "title" )
 		TS_ASSERT( cb.last_tag->related("_has", "message", "my title!") )
@@ -936,8 +936,8 @@ class Tester : public CxxTest::TestSuite {
 		tagl.parseln(">> my_quoted_title _is_a title");
 		tagl.parseln("_has message = \"my \\\"quoted\\\" title!\";");
 		tagl.finish();
-		TS_ASSERT( !tagl.has_error() )
-		if (tagl.has_error()) tagl.print_errors();
+		TS_ASSERT( !tagl.has_errors() )
+		if (tagl.has_errors()) tagl.print_errors();
 		TS_ASSERT_EQUALS( cb.last_tag->id(), "my_quoted_title" )
 		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "title" )
 		TS_ASSERT( cb.last_tag->related("_has", "message", "my \\\"quoted\\\" title!") )

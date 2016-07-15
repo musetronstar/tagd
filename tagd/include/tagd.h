@@ -561,7 +561,7 @@ class errorable {
 
 		bool ok() const { return _code == TAGD_OK; }
 		size_t size() const { return (_errors == nullptr ? 0 : _errors.get()->size()); }
-		bool has_error() const { return (_code >= TAGD_ERR || this->size() > 0); }
+		bool has_errors() const { return (_code >= TAGD_ERR || this->size() > 0); }
 		tagd_code code() const { return _code; }
 
 		tagd::error last_error() const;

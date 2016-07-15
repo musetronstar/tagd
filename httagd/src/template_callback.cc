@@ -333,7 +333,7 @@ tagd::code fill_query(transaction& tx, const view& vw, tagd_template& tpl, const
 		}
 	}
 
-	if (tx.TS->has_error())
+	if (tx.TS->has_errors())
 		return tx.TS->code();
 
 	return tagd::TAGD_OK;

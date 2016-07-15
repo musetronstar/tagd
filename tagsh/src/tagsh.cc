@@ -279,10 +279,10 @@ int tagsh::interpret(const std::string &line) {
 		// force a reduce action when a terminator
 		// hanging on the end of the stack
 		// i.e. cmd_statement TERMINATOR
-		if (!_driver.has_error() && _driver.token() == TOK_TERMINATOR)
+		if (!_driver.has_errors() && _driver.token() == TOK_TERMINATOR)
 			_driver.parse_tok(TOK_TERMINATOR, NULL);
 
-		if (_driver.has_error()) {
+		if (_driver.has_errors()) {
 			_driver.finish();
 			_driver.clear_errors();
 			return _driver.code();
@@ -424,7 +424,7 @@ void cmd_args::parse(int argc, char **argv) {
 			} else {
 				h.handler( nullptr );
 			}
-			if (this->has_error()) return;
+			if (this->has_errors()) return;
 			continue;
 		} else {
 			this->ferror(tagd::TAGD_OK, "invalid option: %s", argv[i]);

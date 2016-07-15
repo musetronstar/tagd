@@ -203,7 +203,7 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 void callback::default_cmd_put(const tagd::abstract_tag& t) {
 	_tx->TS->put(t, _driver->flags());
 	std::stringstream ss;
-	if (_tx->TS->has_error()) {
+	if (_tx->TS->has_errors()) {
 		_tx->TS->print_errors(ss);
 		_tx->res->add(ss.str());
 	}
@@ -212,7 +212,7 @@ void callback::default_cmd_put(const tagd::abstract_tag& t) {
 void callback::default_cmd_del(const tagd::abstract_tag& t) {
 	_tx->TS->del(t, _driver->flags());
 	std::stringstream ss;
-	if (_tx->TS->has_error()) {
+	if (_tx->TS->has_errors()) {
 		_tx->TS->print_errors(ss);
 		_tx->res->add(ss.str());
 	}
@@ -635,7 +635,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	if (!req.query_opt_context().empty())
 		TS->pop_context();
 
-	if (tx.has_error() && trace_on)
+	if (tx.has_errors() && trace_on)
 		tx.print_errors();
 
 	// TS will accumulate errors between requests

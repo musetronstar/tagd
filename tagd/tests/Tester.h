@@ -1008,19 +1008,19 @@ class Tester : public CxxTest::TestSuite {
 		tagd::errorable R;
 		TS_ASSERT( R.report_errors )
 		TS_ASSERT( R.ok() )
-		TS_ASSERT( !R.has_error() )
+		TS_ASSERT( !R.has_errors() )
 		TS_ASSERT( R.last_error().empty() )
 
 		TS_ASSERT_EQUALS( R.code(tagd::TS_NOT_FOUND) , tagd::TS_NOT_FOUND )
 		TS_ASSERT_EQUALS( R.code() , tagd::TS_NOT_FOUND )
 		TS_ASSERT( !R.ok() )
-		TS_ASSERT( R.has_error() )  // TS_NOT_FOUND considered an error
+		TS_ASSERT( R.has_errors() )  // TS_NOT_FOUND considered an error
 
 		TS_ASSERT_EQUALS( R.ferror(tagd::TAGD_ERR, "bad tag: %s", "oops") , tagd::TAGD_ERR );
 		TS_ASSERT_EQUALS( R.size() , 1 );
 		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
 		TS_ASSERT( !R.ok() )
-		TS_ASSERT( R.has_error() )
+		TS_ASSERT( R.has_errors() )
 		TS_ASSERT_EQUALS( R.last_error().id(), "TAGD_ERR" )
 		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR )
 		TS_ASSERT_EQUALS( R.last_error().message(), std::string("bad tag: oops") )
@@ -1038,7 +1038,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( R.size() , 2 );
 		TS_ASSERT_EQUALS( R.code() , tagd::TS_MISUSE )
 		TS_ASSERT( !R.ok() )
-		TS_ASSERT( R.has_error() )
+		TS_ASSERT( R.has_errors() )
 		TS_ASSERT_EQUALS( R.last_error().id(), "TS_MISUSE" )
 		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR )
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah") )
@@ -1048,7 +1048,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( R.size() , 3 );
 		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
 		TS_ASSERT( !R.ok() )
-		TS_ASSERT( R.has_error() )
+		TS_ASSERT( R.has_errors() )
 		TS_ASSERT_EQUALS( R.last_error().id() , "TAGD_ERR" )
 		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR )
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") )

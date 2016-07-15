@@ -5,7 +5,7 @@ int main(int argc, char ** argv) {
 	httagd::httagd_args  args;
 	args.parse(argc, argv);
 
-	if (args.has_error()) {
+	if (args.has_errors()) {
 		args.print_errors();
 		return args.code();
 	}
@@ -18,7 +18,7 @@ int main(int argc, char ** argv) {
 
 	httagd::viewspace VS(args.tpl_dir);
 	init_viewspace(VS);
-	if (VS.has_error()) {
+	if (VS.has_errors()) {
 		VS.print_errors();
 		return VS.code();
 	}
@@ -29,7 +29,7 @@ int main(int argc, char ** argv) {
 	// NOTE: at this point, main_cb will have replaced
 	// the errors pointer of VS and TS
 
-	if (svr.has_error())
+	if (svr.has_errors())
 		svr.print_errors();
 
 	return svr.code();

@@ -13,7 +13,7 @@
 
 %parse_accept
 {
-	if (!tagl->has_error()) {
+	if (!tagl->has_errors()) {
 		tagl->code(tagd::TAGD_OK);
 	}
 }
@@ -64,35 +64,35 @@ statement_list ::= statement .
 statement ::= set_statement TERMINATOR .
 {
 	tagl->_cmd = TOK_CMD_SET;
-	if (!tagl->has_error()) {
+	if (!tagl->has_errors()) {
 		tagl->code(tagd::TAGD_OK);
 	}
 }
 statement ::= get_statement TERMINATOR .
 {
 	tagl->_cmd = TOK_CMD_GET;
-	if (!tagl->has_error()) 
+	if (!tagl->has_errors()) 
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
 statement ::= put_statement TERMINATOR .
 {
 	tagl->_cmd = TOK_CMD_PUT;
-	if (!tagl->has_error()) 
+	if (!tagl->has_errors()) 
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
 statement ::= del_statement TERMINATOR .
 {
 	tagl->_cmd = TOK_CMD_DEL;
-	if (!tagl->has_error()) 
+	if (!tagl->has_errors()) 
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
 statement ::= query_statement TERMINATOR .
 {
 	tagl->_cmd = TOK_CMD_QUERY;
-	if (!tagl->has_error()) 
+	if (!tagl->has_errors()) 
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }

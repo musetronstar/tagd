@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
 	cmd_args args;
 	args.parse(argc, argv);
 
-	if ( args.has_error() ) {
+	if ( args.has_errors() ) {
 		args.print_errors();
 		return args.code();
 	}
