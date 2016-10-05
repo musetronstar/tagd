@@ -98,16 +98,16 @@ sqlite::~sqlite() {
 }
 
 void sqlite::trace_on() {
+	tagspace::trace_on();
 	if (_db != nullptr)
 		sqlite3_trace(_db, trace_callback, NULL);
     dout << "### sqlite trace on ###" << std::endl;
-	_trace_on = true;
 }
 
 void sqlite::trace_off() {
+	tagspace::trace_off();
 	sqlite3_trace(_db, NULL, NULL);
     dout << "### sqlite trace off ###" << std::endl;
-	_trace_on = false;
 }
 
 tagd::code sqlite::init(const std::string& fname) {

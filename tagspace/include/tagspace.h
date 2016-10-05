@@ -71,9 +71,10 @@ class tagspace : public tagd::errorable {
 	protected:
 		// stack of tags ids as context
 		tagd::id_vec _context;
+		bool _trace_on;
 
 	public:
-		tagspace() : tagd::errorable(tagd::TS_INIT) {}
+		tagspace() : tagd::errorable(tagd::TS_INIT), _trace_on{false} {}
 		virtual ~tagspace() {}
 
 		virtual tagd::code push_context(const tagd::id_type&);
@@ -88,8 +89,13 @@ class tagspace : public tagd::errorable {
 		virtual tagd::code exists(const tagd::id_type&) = 0;
 		virtual tagd::code query(tagd::tag_set&, const tagd::interrogator&, flags_t = flags_t()) = 0;
 		virtual tagd::code dump(std::ostream& os = std::cout) = 0;
-		virtual tagd::code dump_grid(std::ostream& os = std::cout) = 0;
-		virtual tagd::code dump_terms(std::ostream& os = std::cout) = 0;
+
+		virtual tagd::code dump_grid(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }
+		virtual tagd::code dump_terms(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }
+        virtual tagd::code dump_search(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }
+
+		virtual void trace_on() { _trace_on = true; }
+		virtual void trace_off() { _trace_on = false; }
 };
 
 struct util {

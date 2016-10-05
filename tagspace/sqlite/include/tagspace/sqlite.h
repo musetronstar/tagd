@@ -67,7 +67,6 @@ class sqlite: public tagspace {
 
 		// performing init() operations
 		bool _doing_init;
-		bool _trace_on;
 
 		// wrapped by init(), sets _doing_init
         tagd::code _init(const std::string&);
@@ -125,8 +124,7 @@ class sqlite: public tagspace {
             _insert_host_stmt(NULL),
             _insert_authority_stmt(NULL),
             _insert_uri_relations_stmt(NULL),
-			_doing_init(false),
-			_trace_on(false)
+			_doing_init(false)
         {
 			_f_encode_referent = [this](const tagd::id_type &from) -> tagd::id_type {
 				tagd::id_type to;

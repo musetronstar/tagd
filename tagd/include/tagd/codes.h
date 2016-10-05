@@ -47,6 +47,7 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
     TS_ERR,				// general error due to caller input
     TS_MISUSE,			// caller misusing class interface
     TS_INTERNAL_ERR,	// error not due to caller input
+    TS_NOT_IMPLEMENTED,	// functionality not yet implemented
 
     TAGL_ERR,
 
