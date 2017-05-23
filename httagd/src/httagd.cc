@@ -41,11 +41,10 @@ void htscanner::scan_tagdurl_path(int cmd, const request& R) {
 	std::string path = R.path();
 	// path separator defs
 	const size_t max_seps = 2;
-	size_t sep_i = 0;
 	size_t seps[max_seps] = {0, 0};  // offsets of '/' chars
 
 	std::string opt_search = R.query_opt_search();
-	auto f_parse_query_terms = [this, &opt_search]() {
+	auto f_parse_search_terms = [this, &opt_search]() {
 		this->_driver->parse_tok(TOK_RELATOR, new std::string(HARD_TAG_HAS));
 		this->_driver->parse_tok(TOK_TAG, new std::string(HARD_TAG_TERMS));
 		this->_driver->parse_tok(TOK_EQ, NULL);
@@ -69,18 +68,17 @@ void htscanner::scan_tagdurl_path(int cmd, const request& R) {
 			return;
 	}
 
+	size_t num_seps = 0;
 	for(size_t i = 0; i < path.size(); i++) {
 		if (path[i] == '/') {
-			if (sep_i == max_seps) {
+			if (num_seps == max_seps) {
 				// TODO use error tag
 				_driver->error(tagd::TAGL_ERR, "max_seps exceeded");
 				return;
 			}
-			seps[sep_i++] = i;
+			seps[num_seps++] = i;
 		}
 	}
-
-	size_t num_seps = sep_i;
 
 	if (cmd == TOK_CMD_PUT && num_seps > 1) {
 		_driver->error(tagd::TAGL_ERR, "malformed path: trailing '/'");
@@ -90,14 +88,14 @@ void htscanner::scan_tagdurl_path(int cmd, const request& R) {
 	// path segment
 	std::string segment;
 
-	// first segment - what is it?
-	sep_i = 0;
-	if (seps[sep_i+1]) {
+	// first segment tag id - what is it?
+	size_t sep_i = 0;
+	if (seps[sep_i+1]) { // extract id between the separators: /id/
 		size_t sz = seps[sep_i+1] - seps[sep_i] - 1;
 		segment = path.substr((seps[sep_i]+1), sz);
 	}
 	else {
-		// get
+		// GET, PUT, or DEL
 		segment = path.substr(seps[sep_i]+1);
 	}
 
@@ -120,24 +118,30 @@ void htscanner::scan_tagdurl_path(int cmd, const request& R) {
 		} else {
 			if (!opt_search.empty()) {  // turn into query (like adding a '/' to the end)
 				f_parse_cmd_query();
-				f_parse_query_terms();
+				f_parse_search_terms();
 				return;
 			} else {
 				_driver->parse_tok(cmd, NULL);
 				this->scan(tagd::uri_decode(segment).c_str());
 			}
 		}
-	} else { // CMD_PUT
-		if (!opt_search.empty()) {
-			_driver->error(tagd::TAGD_ERR, "illegal use of query terms with PUT method");
+	} else {
+		if(cmd != TOK_CMD_PUT && cmd != TOK_CMD_DEL) {
+			_driver->error(tagd::TAGD_ERR, "illegal command");
 			return;
 		}
+
+		if (!opt_search.empty()) {
+			_driver->error(tagd::TAGD_ERR, "illegal use of search terms with method");
+			return;
+		}
+
 		_driver->parse_tok(cmd, NULL);
 		this->scan(tagd::uri_decode(segment).c_str());
 	}
 
 	if (++sep_i >= num_seps)
-		return;	
+		return;
 
 	// second segment - how is it related?
 	segment = path.substr(seps[sep_i]+1);
@@ -148,7 +152,7 @@ void htscanner::scan_tagdurl_path(int cmd, const request& R) {
 	}
 
 	if (cmd == TOK_CMD_QUERY && !opt_search.empty())
-		f_parse_query_terms();
+		f_parse_search_terms();
 }
 
 tagd::code httagl::tagdurl_get(const request& R) {

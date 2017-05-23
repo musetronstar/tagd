@@ -105,6 +105,10 @@ test "refer_doggy" \
 	 "PUT" "/doggy" "refers_to dog" \
 	 "200 OK"
 
+test "put_illegal_search" \
+     "PUT" "/pigeon?q=oops" "is_a bird" \
+	 "500 Internal Server Error"
+
 test "get_doggy" \
 	 "GET" "/doggy" "" \
 	 "doggy is_a mammal(.*)refers_to dog"
@@ -120,6 +124,10 @@ test "delete_refer_doggy" \
 test "get_doggy_deleted_not_exists" \
 	 "GET" "/doggy" "" \
 	 "404 Not Found"
+
+test "delete_illegal_search" \
+     "DELETE" "/bat?q=oops" "" \
+	 "500 Internal Server Error"
 
 test "delete_bat" \
      "DELETE" "/bat" "" \
