@@ -337,7 +337,7 @@ class Tester : public CxxTest::TestSuite {
 
 		std::string s("_is_a animal _has legs _can bark");
 		evbuffer_add(input, s.c_str(), s.size());
-		tagl.evbuffer_execute(input);
+		tagl.execute(input);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )

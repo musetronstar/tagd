@@ -627,17 +627,17 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 		case htp_method_PUT:
 			req.method = HTTP_PUT;
 			tagl.tagdurl_put(req);
-			tagl.evbuffer_execute(ev_req->buffer_in);
+			tagl.execute(ev_req->buffer_in);
 			break;
 		case htp_method_POST:
 			req.method = HTTP_POST;
 			// TODO check path
-			tagl.evbuffer_execute(ev_req->buffer_in);
+			tagl.execute(ev_req->buffer_in);
 			break;
 		case htp_method_DELETE:
 			req.method = HTTP_DELETE;
 			tagl.tagdurl_del(req);
-			tagl.evbuffer_execute(ev_req->buffer_in);
+			tagl.execute(ev_req->buffer_in);
 			break;
 /*
 		htp_method_MKCOL,
@@ -664,7 +664,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 			// The response MUST include an Allow header containing a list of valid methods for the requested resource.
 	}
 
-	// evbuffer_execute() will call finish() when at the end of buffer
+	// execute() will call finish() when at the end of buffer
 	if (!res.reply_sent())
 		tagl.finish();
 

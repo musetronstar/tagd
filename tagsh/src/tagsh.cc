@@ -337,7 +337,7 @@ int tagsh::interpret_fname(const  std::string& fname) {
 		_CB->_echo_result_code = false;
 
 		_driver.filename(fname);
-		_driver.evbuffer_execute(input);
+		_driver.execute(input);
 
 		_CB->_echo_result_code = echo_rc;
 	} else {

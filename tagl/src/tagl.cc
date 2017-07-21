@@ -243,7 +243,7 @@ tagd::code driver::execute(const std::string& statement) {
 	return this->code();
 }
 
-tagd::code driver::evbuffer_execute(struct evbuffer *input) {
+tagd::code driver::execute(struct evbuffer *input) {
 	this->init();
 
 	size_t sz, read_sz;

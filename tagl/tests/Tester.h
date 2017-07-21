@@ -1365,7 +1365,7 @@ class Tester : public CxxTest::TestSuite {
 
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
-		tagd::code tc = tagl.evbuffer_execute(input);
+		tagd::code tc = tagl.execute(input);
 
 		evbuffer_free(input);
 
@@ -1406,7 +1406,7 @@ class Tester : public CxxTest::TestSuite {
 
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
-		tagd::code tc = tagl.evbuffer_execute(input);
+		tagd::code tc = tagl.execute(input);
 		evbuffer_free(input);
 
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
@@ -1430,7 +1430,7 @@ class Tester : public CxxTest::TestSuite {
 
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
-		tagd::code tc = tagl.evbuffer_execute(input);
+		tagd::code tc = tagl.execute(input);
 		evbuffer_free(input);
 
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
