@@ -258,26 +258,61 @@ void callback::finish() {
 	);
 }
 
+void response::send_reply(evhtp_res res) {
+	if (_reply_sent) {
+		std::cerr << "reply already sent" << std::endl;
+		return;
+	}
+	this->add_header("Content-Type", content_type);
+	if (_tx->svr->args()->opt_trace)
+		std::cerr << "send_reply(" << res << "): " << evhtp_res_str(res) << std::endl;
+	evhtp_send_reply(_ev_req, res);
+	_res_code = res;
+	_reply_sent = true;
+}
+
+void response::add_header(const std::string &k, const std::string &v) {
+	if (_tx->svr->args()->opt_trace)
+		std::cerr << "add_header(" << '"' << k << '"' << ", " << '"' << v << '"' << ")" << std::endl;
+
+/* from evhtp.h
+* evhtp_header_new
+* @param key null terminated string
+* @param val null terminated string
+* @param kalloc if set to 1, the key will be copied, if 0 no copy is done.
+* @param valloc if set to 1, the val will be copied, if 0 no copy is done.
+*/
+	evhtp_headers_add_header(
+		_ev_req->headers_out,
+		// params 3,4 must be set, else strings from previous calls can get intermingled
+		evhtp_header_new(k.c_str(), v.c_str(), 1, 1)
+	);
+}
+
+
 std::string request::url() const {
 	std::string url;
-	switch ( _ev_req->uri->scheme ) {
-		case htp_scheme_ftp:
-			url.append("ftp://");
-			break;
-		case htp_scheme_https:
-			url.append("https://");
-			break;
-		case htp_scheme_nfs:
-			url.append("nfs://");
-			break;
-		case htp_scheme_http:
-		case htp_scheme_none:
-		case htp_scheme_unknown:
-		default:
-			url.append("http://");
-	}
 
+	// if we have an authority, we must supply a protocol
+	// otherwise, use just a path
 	if ( _ev_req->uri->authority ) {
+		switch ( _ev_req->uri->scheme ) {
+			case htp_scheme_ftp:
+				url.append("ftp://");
+				break;
+			case htp_scheme_https:
+				url.append("https://");
+				break;
+			case htp_scheme_nfs:
+				url.append("nfs://");
+				break;
+			case htp_scheme_http:
+			case htp_scheme_none:
+			case htp_scheme_unknown:
+			default:
+				url.append("http://");
+		}
+
 		if ( _ev_req->uri->authority->username )
 			url.append( _ev_req->uri->authority->username );
 
@@ -292,10 +327,6 @@ std::string request::url() const {
 
 		if ( _ev_req->uri->authority->port && _ev_req->uri->authority->port != 80 )
 			url.append( std::to_string(_ev_req->uri->authority->port) );
-	} else {
-		// TODO not sure this is a good way to do it
-		url.append( _server->bind_addr() );
-		url.append(":").append( std::to_string(_server->bind_port()) );
 	}
 
 	if ( _ev_req->uri->path->full )
@@ -313,8 +344,8 @@ std::string request::url() const {
 std::string request::effective_opt_view() const {
 	std::string view_opt = this->query_opt(QUERY_OPT_VIEW);
 	if (view_opt.empty()) {
-		if (!_server->args()->default_view.empty())
-			return _server->args()->default_view;  // user supplied default
+		if (!_tx->svr->args()->default_view.empty())
+			return _tx->svr->args()->default_view;  // user supplied default
 		else
 			return DEFAULT_VIEW;  // hard-coded default
 	}
@@ -554,35 +585,36 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 
 void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagd::server *svr = (httagd::server*)arg;
+
 	// for now, this request uses the servers tagspace reference
 	// TODO allow requests to use other tagspaces (given the request)
 	auto *TS = svr->TS();
-	bool trace_on = svr->args()->opt_trace;
+	auto *VS = svr->VS();
 
-	httagd::request req(svr, ev_req);
-	httagd::response res(svr, ev_req);
+	// circular dependencies between transaction and request/respsonse pointers
+	transaction tx(svr, TS, VS, nullptr, nullptr);
+	request req(&tx, ev_req);
+	response res(&tx, ev_req);
+	tx.req = &req;
+	tx.res = &res;
 
 	// TODO context is part of the request, not global
 	// we may need some kind of session id or something to push_context()
 	if (!req.query_opt_context().empty())
 		TS->push_context(req.query_opt_context());
 
-	htp_method method = evhtp_request_get_method(ev_req);
-	std::string full_path(ev_req->uri->path->full);
-
-	// TODO add server obj to transaction, get rid of viewspace cus server has a ref
-	transaction tx(TS, &req, &res, svr->VS());
-
-	httagd::callback CB(&tx);
+	callback CB(&tx);
 	httagl tagl(TS, &CB);
 
 	// all sharing the internal errors pointer of tx
 	tx.share_errors(tagl)
 	  .share_errors(*TS)
-	  .share_errors(*svr->VS());
+	  .share_errors(*VS);
+
+	htp_method ev_method = evhtp_request_get_method(ev_req);
 
 	// route request
-	switch(method) {
+	switch(ev_method) {
 		case htp_method_HEAD:
 			req.method = HTTP_HEAD;
 			// identical to GET request, but content body not added
@@ -624,7 +656,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 
 		default:
 			// TODO use tagd::error
-			tx.ferror(tagd::HTTP_ERR, "unsupported method: %s", evhtp_method_str(method));
+			tx.ferror(tagd::HTTP_ERR, "unsupported method: %s", evhtp_method_str(ev_method));
 			res.res_code(EVHTP_RES_METHNALLOWED);
 			CB.cmd_error();
 			// TODO 10.4.6 405 Method Not Allowed
@@ -639,7 +671,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	if (!req.query_opt_context().empty())
 		TS->pop_context();
 
-	if (tx.has_errors() && trace_on)
+	if (tx.trace_on && tx.has_errors())
 		tx.print_errors();
 
 	// TS will accumulate errors between requests

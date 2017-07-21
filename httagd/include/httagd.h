@@ -103,10 +103,11 @@ class server : public tagsh, public tagd::errorable {
 		tagd::code start();
 };
 
+class transaction;
 
 class response {
 	protected:
-		server *_server;
+		transaction *_tx;
 		evhtp_request_t *_ev_req;
 		bool _reply_sent;
 
@@ -117,8 +118,8 @@ class response {
 
 	public:
 		std::string content_type;
-		response(server* S, evhtp_request_t *req)
-			: _server{S}, _ev_req{req}, _reply_sent{false}, _res_code{-1},
+		response(transaction* tx, evhtp_request_t *req)
+			: _tx{tx}, _ev_req{req}, _reply_sent{false}, _res_code{-1},
 			// default content type, it is up to view handlers to overwrite
 			content_type{"text/plain; charset=utf-8"} {}
 
@@ -165,36 +166,9 @@ class response {
 			this->send_reply(_res_code >= 0 ? _res_code : tagd_code_evhtp_res(tc));
 		}
 
-		void send_reply(evhtp_res res) {
-			if (_reply_sent) {
-				std::cerr << "reply already sent" << std::endl;
-				return;
-			}
-			this->add_header("Content-Type", content_type);
-			if (_server->args()->opt_trace)
-				std::cerr << "send_reply(" << res << "): " << evhtp_res_str(res) << std::endl;
-			evhtp_send_reply(_ev_req, res);
-			_res_code = res;
-			_reply_sent = true;
-		}
+		void send_reply(evhtp_res);
 
-		void add_header(const std::string &k, const std::string &v) {
-			if (_server->args()->opt_trace)
-				std::cerr << "add_header(" << '"' << k << '"' << ", " << '"' << v << '"' << ")" << std::endl;
-
-/* from evhtp.h
- * evhtp_header_new
- * @param key null terminated string
- * @param val null terminated string
- * @param kalloc if set to 1, the key will be copied, if 0 no copy is done.
- * @param valloc if set to 1, the val will be copied, if 0 no copy is done.
- */
-			evhtp_headers_add_header(
-				_ev_req->headers_out,
-				// params 3,4 must be set, else strings from previous calls can get intermingled
-				evhtp_header_new(k.c_str(), v.c_str(), 1, 1)
-			);
-		}
+		void add_header(const std::string &key, const std::string &val);
 
 		void add_header_content_length(size_t sz) {
 			this->add_header("Content-Length", std::to_string(sz));
@@ -236,15 +210,15 @@ class request {
 		url_query_map_t _query_map;
 
 	protected:
-		server *_server;
+		transaction *_tx;
 		evhtp_request_t *_ev_req;
 		std::string _path; // for testing
 
 	public:
 		http_method method;
 
-		request(server* S, evhtp_request_t *ev_req)
-			: _server{S}, _ev_req{ev_req}
+		request(transaction* tx, evhtp_request_t *ev_req)
+			: _tx{tx}, _ev_req{ev_req}
 		{
 			if ( ev_req->uri->query_raw != NULL ) {
 				tagd::url::parse_query(
@@ -255,11 +229,7 @@ class request {
 		}
 
 		request(const std::string &path)	// for testing
-			: _server{nullptr}, _ev_req{nullptr}, _path{path} {}
-
-		server *svr() {
-			return _server;
-		}
+			: _tx{nullptr}, _ev_req{nullptr}, _path{path} {}
 
 		std::string query_opt(const std::string &opt) const {
 			std::string val;
@@ -307,7 +277,7 @@ class httagl : public TAGL::driver {
 			: TAGL::driver(ts, new htscanner(this)) {}
 		httagl(tagspace::tagspace *ts, TAGL::callback *cb)
 			: TAGL::driver(ts, new htscanner(this), cb) {}
-		~httagl() { delete _scanner; }
+		virtual ~httagl() { delete _scanner; }
 		tagd::code tagdurl_get(const request&);
 		tagd::code tagdurl_put(const request&);
 		tagd::code tagdurl_del(const request&);
@@ -316,19 +286,21 @@ class httagl : public TAGL::driver {
 // holds members passed to every callback
 class transaction : public tagd::errorable {
 	public:
+		server *svr;
 		tagspace::tagspace *TS;
+		httagd::viewspace *VS;
 		request *req;
 		response *res;
-		httagd::viewspace *VS;
 		bool trace_on;
 
 		transaction(
+			server *sv,
 			tagspace::tagspace* ts,
+			httagd::viewspace *vs,
 			request* rq,
-			response* rs,
-			httagd::viewspace *vs
-		) : TS{ts}, req{rq}, res{rs}, VS{vs},
-			trace_on{rq->svr()->args()->opt_trace}
+			response* rs
+		) : svr{sv}, TS{ts}, VS{vs}, req{rq}, res{rs},
+			trace_on{sv->args()->opt_trace}
 		{}
 
 		// adds errors to response ouput buffer in plain text
