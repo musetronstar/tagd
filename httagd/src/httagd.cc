@@ -37,13 +37,13 @@ const char* evhtp_method_str(int method) {
 
 namespace httagd {
 
-void htscanner::scan_tagdurl_path(int cmd, const request& R) {
-	std::string path = R.path();
+void htscanner::scan_tagdurl_path(int cmd, const request& req) {
+	std::string path = req.path();
 	// path separator defs
 	const size_t max_seps = 2;
 	size_t seps[max_seps] = {0, 0};  // offsets of '/' chars
 
-	std::string opt_search = R.query_opt_search();
+	std::string opt_search = req.query_opt_search();
 	auto f_parse_search_terms = [this, &opt_search]() {
 		this->_driver->parse_tok(TOK_RELATOR, new std::string(HARD_TAG_HAS));
 		this->_driver->parse_tok(TOK_TAG, new std::string(HARD_TAG_TERMS));
@@ -155,26 +155,81 @@ void htscanner::scan_tagdurl_path(int cmd, const request& R) {
 		f_parse_search_terms();
 }
 
-tagd::code httagl::tagdurl_get(const request& R) {
+// translate an HTTP request into a TAGL statement and execute
+tagd::code httagl::execute(transaction& tx) {
+	// translate evhtp_method into httagd::http_method
+	htp_method ev_method = evhtp_request_get_method(tx.req->ev_req());
+	switch(ev_method) {
+		case htp_method_HEAD:
+			tx.req->method = HTTP_HEAD;
+			// identical to GET request, but content body not added
+			this->tagdurl_get(*tx.req);
+			break;
+		case htp_method_GET:
+			tx.req->method = HTTP_GET;
+			this->tagdurl_get(*tx.req);
+			break;
+		case htp_method_PUT:
+			tx.req->method = HTTP_PUT;
+			this->tagdurl_put(*tx.req);
+			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
+			break;
+		case htp_method_POST:
+			tx.req->method = HTTP_POST;
+			// TODO check path
+			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
+			break;
+		case htp_method_DELETE:
+			tx.req->method = HTTP_DELETE;
+			this->tagdurl_del(*tx.req);
+			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
+			break;
+/*
+		htp_method_MKCOL,
+		htp_method_COPY,
+		htp_method_MOVE,
+		htp_method_OPTIONS,
+		htp_method_PROPFIND,
+		htp_method_PROPPATCH,
+		htp_method_LOCK,
+		htp_method_UNLOCK,
+		htp_method_TRACE,
+		htp_method_CONNECT, // RFC 2616
+		htp_method_PATCH,   // RFC 5789
+		htp_method_UNKNOWN,
+  */
+
+		default:
+			tx.req->method = HTTP_UNKNOWN;
+			// TODO use tagd::error
+			tx.ferror(tagd::HTTP_ERR, "unsupported method: %s", evhtp_method_str(ev_method));
+			tx.res->res_code(EVHTP_RES_METHNALLOWED);
+			_callback->cmd_error();
+	}
+
+	return tx.code();
+}
+
+tagd::code httagl::tagdurl_get(const request& req) {
 	this->init();
 
-	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_GET, R);
+	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_GET, req);
 
 	return this->code();
 }
 
-tagd::code httagl::tagdurl_put(const request& R) {
+tagd::code httagl::tagdurl_put(const request& req) {
 	this->init();
 
-	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_PUT, R);
+	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_PUT, req);
 
 	return this->code();
 }
 
-tagd::code httagl::tagdurl_del(const request& R) {
+tagd::code httagl::tagdurl_del(const request& req) {
 	this->init();
 
-	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_DEL, R);
+	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_DEL, req);
 
 	return this->code();
 }
@@ -289,6 +344,16 @@ void response::add_header(const std::string &k, const std::string &v) {
 	);
 }
 
+request::request(transaction* tx, evhtp_request_t *ev_req)
+	: _tx{tx}, _ev_req{ev_req}
+{
+	if ( ev_req->uri->query_raw != NULL ) {
+		tagd::url::parse_query(
+			_query_map, (char*)ev_req->uri->query_raw );
+	}
+
+	_path = ev_req->uri->path->full;
+}
 
 std::string request::url() const {
 	std::string url;
@@ -591,7 +656,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	auto *TS = svr->TS();
 	auto *VS = svr->VS();
 
-	// circular dependencies between transaction and request/respsonse pointers
+	// circular dependencies between transaction and request/response pointers
 	transaction tx(svr, TS, VS, nullptr, nullptr);
 	request req(&tx, ev_req);
 	response res(&tx, ev_req);
@@ -611,60 +676,10 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	  .share_errors(*TS)
 	  .share_errors(*VS);
 
-	htp_method ev_method = evhtp_request_get_method(ev_req);
+	// route request, parse, call callback method, and write response
+	tagl.execute(tx);
 
-	// route request
-	switch(ev_method) {
-		case htp_method_HEAD:
-			req.method = HTTP_HEAD;
-			// identical to GET request, but content body not added
-			tagl.tagdurl_get(req);
-			break;
-		case htp_method_GET:
-			req.method = HTTP_GET;
-			tagl.tagdurl_get(req);
-			break;
-		case htp_method_PUT:
-			req.method = HTTP_PUT;
-			tagl.tagdurl_put(req);
-			tagl.execute(ev_req->buffer_in);
-			break;
-		case htp_method_POST:
-			req.method = HTTP_POST;
-			// TODO check path
-			tagl.execute(ev_req->buffer_in);
-			break;
-		case htp_method_DELETE:
-			req.method = HTTP_DELETE;
-			tagl.tagdurl_del(req);
-			tagl.execute(ev_req->buffer_in);
-			break;
-/*
-		htp_method_MKCOL,
-		htp_method_COPY,
-		htp_method_MOVE,
-		htp_method_OPTIONS,
-		htp_method_PROPFIND,
-		htp_method_PROPPATCH,
-		htp_method_LOCK,
-		htp_method_UNLOCK,
-		htp_method_TRACE,
-		htp_method_CONNECT, // RFC 2616
-		htp_method_PATCH,   // RFC 5789
-		htp_method_UNKNOWN,
-  */
-
-		default:
-			// TODO use tagd::error
-			tx.ferror(tagd::HTTP_ERR, "unsupported method: %s", evhtp_method_str(ev_method));
-			res.res_code(EVHTP_RES_METHNALLOWED);
-			CB.cmd_error();
-			// TODO 10.4.6 405 Method Not Allowed
-			// The method specified in the Request-Line is not allowed for the resource identified by the Request-URI.
-			// The response MUST include an Allow header containing a list of valid methods for the requested resource.
-	}
-
-	// execute() will call finish() when at the end of buffer
+	// execute() should call finish() when at the end of buffer
 	if (!res.reply_sent())
 		tagl.finish();
 

@@ -115,7 +115,7 @@ class driver : public tagd::errorable {
 		callback *callback_ptr() { return _callback; }
 		tagd::code parseln(const std::string& = std::string());
 		tagd::code execute(const std::string&);
-		tagd::code execute(struct evbuffer*);
+		tagd::code execute(evbuffer*);
 		int token() const { return _token; }
 		bool is_trace_on() const { return _trace_on; }
 		tagspace::flags_t flags() const { return _flags; }

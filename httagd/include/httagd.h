@@ -198,7 +198,8 @@ typedef enum {
 
 // supported HTTP methods
 typedef enum {
-	HTTP_GET = 0,
+	HTTP_UNKNOWN = 0,
+	HTTP_GET,
 	HTTP_HEAD,
 	HTTP_POST,
 	HTTP_PUT,
@@ -206,6 +207,9 @@ typedef enum {
 } http_method;
 
 class request {
+	public:
+		http_method method = HTTP_UNKNOWN;
+
 	private:
 		url_query_map_t _query_map;
 
@@ -215,21 +219,10 @@ class request {
 		std::string _path; // for testing
 
 	public:
-		http_method method;
+		request(transaction*, evhtp_request_t *);
 
-		request(transaction* tx, evhtp_request_t *ev_req)
-			: _tx{tx}, _ev_req{ev_req}
-		{
-			if ( ev_req->uri->query_raw != NULL ) {
-				tagd::url::parse_query(
-					_query_map, (char*)ev_req->uri->query_raw );
-			}
-
-			_path = ev_req->uri->path->full;
-		}
-
-		request(const std::string &path)	// for testing
-			: _tx{nullptr}, _ev_req{nullptr}, _path{path} {}
+		request(http_method meth, const std::string &path)	// for testing
+			: method{meth}, _tx{nullptr}, _ev_req{nullptr}, _path{path} {}
 
 		std::string query_opt(const std::string &opt) const {
 			std::string val;
@@ -260,6 +253,10 @@ class request {
 			return _path;
 		}
 
+		evhtp_request_t *ev_req() const {
+			return _ev_req;
+		}
+
 		std::string url() const;
 };
 
@@ -278,6 +275,11 @@ class httagl : public TAGL::driver {
 		httagl(tagspace::tagspace *ts, TAGL::callback *cb)
 			: TAGL::driver(ts, new htscanner(this), cb) {}
 		virtual ~httagl() { delete _scanner; }
+
+		// undo name hiding so we can use overridden methods across scope
+		using TAGL::driver::execute;
+		tagd::code execute(transaction&);
+
 		tagd::code tagdurl_get(const request&);
 		tagd::code tagdurl_put(const request&);
 		tagd::code tagdurl_del(const request&);

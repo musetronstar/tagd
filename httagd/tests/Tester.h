@@ -278,7 +278,7 @@ class Tester : public CxxTest::TestSuite {
     void test_get_tagdurl(void) {
 		tagspace_tester TS;
 		httagd::httagl tagl(&TS);
-		tagl.tagdurl_get(httagd::request("/dog"));
+		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/dog"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_GET )
@@ -288,7 +288,7 @@ class Tester : public CxxTest::TestSuite {
     void test_get_tagdurl_trailing_path(void) {
 		tagspace_tester TS;
 		httagd::httagl tagl(&TS);
-		tagl.tagdurl_get(httagd::request("/dog/"));
+		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/dog/"));
 		tagl.finish();
 		// two path separators indicate a query
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
@@ -300,7 +300,7 @@ class Tester : public CxxTest::TestSuite {
     void test_put_tagdurl(void) {
 		tagspace_tester TS;
 		httagd::httagl tagl(&TS);
-		tagl.tagdurl_put(httagd::request("/dog"));
+		tagl.tagdurl_put(httagd::request(httagd::HTTP_PUT, "/dog"));
 		tagl.execute("_is_a animal _has legs _can bark");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
@@ -314,12 +314,12 @@ class Tester : public CxxTest::TestSuite {
 		tagspace_tester TS;
 		httagd::httagl tagl(&TS);
 
-		tagl.tagdurl_del(httagd::request("/dog"));
+		tagl.tagdurl_del(httagd::request(httagd::HTTP_DELETE, "/dog"));
 		tagl.execute("_is_a animal _has legs _can bark");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TS_MISUSE" )
 
 		tagl.clear_errors();
-		tagl.tagdurl_del(httagd::request("/dog"));
+		tagl.tagdurl_del(httagd::request(httagd::HTTP_DELETE, "/dog"));
 		tagl.execute("_has legs _can bark");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_DEL )
@@ -331,7 +331,7 @@ class Tester : public CxxTest::TestSuite {
     void test_put_tagdurl_evbuffer_body(void) {
 		tagspace_tester TS;
 		httagd::httagl tagl(&TS);
-		tagl.tagdurl_put(httagd::request("/dog"));
+		tagl.tagdurl_put(httagd::request(httagd::HTTP_PUT, "/dog"));
 
 		struct evbuffer *input = evbuffer_new();
 
@@ -352,7 +352,7 @@ class Tester : public CxxTest::TestSuite {
 		tagspace_tester TS;
 		callback_tester cb(&TS);
 		httagd::httagl tagl(&TS, &cb);
-		tagl.tagdurl_get(httagd::request("/animal/legs,tail"));
+		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/animal/legs,tail"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
@@ -384,7 +384,7 @@ class Tester : public CxxTest::TestSuite {
 		tagspace_tester TS;
 		callback_tester cb(&TS);
 		httagd::httagl tagl(&TS, &cb);
-		tagl.tagdurl_get(httagd::request("/*/legs,tail"));
+		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/*/legs,tail"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
