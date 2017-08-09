@@ -14,7 +14,7 @@ static void yy_reduce(yyParser *, int);
 
 namespace TAGL {
 
-class driver; 
+class driver;
 
 class callback {
 	friend class TAGL::driver;
@@ -45,7 +45,7 @@ class scanner {
 		driver *_driver;
 		size_t _line_number;
 
-		const char *_beg, *_cur, *_mark, *_lim, *_eof;	
+		const char *_beg, *_cur, *_mark, *_lim, *_eof;
 		char _buf[buf_sz];
 		int _tok;
 		int32_t _state;
@@ -104,6 +104,9 @@ class driver : public tagd::errorable {
 		tagd::abstract_tag *_tag;  // tag of the current statement
 		tagd::id_type _relator;    // current relator
 
+		// if set, the assigned _tag.id() must be equal to this
+		tagd::id_type _constrain_tag_id;
+
 	public:
 		driver(tagspace::tagspace *);
 		driver(tagspace::tagspace *, scanner *);
@@ -136,7 +139,9 @@ class driver : public tagd::errorable {
 			return (_tag == nullptr ? empty_tag : *_tag);
 		}
 
-		bool is_setup(); 
+		void constrain_tag_id(const tagd::id_type &id) { _constrain_tag_id = id; }
+
+		bool is_setup();
 		void do_callback();
 
 		// adds end of input to parser,

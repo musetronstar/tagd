@@ -4,7 +4,29 @@
 	#include <iostream>
 	#include "tagd.h"
 	#include "tagl.h"  // includes parser.h
+
+#define NEW_TAG(TAG_TYPE, TAG_ID)	\
+	if (tagl->_constrain_tag_id.empty() || (tagl->_constrain_tag_id == TAG_ID)) {	\
+		if (tagl->_tag != nullptr)	\
+			delete tagl->_tag;	\
+		tagl->_tag = new TAG_TYPE(TAG_ID);	\
+	} else {	\
+		tagl->ferror(tagd::TAGL_ERR, "tag id constrained as: %s", tagl->_constrain_tag_id.c_str());	\
+	}
+
+#define NEW_REFERENT(REFERS, REFERS_TO, CONTEXT)	\
+	if (tagl->_constrain_tag_id.empty() || (tagl->_constrain_tag_id == REFERS)) {	\
+		if (tagl->_tag != nullptr)	\
+			delete tagl->_tag;	\
+		if (CONTEXT.empty()) \
+			tagl->_tag = new tagd::referent(REFERS, REFERS_TO);	\
+		else	\
+			tagl->_tag = new tagd::referent(REFERS, REFERS_TO, CONTEXT);	\
+	} else {	\
+		tagl->ferror(tagd::TAGL_ERR, "tag id constrained as: %s", tagl->_constrain_tag_id.c_str());	\
+	}
 }
+
 
 %extra_argument { TAGL::driver *tagl }
 %token_type {std::string *}
@@ -71,28 +93,28 @@ statement ::= set_statement TERMINATOR .
 statement ::= get_statement TERMINATOR .
 {
 	tagl->_cmd = TOK_CMD_GET;
-	if (!tagl->has_errors()) 
+	if (!tagl->has_errors())
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
 statement ::= put_statement TERMINATOR .
 {
 	tagl->_cmd = TOK_CMD_PUT;
-	if (!tagl->has_errors()) 
+	if (!tagl->has_errors())
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
 statement ::= del_statement TERMINATOR .
 {
 	tagl->_cmd = TOK_CMD_DEL;
-	if (!tagl->has_errors()) 
+	if (!tagl->has_errors())
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
 statement ::= query_statement TERMINATOR .
 {
 	tagl->_cmd = TOK_CMD_QUERY;
-	if (!tagl->has_errors()) 
+	if (!tagl->has_errors())
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
@@ -152,9 +174,7 @@ get_statement ::= CMD_GET UNKNOWN(U) .
 */
 get_statement ::= CMD_GET REFERS(R) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::abstract_tag(*R);
+	NEW_TAG(tagd::abstract_tag, *R)
 }
 
 put_statement ::= CMD_PUT subject_super_relation relations .
@@ -205,9 +225,7 @@ interrogator_query ::= CMD_QUERY interrogator query_referent_relations .
 search_query ::= CMD_QUERY QUOTED_STR(S) search_query_list .
 {
 	// use quoted str in production so we can reduce here
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::interrogator(HARD_TAG_SEARCH);
+	NEW_TAG(tagd::interrogator, HARD_TAG_SEARCH)
 	tagl->_tag->relation(HARD_TAG_HAS, HARD_TAG_TERMS, *S);
 }
 
@@ -226,9 +244,7 @@ interrogator_super_relation ::= interrogator super_relator super_object .
 
 interrogator ::= INTERROGATOR(I) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::interrogator(*I);
+	NEW_TAG(tagd::interrogator, *I)
 }
 
 subject_super_relation ::= subject super_relator super_object .
@@ -236,64 +252,44 @@ subject_super_relation ::= unknown super_relator super_object .
 
 subject ::= TAG(T) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::tag(*T);
+	NEW_TAG(tagd::tag, *T)
 }
 subject ::= SUPER_RELATOR(S) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::tag(*S);
+	NEW_TAG(tagd::tag, *S)
 }
 subject ::= RELATOR(R) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::relator(*R);
+	NEW_TAG(tagd::relator, *R)
 }
 subject ::= INTERROGATOR(I) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::interrogator(*I);
+	NEW_TAG(tagd::interrogator, *I)
 }
 subject ::= URL(U) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::url(*U);
+	NEW_TAG(tagd::url, *U)
 }
 subject ::= REFERENT(R) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::abstract_tag(*R);
+	NEW_TAG(tagd::abstract_tag, *R)
 }
 subject ::= REFERS_TO(R) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::abstract_tag(*R);
+	NEW_TAG(tagd::abstract_tag, *R)
 }
 subject ::= CONTEXT(R) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::abstract_tag(*R);
+	NEW_TAG(tagd::abstract_tag, *R)
 }
 subject ::= FLAG(F) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::abstract_tag(*F);
+	NEW_TAG(tagd::abstract_tag, *F)
 }
 
 unknown ::= UNKNOWN(U) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::abstract_tag(*U);
+	NEW_TAG(tagd::abstract_tag, *U)
 }
 
 
@@ -301,15 +297,12 @@ unknown ::= UNKNOWN(U) .
 %type refers_to { std::string * }
 referent_relation ::= refers(r) REFERS_TO refers_to(rt) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::referent(*r, *rt);
+	NEW_REFERENT(*r, *rt, std::string())
 }
 referent_relation ::= refers(r) REFERS_TO refers_to(rt) CONTEXT context(c) .
 {
-	if (tagl->_tag != NULL)
-		delete tagl->_tag;
-	tagl->_tag = new tagd::referent(*r, *rt, *c);
+	// WTF not sure why gcc freaks calling *c a pointer type and not the others
+	NEW_REFERENT(*r, *rt, (*c))
 }
 
 query_referent_relations ::= query_referent_relations query_referent_relation .
@@ -432,7 +425,7 @@ super_object ::=  REFERENT(R) .
 
 
 /* URL are concretes.
-   They can't be a super, unless we devise a way for 
+   They can't be a super, unless we devise a way for
    urls to be subordinate to domains or suburls */
 
 relations ::= relations predicate_list .
@@ -452,7 +445,7 @@ relator ::= RELATOR(R) .
 
 relator ::= WILDCARD .
 {
-	tagl->_relator.clear(); 
+	tagl->_relator.clear();
 }
 
 object_list ::= object_list COMMA object .
