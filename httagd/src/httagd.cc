@@ -136,8 +136,28 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 			return;
 		}
 
-		_driver->parse_tok(cmd, NULL);
-		this->scan(tagd::uri_decode(segment).c_str());
+		/*\
+		|*|	parse the cmd and tag_id for POSTs and DELETEs
+		|*| (prepended to the TAGL statement in the body of the http request)
+		|*| e.g.:
+		|*|   POST /dog
+		|*|
+		|*|   has legs, can bark
+		|*|
+		|*|	whereas PUTs only constrain the tag id in the TAGL statement(s)
+		|*| e.g.:
+		|*|   PUT /dog
+		|*|
+		|*|   >> dog is_a animal has legs, can bark
+		\*/
+
+		auto tag_id = tagd::uri_decode(segment);
+		_driver->constrain_tag_id(tag_id);
+
+		if (req.method != HTTP_PUT) {
+			_driver->parse_tok(cmd, NULL);
+			this->scan(tag_id.c_str());
+		}
 	}
 
 	if (++sep_i >= num_seps)
@@ -171,12 +191,19 @@ tagd::code httagl::execute(transaction& tx) {
 			break;
 		case htp_method_PUT:
 			tx.req->method = HTTP_PUT;
-			this->tagdurl_put(*tx.req);
-			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
+			if (tx.req->path().empty() || tx.req->path() == "/") {
+				tx.error(tagd::HTTP_ERR, "tag id in path required for HTTP PUT");
+			} else {
+				this->tagdurl_put(*tx.req);
+				TAGL::driver::execute(tx.req->ev_req()->buffer_in);
+			}
 			break;
 		case htp_method_POST:
 			tx.req->method = HTTP_POST;
-			// TODO check path
+			// if not empty, parse the tagdurl path
+			if (!(tx.req->path().empty() || tx.req->path() == "/")) {
+				this->tagdurl_put(*tx.req);	// put matches tagspace semantics, not http
+			}
 			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
 			break;
 		case htp_method_DELETE:

@@ -29,7 +29,7 @@ proc test {n m u d e} {
 	}
 
 	expect {
-		-regexp $e  { 
+		-regexp $e  {
 				puts "\n##########   $n passed   ##########\n"
 				set match 1
 			}
@@ -62,7 +62,7 @@ proc test_file {n m u f e} {
 	}
 
 	expect {
-		-regexp $e  { 
+		-regexp $e  {
 				puts "\n##########   $n passed   ##########\n"
 				set match 1
 			}
@@ -102,8 +102,20 @@ test "get_doggy_not_exists" \
 	 "404 Not Found"
 
 test "refer_doggy" \
-	 "PUT" "/doggy" "refers_to dog" \
+	 "POST" "/doggy" "refers_to dog" \
 	 "200 OK"
+
+test "put_dolphin" \
+	 "PUT" "/dolphin" ">> dolphin is_a whale" \
+	 "200 OK"
+
+test "put_empty_tagdurl" \
+	 "PUT" "" "narwhal is_a whale" \
+	 "500 Internal Server Error"
+
+test "put_slash_empty_tagdurl" \
+	 "PUT" "/" "narwhal is_a whale" \
+	 "500 Internal Server Error"
 
 test "put_illegal_search" \
      "PUT" "/pigeon?q=oops" "is_a bird" \
@@ -144,7 +156,7 @@ test "query_parent_relator" \
 # this works, but it shouldn't
 # TODO encode utf8 urls
 test "refer_japanese_dog" \
-     "PUT" "/イヌ" "refers_to dog _context japanese" \
+     "POST" "/イヌ" "refers_to dog _context japanese" \
 	 "200 OK"
 
 test "get_japanese_dog_ambiguous" \
@@ -163,6 +175,6 @@ if {$ERRORS} {
 	puts "$ERRORS errors."
 } else {
 	puts "All tests passed."
-} 
+}
 
 exit $ERRORS

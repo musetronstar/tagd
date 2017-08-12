@@ -297,10 +297,10 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "dog" )
 	}
 
-    void test_put_tagdurl(void) {
+    void test_post_tagdurl(void) {
 		tagspace_tester TS;
 		httagd::httagl tagl(&TS);
-		tagl.tagdurl_put(httagd::request(httagd::HTTP_PUT, "/dog"));
+		tagl.tagdurl_put(httagd::request(httagd::HTTP_POST, "/dog"));
 		tagl.execute("_is_a animal _has legs _can bark");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
@@ -328,10 +328,10 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related("_can", "bark") )
 	}
 
-    void test_put_tagdurl_evbuffer_body(void) {
+    void test_post_tagdurl_evbuffer_body(void) {
 		tagspace_tester TS;
 		httagd::httagl tagl(&TS);
-		tagl.tagdurl_put(httagd::request(httagd::HTTP_PUT, "/dog"));
+		tagl.tagdurl_put(httagd::request(httagd::HTTP_POST, "/dog"));
 
 		struct evbuffer *input = evbuffer_new();
 
@@ -339,6 +339,26 @@ class Tester : public CxxTest::TestSuite {
 		evbuffer_add(input, s.c_str(), s.size());
 		tagl.execute(input);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT( tagl.tag().related("_has", "legs") )
+		TS_ASSERT( tagl.tag().related("_can", "bark") )
+
+		evbuffer_free(input);
+	}
+
+	void test_post_tagdurl_evbuffer_body_constrained_tag_id_error(void) {
+		tagspace_tester TS;
+		httagd::httagl tagl(&TS);
+		tagl.tagdurl_put(httagd::request(httagd::HTTP_POST, "/dog"));
+
+		struct evbuffer *input = evbuffer_new();
+
+		std::string s("_is_a animal _has legs _can bark; >> cat _is_a animal _has legs _can meow");
+		evbuffer_add(input, s.c_str(), s.size());
+		tagl.execute(input);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_ERR" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
