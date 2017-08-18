@@ -22,7 +22,7 @@ LFLAGS +=  -lsqlite3 -levent -lreadline
 LFLAGS += -lctemplate_nothreads
 
 LIBEVHTP_DIR = $(HOME)/src/libevhtp
-LIBEVHTP_INC = -I$(LIBEVHTP_DIR) -I$(LIBEVHTP_DIR)/build -I$(LIBEVHTP_DIR)/build/compat -I$(LIBEVHTP_DIR)/htparse -I$(LIBEVHTP_DIR)/build/oniguruma -I$(LIBEVHTP_DIR)/oniguruma -I$(LIBEVHTP_DIR)/evthr
+LIBEVHTP_INC = -I$(LIBEVHTP_DIR)/include -I$(LIBEVHTP_DIR)/build/include
 LIBEVHTP_LFLAGS = -L$(LIBEVHTP_DIR)/build -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
 
 INC += $(LIBEVHTP_INC)

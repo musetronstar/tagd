@@ -739,7 +739,7 @@ platforms.
 	* [Curl](http://curl.haxx.se/) for testing httagd
 * [SQLite v3](http://www.sqlite.org/) libs and development headers
 * For the httagd http server
-	* [libevhtp](https://github.com/ellzey/libevhtp)
+	* [libevhtp](https://github.com/criticalstack/libevhtp)
 	* [OpenSSL Development Headers](https://www.openssl.org/)
 	* [ctemplate](https://code.google.com/p/ctemplate/) for html/json templates
 
