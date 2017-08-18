@@ -105,5 +105,41 @@ if (window.matchMedia) {
 		$.colorbox.remove();
 	}
 }
-</script>
 
+function refresh_tag_html() {
+	var req = new XMLHttpRequest();
+
+	req.onload = function () {
+		if (req.status == 200) {
+			document.getElementById("tag_container").innerHTML = req.response;
+		} else {
+			document.getElementById("tagl_error").innerHTML = req.response;
+		}
+	}
+
+	req.open("GET", "{{REQUEST_URL_VIEW_TAG_HTML}}");
+	req.send();
+}
+
+function post_tagl() {
+	var req = new XMLHttpRequest();
+
+	req.onload = function () {
+		if (req.status == 200) {
+			refresh_tag_html();
+		} else {
+			document.getElementById("tagl_error").innerHTML = req.response;
+		}
+	}
+
+	req.open("POST", "{{REQUEST_URL_VIEW_TAGL}}");
+	req.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
+	req.send(tagl_form.tagl.value);
+}
+
+</script>
+<form name="tagl_form" action="javascript:void(0);" onsubmit="post_tagl()" role="add tagl predicate">
+ <input name="tagl" id="tagl_input" type="text" required>
+ <button>add predicate</button><br>
+ <code id="tagl_error">&nbsp;</code>
+</form>

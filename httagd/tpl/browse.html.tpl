@@ -5,7 +5,7 @@
 </nav>
 </aside>
 <article id="content">
-<section>
+<section id="tag_container">
 {{>tag_html_tpl}}
 </section>
 <hr>

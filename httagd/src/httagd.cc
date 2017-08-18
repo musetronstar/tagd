@@ -382,12 +382,11 @@ request::request(transaction* tx, evhtp_request_t *ev_req)
 	_path = ev_req->uri->path->full;
 }
 
-std::string request::url() const {
+std::string request::canonical_url() const {
 	std::string url;
 
-	// if we have an authority, we must supply a protocol
-	// otherwise, use just a path
-	if ( _ev_req->uri->authority ) {
+	// TODO get the hostname from the Host header if not in the parsed uri
+	if ( _ev_req->uri->authority && _ev_req->uri->authority->hostname ) {
 		switch ( _ev_req->uri->scheme ) {
 			case htp_scheme_ftp:
 				url.append("ftp://");
@@ -419,7 +418,11 @@ std::string request::url() const {
 
 		if ( _ev_req->uri->authority->port && _ev_req->uri->authority->port != 80 )
 			url.append( std::to_string(_ev_req->uri->authority->port) );
-	}
+	} /* else {
+		// get authority from use Host header
+	} */
+
+	assert(!url.empty());
 
 	if ( _ev_req->uri->path->full )
 		url.append( _ev_req->uri->path->full );
@@ -429,6 +432,40 @@ std::string request::url() const {
 
 	if ( _ev_req->uri->fragment )
 		url.append("#").append( reinterpret_cast<const char *>(_ev_req->uri->fragment) );
+
+	return url;
+}
+
+std::string request::abs_url() const {
+	std::string url;
+
+	if ( _ev_req->uri->path->full )
+		url.append( _ev_req->uri->path->full );
+
+	if ( _ev_req->uri->query_raw ) {
+		if (url.empty()) url = "/";
+		url.append("?").append( reinterpret_cast<const char *>(_ev_req->uri->query_raw) );
+	}
+
+	if ( _ev_req->uri->fragment ) {
+		if (url.empty()) url = "/";
+		url.append("#").append( reinterpret_cast<const char *>(_ev_req->uri->fragment) );
+	}
+
+	return url;
+}
+
+std::string request::abs_url_view(const std::string& view_name) const {
+	std::string url;
+
+	if ( _ev_req->uri->path->full )
+		url = _ev_req->uri->path->full;
+	else
+		url = "/";
+
+	// TODO we may want to replace the _query_map v=<name> attribute and keep others
+	// for now just add  v=<view_name>
+	url.append("?v=").append(view_name);
 
 	return url;
 }

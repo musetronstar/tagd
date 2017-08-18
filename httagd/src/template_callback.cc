@@ -84,6 +84,9 @@ empty_handler_t home_handler(
 tagd::code fill_query(transaction&, const view&, tagd_template&, const tagd::interrogator&, const tagd::tag_set&);
 
 tagd::code fill_tag(transaction& tx, const view& vw, tagd_template& tpl, const tagd::abstract_tag& t) {
+	tpl.set_value("REQUEST_URL_VIEW_TAGL", tx.req->abs_url_view(httagd::DEFAULT_VIEW));
+	tpl.set_value("REQUEST_URL_VIEW_TAG_HTML", tx.req->abs_url_view(TAG_VIEW_ID.name()));
+
 	if (t.pos() == tagd::POS_URL) {
 		tagd::url u;
 		u.init_hduri(t.id());

@@ -257,7 +257,14 @@ class request {
 			return _ev_req;
 		}
 
-		std::string url() const;
+		// full request url with scheme://authority: http://somehost.com/tag?...
+		std::string canonical_url() const;
+
+		// absolute request url without authority: /tag?...
+		std::string abs_url() const;
+
+		// absolute request url with tag view: /tag?v=<view_name>
+		std::string abs_url_view(const std::string&) const;
 };
 
 class httagl;

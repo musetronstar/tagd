@@ -431,4 +431,6 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( it->related("legs") )
 		TS_ASSERT( it->related("tail") )
 	}
+
+	// TODO test request::canonical_url(), abs_url(), abs_url_view_tag()
 };
