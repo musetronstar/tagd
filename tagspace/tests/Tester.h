@@ -167,7 +167,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd::code tc = tagspace::hard_tag::get(t, id);
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS(t.id(), HARD_TAG_ENTITY);
-		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
+		TS_ASSERT_EQUALS(t.sub_relator(), HARD_TAG_SUB);
 		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_ENTITY);
 		TS_ASSERT(t.rank().empty());
 
@@ -176,8 +176,8 @@ class Tester : public CxxTest::TestSuite {
 		tc = tagspace::hard_tag::get(t, id);
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS(t.id(), HARD_TAG_IS_A);
-		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
-		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_SUPER);
+		TS_ASSERT_EQUALS(t.sub_relator(), HARD_TAG_SUB);
+		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_SUB);
 		TS_ASSERT_EQUALS(t.rank().dotted_str(), "1.1");
 
 		t.clear();
@@ -185,7 +185,7 @@ class Tester : public CxxTest::TestSuite {
 		tc = tagspace::hard_tag::get(t, id);
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS(t.id(), HARD_TAG_HAS);
-		TS_ASSERT_EQUALS(t.super_relator(), HARD_TAG_SUPER);
+		TS_ASSERT_EQUALS(t.sub_relator(), HARD_TAG_SUB);
 		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_RELATOR);
 
 		t.clear();
@@ -881,10 +881,10 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( pos_str(pos), "POS_RELATOR" )
 
 		pos = TS.pos("_is_a");
-        TS_ASSERT_EQUALS( pos_str(pos), "POS_SUPER_RELATOR" )
+        TS_ASSERT_EQUALS( pos_str(pos), "POS_SUB_RELATOR" )
 
 		pos = TS.pos("is_a");
-        TS_ASSERT_EQUALS( pos_str(pos), "POS_SUPER_RELATOR" )
+        TS_ASSERT_EQUALS( pos_str(pos), "POS_SUB_RELATOR" )
 
 		pos = TS.pos("unicorn");
         TS_ASSERT_EQUALS( pos_str(pos), "POS_UNKNOWN" )
@@ -951,11 +951,11 @@ class Tester : public CxxTest::TestSuite {
 
         tagd::tag a("dog");
         a.relation("has", "tail");
-        ts_rc = TS.put(a);  // existing tag, empty super, existing relation
+        ts_rc = TS.put(a);  // existing tag, empty sub, existing relation
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_DUPLICATE" );
 
         a.relation("has", "teeth");
-        ts_rc = TS.put(a);  // existing tag, empty super, one new relation
+        ts_rc = TS.put(a);  // existing tag, empty sub, one new relation
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
     }
 
@@ -1011,11 +1011,11 @@ class Tester : public CxxTest::TestSuite {
 
         tagd::tag a("dog");
         a.relation("has", "tail");
-        ts_rc = TS.put(a, tagspace::F_IGNORE_DUPLICATES);  // existing tag, empty super, existing relation
+        ts_rc = TS.put(a, tagspace::F_IGNORE_DUPLICATES);  // existing tag, empty sub, existing relation
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
 
         a.relation("has", "teeth");
-        ts_rc = TS.put(a, tagspace::F_IGNORE_DUPLICATES);  // existing tag, empty super, one new relation
+        ts_rc = TS.put(a, tagspace::F_IGNORE_DUPLICATES);  // existing tag, empty sub, one new relation
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
     }
 
@@ -1066,7 +1066,7 @@ class Tester : public CxxTest::TestSuite {
 
         tagd::tag dog("dog", "nosuchthing");
         tagd::code ts_rc = TS.put(dog);
-        TS_ASSERT_EQUALS( ts_rc, tagd::TS_SUPER_UNK );
+        TS_ASSERT_EQUALS( ts_rc, tagd::TS_SUB_UNK );
 
         dog.super_object("mammal");
         dog.relation("has", "tailandwings");
@@ -1078,7 +1078,7 @@ class Tester : public CxxTest::TestSuite {
         ts_rc = TS.put(dog);
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_RELATOR_UNK" );
 
-        tagd::tag a("dog");  // existing no super, no relations
+        tagd::tag a("dog");  // existing no sub, no relations
         ts_rc = TS.put(a);
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_MISUSE" );
     }
@@ -1115,7 +1115,7 @@ class Tester : public CxxTest::TestSuite {
         //    std::cout << *it << std::endl;
         // }
 
-        // TODO test related with existing and not existing supers
+        // TODO test related with existing and not existing subs
 
         ts_rc = TS.related(S, tagd::predicate("snarfs", "cockamamy")); 
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TS_NOT_FOUND" );
@@ -1379,7 +1379,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ts_rc), "TS_MISUSE");
 	}
 
-    void test_put_get_tag_super_relator(void) {
+    void test_put_get_tag_sub_relator(void) {
 		space_type TS;
 		TS.init(db_fname);
 		populate_tags(TS);
@@ -1391,7 +1391,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd::abstract_tag t2;
 		TS.get(t2, "husky");
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(TS.code()), "TAGD_OK")
-		TS_ASSERT_EQUALS( t2.super_relator() , HARD_TAG_TYPE_OF )
+		TS_ASSERT_EQUALS( t2.sub_relator() , HARD_TAG_TYPE_OF )
 	}
 
     void test_relations(void) {

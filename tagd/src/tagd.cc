@@ -152,7 +152,7 @@ bool abstract_tag::operator==(const abstract_tag& rhs) const {
 
 	return (
 		_id == rhs._id
-		&& _super_relator == rhs._super_relator
+		&& _sub_relator == rhs._sub_relator
 		&& _super_object == rhs._super_object
 		&& _pos == rhs._pos
 		&& _rank == rhs._rank
@@ -183,7 +183,7 @@ bool abstract_tag::operator<(const abstract_tag& rhs) const {
 
 void abstract_tag::clear() {
 	_id.clear();
-	_super_relator.clear();
+	_sub_relator.clear();
 	_super_object.clear();
 	// _pos = POS_UNKNOWN;  
 	_rank.clear();
@@ -391,10 +391,10 @@ std::ostream& operator<<(std::ostream& os, const predicate& p) {
 
 // note it is a tag friend function, not abstract_tag::operator<<
 std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
-	if (!t.super_object().empty() && t.pos() != POS_URL) {  // urls' super determined by nature of being a url
+	if (!t.super_object().empty() && t.pos() != POS_URL) {  // urls' sub determined by nature of being a url
 		print_quotable(os, t.id());
 		os << ' ';
-		print_quotable(os, t.super_relator());
+		print_quotable(os, t.sub_relator());
 		os << ' ';
 		print_quotable(os, t.super_object());
 	} else {

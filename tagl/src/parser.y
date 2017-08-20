@@ -177,8 +177,8 @@ get_statement ::= CMD_GET REFERS(R) .
 	NEW_TAG(tagd::abstract_tag, *R)
 }
 
-put_statement ::= CMD_PUT subject_super_relation relations .
-put_statement ::= CMD_PUT subject_super_relation .
+put_statement ::= CMD_PUT subject_sub_relation relations .
+put_statement ::= CMD_PUT subject_sub_relation .
 put_statement ::= CMD_PUT subject relations .
 put_statement ::= CMD_PUT referent_relation .
 
@@ -192,10 +192,10 @@ get_statement ::= CMD_DEL UNKNOWN(U) .
 			tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
 	}
 }
-del_statement ::= CMD_DEL del_subject_super_err .
+del_statement ::= CMD_DEL del_subject_sub_err .
 {
 	tagl->ferror(tagd::TS_MISUSE,
-		"super must not be specified when deleting tag: %s", tagl->_tag->id().c_str());
+		"sub must not be specified when deleting tag: %s", tagl->_tag->id().c_str());
 	if (tagl->line_number()) {
 		tagl->last_error_relation(
 			tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
@@ -204,16 +204,16 @@ del_statement ::= CMD_DEL del_subject_super_err .
 del_statement ::= CMD_DEL subject relations .
 del_statement ::= CMD_DEL referent_relation .
 
-del_subject_super_err ::= subject_super_relation .
-del_subject_super_err ::= subject_super_relation relations .
+del_subject_sub_err ::= subject_sub_relation .
+del_subject_sub_err ::= subject_sub_relation relations .
 
 query_statement ::= interrogator_query .
 query_statement ::= search_query .
 
-interrogator_query ::= CMD_QUERY interrogator_super_relation relations .
-interrogator_query ::= CMD_QUERY interrogator_super_relation .
+interrogator_query ::= CMD_QUERY interrogator_sub_relation relations .
+interrogator_query ::= CMD_QUERY interrogator_sub_relation .
 interrogator_query ::= CMD_QUERY interrogator relations .
-interrogator_query ::= CMD_QUERY interrogator super_relator REFERENT(R) query_referent_relations .
+interrogator_query ::= CMD_QUERY interrogator sub_relator REFERENT(R) query_referent_relations .
 {
 	tagl->_tag->super_object(*R);
 }
@@ -240,21 +240,21 @@ search_query_list ::= QUOTED_STR(S) .
 search_query_list ::= .
 
 
-interrogator_super_relation ::= interrogator super_relator super_object .
+interrogator_sub_relation ::= interrogator sub_relator super_object .
 
 interrogator ::= INTERROGATOR(I) .
 {
 	NEW_TAG(tagd::interrogator, *I)
 }
 
-subject_super_relation ::= subject super_relator super_object .
-subject_super_relation ::= unknown super_relator super_object .
+subject_sub_relation ::= subject sub_relator super_object .
+subject_sub_relation ::= unknown sub_relator super_object .
 
 subject ::= TAG(T) .
 {
 	NEW_TAG(tagd::tag, *T)
 }
-subject ::= SUPER_RELATOR(S) .
+subject ::= SUB_RELATOR(S) .
 {
 	NEW_TAG(tagd::tag, *S)
 }
@@ -325,7 +325,7 @@ refers(r) ::= TAG(T) .
 {
 	r = T;
 }
-refers(r) ::= SUPER_RELATOR(S) .
+refers(r) ::= SUB_RELATOR(S) .
 {
 	r = S;
 }
@@ -360,7 +360,7 @@ refers_to(rt) ::= TAG(T) .
 {
 	rt = T;
 }
-refers_to(rt) ::= SUPER_RELATOR(S) .
+refers_to(rt) ::= SUB_RELATOR(S) .
 {
 	rt = S;
 }
@@ -396,16 +396,16 @@ context(c) ::= TAG(C) .
 	c = C;
 }
 
-super_relator ::= SUPER_RELATOR(S) .
+sub_relator ::= SUB_RELATOR(S) .
 {
-	tagl->_tag->super_relator(*S);
+	tagl->_tag->sub_relator(*S);
 }
 
 super_object ::=  TAG(T) .
 {
 	tagl->_tag->super_object(*T);
 }
-super_object ::=  SUPER_RELATOR(S) .
+super_object ::=  SUB_RELATOR(S) .
 {
 	tagl->_tag->super_object(*S);
 }
@@ -425,7 +425,7 @@ super_object ::=  REFERENT(R) .
 
 
 /* URL are concretes.
-   They can't be a super, unless we devise a way for
+   They can't be a sub, unless we devise a way for
    urls to be subordinate to domains or suburls */
 
 relations ::= relations predicate_list .

@@ -32,7 +32,7 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
 	// tagspace
     TS_NOT_FOUND,
     TS_DUPLICATE,
-    TS_SUPER_UNK,
+    TS_SUB_UNK,
     TS_SUBJECT_UNK,
     TS_RELATOR_UNK,
     TS_OBJECT_UNK,

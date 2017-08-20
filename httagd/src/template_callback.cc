@@ -98,7 +98,7 @@ tagd::code fill_tag(transaction& tx, const view& vw, tagd_template& tpl, const t
 	}
 
 	const std::string context = tx.req->query_opt_context();
-	tpl.set_tag_link(tx, "super_relator", t.super_relator());
+	tpl.set_tag_link(tx, "sub_relator", t.sub_relator());
 	tpl.set_tag_link(tx, "super_object", t.super_object());
 
 	tagd::tag_set img_urls;
@@ -222,7 +222,7 @@ tagd::code fill_tree(transaction& tx, const view& vw, tagd_template& tpl, const 
 	} else {
 		tpl.set_value("id", t.id());
 	}
-	tpl.set_tag_link(tx, "super_relator", t.super_relator());
+	tpl.set_tag_link(tx, "sub_relator", t.sub_relator());
 	tpl.set_tag_link(tx, "super_object", t.super_object());
 
 	tagd::tag_set S;
@@ -288,9 +288,9 @@ tagd::code fill_query(transaction& tx, const view& vw, tagd_template& tpl, const
 	const std::string context = tx.req->query_opt_context();
 	tpl.set_value("interrogator", q.id());
 	if (!q.super_object().empty()) {
-		tpl.show_section("super_relations");
-		auto s1 = tpl.add_section("super_relation");
-		s1->set_tag_link(tx, "super_relator", q.super_relator());
+		tpl.show_section("sub_relations");
+		auto s1 = tpl.add_section("sub_relation");
+		s1->set_tag_link(tx, "sub_relator", q.sub_relator());
 		s1->set_tag_link(tx, "super_object", q.super_object());
 	}
 
@@ -319,7 +319,7 @@ tagd::code fill_query(transaction& tx, const view& vw, tagd_template& tpl, const
 			} else {
 				s1->set_tag_link(tx, "res_id", r.id());
 			}
-			s1->set_tag_link(tx, "res_super_relator", r.super_relator());
+			s1->set_tag_link(tx, "res_sub_relator", r.sub_relator());
 			s1->set_tag_link(tx, "res_super_object", r.super_object());
 			if (r.relations.size() > 0) {
 				s1->show_section("res_relations");
@@ -423,7 +423,7 @@ void fill_error(const url_query_map_t& qm, tagd_template& tpl, const tagd::error
 		for (auto r : E.errors()) {
 			auto s1 = tpl.add_section("error");
 			s1->set_value("err_id", r.id());
-			s1->set_tag_link(qm, "err_super_relator", r.super_relator());
+			s1->set_tag_link(qm, "err_sub_relator", r.sub_relator());
 			s1->set_tag_link(qm, "err_super_object", r.super_object());
 			if (r.relations.size() > 0) {
 				s1->show_section("err_relations");

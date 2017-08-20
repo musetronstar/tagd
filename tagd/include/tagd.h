@@ -37,7 +37,7 @@ typedef enum {
 	PRINT_PRETTY,		// use whitespace for maximum readability
 	PRINT_DELIM_NL,		// use newlines when delimitting lists 
 	PRINT_ID_ONLY,		// only print the tag id
-	PRINT_ID_SUPER_ONLY	// only print the tag id and the super relation
+	PRINT_ID_SUB_ONLY	// only print the tag id and the sub relation
 } print_options_t;
 */
 
@@ -144,8 +144,8 @@ bool tag_set_equal(const tag_set A, const tag_set B);
 typedef enum {
     POS_UNKNOWN       = 0,
     POS_TAG           = 1 << 0,
-    POS_SUPER_RELATOR = 1 << 1,
-    POS_SUPER_OBJECT  = 1 << 2,
+    POS_SUB_RELATOR = 1 << 1,
+    POS_SUB_OBJECT  = 1 << 2,
 // relator is used as a "Copula" to link subjects to predicates
 // (even more general than a "linking verb")
     POS_RELATOR       = 1 << 3,
@@ -172,8 +172,8 @@ struct tag_util {
         switch (p) {
             case POS_UNKNOWN: return "POS_UNKNOWN";
             case POS_TAG:    return "POS_TAG";
-            case POS_SUPER_RELATOR:    return "POS_SUPER_RELATOR";
-            case POS_SUPER_OBJECT:    return "POS_SUPER_OBJECT";
+            case POS_SUB_RELATOR:    return "POS_SUB_RELATOR";
+            case POS_SUB_OBJECT:    return "POS_SUB_OBJECT";
             case POS_RELATOR:    return "POS_RELATOR";
             case POS_INTERROGATOR: return "POS_INTERROGATOR";
             case POS_URL:    return "POS_URL";
@@ -217,8 +217,8 @@ struct tag_util {
 class abstract_tag {
     protected:
         id_type _id;
-        id_type _super_relator; // superordinate relation (i.e. _is_a)
-        id_type _super_object;  // superordinate, parent, or hyponym in tree
+        id_type _sub_relator; // subordinate relation (i.e. _is_a)
+        id_type _super_object;  // superordinate, parent, or hypernym object in tree
         part_of_speech _pos;
         tagd::rank _rank;
 		tagd::code _code;
@@ -228,25 +228,25 @@ class abstract_tag {
     public:
         // empty tag
         abstract_tag() :
-			_id(), _super_relator(HARD_TAG_SUPER), _super_object(),
+			_id(), _sub_relator(HARD_TAG_SUB), _super_object(),
 			_pos(POS_UNKNOWN), _rank(), _code(TAGD_OK) {};
         virtual ~abstract_tag() {};
 
         abstract_tag(const id_type& id) :
-			_id(id), _super_relator(HARD_TAG_SUPER), _super_object(),
+			_id(id), _sub_relator(HARD_TAG_SUB), _super_object(),
 			_pos(POS_UNKNOWN), _rank(), _code(TAGD_OK) {};
 
         abstract_tag(const part_of_speech& p) :
-			_id(), _super_relator(HARD_TAG_SUPER), _super_object(),
+			_id(), _sub_relator(HARD_TAG_SUB), _super_object(),
 			_pos(p), _rank(), _code(TAGD_OK) {};
 
-        // id, but no super
+        // id, but no sub
         abstract_tag(const id_type& id, const part_of_speech& p) :
-			_id(id), _super_relator(HARD_TAG_SUPER), _super_object(),
+			_id(id), _sub_relator(HARD_TAG_SUB), _super_object(),
 			_pos(p), _rank(), _code(TAGD_OK) {};
 
-        abstract_tag(const id_type& id, const id_type& super_obj, const part_of_speech& p) :
-			_id(id), _super_relator(HARD_TAG_SUPER), _super_object(super_obj),
+        abstract_tag(const id_type& id, const id_type& sub_obj, const part_of_speech& p) :
+			_id(id), _sub_relator(HARD_TAG_SUB), _super_object(sub_obj),
 			_pos(p), _rank(), _code(TAGD_OK) {};
 
         abstract_tag(
@@ -255,7 +255,7 @@ class abstract_tag {
 				const id_type& obj,
 				const part_of_speech& p
 				) :
-			_id(id), _super_relator(rel), _super_object(obj),
+			_id(id), _sub_relator(rel), _super_object(obj),
 			_pos(p), _rank(), _code(TAGD_OK) {};
 
         predicate_set relations;
@@ -264,7 +264,7 @@ class abstract_tag {
 		bool empty() const {
 			return (
 				_id.empty()
-				//&& _super_relator.empty()  // super relators are set by constructor
+				//&& _sub_relator.empty()  // sub relators are set by constructor
 				&& _super_object.empty()
 				&& _rank.empty()
 				&& relations.empty()
@@ -274,8 +274,8 @@ class abstract_tag {
         const id_type& id() const { return _id; }
         void id(const id_type& A) { _id = A; }
 
-        const id_type& super_relator() const { return _super_relator; }
-        void super_relator(const id_type& s) { _super_relator = s; }
+        const id_type& sub_relator() const { return _sub_relator; }
+        void sub_relator(const id_type& s) { _sub_relator = s; }
 
         const id_type& super_object() const { return _super_object; }
         void super_object(const id_type& s) { _super_object = s; }
@@ -371,14 +371,14 @@ class tag : public abstract_tag {
 
         tag(const id_type& id) : abstract_tag(id, POS_TAG)
 		{
-			_super_relator = HARD_TAG_IS_A;
+			_sub_relator = HARD_TAG_IS_A;
 		};
 
-        tag(const id_type& id, const id_type& super_obj) :
-			abstract_tag(id, HARD_TAG_IS_A, super_obj, POS_TAG) {};
+        tag(const id_type& id, const id_type& sub_obj) :
+			abstract_tag(id, HARD_TAG_IS_A, sub_obj, POS_TAG) {};
 
-        tag(const id_type& id, const id_type& super_rel, const id_type& super_obj) :
-			abstract_tag(id, super_rel, super_obj, POS_TAG) {};
+        tag(const id_type& id, const id_type& sub_rel, const id_type& sub_obj) :
+			abstract_tag(id, sub_rel, sub_obj, POS_TAG) {};
 };
 
 // relates a subject to an object
@@ -390,11 +390,11 @@ class relator : public abstract_tag {
         relator(const id_type& id) :
 			abstract_tag(id, HARD_TAG_TYPE_OF, HARD_TAG_RELATOR, POS_RELATOR) {};
 
-        relator(const id_type& id, const id_type& super_obj) :
-			abstract_tag(id, HARD_TAG_TYPE_OF, super_obj, POS_RELATOR) {};
+        relator(const id_type& id, const id_type& sub_obj) :
+			abstract_tag(id, HARD_TAG_TYPE_OF, sub_obj, POS_RELATOR) {};
 
-        relator(const id_type& id, const id_type& super_rel, const id_type& super_obj) :
-			abstract_tag(id, super_rel, super_obj, POS_RELATOR) {};
+        relator(const id_type& id, const id_type& sub_rel, const id_type& sub_obj) :
+			abstract_tag(id, sub_rel, sub_obj, POS_RELATOR) {};
 };
 
 // 'wh.*|how' words (eg who, what, where, when, why, how)
@@ -410,11 +410,11 @@ class interrogator : public abstract_tag {
         interrogator(const id_type& id) :
 			abstract_tag(id, POS_INTERROGATOR) {};
 
-        interrogator(const id_type& id, const id_type& super_obj) :
-			abstract_tag(id, HARD_TAG_TYPE_OF, super_obj, POS_INTERROGATOR) {};
+        interrogator(const id_type& id, const id_type& sub_obj) :
+			abstract_tag(id, HARD_TAG_TYPE_OF, sub_obj, POS_INTERROGATOR) {};
 
-        interrogator(const id_type& id, const id_type& super_rel, const id_type& super_obj) :
-			abstract_tag(id, super_rel, super_obj, POS_INTERROGATOR) {};
+        interrogator(const id_type& id, const id_type& sub_rel, const id_type& sub_obj) :
+			abstract_tag(id, sub_rel, sub_obj, POS_INTERROGATOR) {};
 };
 
 class referent : public abstract_tag {
@@ -425,11 +425,11 @@ class referent : public abstract_tag {
         referent() :
 			abstract_tag(POS_REFERENT)
 		{
-			_super_relator = HARD_TAG_REFERS_TO;
+			_sub_relator = HARD_TAG_REFERS_TO;
 		};
 
         referent(const abstract_tag& t) :
-			abstract_tag(t.id(), t.super_relator(), t.super_object(), POS_REFERENT)
+			abstract_tag(t.id(), t.sub_relator(), t.super_object(), POS_REFERENT)
 		{ relations = t.relations; }
 
         referent(const id_type& refers, const id_type& refers_to) :
@@ -442,7 +442,7 @@ class referent : public abstract_tag {
 
 		// TODO don't allow overridding HARD_TAG_REFERS_TO
 		// the problem, though, is that the getter method also gets deleted
-        // void super_relator(const id_type& s) = delete;
+        // void sub_relator(const id_type& s) = delete;
 
         const id_type& refers() const { return _id; }
         const id_type& refers_to() const { return _super_object; }
@@ -454,9 +454,9 @@ class referent : public abstract_tag {
         bool operator==(const referent& rhs) const {
 			return (
 				_id == rhs._id &&
-				// leave _super_relator out of equality and less comparisons
+				// leave _sub_relator out of equality and less comparisons
 				// because _id, _super_object, and _context make it unique
-				//_super_relator == rhs._super_relator &&
+				//_sub_relator == rhs._sub_relator &&
 				_super_object == rhs._super_object &&
 				_pos == rhs._pos &&
 				this->context() == rhs.context()

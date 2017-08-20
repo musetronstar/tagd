@@ -1,6 +1,6 @@
 ## The tagd Semantic-Relational Engine
 
-<img src="http://s.tagd.ws/tagd-cloud.png" align="right" width="300px" />
+<img src="http://musetronstar.me/tagd-cloud.png" align="right" width="300px" />
 
 In a hurry? Go directly to [Installation](#installation)
 
@@ -8,7 +8,7 @@ The purpose of the tagd semantic-relational engine is to allow
 *intelligent agents* (human or machine) to assign and retrieve the semantic
 meaning of tags through a meta-conceptual language called **TAGL**.
 
-By defining *super relations*, tags can be represented as a tree of knowledge
+By defining *subordinate relations*, tags can be represented as a tree of knowledge
 called a **tagspace**.  TAGL maps to a tagspace.  A web service called
 **httagd** in turn maps to TAGL, enabling communication over the Web and
 integration with other services.
@@ -33,7 +33,7 @@ it will open/create a default database file (~/.tagspace.db).
 
 A tag can be a metaphysical concept or a concrete entity.  It can be anything
 you can think of and put into words.  To define a tag, you must define its
-*super relation*, given by `_super`, `_is_a`, or `_type_of`:
+*sub relation*, given by `_sub`, `_is_a`, or `_type_of`:
 
 	>> dog _is_a mammal;
 
@@ -42,7 +42,7 @@ Whoah, we have an error:
 	TAGL_ERR _type_of _error
 	_caused_by _unknown_tag = mammal
 
-The object (mammal in this case) of a super relation must also be defined. This
+The object (mammal in this case) of a sub relation must also be defined. This
 requires a bit of abstract metaphysical thinking, but here we go:
 
 	>> physical_object _is_a _entity;
@@ -55,11 +55,11 @@ requires a bit of abstract metaphysical thinking, but here we go:
 The `>>` is the input operator for putting data.  Note the predicate
 `_is_a _entity`.  Tags with a leading underscore ('\_') are known as
 *hard tags*, that is, they are hard-coded in the software, defined for you, and
-cannot be redefined.  User defined tags with a leading underscore are illegal. 
+cannot be redefined.  User defined tags with a leading underscore are illegal.
 The `_entity` tag is the root of the tagspace - it does not get more
 abtract than that.
 
-The `_entity` tag is axiomatic and self-referencing (i.e. `_entity _is_a _entity`).
+The `_entity` tag is axiomatic and self-referencing (i.e. `_entity _sub _entity`).
 It is the only tag having this relation.
 
 Now let's put some more tags so that we can define dog more completely:
@@ -97,11 +97,11 @@ Now is a good time to define a input (`>>`) statement more formally...
 
 ##### PUT Grammar:
 
-	put_statement ::= ">>" subject_super_relation relations
-	put_statement ::= ">>" subject_super_relation 
+	put_statement ::= ">>" subject_sub_relation relations
+	put_statement ::= ">>" subject_sub_relation
 	put_statement ::= ">>" subject relations
 
-	subject_super_relation ::= subject SUPER TAG
+	subject_sub_relation ::= subject SUB TAG
 
 	subject ::= TAG
 
@@ -124,7 +124,7 @@ Where TAG and MODIFIER are UTF-8 labels composed of alphanumeric characters and
 underscores and a QUANTIFIER is a number. A modifier can hold spaces and other
 special characters if it is enclosed in double quotes.  Double quotes as part
 of the modifier value must be escaped (i.e. `"my \"quoted\" modifier"`).
-The `SUPER TAG` predicate defines the subject as being subordinate to
+The `SUB TAG` predicate defines the subject as being subordinate to
 (i.e. "is a" or child relation) another tag.
 
 ##### Comments:
@@ -132,7 +132,7 @@ The `SUPER TAG` predicate defines the subject as being subordinate to
 Comments can be used in TAGL like this:
 
 	-- this is a comment until the end of line
-	-* this is a block comment *-	
+	-* this is a block comment *-
 
 #### GET Statement
 
@@ -190,7 +190,7 @@ And it should no longer exist:
 ##### DELETE Grammar:
 
 A DELETE statement has the same grammar as a PUT statement, except that it
-cannot have a super relation.
+cannot have a sub relation.
 
 #### QUERY Statement
 
@@ -237,7 +237,7 @@ Results should be:
 
 But `whale _is_a mammal` and `fish _is_a vertibrate` - how did we query for
 `_is_a animal` and get a match?  Since tagspace is organized as a tree, and
-animal is a parent (aka superordinate or hypernym) of both vertibrate and
+animal is a parent (aka subordinate or hypernym) of both vertibrate and
 mammal, it is logically true that whale and fish match.
 
 Let's try another:
@@ -284,20 +284,20 @@ Results:
 
 ##### QUERY Grammar:
 
-	query_statement ::= "??" interrogator_super_relation relations 
-	query_statement ::= "??" interrogator_super_relation
+	query_statement ::= "??" interrogator_sub_relation relations
+	query_statement ::= "??" interrogator_sub_relation
 	query_statement ::= "??" INTERROGATOR query_relations
 	query_statement ::= "??" "<search terms>"
 
 	query_relations ::= relations
 	query_relations ::= relator HARD_TAG_TERMS = "<search terms>"
 
-	interrogator_super_relation ::= INTERROGATOR SUPER TAG
+	interrogator_sub_relation ::= INTERROGATOR SUB TAG
 
 #### URLs
 
 URLs are recognized and parsed in TAGL with no special syntax required.  Unlike
-other tags, URLs cannot currently be assigned a super relation.  A super relation
+other tags, URLs cannot currently be assigned a sub relation.  A sub relation
 `_is_a _url` is assigned for you when putting a URL.  This will likely change
 in the future so that tags "referenced by url" can be defined (e.g. "wiki").
 
@@ -323,7 +323,7 @@ Results:
 
 	https://en.wikipedia.org/wiki/Dog,
 	http://animal.discovery.com/breed-selector/dog-breeds.html
-	
+
 And some more:
 
 	?? what * _private = wikipedia,
@@ -348,16 +348,16 @@ Results:
 As you can see, when a URL is inserted, it is parsed and its components
 are inserted according to the following hard tags:
 
-* `_url` - super tag for URLs
-* `_url_part` - the super tag of url part hard tags
+* `_url` - sub tag for URLs
+* `_url_part` - the sub tag of url part hard tags
 	* `_host` - host of a URL
 	* `_private` - private label of a registerable TLD
 	  (i.e. the "wikipedia" in wikipedia.org)
 	* `_public` - label(s) of the TLD (can be a multi-level TLD).
 	  Public and private (effective) TLDs are parsed according to the
 	  [Mozilla Public Suffix List](http://publicsuffix.org/)
-	* `_subdomain` - subdomain label(s) 
-	* `_path` 
+	* `_subdomain` - subdomain label(s)
+	* `_path`
 	* `_query` - query string of the URL
 	* `_fragment`
 	* `_port`
@@ -395,7 +395,7 @@ Now, we can `<< animal` by refering to creature:
 Results:
 
 	creature _is_a living_thing
-	refers_to animal  
+	refers_to animal
 
 Since no context was specified, creature refers to animal in the *universal
 context* (same as *null* context).
@@ -672,7 +672,7 @@ Results:
 
 The TAGL query generated was:
 
-	?? _interrogator _super mammal;
+	?? _interrogator _sub mammal;
 
 Now, let's query with some relations:
 
@@ -684,10 +684,10 @@ Results:
 
 The TAGL query generated was:
 
-	?? _interrogator _super animal
+	?? _interrogator _sub animal
 	* meow, tail
 
-To perform a query not having a super relation, use a wildcard ('\*'):
+To perform a query not having a sub relation, use a wildcard ('\*'):
 
 	curl -XGET http://localhost:2112/*/fins,hair,air,water
 
@@ -698,7 +698,7 @@ Results:
 The TAGL query generated was:
 
 	?? _interrogator
-	* fins, hair, air, water 
+	* fins, hair, air, water
 
 To add search terms to your query, add a `q=<terms>` parameter to the query string:
 
@@ -710,7 +710,7 @@ Results:
 
 The TAGL query generated was:
 
-	?? _interrogator _super mammal
+	?? _interrogator _sub mammal
 	_has _terms = "can bark"
 
 To browse your tagspace, fire up your favorite browser and go to `http://localhost:2112/mammal?t=html`
@@ -725,7 +725,7 @@ platforms.
 
 ##### Dependencies
 
-* Build Essentials 
+* Build Essentials
     * GCC C++ Compiler, headers and libraries
     * Make, etc.
 * Optional, to recreate gperf header of [Mozilla's Public Suffix List](http://publicsuffix.org/)

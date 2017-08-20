@@ -110,9 +110,9 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 		if (num_seps > 1) {
 			f_parse_cmd_query();
 
-			// first segment of "*" is a placeholder for super relation, so ignore it
+			// first segment of "*" is a placeholder for sub relation, so ignore it
 			if (segment != "*") {  // how is it related
-				_driver->parse_tok(TOK_SUPER_RELATOR, (new std::string(HARD_TAG_SUPER)));
+				_driver->parse_tok(TOK_SUB_RELATOR, (new std::string(HARD_TAG_SUB)));
 				this->scan(tagd::uri_decode(segment).c_str());
 			}
 		} else {

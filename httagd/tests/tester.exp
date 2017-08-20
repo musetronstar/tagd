@@ -145,7 +145,7 @@ test "delete_bat" \
      "DELETE" "/bat" "" \
 	 "200 OK"
 
-test "query_mammal_super" \
+test "query_mammal_sub" \
 	 "GET" "/mammal/" "" \
 	 "dog, cat, whale"
 

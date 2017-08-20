@@ -142,7 +142,7 @@ test "delete_bat" \
      "!! bat;" \
 	 "TAGD_OK"
 
-test "query_mammal_super" \
+test "query_mammal_sub" \
 	 "?? what is_a mammal;" \
 	 "dog, cat, whale"
 

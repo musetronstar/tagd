@@ -3,7 +3,7 @@
  {{#error}}
  <li>
  <strong>{{err_id}}</strong>
- <a href="{{err_super_relator_lnk}}">{{err_super_relator}}</a>
+ <a href="{{err_sub_relator_lnk}}">{{err_sub_relator}}</a>
  <a href="{{err_super_object_lnk}}">{{err_super_object}}</a>
 {{#err_relations}}
  <ul>

@@ -57,8 +57,8 @@ tagd::code hard_tag::get(tagd::abstract_tag& t, const tagd::id_type &id) {
         return tagd::TS_NOT_FOUND;
 	} else {
 		t.id(id);
-		t.super_relator(HARD_TAG_SUPER);
-		t.super_object(val->super);
+		t.sub_relator(HARD_TAG_SUB);
+		t.super_object(val->sub);
 		t.pos(val->pos);
 		t.rank(tagd::rank(val->rank));
 	

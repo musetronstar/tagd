@@ -3,25 +3,25 @@
 /*\
 |*| This file contains hard-coded tag ids (HARD_TAGs)
 |*|
-|*| ALWAYS use HARD_TAG_* definitions instead of 
+|*| ALWAYS use HARD_TAG_* definitions instead of
 |*| embedding "_hard_tag" into your code!  If we
 |*| ever need to change them, we want the compiler
 |*| to fail instead of introducing silent logic errors.
-|*| 
-|*| Defines and comments are combined into a gperf statements by gen-hard-tags.gperf.pl. 
+|*|
+|*| Defines and comments are combined into a gperf statements by gen-hard-tags.gperf.pl.
 |*| They should be in the form:
-|*| #define HARD_TAG_TAGNAME "<_tagname>" //gperf <SUPER_RELATION>, <tagd::part_of_speech>
+|*| #define HARD_TAG_TAGNAME "<_tagname>" //gperf <SUB_RELATION>, <tagd::part_of_speech>
 \*/
 
 // root _entity (only axiomatic, self-referencing entity that exists)
 #define HARD_TAG_ENTITY		"_entity"	//gperf HARD_TAG_ENTITY, tagd::POS_TAG
 
-// super relators - relates tag ids to their super_object (aka. superordinate, parent, hypernym...)
-#define HARD_TAG_SUPER		"_super"	//gperf HARD_TAG_ENTITY, tagd::POS_SUPER_RELATOR
-#define HARD_TAG_IS_A		"_is_a"		//gperf HARD_TAG_SUPER, tagd::POS_SUPER_RELATOR
-#define HARD_TAG_TYPE_OF	"_type_of"	//gperf HARD_TAG_SUPER, tagd::POS_SUPER_RELATOR
+// sub relators - relates tag ids to their super_object (aka. superordinate, parent, hypernym...)
+#define HARD_TAG_SUB		"_sub"	//gperf HARD_TAG_ENTITY, tagd::POS_SUB_RELATOR
+#define HARD_TAG_IS_A		"_is_a"		//gperf HARD_TAG_SUB, tagd::POS_SUB_RELATOR
+#define HARD_TAG_TYPE_OF	"_type_of"	//gperf HARD_TAG_SUB, tagd::POS_SUB_RELATOR
 
-// relators - relates subject to object, superordinate to all relators
+// relators - relates subject to object, subordinate to all relators
 #define HARD_TAG_RELATOR	"_relator"	//gperf HARD_TAG_ENTITY, tagd::POS_RELATOR
 #define HARD_TAG_HAS 		"_has"		//gperf HARD_TAG_RELATOR, tagd::POS_RELATOR
 #define HARD_TAG_CAN 		"_can"		//gperf HARD_TAG_RELATOR, tagd::POS_RELATOR
@@ -34,7 +34,7 @@
 
 /***** referents *****/
 // super_object for token that refers to a tag in a context
-#define HARD_TAG_REFERENT	"_referent"		//gperf HARD_TAG_SUPER, tagd::POS_REFERENT
+#define HARD_TAG_REFERENT	"_referent"		//gperf HARD_TAG_SUB, tagd::POS_REFERENT
 // token that refers (i.e. "doggy" in the statement "doggy _refers_to dog"
 #define HARD_TAG_REFERS		"_refers"		//gperf HARD_TAG_RELATOR, tagd::POS_REFERS
 // token that is referred to (i.e. "dog" in the statement "doggy _refers_to dog"
@@ -63,7 +63,7 @@
 // resources located by URLs
 #define HARD_TAG_URL		"_url"		//gperf HARD_TAG_ENTITY, tagd::POS_TAG
 /*** URL part hard tags ***/
-// the super object of url part hard tags
+// the sub object of url part hard tags
 #define HARD_TAG_URL_PART	"_url_part"	//gperf HARD_TAG_ENTITY, tagd::POS_TAG
 #define HARD_TAG_HOST		"_host"		//gperf HARD_TAG_URL_PART, tagd::POS_TAG
 // private label of a registered tld (i.e. the "hypermega" in hypermega.com)

@@ -16,10 +16,10 @@ class tagspace_tester : public tagspace::tagspace {
 
 		void put_test_tag(
 			const tagd::id_type& id,
-			const tagd::id_type& super,
+			const tagd::id_type& sub,
 			const tagd::part_of_speech& pos)
 		{
-			tagd::abstract_tag t(id, super, pos);
+			tagd::abstract_tag t(id, sub, pos);
 			db[t.id()] = t;
 		}
 
@@ -44,12 +44,12 @@ class tagspace_tester : public tagspace::tagspace {
 			put_test_tag("child", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("fun", "action", tagd::POS_TAG);
-			put_test_tag("_is_a", HARD_TAG_ENTITY, tagd::POS_SUPER_RELATOR);
+			put_test_tag("_is_a", HARD_TAG_ENTITY, tagd::POS_SUB_RELATOR);
 			put_test_tag("about", HARD_TAG_ENTITY, tagd::POS_RELATOR);
 			put_test_tag("_has", HARD_TAG_ENTITY, tagd::POS_RELATOR);
 			put_test_tag("_can", HARD_TAG_ENTITY, tagd::POS_RELATOR);
 			put_test_tag("_what", HARD_TAG_ENTITY, tagd::POS_INTERROGATOR);
-			put_test_tag("_referent", "_super", tagd::POS_REFERENT);
+			put_test_tag("_referent", "_sub", tagd::POS_REFERENT);
 			put_test_tag("_refers", HARD_TAG_ENTITY, tagd::POS_REFERS);
 			put_test_tag("_refers_to", HARD_TAG_ENTITY, tagd::POS_REFERS_TO);
 			put_test_tag("_context", HARD_TAG_ENTITY, tagd::POS_CONTEXT);
@@ -97,7 +97,7 @@ class tagspace_tester : public tagspace::tagspace {
 		tagd::code put(const tagd::abstract_tag& t, ts_flags_t flags = ts_flags_t()) {
 			assert (flags != 999999);  // used param warning
 			if (t.id() == t.super_object())
-				return this->error(tagd::TS_MISUSE, "_id == _super not allowed!");
+				return this->error(tagd::TS_MISUSE, "_id == _sub not allowed!");
 
 			if (t.pos() == tagd::POS_UNKNOWN) {
 				tagd::abstract_tag parent;
@@ -118,7 +118,7 @@ class tagspace_tester : public tagspace::tagspace {
 		tagd::code del(const tagd::abstract_tag& t, ts_flags_t flags = ts_flags_t()) {
 			if (t.pos() != tagd::POS_URL && !t.super_object().empty()) {
 				return this->ferror(tagd::TS_MISUSE,
-					"super must not be specified when deleting tag: %s", t.id().c_str());
+					"sub must not be specified when deleting tag: %s", t.id().c_str());
 			}
 
 			tagd::abstract_tag existing;
@@ -226,7 +226,7 @@ class callback_tester : public TAGL::callback {
 
 		void cmd_put(const tagd::abstract_tag& t) {
 			if (t.id() == t.super_object()) {
-				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as super");
+				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as sub");
 				return;
 			}
 			cmd = TOK_CMD_PUT;
@@ -239,7 +239,7 @@ class callback_tester : public TAGL::callback {
 
 		void cmd_del(const tagd::abstract_tag& t) {
 			if (t.id() == t.super_object()) {
-				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as super");
+				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as sub");
 				return;
 			}
 			cmd = TOK_CMD_DEL;
@@ -400,7 +400,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( it->related("tail") )
 	}
 
-    void test_tagdurl_super_placeholder_query(void) {
+    void test_tagdurl_sub_placeholder_query(void) {
 		tagspace_tester TS;
 		callback_tester cb(&TS);
 		httagd::httagl tagl(&TS, &cb);

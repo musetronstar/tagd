@@ -18,7 +18,7 @@ while (<>) {
     s/\s+$//g;
 
 # hard-tags.h form:
-#define HARD_TAG_TAGNAME "<_tagname>" //gperf <SUPER_RELATION>, <tagd::part_of_speech>
+#define HARD_TAG_TAGNAME "<_tagname>" //gperf <SUB_RELATION>, <tagd::part_of_speech>
 # example:
 #define HARD_TAG_RELATOR	"_relator"	//gperf HARD_TAG_ENTITY, tagd::POS_RELATOR
 
@@ -26,7 +26,7 @@ while (<>) {
 		$row++;
 		my $hard_tag_define = $1;
 		my $hard_tag_value  = $2;
-		my $super_hard_tag_define  = $3;
+		my $sub_hard_tag_define  = $3;
 		my $pos  = $4;
 
 		$defines{$hard_tag_define} = $hard_tag_value;
@@ -34,14 +34,14 @@ while (<>) {
 		$tree{$hard_tag_value} = {
 			hard_tag_define => $hard_tag_define,
 			hard_tag_value => $hard_tag_value,
-			super_hard_tag_define => $super_hard_tag_define,
+			sub_hard_tag_define => $sub_hard_tag_define,
 			pos => $pos,
 			row => $row
 		};
 
-		my $super_hard_tag = $defines{$super_hard_tag_define};
+		my $sub_hard_tag = $defines{$sub_hard_tag_define};
 
-		die "undef super hard tag!" if !$super_hard_tag;
+		die "undef sub hard tag!" if !$sub_hard_tag;
 
 		push @rows, $hard_tag_value;
 
@@ -51,20 +51,20 @@ while (<>) {
 			next;
 		} 
 		
-		if ( $tree{$super_hard_tag}->{childs} ) {
-			push @{$tree{$super_hard_tag}->{childs}}, $hard_tag_value;
+		if ( $tree{$sub_hard_tag}->{childs} ) {
+			push @{$tree{$sub_hard_tag}->{childs}}, $hard_tag_value;
 		} else {
-			$tree{$super_hard_tag}->{childs} = [ $hard_tag_value ];
+			$tree{$sub_hard_tag}->{childs} = [ $hard_tag_value ];
 		}
 
 		# last byte is its child index (starting from 1)
-		my $last_byte = @{$tree{$super_hard_tag}->{childs}};
-		my $super_rank = $tree{$super_hard_tag}->{rank};
+		my $last_byte = @{$tree{$sub_hard_tag}->{childs}};
+		my $sub_rank = $tree{$sub_hard_tag}->{rank};
 
-		if (!$super_rank) {
+		if (!$sub_rank) {
 			$tree{$hard_tag_value}->{rank} = [ $last_byte ];
 		} else {
-			my @s = @$super_rank;
+			my @s = @$sub_rank;
 			push @s, $last_byte;
 			$tree{$hard_tag_value}->{rank} = \@s;
 		}
@@ -85,7 +85,7 @@ foreach ( @rows ) {
 	my $val = $tree{$hard_tag_value};
 
 	# <row_id>, <tag id>, <super_object>, <pos>, <rank_cstr>
-	print "$hard_tag_value, $val->{super_hard_tag_define}, $val->{pos}, $val->{row}, ";
+	print "$hard_tag_value, $val->{sub_hard_tag_define}, $val->{pos}, $val->{row}, ";
 
 	# rank as a 64bit hex string
 	my $b = 0;
@@ -114,7 +114,7 @@ __END__
 
 struct hard_tag_hash_value {
 	const char *key;
-	const char *super;
+	const char *sub;
 	tagd::part_of_speech pos;
 	tagspace::rowid_t row_id;
 	uint64_t rank;

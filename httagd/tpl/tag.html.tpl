@@ -1,6 +1,6 @@
 <p>
 <h1>{{id}}</h1>
-&rarr;<a href="{{super_relator_lnk}}">{{super_relator}}</a>
+&rarr;<a href="{{sub_relator_lnk}}">{{sub_relator}}</a>
 <a href="{{super_object_lnk}}">{{super_object}}</a>
 </p>
 {{#has_img}}<img src="{{img_src}}">{{/has_img}}

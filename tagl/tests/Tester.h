@@ -17,10 +17,10 @@ class tagspace_tester : public tagspace::tagspace {
 
 		void put_test_tag(
 			const tagd::id_type& id,
-			const tagd::id_type& super,
+			const tagd::id_type& sub,
 			const tagd::part_of_speech& pos)
 		{
-			tagd::abstract_tag t(id, super, pos);
+			tagd::abstract_tag t(id, sub, pos);
 			db[t.id()] = t;
 		}
 
@@ -45,13 +45,13 @@ class tagspace_tester : public tagspace::tagspace {
 			put_test_tag("child", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("fun", "action", tagd::POS_TAG);
-			put_test_tag("_is_a", HARD_TAG_ENTITY, tagd::POS_SUPER_RELATOR);
+			put_test_tag("_is_a", HARD_TAG_ENTITY, tagd::POS_SUB_RELATOR);
 			put_test_tag("about", HARD_TAG_ENTITY, tagd::POS_RELATOR);
 			put_test_tag("_has", HARD_TAG_ENTITY, tagd::POS_RELATOR);
 			put_test_tag("_can", HARD_TAG_ENTITY, tagd::POS_RELATOR);
 			put_test_tag("_what", HARD_TAG_ENTITY, tagd::POS_INTERROGATOR);
 			put_test_tag("_message", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("_referent", "_super", tagd::POS_REFERENT);
+			put_test_tag("_referent", "_sub", tagd::POS_REFERENT);
 			put_test_tag("_refers", HARD_TAG_ENTITY, tagd::POS_REFERS);
 			put_test_tag("_refers_to", HARD_TAG_ENTITY, tagd::POS_REFERS_TO);
 			put_test_tag("_context", HARD_TAG_ENTITY, tagd::POS_CONTEXT);
@@ -96,7 +96,7 @@ class tagspace_tester : public tagspace::tagspace {
 
 		tagd::code put(const tagd::abstract_tag& t, ts_flags_t flags = ts_flags_t()) {
 			if (t.id() == t.super_object())
-				return this->error(tagd::TS_MISUSE, "_id == _super not allowed!");
+				return this->error(tagd::TS_MISUSE, "_id == _sub not allowed!");
 
 			if (t.pos() == tagd::POS_UNKNOWN) {
 				tagd::abstract_tag parent;
@@ -117,7 +117,7 @@ class tagspace_tester : public tagspace::tagspace {
 		tagd::code del(const tagd::abstract_tag& t, ts_flags_t flags = ts_flags_t()) {
 			if (t.pos() != tagd::POS_URL && !t.super_object().empty()) {
 				return this->ferror(tagd::TS_MISUSE,
-					"super must not be specified when deleting tag: %s", t.id().c_str());
+					"sub must not be specified when deleting tag: %s", t.id().c_str());
 			}
 
 			tagd::abstract_tag existing;
@@ -224,7 +224,7 @@ class callback_tester : public TAGL::callback {
 
 		void cmd_put(const tagd::abstract_tag& t) {
 			if (t.id() == t.super_object()) {
-				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as super");
+				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as sub");
 				return;
 			}
 			cmd = TOK_CMD_PUT;
@@ -237,7 +237,7 @@ class callback_tester : public TAGL::callback {
 
 		void cmd_del(const tagd::abstract_tag& t) {
 			if (t.id() == t.super_object()) {
-				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as super");
+				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as sub");
 				return;
 			}
 			cmd = TOK_CMD_DEL;
@@ -289,14 +289,14 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tc == tagl.code() )
 	}
 
-    void test_get_super_identity_error(void) {
+    void test_get_sub_identity_error(void) {
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
 		tagd::code tc = tagl.execute("<< dog _is_a animal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 	}
 
-    void test_subject_super_identity(void) {
+    void test_subject_sub_identity(void) {
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
 		tagd::code tc = tagl.execute(">> dog _is_a animal");
@@ -306,7 +306,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
 	}
 
-    void test_unknown_super_relator(void) {
+    void test_unknown_sub_relator(void) {
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
 		tagd::code tc = tagl.execute(">> dog snarfs animal");
@@ -470,7 +470,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 	}
 
-	void test_delete_super_not_allowed(void) {
+	void test_delete_sub_not_allowed(void) {
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
 		tagd::code tc = tagl.execute(
@@ -755,7 +755,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related("_has", "legs") )
 	}
 
-    void test_put_super_unknown(void) {
+    void test_put_sub_unknown(void) {
 		tagspace_tester TS;
 		TAGL::driver tagl(&TS);
 		tagd::code tc = tagl.execute(
@@ -1224,7 +1224,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( it->related("_has", "tail") )
 	}
 
-    void test_query_no_super_wildcard_relator(void) {
+    void test_query_no_sub_wildcard_relator(void) {
 		tagspace_tester TS;
 		callback_tester cb(&TS);
 		TAGL::driver tagl(&TS, &cb);

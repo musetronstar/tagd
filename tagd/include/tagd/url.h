@@ -108,7 +108,7 @@ class url : public abstract_tag {
 /*
  * TODO
  * before we can allow identity relations other than _url,
- * we must enforce that the super itself is_a web resource
+ * we must enforce that the sub itself is_a web resource
  * For example,
  * http://example.com/wiki _is_a wiki  # ok because wiki is a web resource
  * http://example.com/wiki _is_a dog   # not ok becuase dog is not a web resource

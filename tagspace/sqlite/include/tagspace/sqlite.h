@@ -50,9 +50,9 @@ class sqlite: public tagspace {
         sqlite3_stmt *_get_relations_stmt;
         sqlite3_stmt *_related_stmt;
         sqlite3_stmt *_related_modifier_stmt;
-        sqlite3_stmt *_related_null_super_stmt;
+        sqlite3_stmt *_related_null_sub_stmt;
 		sqlite3_stmt *_get_children_stmt;
-        sqlite3_stmt *_related_null_super_modifier_stmt;
+        sqlite3_stmt *_related_null_sub_modifier_stmt;
         /*** uridb ***/
         sqlite3_stmt *_get_uri_stmt;
         sqlite3_stmt *_get_uri_specs_stmt;
@@ -110,9 +110,9 @@ class sqlite: public tagspace {
             _get_relations_stmt(NULL),
             _related_stmt(NULL),
             _related_modifier_stmt(NULL),
-            _related_null_super_stmt(NULL),
+            _related_null_sub_stmt(NULL),
 			_get_children_stmt(NULL),
-            _related_null_super_modifier_stmt(NULL),
+            _related_null_sub_modifier_stmt(NULL),
             /*** uridb ***/
             _get_uri_stmt(NULL),
             _get_uri_specs_stmt(NULL),
@@ -212,7 +212,7 @@ class sqlite: public tagspace {
         tagd::code update_fts_tag(const tagd::id_type&, flags_t = flags_t());
         tagd::code delete_fts_tag(const tagd::id_type&);
 
-        // insert - new, destination (super of new tag)
+        // insert - new, destination (sub of new tag)
         tagd::code insert(const tagd::abstract_tag&, const tagd::abstract_tag&);
         // update - updated, new destination
         tagd::code update(const tagd::abstract_tag&, const tagd::abstract_tag&);

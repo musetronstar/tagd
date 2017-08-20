@@ -1,11 +1,11 @@
 
-{{#super_relation}}
+{{#sub_relation}}
 <h4>
 &rarr;
-<!--<a href="{{super_relator_lnk}}">{{super_relator}}</a>-->
+<!--<a href="{{sub_relator_lnk}}">{{sub_relator}}</a>-->
 <a href="{{super_object_lnk}}">{{super_object}}</a>
 </h4>
-{{/super_relation}}
+{{/sub_relation}}
 
 {{#relations}}
  <ul>
@@ -27,7 +27,7 @@
  <li>
  <h3><a href="{{res_id_lnk}}">{{res_id}}</a></h3>
  <!--&rarr;
- <a href="{{res_super_relator_lnk}}">{{res_super_relator}}</a>
+ <a href="{{res_sub_relator_lnk}}">{{res_sub_relator}}</a>
  <a href="{{res_super_object_lnk}}">{{res_super_object}}</a>
  -->
 {{#res_relations}}

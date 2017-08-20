@@ -173,8 +173,8 @@ int driver::lookup_pos(const std::string& s) const {
 		case tagd::POS_TAG:
 			token = TOK_TAG;
 			break;
-		case tagd::POS_SUPER_RELATOR:
-			token = TOK_SUPER_RELATOR;
+		case tagd::POS_SUB_RELATOR:
+			token = TOK_SUB_RELATOR;
 			break;
 		case tagd::POS_RELATOR:
 			token = TOK_RELATOR;

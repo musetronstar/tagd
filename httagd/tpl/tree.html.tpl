@@ -20,7 +20,7 @@ li.id:before {
 }
 </style>
 <ul class="tree">
-<li class="super"><a href="{{super_object_lnk}}">{{super_object}}</a>
+<li class="sub"><a href="{{super_object_lnk}}">{{super_object}}</a>
  <ul>
  {{#has_prev}}<li class="prev"><a href="{{prev_lnk}}">{{prev}}</a></li>{{/has_prev}}
   <li class="id"><a href="{{id_lnk}}">{{id}}</a>
@@ -51,9 +51,9 @@ $(".tree li").each(function(i) {
 	//console.log('li('+i+','+typeof($( this ))+'): '+cls);
 });
 
-$(".tree li.super > a").each(function(i) {
+$(".tree li.sub > a").each(function(i) {
 	tree["super_object_link"] = $(this).attr('href');
-	//console.log('super('+i+','+typeof($( this ))+'): '+tree['super_object_link']);
+	//console.log('sub('+i+','+typeof($( this ))+'): '+tree['super_object_link']);
 });
 
 $(".tree li.prev > a").each(function(i) {
