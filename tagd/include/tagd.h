@@ -15,7 +15,7 @@
 
 namespace tagd {
 
-const size_t MAX_TAG_LEN = 2112;  // We are the Priests of the Temples of Syrinx 
+const size_t MAX_TAG_LEN = 2112;  // We are the Priests of the Temples of Syrinx
 typedef std::string id_type;
 
 typedef enum {
@@ -35,7 +35,7 @@ typedef enum {
 /* TODO
 typedef enum {
 	PRINT_PRETTY,		// use whitespace for maximum readability
-	PRINT_DELIM_NL,		// use newlines when delimitting lists 
+	PRINT_DELIM_NL,		// use newlines when delimitting lists
 	PRINT_ID_ONLY,		// only print the tag id
 	PRINT_ID_SUB_ONLY	// only print the tag id and the sub relation
 } print_options_t;
@@ -72,7 +72,7 @@ struct predicate {
 	// modifier not used in comparisions
     // relator and object make a predicate unique - modifier is incendental
     bool operator<(const predicate& p) const {
-        return ( relator < p.relator 
+        return ( relator < p.relator
                 || ( relator == p.relator
                      && object < p.object )
                 || ( relator == p.relator
@@ -82,7 +82,7 @@ struct predicate {
     }
 
     bool operator==(const predicate& p) const {
-        return ( 
+        return (
           relator == p.relator
           && object == p.object
           && modifier == p.modifier
@@ -305,7 +305,7 @@ class abstract_tag {
         tagd::code not_relation(const predicate&);
                             // relator, object
         tagd::code not_relation(const id_type&, const id_type&);
-  
+
 		// modifier not needed for negations (erasing)
         // tagd::code not_relation(const id_type&, const id_type&, const id_type&);
 
@@ -421,7 +421,7 @@ class referent : public abstract_tag {
 		// _id is the thing that refers
 		// _super_object is the thing refered to
     public:
-	
+
         referent() :
 			abstract_tag(POS_REFERENT)
 		{

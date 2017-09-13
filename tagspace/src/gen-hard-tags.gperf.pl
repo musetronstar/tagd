@@ -18,9 +18,9 @@ while (<>) {
     s/\s+$//g;
 
 # hard-tags.h form:
-#define HARD_TAG_TAGNAME "<_tagname>" //gperf <SUB_RELATION>, <tagd::part_of_speech>
+#define HARD_TAG_TAGNAME "<_tagname>"	//gperf <SUB_RELATION>, <tagd::part_of_speech>
 # example:
-#define HARD_TAG_RELATOR	"_relator"	//gperf HARD_TAG_ENTITY, tagd::POS_RELATOR
+#define HARD_TAG_RELATOR	"_rel"		//gperf HARD_TAG_ENTITY, tagd::POS_RELATOR
 
     if (/^#define\s*(\S*)\s*\"(\S*)\"\s*\/\/gperf\s*([^, ]+), ?(.*)/) {
 		$row++;

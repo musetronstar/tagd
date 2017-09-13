@@ -64,7 +64,7 @@ It is the only tag having this relation.
 
 Now let's put some more tags so that we can define dog more completely:
 
-	>> can _type_of _relator;
+	>> can _type_of _rel;
 	>> event _is_a _entity;
 	>> sound _is_a event;
 	>> utterance _is_a sound;
@@ -197,7 +197,7 @@ cannot have a sub relation.
 Tags (subjects) can be retrieved according to matching predicates using query
 statements.  Let's define some more tags to make it interesting:
 
-	>> lives_in _type_of _relator;
+	>> lives_in _type_of _rel;
 	>> substance _is_a _entity;
 	>> fluid _is_a substance;
 	>> water _is_a fluid;
@@ -209,7 +209,7 @@ statements.  Let's define some more tags to make it interesting:
 	>> gills _is_a body_part;
 	>> hair _is_a body_part;
 	>> scales _is_a body_part;
-	>> breathes _is_a _relator;
+	>> breathes _is_a _rel;
 	>> what _is_a _interrogator;
 
 	>> fish _is_a vertibrate
@@ -303,7 +303,7 @@ in the future so that tags "referenced by url" can be defined (e.g. "wiki").
 
 Let's put some urls:
 
-	>> about _type_of _relator
+	>> about _type_of _rel
 
 	>> https://en.wikipedia.org/wiki/Dog
 	about dog

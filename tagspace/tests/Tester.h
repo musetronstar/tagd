@@ -65,9 +65,9 @@ size_t populate_tags(space_type& TS) {
     TS.put( tagd::tag("fly","movement") );    // to_fly
     TS.put( tagd::tag("swim","movement") );    // to_swim
 
-    TS.put( tagd::relator("verb","_relator") );
+    TS.put( tagd::relator("verb","_rel") );
     TS.put( tagd::relator("can","verb") );  // no hard_tagd == _can, so no referent
-    TS.put( tagd::relator("preposition","_relator") );
+    TS.put( tagd::relator("preposition","_rel") );
     TS.put( tagd::relator("about","preposition") );
 
     TS.put( tagd::referent("is_a","_is_a") );
@@ -1108,7 +1108,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( S.size(), 0 );
 
         S.empty();
-        ts_rc = TS.related(S, tagd::predicate("_relator", "body_part")); 
+        ts_rc = TS.related(S, tagd::predicate("_rel", "body_part")); 
         TS_ASSERT_EQUALS( TAGD_CODE_STRING(ts_rc), "TAGD_OK" );
         TS_ASSERT_EQUALS( S.size(), 8 );
         // for(tagd::tag_set::iterator it = S.begin(); it != S.end(); ++it) {

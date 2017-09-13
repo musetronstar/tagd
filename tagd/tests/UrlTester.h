@@ -7,7 +7,7 @@
 
 #include "tagd.h"
 
-// returns true if each of the url compenents were parsed identically 
+// returns true if each of the url compenents were parsed identically
 bool url_test(std::string u,
               std::string scheme,
               std::string host,
@@ -51,7 +51,7 @@ bool url_test(std::string u,
     return true;
 }
 
-// returns true if each of the url compenents were parsed identically 
+// returns true if each of the url compenents were parsed identically
 bool url_user_test(std::string u,
               std::string scheme,
               std::string user,
@@ -126,7 +126,7 @@ class Tester : public CxxTest::TestSuite {
 		// com:example:http _is_a _url
 		// has	_rpub	com:dns,
 		//    	_private_dns_label	example,
-		//    	_scheme	http 
+		//    	_scheme	http
 
 		tagd::url b;
 		b.init_hduri(a.hduri());
@@ -738,7 +738,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.id(), "http://joe:@example.com?a=1&b=2" );
         TS_ASSERT_EQUALS( a.hduri(), "com:example:::?a=1&b=2:::joe::http" );
 		// std::cout << a << std::endl;
-		
+
         tagd::url b;
 		b.init_hduri(a.hduri());
         TS_ASSERT( !b.empty() );
@@ -874,7 +874,7 @@ class Tester : public CxxTest::TestSuite {
 		url_query_map_t qm, tm;
 
 		// TODO be comprehensive
-	
+
 		// test '+' => ' '
 		tm = {
 			{"a", "1"},
@@ -905,11 +905,13 @@ class Tester : public CxxTest::TestSuite {
 
         TS_ASSERT( tagd::url::looks_like_url("http://example.com/?a=1&b=2") )
         TS_ASSERT( tagd::url::looks_like_hduri("com:example::/:?a=1&b=2:http") )
+
+		TS_ASSERT( !tagd::url::looks_like_hduri("http://localhost:2112/each:a?v=browse.html") )
 	}
 
 	void test_percent_encode(void) {
 		TS_ASSERT(tagd::uri_encode("ABC") == "ABC");
-   
+
 		std::string src1(u8"イヌ");
 		std::string enc1("%E3%82%A4%E3%83%8C");
 

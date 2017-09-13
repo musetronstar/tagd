@@ -22,7 +22,7 @@
 #define HARD_TAG_TYPE_OF	"_type_of"	//gperf HARD_TAG_SUB, tagd::POS_SUB_RELATOR
 
 // relators - relates subject to object, subordinate to all relators
-#define HARD_TAG_RELATOR	"_relator"	//gperf HARD_TAG_ENTITY, tagd::POS_RELATOR
+#define HARD_TAG_RELATOR	"_rel"		//gperf HARD_TAG_ENTITY, tagd::POS_RELATOR
 #define HARD_TAG_HAS 		"_has"		//gperf HARD_TAG_RELATOR, tagd::POS_RELATOR
 #define HARD_TAG_CAN 		"_can"		//gperf HARD_TAG_RELATOR, tagd::POS_RELATOR
 

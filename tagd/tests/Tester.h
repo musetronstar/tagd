@@ -919,7 +919,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( r1.id() == "has" )
 		TS_ASSERT( r1.id() == "has" )
 		TS_ASSERT( r1.sub_relator() == HARD_TAG_TYPE_OF )
-		TS_ASSERT( r1.super_object() == "_relator" )
+		TS_ASSERT( r1.super_object() == "_rel" )
 		TS_ASSERT( r1.pos() == tagd::POS_RELATOR )
 
 		tagd::relator r2("can", "verb");
