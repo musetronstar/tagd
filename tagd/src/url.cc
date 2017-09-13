@@ -269,7 +269,7 @@ query:
 
     // no fragment
     _query_len = i - _query_offset;
-    goto url_ok; 
+    goto url_ok;
 
 fragment:
     _fragment_offset = i;
@@ -323,7 +323,7 @@ tagd::code url::init_hduri(const std::string &hduri) {
 			if (s[j] == HDURI_DELIM) {
 				if ((j-i) > 0) {
 					elems[idx] = new std::string(s.substr(i, (j-i)));
-				} // else remain NULL	
+				} // else remain NULL
 				idx++;
 				i = j + 1;
 			}
@@ -364,8 +364,8 @@ tagd::code url::init_hduri(const std::string &hduri) {
 		_host_offset = sz;
 		_host_len = elems[HDURI_RSUB]->size();
 		sz += _host_len;
-	} 
-	
+	}
+
 	if (elems[HDURI_PRIV]) {
 		if (_host_offset == 0) _host_offset = sz;
 		if (_host_len > 0) {
@@ -376,7 +376,7 @@ tagd::code url::init_hduri(const std::string &hduri) {
 		ss_url << *(elems[HDURI_PRIV]);
 		_host_len += elems[HDURI_PRIV]->size();
 		sz += elems[HDURI_PRIV]->size();
-	} 
+	}
 
 	if (elems[HDURI_RPUB]) {
 		if (_host_offset == 0) _host_offset = sz;
@@ -432,7 +432,7 @@ void print_hduri_elem(std::ostream& os, const std::string& elem, int *dropped, b
 			*dropped = 0;
 		}
 
-		os << HDURI_DELIM << (rev_labels ? reverse_labels(elem) : elem); 
+		os << HDURI_DELIM << (rev_labels ? reverse_labels(elem) : elem);
 	} else
 		(*dropped)++;
 }
@@ -456,7 +456,7 @@ void print_hduri_elem(std::ostream& os, const std::string& elem, int *dropped, b
 //
 //  empty elements between non-empty ones, must be delimmed,
 //  for example:
-//  
+//
 //  http://example.com?hi=hey
 //  			|
 //              v
@@ -560,7 +560,7 @@ size_t url::parse_query(url_query_map_t& M, const std::string& s) {
 key_val:
 			v = uri_decode(v);
 			for (size_t i=0; i<v.size(); i++) {
-				if (v[i] == '+') 
+				if (v[i] == '+')
 					v[i] = ' ';
 			}
 			M[k] = v;
@@ -615,45 +615,46 @@ bool url::looks_like_hduri(const std::string& str) {
 	return false;
 }
 
-
-
-// Uri encode and decode.
-// RFC1630, RFC1738, RFC2396
-// see: http://www.codeguru.com/cpp/cpp/algorithms/strings/article.php/c12759/URI-Encoding-and-Decoding.htm
-const char HEX2DEC[256] = 
+/*\
+|*| Uri encode and decode.
+|*| RFC1630, RFC1738, RFC2396
+|*| Thank you Jin Qing
+|*| see: http://www.codeguru.com/cpp/cpp/algorithms/strings/article.php/c12759/URI-Encoding-and-Decoding.htm
+\*/
+const char HEX2DEC[256] =
 {
     /*       0  1  2  3   4  5  6  7   8  9  A  B   C  D  E  F */
     /* 0 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* 1 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* 2 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* 3 */  0, 1, 2, 3,  4, 5, 6, 7,  8, 9,-1,-1, -1,-1,-1,-1,
-    
+
     /* 4 */ -1,10,11,12, 13,14,15,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* 5 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* 6 */ -1,10,11,12, 13,14,15,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* 7 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    
+
     /* 8 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* 9 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* A */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* B */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    
+
     /* C */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* D */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* E */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* F */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1
 };
-    
+
 std::string uri_decode(const std::string & sSrc)
 {
     // Note from RFC1630:  "Sequences which start with a percent sign
     // but are not followed by two hexadecimal characters (0-9, A-F) are reserved
     // for future extension"
-    
+
     const unsigned char * pSrc = (const unsigned char *)sSrc.c_str();
 	const int SRC_LEN = sSrc.length();
     const unsigned char * const SRC_END = pSrc + SRC_LEN;
-    const unsigned char * const SRC_LAST_DEC = SRC_END - 2;   // last decodable '%' 
+    const unsigned char * const SRC_LAST_DEC = SRC_END - 2;   // last decodable '%'
 
     char * const pStart = new char[SRC_LEN];
     char * pEnd = pStart;
@@ -692,17 +693,17 @@ const char SAFE[256] =
     /* 1 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     /* 2 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     /* 3 */ 1,1,1,1, 1,1,1,1, 1,1,0,0, 0,0,0,0,
-    
+
     /* 4 */ 0,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,
     /* 5 */ 1,1,1,1, 1,1,1,1, 1,1,1,0, 0,0,0,1,
     /* 6 */ 0,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,
     /* 7 */ 1,1,1,1, 1,1,1,1, 1,1,1,0, 0,0,0,0,
-    
+
     /* 8 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     /* 9 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     /* A */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     /* B */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-    
+
     /* C */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     /* D */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     /* E */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
@@ -720,7 +721,7 @@ std::string uri_encode(const std::string & sSrc)
 
     for (; pSrc < SRC_END; ++pSrc)
 	{
-		if (SAFE[*pSrc]) 
+		if (SAFE[*pSrc])
             *pEnd++ = *pSrc;
         else
         {

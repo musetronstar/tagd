@@ -1136,6 +1136,34 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( ss.str() , "my_message has message = \"quoted \\\"string\\\" hey\\\" yo \\ \"");
 	}
 
+	void test_esc_and_quote(void) {
+		// not ':'
+		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("each:a") , "each:a" )
+		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("http://localhost:2112/each:a?v=browse.html") , "http://localhost:2112/each:a?v=browse.html" )
+
+		// '\\'
+		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("back\\slashed") , "\"back\\slashed\"" )
+
+		// '"'
+		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("\"quoted\"") , "\"\"quoted\"\"" )
+		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("qu\"oted") , "\"qu\"oted\"" )
+
+		// '/'
+		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("slash/ed") , "\"slash/ed\"" )
+
+		// ';'
+		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("semi;colon") , "\"semi;colon\"" )
+
+		// ','
+		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("com,ma") , "\"com,ma\"" )
+
+		// '='
+		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("eq=uals") , "\"eq=uals\"" )
+
+		// '-'
+		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("dash-ed") , "\"dash-ed\"" )
+	}
+
 	void test_predicate_ostream_op(void) {
 		std::stringstream ss;
 		tagd::predicate p{ "has" , "legs", "4" };

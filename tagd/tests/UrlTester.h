@@ -906,7 +906,9 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( tagd::url::looks_like_url("http://example.com/?a=1&b=2") )
         TS_ASSERT( tagd::url::looks_like_hduri("com:example::/:?a=1&b=2:http") )
 
+		TS_ASSERT( tagd::url::looks_like_url("http://localhost:2112/each:a?v=browse.html") )
 		TS_ASSERT( !tagd::url::looks_like_hduri("http://localhost:2112/each:a?v=browse.html") )
+		TS_ASSERT( !tagd::url::looks_like_hduri("each:a") )
 	}
 
 	void test_percent_encode(void) {

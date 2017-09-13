@@ -341,13 +341,8 @@ std::string util::esc_and_quote(id_type s) {
 			case ':':
 				if ((s.size()-i) > 2 && s[i+1] == '/' && s[i+2] == '/')
 					return s;	// don't quote urls
-				else
-					do_quotes = true;
 				break;
 			case '\\':
-				//if ((s.size()-i) > 1 && s[i+1] == '"') {
-				//	i++;  // escaped  \"
-				//}
 				i += 2;
 				do_quotes = true;
 				break;

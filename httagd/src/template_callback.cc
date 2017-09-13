@@ -315,6 +315,8 @@ tagd::code fill_query(transaction& tx, const view& vw, tagd_template& tpl, const
 			auto s1 = tpl.add_section("result");
 			if (r.has_relator(HARD_TAG_CONTEXT)) {
 				tagd::referent ref(r);
+				// WTF, should'nt it be:
+				// s1->set_tag_link(tx, "res_id", ref.id());
 				s1->set_tag_link(tx, "res_id", r.id());
 			} else {
 				s1->set_tag_link(tx, "res_id", r.id());
