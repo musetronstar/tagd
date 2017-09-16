@@ -1,6 +1,7 @@
 #include <sstream>
 #include <map>
 #include "httagd.h"
+#include "tagspace/sqlite.h"
 
 using namespace httagd;
 
@@ -84,7 +85,7 @@ empty_handler_t home_handler(
 tagd::code fill_query(transaction&, const view&, tagd_template&, const tagd::interrogator&, const tagd::tag_set&);
 
 tagd::code fill_tag(transaction& tx, const view& vw, tagd_template& tpl, const tagd::abstract_tag& t) {
-	tpl.set_value("REQUEST_URL_VIEW_TAGL", tx.req->abs_url_view(httagd::DEFAULT_VIEW));
+	tpl.set_value("REQUEST_URL_VIEW_TAGL", tx.req->abs_url_view(DEFAULT_VIEW));
 	tpl.set_value("REQUEST_URL_VIEW_TAG_HTML", tx.req->abs_url_view(TAG_VIEW_ID.name()));
 
 	if (t.pos() == tagd::POS_URL) {
@@ -511,3 +512,42 @@ void init_viewspace(viewspace &VS) {
 	VS.put({TREE_VIEW_ID, tree_handler});
 	VS.put({TREE_ERROR_VIEW_ID, partial_error_handler});
 }
+
+
+int main(int argc, char ** argv) {
+	httagd_args  args;
+	args.parse(argc, argv);
+
+	if (args.has_errors()) {
+		args.print_errors();
+		return args.code();
+	}
+
+	tagspace::sqlite TS;
+	if (TS.init(args.db_fname) != tagd::TAGD_OK) {
+		TS.print_errors();
+		return TS.code();
+	}
+
+	if (args.tpl_dir.empty())
+		args.tpl_dir = "./app/tpl/";
+
+	viewspace VS(args.tpl_dir);
+	init_viewspace(VS);
+	if (VS.has_errors()) {
+		VS.print_errors();
+		return VS.code();
+	}
+
+	server svr(&TS, &VS, &args);
+	svr.start();
+
+	// NOTE: at this point, main_cb will have replaced
+	// the errors pointer of VS and TS
+
+	if (svr.has_errors())
+		svr.print_errors();
+
+	return svr.code();
+}
+

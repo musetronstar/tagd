@@ -1,4 +1,5 @@
 SRC_DIR = ./src
+APP_DIR = ./app
 BIN_DIR = ./bin
 LIB_DIR = ./lib
 TEST_DIR = ./tests
@@ -17,7 +18,11 @@ src: force_look
 	[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
 	make -C	$(SRC_DIR) $(DEBUG)
 
-tests: force_look lib
+app: force_look lib
+	[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
+	make -C	$(APP_DIR) $(DEBUG)
+
+tests: force_look app
 	make -C $(TEST_DIR) $(DEBUG)
 
 lib: src $(LIB)
@@ -32,3 +37,4 @@ force_look:
 clean:
 	rm -rf  $(LIB_DIR) $(BIN_DIR)
 	make -C $(SRC_DIR) clean
+	make -C $(APP_DIR) clean

@@ -805,7 +805,7 @@ class viewspace : public tagd::errorable {
 			_tpl_dir{tpl_dir}, fallback_error_view(default_error_view)
 		{
 			if (_tpl_dir.empty()) {
-				_tpl_dir = "./tpl/";
+				_tpl_dir = "./";
 			} else {
 				if ( _tpl_dir[_tpl_dir.size()-1] != '/' )
 					_tpl_dir.push_back('/');
@@ -1029,6 +1029,3 @@ class tagd_template : public tagd::errorable {
 };
 
 } // namespace httagd
-
-// defined by the user, called before server::start
-void init_viewspace(httagd::viewspace &);

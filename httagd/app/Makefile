@@ -6,6 +6,7 @@ TAGD_DIR = $(PRG_DIR)/tagd
 TAGL_DIR = $(PRG_DIR)/tagl
 TAGSPACE_DIR = $(PRG_DIR)/tagspace
 TAGSH_DIR = $(PRG_DIR)/tagsh
+HTTAGD_DIR = $(PRG_DIR)/httagd
 
 BUILD_DIR = ../bin
 BIN = $(BUILD_DIR)/httagd
@@ -21,7 +22,8 @@ LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagspace-sqlite \
 		 -L $(TAGL_DIR)/lib -ltagl \
 		 -L $(TAGD_DIR)/lib -ltagd \
 		 -L $(TAGSH_DIR)/lib -ltagsh \
-		 -lsqlite3 -levent -lreadline
+		 -L $(HTTAGD_DIR)/lib -lhttagd \
+		 -lsqlite3 -levent -lreadline -lctemplate_nothreads
 
 LIBEVHTP_DIR = $(HOME)/src/libevhtp
 LIBEVHTP_INC = -I$(LIBEVHTP_DIR)/include -I$(LIBEVHTP_DIR)/build/include
@@ -35,16 +37,14 @@ debug: DEBUG=debug
 debug: CXXFLAGS = -g
 debug: build
 
-build : httagd.o
+build : $(BIN)
 
-# token to string case statements
-evhtp-results.inc: $(LIBEVHTP_DIR)/include/evhtp/evhtp.h
-	grep '#define EVHTP_RES_[A-Z]' $? | awk '{printf "case %s: return \"%s\";\n", $$2, $$2;}' > $@
-
-httagd.o : evhtp-results.inc httagd.cc
+main.o : main.cc
 	$(CXX) $(CXXFLAGS) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
+
+$(BIN) : main.o
+	$(CXX) $(CXXFLAGS) -o $@ $? $(LFLAGS) $(LIBEVHTP) $(LIBEVHTP_LFLAGS)
 
 clean :
 	rm -f *.o
-	rm -f *.inc
 	rm -f $(BIN)
