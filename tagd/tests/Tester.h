@@ -1145,8 +1145,8 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("back\\slashed") , "\"back\\slashed\"" )
 
 		// '"'
-		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("\"quoted\"") , "\"\"quoted\"\"" )
-		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("qu\"oted") , "\"qu\"oted\"" )
+		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("\"quoted\"") , "\"\\\"quoted\\\"\"" )
+		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("qu\"oted") , "\"qu\\\"oted\"" )
 
 		// '/'
 		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("slash/ed") , "\"slash/ed\"" )
