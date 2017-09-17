@@ -78,12 +78,13 @@ Now let's put some more tags so that we can define dog more completely:
 	_has legs = 4, tail;
 
 Note the missing semicolon (';') after the statement `>> tail _is_a body_part`.
-That's not a syntax error.  A statement can be terminated by a semicolon, `<EOF>`,
-or a double newline.
+That's not a syntax error.  A statement can be terminated by a semicolon,
+`<EOF>`, or a double newline.
 
-The equals sign ('=') after "legs" indicates that the "4" is a *modifier* (more
-specifically a *quantifier*), that is, it quantifies the object.  Modifiers are
-optional, but if present they must be preceded by an equals sign.
+The equals sign ('=') after "legs" indicates that the "4" is a *modifier*.
+In this case, more specifically, as a numeric, it becomes a *quantifier*,
+that is, it quantifies the object.  Modifiers are optional, but if present
+they must be preceded by an equals sign.
 
 The intent of a modifier is to assign values to objects when appropriate.  You
 can think of objects and modifiers as key/value pairs that are attributes
@@ -120,8 +121,8 @@ Now is a good time to define a input (`>>`) statement more formally...
 	object ::= TAG EQUALS QUOTED_STR
 	object ::= TAG
 
-Where TAG and MODIFIER are UTF-8 labels composed of alphanumeric characters and
-underscores and a QUANTIFIER is a number. A modifier can hold spaces and other
+Where `TAG` and `MODIFIER` are UTF-8 labels composed of alphanumeric characters and
+underscores and a `QUANTIFIER` is a number. A modifier can hold spaces and other
 special characters if it is enclosed in double quotes.  Double quotes as part
 of the modifier value must be escaped (i.e. `"my \"quoted\" modifier"`).
 The `SUB TAG` predicate defines the subject as being subordinate to
@@ -189,7 +190,7 @@ And it should no longer exist:
 
 ##### DELETE Grammar:
 
-A DELETE statement has the same grammar as a PUT statement, except that it
+A `DELETE` statement has the same grammar as a PUT statement, except that it
 cannot have a sub relation.
 
 #### QUERY Statement
