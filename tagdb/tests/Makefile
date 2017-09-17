@@ -6,7 +6,7 @@ INC = -I../include -I$(TAGD_DIR)/include -I$(PRG_DIR)/include -I $(HOME)/src/cxx
 CXX = g++ -std=c++0x -Wall -Wextra
 CXXTEST = $(HOME)/src/cxxtest/bin/cxxtestgen --error-printer
 CXXFLAGS = -O3
-LFLAGS = -L../lib -ltagspace-sqlite -L$(TAGD_DIR)/lib -ltagd -lsqlite3 
+LFLAGS = -L../lib -ltagdb-sqlite -L$(TAGD_DIR)/lib -ltagd -lsqlite3 
 
 SRC = tester.cc
 OBJ = tester.o

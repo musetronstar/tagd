@@ -6,10 +6,10 @@ BIN = $(BUILD_DIR)/tagsh
 
 TAGD_DIR = ../../tagd
 TAGL_DIR = ../../tagl
-TAGSPACE_DIR = ../../tagspace
+TAGSPACE_DIR = ../../tagdb
 
 INC = -I../include -I$(TAGD_DIR)/include -I$(TAGL_DIR)/include -I$(TAGSPACE_DIR)/include -I$(TAGSPACE_DIR)/sqlite/include -I ../
-LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagspace-sqlite -L $(TAGL_DIR)/lib -ltagl -L $(TAGD_DIR)/lib -ltagd -lsqlite3 -levent -lreadline
+LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite -L $(TAGL_DIR)/lib -ltagl -L $(TAGD_DIR)/lib -ltagd -lsqlite3 -levent -lreadline
 
 all: build
 

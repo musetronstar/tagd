@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "tagd.h"
 
-namespace tagspace {
+namespace tagdb {
 
 typedef enum {
 	F_NO_POS_CAST	         = 1 << 0, // don't cast a tag according to its pos (i.e. url, referent...)
@@ -67,15 +67,15 @@ class hard_tag {
 };
 
 // pure virtual interface
-class tagspace : public tagd::errorable {
+class tagdb : public tagd::errorable {
 	protected:
 		// stack of tags ids as context
 		tagd::id_vec _context;
 		bool _trace_on;
 
 	public:
-		tagspace() : tagd::errorable(tagd::TS_INIT), _trace_on{false} {}
-		virtual ~tagspace() {}
+		tagdb() : tagd::errorable(tagd::TS_INIT), _trace_on{false} {}
+		virtual ~tagdb() {}
 
 		virtual tagd::code push_context(const tagd::id_type&);
 		virtual const tagd::id_vec& context() const;
@@ -103,4 +103,4 @@ struct util {
 	static std::string user_db();
 };
 
-} // namespace tagspace
+} // namespace tagdb

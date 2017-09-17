@@ -3,7 +3,7 @@ CXXFLAGS = -O3
 YACC = 
 RE2CFLAGS = 
 
-INC =  -I../include -I../../tagd/include -I../../tagspace/include
+INC =  -I../include -I../../tagd/include -I../../tagdb/include
 PARSER_H = ../include/parser.h
 
 all: build

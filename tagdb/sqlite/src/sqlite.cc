@@ -10,7 +10,7 @@
 #include <cstdio>
 #include <cstdarg>
 
-#include "tagspace/sqlite.h"
+#include "tagdb/sqlite.h"
 
 void trace_callback( void* udp, const char* sql ) {
 	if (udp == NULL) {
@@ -91,21 +91,21 @@ void finalize_stmt(sqlite3_stmt **stmt) {
 
 #define OK_OR_RET_POS_UNKNOWN() if(_code != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
 
-namespace tagspace {
+namespace tagdb {
 
 sqlite::~sqlite() {
     this->close();
 }
 
 void sqlite::trace_on() {
-	tagspace::trace_on();
+	tagdb::trace_on();
 	if (_db != nullptr)
 		sqlite3_trace(_db, trace_callback, NULL);
     dout << "### sqlite trace on ###" << std::endl;
 }
 
 void sqlite::trace_off() {
-	tagspace::trace_off();
+	tagdb::trace_off();
 	sqlite3_trace(_db, NULL, NULL);
     dout << "### sqlite trace off ###" << std::endl;
 }
@@ -243,9 +243,9 @@ tagd::code sqlite::_init(const std::string& fname) {
 	}
 
     if (_code != tagd::TAGD_OK) {
-		tagd::code ts_rc = _code;
+		tagd::code tc = _code;
         this->exec("ROLLBACK");
-		return this->code(ts_rc);
+		return this->code(tc);
     }
 
     this->exec("COMMIT");
@@ -282,11 +282,11 @@ tagd::code sqlite::create_terms_table() {
 		);
 
 		rowid_t term_id;
-		sqlite *ts = (sqlite*)sqlite3_user_data(context);
+		sqlite *tdb = (sqlite*)sqlite3_user_data(context);
 		tagd::part_of_speech pos = (
 			term[0] == '_'
 				? hard_tag::term_pos(term, &term_id)
-				: ts->term_pos(term, &term_id)
+				: tdb->term_pos(term, &term_id)
 		);
 
 		if (pos == tagd::POS_UNKNOWN) {
@@ -308,13 +308,13 @@ tagd::code sqlite::create_terms_table() {
 		}
 
 		sqlite3_int64 term_id = sqlite3_value_int64(argv[0]);
-		sqlite *ts = (sqlite*)sqlite3_user_data(context);
+		sqlite *tdb = (sqlite*)sqlite3_user_data(context);
 
 		std::string term;
 		tagd::part_of_speech pos = (
 			term[0] == '_'
 				? hard_tag::term_id_pos(term_id, &term)
-				: ts->term_id_pos(term_id, &term)
+				: tdb->term_id_pos(term_id, &term)
 		);
 
 		if (pos == tagd::POS_UNKNOWN) {
@@ -766,18 +766,18 @@ tagd::code sqlite::get_relations(tagd::predicate_set& P, const tagd::id_type& id
 
 tagd::part_of_speech sqlite::term_pos(const tagd::id_type& id, rowid_t *term_id) {
 
-    tagd::code ts_rc = this->prepare(&_term_pos_stmt,
+    tagd::code tc = this->prepare(&_term_pos_stmt,
         "SELECT ROWID, term_pos FROM terms WHERE term = ?",
         "term term_pos"
     );
-	if (ts_rc != tagd::TAGD_OK)
+	if (tc != tagd::TAGD_OK)
 		this->print_errors();
-    assert(ts_rc == tagd::TAGD_OK);
-    if (ts_rc != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
+    assert(tc == tagd::TAGD_OK);
+    if (tc != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
 
-    ts_rc = this->bind_text(&_term_pos_stmt, 1, id.c_str(), "term");
-    assert(ts_rc == tagd::TAGD_OK);
-    if (ts_rc != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
+    tc = this->bind_text(&_term_pos_stmt, 1, id.c_str(), "term");
+    assert(tc == tagd::TAGD_OK);
+    if (tc != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
 
     const int F_TERM_ID = 0;
     const int F_TERM_POS = 1;
@@ -797,18 +797,18 @@ tagd::part_of_speech sqlite::term_pos(const tagd::id_type& id, rowid_t *term_id)
 
 tagd::part_of_speech sqlite::term_id_pos(rowid_t term_id, std::string *term) {
 
-    tagd::code ts_rc = this->prepare(&_term_id_pos_stmt,
+    tagd::code tc = this->prepare(&_term_id_pos_stmt,
         "SELECT term, term_pos FROM terms WHERE ROWID = ?",
         "term term_pos"
     );
-	if (ts_rc != tagd::TAGD_OK)
+	if (tc != tagd::TAGD_OK)
 		this->print_errors();
-    assert(ts_rc == tagd::TAGD_OK);
-    if (ts_rc != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
+    assert(tc == tagd::TAGD_OK);
+    if (tc != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
 
-    ts_rc = this->bind_rowid(&_term_id_pos_stmt, 1, term_id, "term_id");
-    assert(ts_rc == tagd::TAGD_OK);
-    if (ts_rc != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
+    tc = this->bind_rowid(&_term_id_pos_stmt, 1, term_id, "term_id");
+    assert(tc == tagd::TAGD_OK);
+    if (tc != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
 
     const int F_TERM = 0;
     const int F_TERM_POS = 1;
@@ -838,16 +838,16 @@ tagd::part_of_speech sqlite::pos(const tagd::id_type& id, flags_t flags) {
 	else
 		this->refers_to(refers_to, id);  // refers_to set if id refers to it (in context)
 
-    tagd::code ts_rc = this->prepare(&_pos_stmt,
+    tagd::code tc = this->prepare(&_pos_stmt,
         "SELECT pos FROM tags WHERE tag = tid(?)",
         "tag pos"
     );
-    assert(ts_rc == tagd::TAGD_OK);
-    if (ts_rc != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
+    assert(tc == tagd::TAGD_OK);
+    if (tc != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
 
-    ts_rc = this->bind_text(&_pos_stmt, 1, (refers_to.empty() ? id.c_str() : refers_to.c_str()), "pos id");
-    assert(ts_rc == tagd::TAGD_OK);
-    if (ts_rc != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
+    tc = this->bind_text(&_pos_stmt, 1, (refers_to.empty() ? id.c_str() : refers_to.c_str()), "pos id");
+    assert(tc == tagd::TAGD_OK);
+    if (tc != tagd::TAGD_OK) return tagd::POS_UNKNOWN;
 
     const int F_POS = 0;
 
@@ -1480,7 +1480,7 @@ tagd::part_of_speech sqlite::term_pos_occurence(const tagd::id_type& id, bool se
 		// using this method to set error for the cause of FK constraint failures
 		if (set_fk_err) {
 			// TODO causes will need to be defined as hard tags
-			// if we ever want to insert errors in a tagspace
+			// if we ever want to insert errors in a tagdb
 			tagd::id_type cause;
 			switch(pos) {
 				case tagd::POS_SUB_RELATOR:
@@ -2339,7 +2339,7 @@ void sqlite::decode_referents(tagd::abstract_tag&to, const tagd::abstract_tag&fr
 tagd::code sqlite::push_context(const tagd::id_type& id) {
 	this->insert_context(id);
 	if (_code == tagd::TAGD_OK)
-		return tagspace::push_context(id);
+		return tagdb::push_context(id);
 
 	return this->ferror(tagd::TS_INTERNAL_ERR, "push_context failed: %s", id.c_str());
 }
@@ -2348,7 +2348,7 @@ tagd::code sqlite::pop_context() {
 	if (_context.empty()) return tagd::TAGD_OK;
 
 	if (this->delete_context(_context[_context.size()-1]) == tagd::TAGD_OK)
-		return tagspace::pop_context();
+		return tagdb::pop_context();
 
 	return this->ferror(tagd::TS_INTERNAL_ERR, "pop_context failed: %s", _context[_context.size()-1].c_str());
 }
@@ -2365,7 +2365,7 @@ tagd::code sqlite::clear_context() {
     if (sqlite3_step(_truncate_context_stmt) != SQLITE_DONE)
         return this->error(tagd::TS_ERR, "clear context failed");
 
-	return tagspace::clear_context();	
+	return tagdb::clear_context();	
 }
 
 tagd::code sqlite::insert_context(const tagd::id_type& id) {
@@ -2912,11 +2912,11 @@ tagd::code sqlite::search(tagd::tag_set& R, const std::string &terms, flags_t fl
 
 tagd::code sqlite::dump_grid(std::ostream& os) {
     sqlite3_stmt *stmt = NULL;
-    tagd::code ts_rc = this->prepare(&stmt,
+    tagd::code tc = this->prepare(&stmt,
         "SELECT idt(tag), idt(sub_relator), idt(super_object), rank, pos FROM tags ORDER BY rank",
         "dump grid"
     );
-    if (ts_rc != tagd::TAGD_OK) return ts_rc;
+    if (tc != tagd::TAGD_OK) return tc;
 
     const int F_ID = 0;
     const int F_SUB_REL = 1;
@@ -2957,13 +2957,13 @@ tagd::code sqlite::dump_grid(std::ostream& os) {
     }
 
     stmt = NULL;
-    ts_rc = this->prepare(&stmt,
+    tc = this->prepare(&stmt,
         "SELECT idt(refers), idt(refers_to), idt(context) "
 		"FROM referents "
 		"ORDER BY context",
         "dump referent grid"
     );
-    if (ts_rc != tagd::TAGD_OK) return ts_rc;
+    if (tc != tagd::TAGD_OK) return tc;
 
     const int F_REFERS = 0;
     const int F_REFERS_TO = 1;
@@ -3000,13 +3000,13 @@ tagd::code sqlite::dump_grid(std::ostream& os) {
         return this->error(tagd::TS_INTERNAL_ERR, "dump referent grid failed");
 
     stmt = NULL;
-    ts_rc = this->prepare(&stmt,
+    tc = this->prepare(&stmt,
         "SELECT idt(ctx_elem), stack_level "
 		"FROM context_stack "
 		"ORDER BY stack_level",
         "dump context grid"
     );
-    if (ts_rc != tagd::TAGD_OK) return ts_rc;
+    if (tc != tagd::TAGD_OK) return tc;
 
     const int F_CTX_ELEM = 0;
     const int F_STACK_LEVEL = 1;
@@ -3035,11 +3035,11 @@ tagd::code sqlite::dump_grid(std::ostream& os) {
 
 tagd::code sqlite::dump_terms(std::ostream& os) {
     sqlite3_stmt *stmt = NULL;
-    tagd::code ts_rc = this->prepare(&stmt,
+    tagd::code tc = this->prepare(&stmt,
         "SELECT term, term_pos, ROWID FROM terms",
         "dump terms"
     );
-    if (ts_rc != tagd::TAGD_OK) return ts_rc;
+    if (tc != tagd::TAGD_OK) return tc;
 
     const int F_TERM = 0;
     const int F_TERM_POS = 1;
@@ -3078,13 +3078,13 @@ tagd::code sqlite::dump(std::ostream& os) {
 	// dump tag identities before relations, so that they are
 	// all known by the time relations are added
     sqlite3_stmt *stmt = NULL;
-    tagd::code ts_rc = this->prepare(&stmt,
+    tagd::code tc = this->prepare(&stmt,
         "SELECT idt(tag), idt(sub_relator), idt(super_object), pos "
         "FROM tags "
         "ORDER BY rank",
         "dump tags"
     );
-    if (ts_rc != tagd::TAGD_OK) return ts_rc;
+    if (tc != tagd::TAGD_OK) return tc;
 
     const int F_ID = 0;
     const int F_SUB_REL = 1;
@@ -3117,14 +3117,14 @@ tagd::code sqlite::dump(std::ostream& os) {
 
 	// dump relations
     stmt = NULL;
-    ts_rc = this->prepare(&stmt,
+    tc = this->prepare(&stmt,
         "SELECT idt(subject), idt(relator), idt(object), idt(modifier), pos "
         "FROM relations, tags "
         "WHERE subject = tag "
         "ORDER BY rank",
         "dump relations"
     );
-    if (ts_rc != tagd::TAGD_OK) return ts_rc;
+    if (tc != tagd::TAGD_OK) return tc;
 
     // F_ID = 0
     const int F_RELATOR = 1;
@@ -3181,13 +3181,13 @@ tagd::code sqlite::dump(std::ostream& os) {
         return this->error(tagd::TS_INTERNAL_ERR, "dump relations failed");
 
     stmt = NULL;
-    ts_rc = this->prepare(&stmt,
+    tc = this->prepare(&stmt,
         "SELECT idt(refers), idt(refers_to), idt(context) "
         "FROM referents "
         "ORDER BY refers",
         "dump referents"
     );
-    if (ts_rc != tagd::TAGD_OK) return ts_rc;
+    if (tc != tagd::TAGD_OK) return tc;
 
     const int F_REFERS = 0;
     const int F_REFERS_TO = 1;
@@ -3232,11 +3232,11 @@ tagd::code sqlite::dump(std::ostream& os) {
 
 tagd::code sqlite::dump_search(std::ostream& os) {
     sqlite3_stmt *stmt = NULL;
-    tagd::code ts_rc = this->prepare(&stmt,
+    tagd::code tc = this->prepare(&stmt,
         "SELECT docid, idt(docid), content FROM fts_tags",
         "dump search"
     );
-    if (ts_rc != tagd::TAGD_OK) return ts_rc;
+    if (tc != tagd::TAGD_OK) return tc;
 
     const int F_DOCID = 0;
     const int F_TAG_ID = 1;
@@ -3548,4 +3548,4 @@ void sqlite::finalize() {
     _insert_uri_relations_stmt = NULL;
 }
 
-} // namespace tagspace
+} // namespace tagdb

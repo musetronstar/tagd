@@ -7,7 +7,7 @@
 #include "tagd.h"
 #include "hard-tags.gperf.h"
 
-namespace tagspace {
+namespace tagdb {
 
 // looks up hard tag and returns part_of_speech
 tagd::part_of_speech hard_tag::pos(const tagd::id_type &id) {
@@ -74,4 +74,4 @@ size_t hard_tag::rows_end() {
 	return hard_tag_rows_end;
 }
 
-} // namespace tagspace
+} // namespace tagdb

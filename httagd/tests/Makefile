@@ -1,5 +1,5 @@
 TAGD_DIR = ../../tagd
-TAGSPACE_DIR = ../../tagspace
+TAGSPACE_DIR = ../../tagdb
 TAGL_DIR = ../../tagl
 TAGSH_DIR = ../../tagsh
 HTTAGD_DIR = ../../httagd
@@ -13,7 +13,7 @@ CXX = g++ -std=c++0x
 CXXFLAGS = -O3 -Wno-write-strings
 LFLAGS  =
 LFLAGS += -L$(HTTAGD_DIR)/lib -lhttagd
-LFLAGS += -L$(TAGSPACE_DIR)/lib -ltagspace-sqlite
+LFLAGS += -L$(TAGSPACE_DIR)/lib -ltagdb-sqlite
 LFLAGS += -L$(TAGD_DIR)/lib -ltagd
 LFLAGS += -L$(TAGL_DIR)/lib -ltagl
 LFLAGS += -L$(TAGSH_DIR)/lib -ltagsh

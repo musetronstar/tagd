@@ -2,7 +2,7 @@ SRC_DIR = ./src
 PRG_DIR = ./sqlite
 BUILD_DIR = ./lib
 TEST_DIR = ./tests
-LIB = $(BUILD_DIR)/libtagspace-sqlite.a
+LIB = $(BUILD_DIR)/libtagdb-sqlite.a
 
 all: build
 
@@ -10,9 +10,9 @@ DEBUG=
 debug: DEBUG=debug
 debug: build
 
-build: tagspace $(LIB)
+build: tagdb $(LIB)
 
-tagspace: force_look
+tagdb: force_look
 	make -C $(SRC_DIR) $(DEBUG)
 	make -C $(PRG_DIR) $(DEBUG)
 
@@ -20,7 +20,7 @@ $(LIB):
 	[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
 	ar rcs $(LIB) $(SRC_DIR)/*.o $(PRG_DIR)/src/*.o
 
-tests: tagspace $(LIB) force_look
+tests: tagdb $(LIB) force_look
 	make -C $(TEST_DIR) $(DEBUG)
 
 # 'true' forces make to look (otherwise its always up to date)

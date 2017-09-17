@@ -202,7 +202,7 @@ tagd::code httagl::execute(transaction& tx) {
 			tx.req->method = HTTP_POST;
 			// if not empty, parse the tagdurl path
 			if (!(tx.req->path().empty() || tx.req->path() == "/")) {
-				this->tagdurl_put(*tx.req);	// put matches tagspace semantics, not http
+				this->tagdurl_put(*tx.req);	// put matches tagdb semantics, not http
 			}
 			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
 			break;
@@ -263,16 +263,16 @@ tagd::code httagl::tagdurl_del(const request& req) {
 
 void callback::default_cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag T;
-	tagd::code ts_rc = _tx->TS->get(T, t.id(), _driver->flags());
+	tagd::code tc = _tx->tdb->get(T, t.id(), _driver->flags());
 
 	// TODO, if outputting to an iostream is still desirable,
 	// but more efficient to ouput to an evbuffer directly,
 	// want to use std::ios_base::register_callback
 	std::stringstream ss;
-	if (ts_rc == tagd::TAGD_OK) {
+	if (tc == tagd::TAGD_OK) {
 		ss << T << std::endl;
 	} else {
-		_tx->TS->print_errors(ss);
+		_tx->tdb->print_errors(ss);
 	}
 
 	if (_tx->req->method == HTTP_HEAD) {
@@ -287,33 +287,33 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 }
 
 void callback::default_cmd_put(const tagd::abstract_tag& t) {
-	_tx->TS->put(t, _driver->flags());
+	_tx->tdb->put(t, _driver->flags());
 	std::stringstream ss;
-	if (_tx->TS->has_errors()) {
-		_tx->TS->print_errors(ss);
+	if (_tx->tdb->has_errors()) {
+		_tx->tdb->print_errors(ss);
 		_tx->res->add(ss.str());
 	}
 }
 
 void callback::default_cmd_del(const tagd::abstract_tag& t) {
-	_tx->TS->del(t, _driver->flags());
+	_tx->tdb->del(t, _driver->flags());
 	std::stringstream ss;
-	if (_tx->TS->has_errors()) {
-		_tx->TS->print_errors(ss);
+	if (_tx->tdb->has_errors()) {
+		_tx->tdb->print_errors(ss);
 		_tx->res->add(ss.str());
 	}
 }
 
 void callback::default_cmd_query(const tagd::interrogator& q) {
 	tagd::tag_set T;
-	tagd::code ts_rc = _tx->TS->query(T, q, _driver->flags());
+	tagd::code tc = _tx->tdb->query(T, q, _driver->flags());
 
 	std::stringstream ss;
-	if (ts_rc == tagd::TAGD_OK) {
+	if (tc == tagd::TAGD_OK) {
 		tagd::print_tag_ids(T, ss);
 		ss << std::endl;
 	} else {
-		_tx->TS->print_errors(ss);
+		_tx->tdb->print_errors(ss);
 	}
 	if (ss.str().size())
 		_tx->res->add(ss.str());
@@ -489,15 +489,15 @@ void callback::output_errors(tagd::code ret_tc) {
 
 	// get the error_function view
 	view vw;
-	_tx->VS->report_errors = false;
-	tagd::code tc = _tx->VS->get(vw, error_view_id(_tx->req->effective_opt_view()));
-	_tx->VS->report_errors = true;
+	_tx->vws->report_errors = false;
+	tagd::code tc = _tx->vws->get(vw, error_view_id(_tx->req->effective_opt_view()));
+	_tx->vws->report_errors = true;
 
 	// call error_function_t for the errorable object
 	if (tc == tagd::TAGD_OK)
 		tc = vw.error_function(*_tx, vw, *_tx);
 	else
-		tc = _tx->VS->fallback_error_view.error_function(*_tx, _tx->VS->fallback_error_view, *_tx);
+		tc = _tx->vws->fallback_error_view.error_function(*_tx, _tx->vws->fallback_error_view, *_tx);
 
 	// add plain text errors if the call failed
 	if (tc != tagd::TAGD_OK)
@@ -523,9 +523,9 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag T;
 	tagd::code tc;
 	if (t.pos() == tagd::POS_URL) {
-		tc = _tx->TS->get(static_cast<tagd::url&>(T), t.id());
+		tc = _tx->tdb->get(static_cast<tagd::url&>(T), t.id());
 	} else {
-		tc = _tx->TS->get(T, t.id());
+		tc = _tx->tdb->get(T, t.id());
 	}
 
 	if (tc != tagd::TAGD_OK) {
@@ -534,7 +534,7 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 
 	view vw;
-	tc = _tx->VS->get(vw, get_view_id(view_name));
+	tc = _tx->vws->get(vw, get_view_id(view_name));
 	if (tc != tagd::TAGD_OK) {
 		output_errors(tc);
 		return;
@@ -568,7 +568,7 @@ void callback::cmd_query(const tagd::interrogator& q) {
 		return this->default_cmd_query(q);
 
 	tagd::tag_set R;
-	tagd::code tc = _tx->TS->query(R, q);
+	tagd::code tc = _tx->tdb->query(R, q);
 
 	if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND) {
 		output_errors(tc);
@@ -576,7 +576,7 @@ void callback::cmd_query(const tagd::interrogator& q) {
 	}
 
 	view vw;
-	tc = _tx->VS->get(vw, query_view_id(view_name));
+	tc = _tx->vws->get(vw, query_view_id(view_name));
 	if (tc != tagd::TAGD_OK) {
 		output_errors(tc);
 		return;
@@ -607,7 +607,7 @@ void callback::empty() {
 		return this->default_empty();
 
 	view vw;
-	tagd::code tc = _tx->VS->get(vw, empty_view_id(view_name));
+	tagd::code tc = _tx->vws->get(vw, empty_view_id(view_name));
 	if (tc != tagd::TAGD_OK) {
 		output_errors(tc);
 		return;
@@ -648,9 +648,9 @@ tagd::code tagd_template::expand(const std::string& fname) {
 	return tagd::TAGD_OK;
 }
 
-tagd::code tagd_template::expand(viewspace& VS, const std::string& fname) {
-	if (this->expand(VS.fpath(fname)) != tagd::TAGD_OK)
-		return VS.copy_errors(*this).code();
+tagd::code tagd_template::expand(viewspace& vws, const std::string& fname) {
+	if (this->expand(vws.fpath(fname)) != tagd::TAGD_OK)
+		return vws.copy_errors(*this).code();
 
 	return tagd::TAGD_OK;
 }
@@ -715,13 +715,13 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagd::server *svr = (httagd::server*)arg;
 
-	// for now, this request uses the servers tagspace reference
-	// TODO allow requests to use other tagspaces (given the request)
-	auto *TS = svr->TS();
-	auto *VS = svr->VS();
+	// for now, this request uses the servers tagdb reference
+	// TODO allow requests to use other tagdbs (given the request)
+	auto *tdb = svr->tdb();
+	auto *vws = svr->vws();
 
 	// circular dependencies between transaction and request/response pointers
-	transaction tx(svr, TS, VS, nullptr, nullptr);
+	transaction tx(svr, tdb, vws, nullptr, nullptr);
 	request req(&tx, ev_req);
 	response res(&tx, ev_req);
 	tx.req = &req;
@@ -730,15 +730,15 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	// TODO context is part of the request, not global
 	// we may need some kind of session id or something to push_context()
 	if (!req.query_opt_context().empty())
-		TS->push_context(req.query_opt_context());
+		tdb->push_context(req.query_opt_context());
 
 	callback CB(&tx);
-	httagl tagl(TS, &CB);
+	httagl tagl(tdb, &CB);
 
 	// all sharing the internal errors pointer of tx
 	tx.share_errors(tagl)
-	  .share_errors(*TS)
-	  .share_errors(*VS);
+	  .share_errors(*tdb)
+	  .share_errors(*vws);
 
 	// route request, parse, call callback method, and write response
 	tagl.execute(tx);
@@ -748,19 +748,19 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 		tagl.finish();
 
 	if (!req.query_opt_context().empty())
-		TS->pop_context();
+		tdb->pop_context();
 
 	if (tx.trace_on && tx.has_errors())
 		tx.print_errors();
 
-	// TS will accumulate errors between requests
+	// tdb will accumulate errors between requests
 	// TODO don't allow this
-	TS->clear_errors();
+	tdb->clear_errors();
 }
 
 tagd::code server::start() {
 	if (_args->opt_trace) {
-		_TS->trace_on();
+		_tdb->trace_on();
 		TAGL::driver::trace_on((char *)"trace: ");
 	}
 

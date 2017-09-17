@@ -5,7 +5,7 @@ httagd architecture
     +-----------+     +--------------------+
     |  (model)  |     |        view        |
     |-----------|     |--------------------|
-    | tagspace  |     | handler | template |
+    |   tagdb   |     | handler | template |
     +-----------+     +--------------------+
         ^     \              ^      /
          \     \            /      /
@@ -15,7 +15,7 @@ httagd architecture
        |-------------------------------|
        |  route view   | call handler  |
        |---------------|---------------|
-       | tagspace CRUD |expand template|
+       |  tagdb CRUD   |expand template|
        |---------------|---------------|
        | http session  | add response  |
        +-------------------------------+
@@ -40,9 +40,9 @@ httagd architecture
    and parser.  TAGL driver calls the corresponding `tagl_callback` command
    method (`cmd_get`, `cmd_put`, or `cmd_del`) when finished.
 * `tagl_callback`:
-  * creates a session object to keep track of the tagspace, server,
+  * creates a session object to keep track of the tagdb, server,
     request, response, and context instances.
-  * calls get, put, or del method on tagspace, passing it the object
+  * calls get, put, or del method on tagdb, passing it the object
     parsed from the tagdurl.
   * gets the view corresponding to the view `v=view_name`
     query parameter. The view returned is comprised of a handler and a template.

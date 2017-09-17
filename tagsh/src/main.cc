@@ -13,7 +13,7 @@
 #include <event2/buffer.h>
 #include "tagd.h"
 #include "tagl.h"
-#include "tagspace/sqlite.h"
+#include "tagdb/sqlite.h"
 #include "tagsh.h"
 
 int main(int argc, char **argv) {
@@ -25,13 +25,13 @@ int main(int argc, char **argv) {
 		return args.code();
 	}
 
-	space_type TS;
-	if ( TS.init(args.db_fname) != tagd::TAGD_OK ) {
-		TS.print_errors();
-		return TS.code();
+	tagdb_type tdb;
+	if ( tdb.init(args.db_fname) != tagd::TAGD_OK ) {
+		tdb.print_errors();
+		return tdb.code();
 	}
 
-	tagsh shell(&TS);
+	tagsh shell(&tdb);
 
 	if (args.tagl_file_statements.size() == 0) {
 		std::cout << "use .show to list commands" << std::endl;

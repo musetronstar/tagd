@@ -4,7 +4,7 @@ CXXFLAGS = -O3
 PRG_DIR = ../..
 TAGD_DIR = $(PRG_DIR)/tagd
 TAGL_DIR = $(PRG_DIR)/tagl
-TAGSPACE_DIR = $(PRG_DIR)/tagspace
+TAGSPACE_DIR = $(PRG_DIR)/tagdb
 TAGSH_DIR = $(PRG_DIR)/tagsh
 
 BUILD_DIR = ../bin
@@ -17,7 +17,7 @@ INC = -I../include \
 	  -I$(TAGSPACE_DIR)/sqlite/include \
 	  -I$(TAGSH_DIR)/include
 
-LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagspace-sqlite \
+LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite \
 		 -L $(TAGL_DIR)/lib -ltagl \
 		 -L $(TAGD_DIR)/lib -ltagd \
 		 -L $(TAGSH_DIR)/lib -ltagsh \

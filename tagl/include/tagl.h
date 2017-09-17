@@ -2,7 +2,7 @@
 
 #include <string>
 #include "tagd.h"
-#include "tagspace.h"
+#include "tagdb.h"
 #include "parser.h"
 
 // forward declare
@@ -90,7 +90,7 @@ class driver : public tagd::errorable {
 		void *_parser;	// lemon parser context
 		int _token;		// last token scanned
 		std::string _filename;
-		tagspace::flags_t _flags;
+		tagdb::flags_t _flags;
 
 		static bool _trace_on;
 
@@ -98,7 +98,7 @@ class driver : public tagd::errorable {
 		void init();
 		int parse_tokens();
 
-		tagspace::tagspace *_TS;
+		tagdb::tagdb *_tdb;
 		callback *_callback;
 		int _cmd;
 		tagd::abstract_tag *_tag;  // tag of the current statement
@@ -108,10 +108,10 @@ class driver : public tagd::errorable {
 		tagd::id_type _constrain_tag_id;
 
 	public:
-		driver(tagspace::tagspace *);
-		driver(tagspace::tagspace *, scanner *);
-		driver(tagspace::tagspace *, scanner *, callback *);
-		driver(tagspace::tagspace *, callback *);
+		driver(tagdb::tagdb *);
+		driver(tagdb::tagdb *, scanner *);
+		driver(tagdb::tagdb *, scanner *, callback *);
+		driver(tagdb::tagdb *, callback *);
 		virtual ~driver();
 
 		void callback_ptr(callback * c) { _callback = c; c->_driver = this; }
@@ -121,7 +121,7 @@ class driver : public tagd::errorable {
 		tagd::code execute(evbuffer*);
 		int token() const { return _token; }
 		bool is_trace_on() const { return _trace_on; }
-		tagspace::flags_t flags() const { return _flags; }
+		tagdb::flags_t flags() const { return _flags; }
 		int lookup_pos(const std::string&) const;
 		void parse_tok(int, std::string*);
 

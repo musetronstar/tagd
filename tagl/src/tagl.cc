@@ -3,7 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include "tagl.h"
-#include "tagspace.h"
+#include "tagdb.h"
 
 #include <event2/buffer.h>
 
@@ -26,37 +26,37 @@ namespace TAGL {
 
 bool driver::_trace_on = false;
 
-driver::driver(tagspace::tagspace *ts) :
+driver::driver(tagdb::tagdb *tdb) :
 		tagd::errorable(tagd::TAGL_INIT), _own_scanner{true}, _scanner{new scanner(this)}, _parser(nullptr),
-		_token(-1), _flags(0), _TS(ts), _callback(nullptr),
+		_token(-1), _flags(0), _tdb(tdb), _callback(nullptr),
 		_cmd(), _tag(nullptr), _relator()
 {
 	this->init();
 }
 
-driver::driver(tagspace::tagspace *ts, scanner *s) :
+driver::driver(tagdb::tagdb *tdb, scanner *s) :
 		tagd::errorable(tagd::TAGL_INIT),
 		_own_scanner{false}, _scanner{s}, _parser(nullptr),
-		_token(-1), _flags(0), _TS(ts), _callback(nullptr),
+		_token(-1), _flags(0), _tdb(tdb), _callback(nullptr),
 		_cmd(), _tag(nullptr), _relator()
 {
 	this->init();
 }
 
-driver::driver(tagspace::tagspace *ts, scanner *s, callback *cb) :
+driver::driver(tagdb::tagdb *tdb, scanner *s, callback *cb) :
 		tagd::errorable(tagd::TAGL_INIT),
 		_own_scanner{false}, _scanner{s}, _parser(nullptr),
-		_token(-1), _flags(0), _TS(ts), _callback(cb),
+		_token(-1), _flags(0), _tdb(tdb), _callback(cb),
 		_cmd(), _tag(nullptr), _relator()
 {
 	cb->_driver = this;
 	this->init();
 }
 
-driver::driver(tagspace::tagspace *ts, callback *cb) :
+driver::driver(tagdb::tagdb *tdb, callback *cb) :
 		tagd::errorable(tagd::TAGL_INIT),
 		_own_scanner{true}, _scanner{new scanner(this)}, _parser(nullptr),
-		_token(-1), _flags(0), _TS(ts), _callback(cb),
+		_token(-1), _flags(0), _tdb(tdb), _callback(cb),
 		_cmd(), _tag(nullptr), _relator()
 {
 	cb->_driver = this;
@@ -160,11 +160,11 @@ int driver::lookup_pos(const std::string& s) const {
 		return TOK_MODIFIER;
 
 	int token;
-	tagd::part_of_speech pos = _TS->pos(s);
+	tagd::part_of_speech pos = _tdb->pos(s);
 
 	if (_trace_on) {
 		// TODO term_pos lookups
-		//tagd::part_of_speech term_pos = _TS->term_pos(s);
+		//tagd::part_of_speech term_pos = _tdb->term_pos(s);
 		//std::cerr << "term_pos(" << s << "): " << pos_list_str(term_pos) << std::endl;
 		std::cerr << "pos(" << s << "): " << pos_str(pos) << std::endl;
 	}

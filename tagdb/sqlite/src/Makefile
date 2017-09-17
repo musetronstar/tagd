@@ -4,7 +4,7 @@ CXXFLAGS = -O3
 TAGDDIR =../../../tagd
 INC = -I../include -I../../include -I$(TAGDDIR)/include
 SRCS = sqlite.cc
-HDRS = ../include/tagspace/sqlite.h
+HDRS = ../include/tagdb/sqlite.h
 OBJS=$(SRCS:.cc=.o)
 BIN = tagdb
 

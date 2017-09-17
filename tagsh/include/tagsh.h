@@ -3,22 +3,22 @@
 #include <functional>
 
 #include "tagl.h"
-#include "tagspace/sqlite.h"
+#include "tagdb/sqlite.h"
 
 // TODO use a template
-typedef tagspace::sqlite space_type;
+typedef tagdb::sqlite tagdb_type;
 typedef std::vector<char *> cmdlines_t;
 
 class tagsh;
 
 class tagsh_callback : public TAGL::callback {
 		friend class tagsh;
-		space_type *_TS;
+		tagdb_type *_tdb;
 		cmdlines_t _lines;
 		bool _echo_result_code;
 
 	public:
-		tagsh_callback(space_type *ts) : _TS{ts}, _echo_result_code{true} {}
+		tagsh_callback(tagdb_type *tdb) : _tdb{tdb}, _echo_result_code{true} {}
 		~tagsh_callback() { for(auto l : _lines) delete l; }
 
 		void cmd_get(const tagd::abstract_tag&);
@@ -30,20 +30,20 @@ class tagsh_callback : public TAGL::callback {
 
 class tagsh {
 	protected:
-		space_type *_TS;
+		tagdb_type *_tdb;
 		tagsh_callback *_CB;
 		bool _own_callback;  // true if this alloced the callback pointer
 		TAGL::driver _driver;
 
 	public:
 		std::string prompt;
-		tagsh(space_type *ts, tagsh_callback *cb) :
-			_TS(ts), _CB(cb), _own_callback{false}, _driver(ts, cb), prompt("tagd> ")
+		tagsh(tagdb_type *tdb, tagsh_callback *cb) :
+			_tdb(tdb), _CB(cb), _own_callback{false}, _driver(tdb, cb), prompt("tagd> ")
 		{}
 
-		tagsh(space_type *ts) :
-			_TS(ts), _CB{ new tagsh_callback(_TS) }, _own_callback{true},
-			_driver(_TS, _CB), prompt("tagd> ")
+		tagsh(tagdb_type *tdb) :
+			_tdb(tdb), _CB{ new tagsh_callback(_tdb) }, _own_callback{true},
+			_driver(_tdb, _CB), prompt("tagd> ")
 		{}
 
 		~tagsh() {

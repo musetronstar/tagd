@@ -1,7 +1,7 @@
 #include <sstream>
 #include <map>
 #include "httagd.h"
-#include "tagspace/sqlite.h"
+#include "tagdb/sqlite.h"
 
 using namespace httagd;
 
@@ -75,10 +75,10 @@ empty_handler_t home_handler(
 		tagd::code tc = tpl_fname(fname, tx, vw);
 		if (tc != tagd::TAGD_OK) return tc;
 
-		auto home_tpl = tpl.include("main_html_tpl", tx.VS->fpath(fname));
+		auto home_tpl = tpl.include("main_html_tpl", tx.vws->fpath(fname));
 		home_tpl->set_value("msg", t.id());
 
-		return tpl.expand(*tx.VS, LAYOUT_TPL);
+		return tpl.expand(*tx.vws, LAYOUT_TPL);
 	}
 );
 
@@ -144,7 +144,7 @@ tagd::code fill_tag(transaction& tx, const view& vw, tagd_template& tpl, const t
 	tagd::tag_set S;
 	tagd::interrogator q_refers_to(HARD_TAG_INTERROGATOR, HARD_TAG_REFERENT);
 	q_refers_to.relation(HARD_TAG_REFERS_TO, t.id());
-	tagd::code tc = tx.TS->query(S, q_refers_to);
+	tagd::code tc = tx.tdb->query(S, q_refers_to);
 	if (tc != tagd::TAGD_OK) return tc;
 
 	if (S.size() > 0) {
@@ -158,7 +158,7 @@ tagd::code fill_tag(transaction& tx, const view& vw, tagd_template& tpl, const t
 	S.clear();
 	tagd::interrogator q_refers(HARD_TAG_INTERROGATOR, HARD_TAG_REFERENT);
 	q_refers.relation(HARD_TAG_REFERS, t.id());
-	tc = tx.TS->query(S, q_refers);
+	tc = tx.tdb->query(S, q_refers);
 
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0)
@@ -168,7 +168,7 @@ tagd::code fill_tag(transaction& tx, const view& vw, tagd_template& tpl, const t
 	S.clear();
 	tagd::interrogator q_related(HARD_TAG_INTERROGATOR);
 	q_related.relation("", t.id());
-	tc = tx.TS->query(S, q_related);
+	tc = tx.tdb->query(S, q_related);
 
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0) {
@@ -179,7 +179,7 @@ tagd::code fill_tag(transaction& tx, const view& vw, tagd_template& tpl, const t
 
 	S.clear();
 	tagd::interrogator q_siblings(HARD_TAG_INTERROGATOR, t.super_object());
-	tc = tx.TS->query(S, q_siblings);
+	tc = tx.tdb->query(S, q_siblings);
 
 	set_query_link(&tpl, "query_siblings", t.super_object());
 	if (tc == tagd::TAGD_OK && S.size() > 1) {
@@ -189,7 +189,7 @@ tagd::code fill_tag(transaction& tx, const view& vw, tagd_template& tpl, const t
 
 	S.clear();
 	tagd::interrogator q_children(HARD_TAG_INTERROGATOR, t.id());
-	tc = tx.TS->query(S, q_children);
+	tc = tx.tdb->query(S, q_children);
 
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0)
@@ -210,7 +210,7 @@ get_handler_t tag_handler(
 		tagd::code tc = tpl_fname(fname, tx, vw);
 		if (tc != tagd::TAGD_OK) return tc;
 
-		return tpl.expand(*tx.VS, fname);
+		return tpl.expand(*tx.vws, fname);
 	}
 );
 
@@ -227,7 +227,7 @@ tagd::code fill_tree(transaction& tx, const view& vw, tagd_template& tpl, const 
 	tpl.set_tag_link(tx, "super_object", t.super_object());
 
 	tagd::tag_set S;
-	tagd::code tc = tx.TS->query(S,
+	tagd::code tc = tx.tdb->query(S,
 			tagd::interrogator(HARD_TAG_INTERROGATOR, t.super_object()));
 
 	if (tc == tagd::TAGD_OK) {
@@ -251,11 +251,11 @@ tagd::code fill_tree(transaction& tx, const view& vw, tagd_template& tpl, const 
 
 	// query children
 	S.clear();
-	tc = tx.TS->query(S,
+	tc = tx.tdb->query(S,
 			tagd::interrogator(HARD_TAG_INTERROGATOR, t.id()));
 
 	if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
-		return tx.TS->code();
+		return tx.tdb->code();
 
 	if (S.size() > 0) {
 		auto s1 = tpl.add_section("has_children");
@@ -281,7 +281,7 @@ get_handler_t tree_handler(
 		tc = tpl_fname(fname, tx, vw);
 		if (tc != tagd::TAGD_OK) return tc;
 
-		return tpl.expand(*tx.VS, fname);
+		return tpl.expand(*tx.vws, fname);
 	}
 );
 
@@ -339,8 +339,8 @@ tagd::code fill_query(transaction& tx, const view& vw, tagd_template& tpl, const
 		}
 	}
 
-	if (tx.TS->has_errors())
-		return tx.TS->code();
+	if (tx.tdb->has_errors())
+		return tx.tdb->code();
 
 	return tagd::TAGD_OK;
 }
@@ -359,12 +359,12 @@ query_handler_t query_handler(
 		tagd::code tc = tpl_fname(fname, tx, vw);
 		if (tc != tagd::TAGD_OK) return tc;
 
-		auto main_tpl = tpl.include("main_html_tpl", tx.VS->fpath(fname));
+		auto main_tpl = tpl.include("main_html_tpl", tx.vws->fpath(fname));
 
 		tc = fill_query(tx, vw, *main_tpl, q, R);
 		if (tc != tagd::TAGD_OK) return tc;
 
-		return tpl.expand(*tx.VS, LAYOUT_TPL);
+		return tpl.expand(*tx.vws, LAYOUT_TPL);
 	}
 );
 
@@ -379,7 +379,7 @@ get_handler_t browse_handler(
 		tagd::code tc = tpl_fname(fname, tx, vw);
 		if (tc != tagd::TAGD_OK) return tc;
 
-		auto main_tpl = tpl.include("main_html_tpl", tx.VS->fpath(fname));
+		auto main_tpl = tpl.include("main_html_tpl", tx.vws->fpath(fname));
 
 		if (t.pos() == tagd::POS_URL) {
 			tagd::url u;
@@ -389,11 +389,11 @@ get_handler_t browse_handler(
 			main_tpl->set_value("id", t.id());
 		}
 
-		auto tree_tpl = main_tpl->include("tree_html_tpl", tx.VS->fpath(TREE_TPL));
+		auto tree_tpl = main_tpl->include("tree_html_tpl", tx.vws->fpath(TREE_TPL));
 		tc = fill_tree(tx, vw, *tree_tpl, t);
 		if (tc != tagd::TAGD_OK) return tc;
 
-		auto tag_tpl = main_tpl->include("tag_html_tpl", tx.VS->fpath(TAG_TPL));
+		auto tag_tpl = main_tpl->include("tag_html_tpl", tx.vws->fpath(TAG_TPL));
 		tc = fill_tag(tx, vw, *tag_tpl, t);
 		if (tc != tagd::TAGD_OK) return tc;
 
@@ -403,18 +403,18 @@ get_handler_t browse_handler(
 			q_related.relation(t.id(), "");
 		else
 			q_related.relation("", t.id());
-		tc = tx.TS->query(S, q_related);
+		tc = tx.tdb->query(S, q_related);
 
 		if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
 			return tc;
 
 		if (S.size() > 0) {
-			auto results_tpl = main_tpl->include("results_html_tpl", tx.VS->fpath(QUERY_TPL));
+			auto results_tpl = main_tpl->include("results_html_tpl", tx.vws->fpath(QUERY_TPL));
 			tc = fill_query(tx, vw, *results_tpl, q_related, S);
 			if (tc != tagd::TAGD_OK) return tc;
 		}
 
-		return tpl.expand(*tx.VS, LAYOUT_TPL);
+		return tpl.expand(*tx.vws, LAYOUT_TPL);
 	}
 );
 
@@ -460,9 +460,9 @@ error_handler_t error_handler(
 		if (!v.empty() && v != BROWSE_VIEW_ID.name())
 			qm[QUERY_OPT_VIEW] = BROWSE_VIEW_ID.name();
 
-		fill_error(qm, *(tpl.include("main_html_tpl", tx.VS->fpath(fname))), E);
+		fill_error(qm, *(tpl.include("main_html_tpl", tx.vws->fpath(fname))), E);
 
-		return tpl.expand(*tx.VS, LAYOUT_TPL);
+		return tpl.expand(*tx.vws, LAYOUT_TPL);
 	}
 );
 
@@ -483,23 +483,23 @@ error_handler_t partial_error_handler(
 
 		fill_error(qm, tpl, E);
 
-		return tpl.expand(*tx.VS, fname);
+		return tpl.expand(*tx.vws, fname);
 	}
 );
 
-void init_viewspace(viewspace &VS) {
+void init_viewspace(viewspace &vws) {
 	// full html using LAYOUT_TPL
 	tpl_map[HOME_VIEW_ID] = HOME_TPL;
 	tpl_map[BROWSE_VIEW_ID] = BROWSE_TPL;
 	tpl_map[QUERY_VIEW_ID] = QUERY_TPL;
 	tpl_map[ERROR_VIEW_ID] = ERROR_TPL;
 
-	VS.put({HOME_VIEW_ID, home_handler});
-	VS.put({BROWSE_VIEW_ID, browse_handler});
-	VS.put({QUERY_VIEW_ID, query_handler});
-	VS.put({ERROR_VIEW_ID, error_handler});
+	vws.put({HOME_VIEW_ID, home_handler});
+	vws.put({BROWSE_VIEW_ID, browse_handler});
+	vws.put({QUERY_VIEW_ID, query_handler});
+	vws.put({ERROR_VIEW_ID, error_handler});
 
-	VS.fallback_error_view = {ERROR_VIEW_ID, error_handler};
+	vws.fallback_error_view = {ERROR_VIEW_ID, error_handler};
 
 	// html partials
 	tpl_map[TAG_VIEW_ID] = TAG_TPL;
@@ -507,10 +507,10 @@ void init_viewspace(viewspace &VS) {
 	tpl_map[TREE_VIEW_ID] = TREE_TPL;
 	tpl_map[TREE_ERROR_VIEW_ID] = ERROR_TPL;
 
-	VS.put({TAG_VIEW_ID, tag_handler});
-	VS.put({TAG_ERROR_VIEW_ID, partial_error_handler});
-	VS.put({TREE_VIEW_ID, tree_handler});
-	VS.put({TREE_ERROR_VIEW_ID, partial_error_handler});
+	vws.put({TAG_VIEW_ID, tag_handler});
+	vws.put({TAG_ERROR_VIEW_ID, partial_error_handler});
+	vws.put({TREE_VIEW_ID, tree_handler});
+	vws.put({TREE_ERROR_VIEW_ID, partial_error_handler});
 }
 
 
@@ -523,27 +523,27 @@ int main(int argc, char ** argv) {
 		return args.code();
 	}
 
-	tagspace::sqlite TS;
-	if (TS.init(args.db_fname) != tagd::TAGD_OK) {
-		TS.print_errors();
-		return TS.code();
+	tagdb::sqlite tdb;
+	if (tdb.init(args.db_fname) != tagd::TAGD_OK) {
+		tdb.print_errors();
+		return tdb.code();
 	}
 
 	if (args.tpl_dir.empty())
 		args.tpl_dir = "./app/tpl/";
 
-	viewspace VS(args.tpl_dir);
-	init_viewspace(VS);
-	if (VS.has_errors()) {
-		VS.print_errors();
-		return VS.code();
+	viewspace vws(args.tpl_dir);
+	init_viewspace(vws);
+	if (vws.has_errors()) {
+		vws.print_errors();
+		return vws.code();
 	}
 
-	server svr(&TS, &VS, &args);
+	server svr(&tdb, &vws, &args);
 	svr.start();
 
 	// NOTE: at this point, main_cb will have replaced
-	// the errors pointer of VS and TS
+	// the errors pointer of vws and tdb
 
 	if (svr.has_errors())
 		svr.print_errors();

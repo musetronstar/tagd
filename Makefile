@@ -1,4 +1,4 @@
-MAKE_DIRS = tagd tagspace tagl tagsh httagd
+MAKE_DIRS = tagd tagdb tagl tagsh httagd
 
 DEBUG=
 

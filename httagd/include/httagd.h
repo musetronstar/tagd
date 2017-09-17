@@ -2,7 +2,7 @@
 
 #include "tagd.h"
 #include "tagl.h"
-#include "tagspace.h"
+#include "tagdb.h"
 #include "tagsh.h"
 
 #include <cstring>
@@ -59,7 +59,7 @@ struct viewspace;
 
 class server : public tagsh, public tagd::errorable {
 	protected:
-		viewspace *_VS;
+		viewspace *_vws;
 		httagd_args *_args;
 		std::string _bind_addr;
 		uint16_t _bind_port;
@@ -71,8 +71,8 @@ class server : public tagsh, public tagd::errorable {
 			_htp = evhtp_new(_evbase, NULL);
 		}
 	public:
-		server(tagspace::sqlite *ts, viewspace *vs, httagd_args *args)
-			: tagsh(ts), _VS{vs}, _args{args}
+		server(tagdb::sqlite *tdb, viewspace *vs, httagd_args *args)
+			: tagsh(tdb), _vws{vs}, _args{args}
 		{
 			_bind_addr = (!args->bind_addr.empty() ? args->bind_addr : "localhost");
 			_bind_port = (args->bind_port ? args->bind_port : 2112);
@@ -87,13 +87,13 @@ class server : public tagsh, public tagd::errorable {
 			return _bind_port;
 		}
 
-		// WTF, why sqlite? This should be a regular tagspace::tagspace
-		tagspace::sqlite* TS() {
-			return _TS;
+		// WTF, why sqlite? This should be a regular tagdb::tagdb
+		tagdb::sqlite* tdb() {
+			return _tdb;
 		}
 
-		viewspace* VS() {
-			return _VS;
+		viewspace* vws() {
+			return _vws;
 		}
 
 		httagd_args * args() {
@@ -277,10 +277,10 @@ class htscanner : public TAGL::scanner {
 
 class httagl : public TAGL::driver {
 	public:
-		httagl(tagspace::tagspace *ts)
-			: TAGL::driver(ts, new htscanner(this)) {}
-		httagl(tagspace::tagspace *ts, TAGL::callback *cb)
-			: TAGL::driver(ts, new htscanner(this), cb) {}
+		httagl(tagdb::tagdb *tdb)
+			: TAGL::driver(tdb, new htscanner(this)) {}
+		httagl(tagdb::tagdb *tdb, TAGL::callback *cb)
+			: TAGL::driver(tdb, new htscanner(this), cb) {}
 		virtual ~httagl() { delete _scanner; }
 
 		// undo name hiding so we can use overridden methods across scope
@@ -296,19 +296,19 @@ class httagl : public TAGL::driver {
 class transaction : public tagd::errorable {
 	public:
 		server *svr;
-		tagspace::tagspace *TS;
-		httagd::viewspace *VS;
+		tagdb::tagdb *tdb;
+		httagd::viewspace *vws;
 		request *req;
 		response *res;
 		bool trace_on;
 
 		transaction(
 			server *sv,
-			tagspace::tagspace* ts,
+			tagdb::tagdb* td,
 			httagd::viewspace *vs,
 			request* rq,
 			response* rs
-		) : svr{sv}, TS{ts}, VS{vs}, req{rq}, res{rs},
+		) : svr{sv}, tdb{td}, vws{vs}, req{rq}, res{rs},
 			trace_on{sv->args()->opt_trace}
 		{}
 
@@ -332,7 +332,7 @@ typedef std::function<tagd::code(transaction&, const view&, const tagd::errorabl
 |*| Each action specifies the selected handler member in the view's
 |*| anonymous union. Its called an action because it corresponds to
 |*| the command method (cmd_*) that was called in the httagd callback.
-|*| An action will likely be performed on a tagspace before the handler
+|*| An action will likely be performed on a tagdb before the handler
 |*| is called. The handler then populates a response from the results.
 \*/
 enum struct view_action {
@@ -792,7 +792,7 @@ const view default_error_view(
 );
 
 // container of views(templates and handlers)
-// TODO (maybe) extend it from tagspace::tagspace so views can be stored in a tagspace
+// TODO (maybe) extend it from tagdb::tagdb so views can be stored in a tagdb
 class viewspace : public tagd::errorable {
 		view_map_t _views;
 		std::string _tpl_dir;
@@ -864,7 +864,7 @@ class callback : public TAGL::callback {
 		// virtual because it get late binded
         virtual void empty();
 
-		// methods that handle DEFAULT_VIEW which are not in the tagspace
+		// methods that handle DEFAULT_VIEW which are not in the tagdb
 		void default_cmd_get(const tagd::abstract_tag&);
 		void default_cmd_put(const tagd::abstract_tag&);
 		void default_cmd_del(const tagd::abstract_tag&);

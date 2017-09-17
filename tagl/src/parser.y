@@ -127,12 +127,12 @@ set_statement ::= CMD_SET set_flag .
 set_flag ::= FLAG(F) boolean_value(b) .
 {
 	// TODO hard tag flags will need to have a flag_value relation holding
-	// the value of the tagspace::flag_t
+	// the value of the tagdb::flag_t
 	if (*F == HARD_TAG_IGNORE_DUPLICATES) {
 		if (b) {
-			tagl->_flags |= tagspace::F_IGNORE_DUPLICATES;
+			tagl->_flags |= tagdb::F_IGNORE_DUPLICATES;
 		} else {
-			tagl->_flags &= ~(tagspace::F_IGNORE_DUPLICATES);
+			tagl->_flags &= ~(tagdb::F_IGNORE_DUPLICATES);
 		}
 	} else {
 		tagl->ferror(tagd::TAGL_ERR, "bad flag: %s", F->c_str());
@@ -148,13 +148,13 @@ set_context ::= set_context EMPTY_STR .
 set_context ::= CONTEXT .
 {
 	// clear context before pushing, or errors occur if not empty
-	tagl->_TS->clear_context();
+	tagl->_tdb->clear_context();
 }
 context_list ::= context_list COMMA push_context .
 context_list ::= push_context .
 push_context ::= context(c) .
 {
-	tagl->_TS->push_context(*c);
+	tagl->_tdb->push_context(*c);
 }
 
 get_statement ::= CMD_GET subject .
@@ -162,9 +162,9 @@ get_statement ::= CMD_GET unknown .
 /*
 // We can't set TS_NOT_FOUND as an error here
 // because lookup_pos will return UNKNOWN for
-// out of context referents, whereas tagspace::get()
+// out of context referents, whereas tagdb::get()
 // will return TS_AMBIGUOUS, so we have to set
-// the tag so it makes it to tagspace::get via the callback
+// the tag so it makes it to tagdb::get via the callback
 // TODO have lookup_pos return REFERENT for out of context referents
 get_statement ::= CMD_GET UNKNOWN(U) .
 {

@@ -37,7 +37,7 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
     TS_RELATOR_UNK,
     TS_OBJECT_UNK,
 
-    TS_REFERS_UNK, 
+    TS_REFERS_UNK,
     TS_REFERS_TO_UNK,
     TS_CONTEXT_UNK,
 	TS_AMBIGUOUS,

@@ -16,7 +16,7 @@
 #include <event2/buffer.h>
 #include "tagd.h"
 #include "tagl.h"
-#include "tagspace/sqlite.h"
+#include "tagdb/sqlite.h"
 #include "tagsh.h"
 
 // TODO put in a utility library
@@ -51,19 +51,19 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag *T;
 	if (t.pos() == tagd::POS_URL) {
 		T = new tagd::url();
-		_TS->get((tagd::url&)*T, t.id(), _driver->flags());
+		_tdb->get((tagd::url&)*T, t.id(), _driver->flags());
 	}
 	else {
 		T = new tagd::abstract_tag();
-		_TS->get(*T, t.id(), _driver->flags());
+		_tdb->get(*T, t.id(), _driver->flags());
 	}
 
-	if(_TS->ok()) {
+	if(_tdb->ok()) {
 		std::cout << *T << std::endl;
 	} else {	
-		_driver->code(_TS->code()); // stops the scanner
-		_TS->print_errors();
-		_TS->clear_errors();
+		_driver->code(_tdb->code()); // stops the scanner
+		_tdb->print_errors();
+		_tdb->clear_errors();
 	}
 
 	delete T;
@@ -72,38 +72,38 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 }
 
 void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
-	tagd::code ts_rc = _TS->put(t, _driver->flags());
-	if (_TS->ok()) {
+	tagd::code tc = _tdb->put(t, _driver->flags());
+	if (_tdb->ok()) {
 		if (_echo_result_code)
-			std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
+			std::cout << "-- " << tagd_code_str(tc) << std::endl;
 	} else {
-		_driver->code(_TS->code()); // stops the scanner
-		_TS->print_errors();
-		_TS->clear_errors();
+		_driver->code(_tdb->code()); // stops the scanner
+		_tdb->print_errors();
+		_tdb->clear_errors();
 	}
 	add_history_lines_clear(_lines);
 }
 
 void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
-	tagd::code ts_rc = _TS->del(t, _driver->flags());
-	if (_TS->ok()) {
+	tagd::code tc = _tdb->del(t, _driver->flags());
+	if (_tdb->ok()) {
 		if (_echo_result_code)
-			std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
-	} else if (_TS->code() == tagd::TS_NOT_FOUND ) {
+			std::cout << "-- " << tagd_code_str(tc) << std::endl;
+	} else if (_tdb->code() == tagd::TS_NOT_FOUND ) {
 		if (_echo_result_code)
-			std::cout << "-- " << tagd_code_str(ts_rc) << std::endl;
+			std::cout << "-- " << tagd_code_str(tc) << std::endl;
 	} else {
-		_driver->code(_TS->code()); // stops the scanner
-		_TS->print_errors();
-		_TS->clear_errors();
+		_driver->code(_tdb->code()); // stops the scanner
+		_tdb->print_errors();
+		_tdb->clear_errors();
 	}
 	add_history_lines_clear(_lines);
 }
 
 void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 	tagd::tag_set T;
-	_TS->query(T, q, _driver->flags());
-	switch(_TS->code()) {
+	_tdb->query(T, q, _driver->flags());
+	switch(_tdb->code()) {
 		case tagd::TAGD_OK:
 			if (q.super_object() == HARD_TAG_REFERENT)
 				tagd::print_tags(T);
@@ -112,12 +112,12 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 			break;
 		case tagd::TS_NOT_FOUND:  // TS_NOT_FOUND not an error for queries
 			if (_echo_result_code)
-				std::cout << "-- " << tagd_code_str(_TS->code()) << std::endl;
+				std::cout << "-- " << tagd_code_str(_tdb->code()) << std::endl;
 			break;
 		default:	
-			_driver->code(_TS->code()); // stops the scanner
-			_TS->print_errors();
-			_TS->clear_errors();
+			_driver->code(_tdb->code()); // stops the scanner
+			_tdb->print_errors();
+			_tdb->clear_errors();
 	}
 	add_history_lines_clear(_lines);
 }
@@ -168,7 +168,7 @@ void tagsh::dump_file(const std::string& fname, bool check_existing) {
 		error("open failed, no such file: %s", fname.c_str());
 		return;
 	}
-	_TS->dump(ofs);
+	_tdb->dump(ofs);
 	ofs.close();
 	std::cout << "dumped to file: " << fname << std::endl;
 }
@@ -196,7 +196,7 @@ void tagsh::command(const std::string& cmdline) {
 	if ( cmd == ".dump" ) {
 		switch (V.size()) {
 			case 1:
-				_TS->dump();
+				_tdb->dump();
 				return;
 			case 2:
 				this->dump_file(V[1]);
@@ -210,36 +210,36 @@ void tagsh::command(const std::string& cmdline) {
 		}
 	}
 
-	// dump_grid specific only to tagspace_sqlite
+	// dump_grid specific only to tagdb_sqlite
 	if ( cmd == ".dump_grid" ) {
-		_TS->dump_grid();
+		_tdb->dump_grid();
 		return;
 	
 	}
 
 	if ( cmd == ".dump_terms" ) {
-		_TS->dump_terms();
+		_tdb->dump_terms();
 		return;
 	}
 
 	if ( cmd == ".dump_search" ) {
-		_TS->dump_search();
+		_tdb->dump_search();
 		return;
 	}
 
 	if ( cmd == ".print_flags" ) {
-		std::cout << tagspace::flag_util::flag_list_str(_driver.flags()) << std::endl;
+		std::cout << tagdb::flag_util::flag_list_str(_driver.flags()) << std::endl;
 		return;
 	}
 
 	if ( cmd == ".trace_on" ) {
-		_TS->trace_on();  // specific to sqlite
+		_tdb->trace_on();  // specific to sqlite
 		_driver.trace_on("trace: ");
 		return;
 	}
 
 	if ( cmd == ".trace_off" ) {
-		_TS->trace_off();
+		_tdb->trace_off();
 		_driver.trace_off();
 		return;
 	}
@@ -433,7 +433,7 @@ void cmd_args::parse(int argc, char **argv) {
 	}
 
 	if (db_fname.empty())
-		db_fname = tagspace::util::user_db();
+		db_fname = tagdb::util::user_db();
 
 	this->code(tagd::TAGD_OK);
 }

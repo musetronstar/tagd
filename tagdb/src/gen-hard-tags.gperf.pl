@@ -101,7 +101,7 @@ foreach ( @rows ) {
 
 __END__
 %{
-#include "tagspace.h"
+#include "tagdb.h"
 %}
 
 // declarations
@@ -116,7 +116,7 @@ struct hard_tag_hash_value {
 	const char *key;
 	const char *sub;
 	tagd::part_of_speech pos;
-	tagspace::rowid_t row_id;
+	tagdb::rowid_t row_id;
 	uint64_t rank;
 };
 

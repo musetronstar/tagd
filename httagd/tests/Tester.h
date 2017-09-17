@@ -1,16 +1,16 @@
 #include <cxxtest/TestSuite.h>
 #include <cstdio>
 #include "tagl.h"
-#include "tagspace.h"
+#include "tagdb.h"
 #include "httagd.h"
 
 #include <event2/buffer.h>
 
 typedef std::map<tagd::id_type, tagd::abstract_tag> tag_map;
-typedef tagspace::flags_t ts_flags_t;
+typedef tagdb::flags_t ts_flags_t;
 
 // pure virtual interface
-class tagspace_tester : public tagspace::tagspace {
+class tagdb_tester : public tagdb::tagdb {
 	private:
 		tag_map db;
 
@@ -28,7 +28,7 @@ class tagspace_tester : public tagspace::tagspace {
 		tagd::abstract_tag _cat;
 	public:
 
-		tagspace_tester() {
+		tagdb_tester() {
 			put_test_tag(HARD_TAG_ENTITY, HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("living_thing", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("animal", HARD_TAG_ENTITY, tagd::POS_TAG);
@@ -192,7 +192,7 @@ class tagspace_tester : public tagspace::tagspace {
 };
 
 class callback_tester : public TAGL::callback {
-		tagspace::tagspace *_TS;
+		tagdb::tagdb *_tdb;
 
 		void renew_last_tag(const tagd::part_of_speech& pos = tagd::POS_TAG) {
 			if (last_tag != NULL)
@@ -211,22 +211,22 @@ class callback_tester : public TAGL::callback {
 		int cmd;
 		int err_cmd;
 
-		callback_tester(tagspace::tagspace *ts) :
+		callback_tester(tagdb::tagdb *tdb) :
 			last_code(), last_tag(NULL), err_cmd(-1) {
-			_TS = ts;
+			_tdb = tdb;
 		}
 
 		void cmd_get(const tagd::abstract_tag& t) {
 			cmd = TOK_CMD_GET;
 			renew_last_tag(t.pos());
-			last_code = _TS->get(*last_tag, t.id());
+			last_code = _tdb->get(*last_tag, t.id());
 			if(t.pos() == tagd::POS_URL)
 				((tagd::url*)last_tag)->init(t.id());
 		}
 
 		void cmd_put(const tagd::abstract_tag& t) {
 			if (t.id() == t.super_object()) {
-				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as sub");
+				last_code = _tdb->error(tagd::TS_MISUSE, "id cannot be the same as sub");
 				return;
 			}
 			cmd = TOK_CMD_PUT;
@@ -234,12 +234,12 @@ class callback_tester : public TAGL::callback {
 			*last_tag = t;
 			if (t.pos() == tagd::POS_URL)
 				((tagd::url*)last_tag)->init(t.id());
-			last_code = _TS->put(*last_tag);
+			last_code = _tdb->put(*last_tag);
 		}
 
 		void cmd_del(const tagd::abstract_tag& t) {
 			if (t.id() == t.super_object()) {
-				last_code = _TS->error(tagd::TS_MISUSE, "id cannot be the same as sub");
+				last_code = _tdb->error(tagd::TS_MISUSE, "id cannot be the same as sub");
 				return;
 			}
 			cmd = TOK_CMD_DEL;
@@ -247,7 +247,7 @@ class callback_tester : public TAGL::callback {
 			*last_tag = t;
 			if (t.pos() == tagd::POS_URL)
 				((tagd::url*)last_tag)->init(t.id());
-			last_code = _TS->del(*last_tag);
+			last_code = _tdb->del(*last_tag);
 		}
 
 		void cmd_query(const tagd::interrogator& q) {
@@ -258,7 +258,7 @@ class callback_tester : public TAGL::callback {
 
 			*last_tag = q;
 			last_tag_set.clear();
-			last_code = _TS->query(last_tag_set, q);
+			last_code = _tdb->query(last_tag_set, q);
 		}
 
 		void cmd_error() {
@@ -276,8 +276,8 @@ class Tester : public CxxTest::TestSuite {
 	public:
 
     void test_get_tagdurl(void) {
-		tagspace_tester TS;
-		httagd::httagl tagl(&TS);
+		tagdb_tester tdb;
+		httagd::httagl tagl(&tdb);
 		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/dog"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
@@ -286,8 +286,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
     void test_get_tagdurl_trailing_path(void) {
-		tagspace_tester TS;
-		httagd::httagl tagl(&TS);
+		tagdb_tester tdb;
+		httagd::httagl tagl(&tdb);
 		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/dog/"));
 		tagl.finish();
 		// two path separators indicate a query
@@ -298,8 +298,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
     void test_post_tagdurl(void) {
-		tagspace_tester TS;
-		httagd::httagl tagl(&TS);
+		tagdb_tester tdb;
+		httagd::httagl tagl(&tdb);
 		tagl.tagdurl_put(httagd::request(httagd::HTTP_POST, "/dog"));
 		tagl.execute("_is_a animal _has legs _can bark");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
@@ -311,8 +311,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_del_tagdurl(void) {
-		tagspace_tester TS;
-		httagd::httagl tagl(&TS);
+		tagdb_tester tdb;
+		httagd::httagl tagl(&tdb);
 
 		tagl.tagdurl_del(httagd::request(httagd::HTTP_DELETE, "/dog"));
 		tagl.execute("_is_a animal _has legs _can bark");
@@ -329,8 +329,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
     void test_post_tagdurl_evbuffer_body(void) {
-		tagspace_tester TS;
-		httagd::httagl tagl(&TS);
+		tagdb_tester tdb;
+		httagd::httagl tagl(&tdb);
 		tagl.tagdurl_put(httagd::request(httagd::HTTP_POST, "/dog"));
 
 		struct evbuffer *input = evbuffer_new();
@@ -349,8 +349,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_post_tagdurl_evbuffer_body_constrained_tag_id_error(void) {
-		tagspace_tester TS;
-		httagd::httagl tagl(&TS);
+		tagdb_tester tdb;
+		httagd::httagl tagl(&tdb);
 		tagl.tagdurl_put(httagd::request(httagd::HTTP_POST, "/dog"));
 
 		struct evbuffer *input = evbuffer_new();
@@ -369,9 +369,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
     void test_tagdurl_query(void) {
-		tagspace_tester TS;
-		callback_tester cb(&TS);
-		httagd::httagl tagl(&TS, &cb);
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		httagd::httagl tagl(&tdb, &cb);
 		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/animal/legs,tail"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
@@ -401,9 +401,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
     void test_tagdurl_sub_placeholder_query(void) {
-		tagspace_tester TS;
-		callback_tester cb(&TS);
-		httagd::httagl tagl(&TS, &cb);
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		httagd::httagl tagl(&tdb, &cb);
 		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/*/legs,tail"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )

@@ -1,17 +1,17 @@
 #pragma once
 
 #include "tagd.h"
-#include "tagspace.h"
+#include "tagdb.h"
 #include "sqlite3.h"
 #include <functional>
 
-namespace tagspace {
+namespace tagdb {
 
 typedef sqlite3_int64 rowid_t;
 
 typedef std::function<tagd::id_type(const tagd::id_type&)> id_transform_func_t;
 
-class sqlite: public tagspace {
+class sqlite: public tagdb {
     protected:
         sqlite3 *_db;   // sqlite connection
         std::string _db_fname;
@@ -75,7 +75,7 @@ class sqlite: public tagspace {
 
     public:
         sqlite() :
-			tagspace(),
+			tagdb(),
             _db(NULL),
             _db_fname(),
             _get_stmt(NULL),
@@ -306,4 +306,4 @@ class sqlite: public tagspace {
         }
 };
 
-} // tagspace
+} // tagdb

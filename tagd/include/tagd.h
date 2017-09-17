@@ -404,7 +404,6 @@ class relator : public abstract_tag {
 //    ex. what _is_a _interrogator
 // 2. or, one that holds an object of inquiry used in query operations
 //    ex. what _is_a mammal has tail can bark
-//    this type cannot be inserted into a tagspace
 class interrogator : public abstract_tag {
     public:
         interrogator(const id_type& id) :
