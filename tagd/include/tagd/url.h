@@ -17,10 +17,12 @@ typedef enum {
     AUTHORITY_IPv6
 } authority_code;
 
-const char HDURI_DELIM = ':';
-// HDURI	
-//   0     1         2    3    4      5       6    7    8   (9)
-// rpub:priv_label:rsub:path:query:fragment:port:user:pass:scheme
+/*\
+|*| Heirarchical Decomposition of a URL (HDURI)
+|*|
+|*|   0     1         2    3    4      5       6    7    8   (9)
+|*| rpub:priv_label:rsub:path:query:fragment:port:user:pass:scheme
+\*/
 const size_t HDURI_RPUB = 0;
 const size_t HDURI_PRIV = 1;
 const size_t HDURI_RSUB = 2;
@@ -32,13 +34,14 @@ const size_t HDURI_USER = 7;
 const size_t HDURI_PASS = 8;
 // const size_t HDURI_SCHEME = 9; // not needed yet
 
+const char HDURI_DELIM = ':';
 const size_t HDURI_NUM_ELEMS = 9;
 
 typedef unsigned short url_size_t;
 
 class url : public abstract_tag {
     private:
-        /* 
+        /*
             IMPORTANT, a non-zero value for *_len is the sole determiner of whether
             a url component exists.  *_offset may be set during parsing, but will only
             be considered if the *_len is set as well.
@@ -105,35 +108,7 @@ class url : public abstract_tag {
 			_code = URL_EMPTY;
 			this->init(u);
 		}
-/*
- * TODO
- * before we can allow identity relations other than _url,
- * we must enforce that the sub itself is_a web resource
- * For example,
- * http://example.com/wiki _is_a wiki  # ok because wiki is a web resource
- * http://example.com/wiki _is_a dog   # not ok becuase dog is not a web resource
 
-        url(const std::string& u, const id_type& is_a) :
-        abstract_tag(id_type(), is_a, POS_URL),
-        _scheme_len(0),
-        _user_offset(0),
-        _user_len(0),
-        _pass_offset(0),
-        _pass_len(0),
-        _host_offset(0),
-        _host_len(0),
-        _port_offset(0),
-        _port_len(0),
-        _path_offset(0),
-        _path_len(0),
-        _query_offset(0),
-        _query_len(0),
-        _fragment_offset(0),
-        _fragment_len(0),
-        _code(URL_EMPTY)
-        { this->init(u); }
-*/
-        
 		const id_type& id() const { return _id; }
 		// id() setter is private
 
@@ -200,6 +175,15 @@ class url : public abstract_tag {
 		// empty pass will have non-zero offset and zero length
 		bool pass_empty() {
 			return (_pass_offset == 0 && _pass_len == 0);
+		}
+};
+
+// initializes a url with an hduri string
+// upper case class name because it conflicts with url::hduri()
+class HDURI : public url {
+	public:
+        HDURI(const std::string& h) : url() {
+			this->init_hduri(h);
 		}
 };
 

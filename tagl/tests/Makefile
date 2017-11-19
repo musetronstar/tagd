@@ -1,10 +1,10 @@
 TAGD_DIR = ../../tagd
 TAGSPACE_DIR = ../../tagdb
-INC = -I $(HOME)/src/cxxtest -I../include -I$(TAGD_DIR)/include -I../../tagdb/include 
+INC = -I $(HOME)/src/cxxtest -I../include -I$(TAGD_DIR)/include -I../../tagdb/include
 LIBTAGD = $(TAGD_DIR)/lib/libtagd.a
 
 CXXTEST = $(HOME)/src/cxxtest/bin/cxxtestgen --error-printer
-CXX = g++ -std=c++0x 
+CXX = g++ -std=c++0x
 CXXFLAGS = -O3 -Wno-write-strings
 LFLAGS =  -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite -L../lib -ltagl -L$(TAGD_DIR)/lib -ltagd -levent
 
@@ -20,7 +20,7 @@ build: tagl_tests
 tagl_tests: $(LIBTAGD)
 	$(CXXTEST) Tester.h -o tester.cpp
 	$(CXX) $(CXXFLAGS) -o tester tester.cpp $(INC) $(LFLAGS)
-	./tester
+	./tester Tester
 
 $(LIBTAGD):
 	make -C $(TAGD_DIR)

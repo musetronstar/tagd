@@ -781,6 +781,49 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.hduri(), "com:example::/a/b/c:?a=1&b=2:::joe::http" );
     }
 
+    void test_init_hduri_dash_number_path(void) {
+		std::string url = "https://en.wikipedia.org/wiki/-99Dog";
+		std::string hduri = "org:wikipedia:en:/wiki/-99Dog:https";
+
+        tagd::url a(url);
+        TS_ASSERT( !a.empty() );
+		TS_ASSERT( a.ok() )
+        TS_ASSERT_EQUALS( a.scheme(), "https" );
+        TS_ASSERT_EQUALS( a.user(), "" );
+        TS_ASSERT_EQUALS( a.pass(), "" );
+        TS_ASSERT_EQUALS( a.host(), "en.wikipedia.org" );
+        TS_ASSERT_EQUALS( a.path(), "/wiki/-99Dog" );
+        TS_ASSERT_EQUALS( a.query(), "" );
+        TS_ASSERT_EQUALS( a.id(), url );
+        TS_ASSERT_EQUALS( a.hduri(), hduri );
+		// std::cout << a << std::endl;
+
+        tagd::url b;
+		b.init_hduri(hduri);
+        TS_ASSERT( !b.empty() );
+		TS_ASSERT( b.ok() )
+        TS_ASSERT_EQUALS( b.scheme(), "https" );
+        TS_ASSERT_EQUALS( b.user(), "" );
+        TS_ASSERT_EQUALS( b.pass(), "" );
+        TS_ASSERT_EQUALS( b.host(), "en.wikipedia.org" );
+        TS_ASSERT_EQUALS( b.path(), "/wiki/-99Dog" );
+        TS_ASSERT_EQUALS( b.query(), "" );
+        TS_ASSERT_EQUALS( b.id(), url );
+        TS_ASSERT_EQUALS( b.hduri(), hduri );
+    }
+
+	void test_hduri(void) {
+        tagd::HDURI a("com:example::/a/b/c/:?a=1&b=2:http");
+        TS_ASSERT( !a.empty() );
+        TS_ASSERT( a.ok() )
+        TS_ASSERT_EQUALS( a.scheme(), "http" );
+        TS_ASSERT_EQUALS( a.host(), "example.com" );
+        TS_ASSERT_EQUALS( a.path(), "/a/b/c/" );
+        TS_ASSERT_EQUALS( a.query(), "?a=1&b=2" );
+        TS_ASSERT_EQUALS( a.id(), "http://example.com/a/b/c/?a=1&b=2" );
+        TS_ASSERT_EQUALS( a.hduri(), "com:example::/a/b/c/:?a=1&b=2:http" )
+    }
+
 	void test_query_map(void) {
 		url_query_map_t qm, tm;
 		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, ""), 0 );

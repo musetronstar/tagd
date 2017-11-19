@@ -108,7 +108,7 @@ const char* scanner::fill() {
 }
 
 void scanner::scan(const char *cur, size_t sz) {
-	
+
 	_beg = _mark = _cur = cur;
 	//if (!_do_fill)
 	//	_eof = &_cur[sz];
@@ -120,6 +120,11 @@ void scanner::scan(const char *cur, size_t sz) {
 
 // parse token and value
 #define PARSE_VALUE(t) _tok = t; goto parse_value
+
+// new string to parse (parser deletes)
+#define NEW_VALUE() ( _val.empty() \
+		 ? new std::string(_beg, (_cur-_beg)) \
+		 : new std::string(_val.append(_beg, (_cur-_beg))) )
 
 #define YYCURSOR _cur
 #define YYLIMIT	_lim
@@ -140,10 +145,11 @@ next:
 	NL			= "\r"? "\n" ;
 	ANY			= [^] ;
 
-	URL_SCHEME = [a-zA-Z]+[a-zA-Z.+-]* "://" ;
+	URI_SCHEME = [a-zA-Z]+[a-zA-Z0-9.+-]* ":" ;
 	SCHEME_SPEC_DATA  = [^\000 \t\r\n'"]+ ;
-	SCHEME_SPEC_LCHAR = [^\000 \t\r\n'",]{1} ;
-	URL = URL_SCHEME SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ; 
+	SCHEME_SPEC_LCHAR = [^\000 \t\r\n'",;]{1} ;
+	URI = URI_SCHEME SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
+	URL = URI_SCHEME "//" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
 
 	"--"
 	{
@@ -165,7 +171,7 @@ next:
 	{
 		goto quoted_str;
 	}
-	
+
 	([ \t\r]*[\n]){2,}
 	{   // TERMINATOR
 		// increment line_number
@@ -188,7 +194,7 @@ next:
 		_beg = _cur;
 		goto next;
 	}
-		
+
 	"%%"                 { PARSE(TOK_CMD_SET); }
 	"<<"                 { PARSE(TOK_CMD_GET); }
 	">>"                 { PARSE(TOK_CMD_PUT); }
@@ -206,11 +212,13 @@ next:
 	";"                  { PARSE(TOK_TERMINATOR); }
 
 	"-"? [0-9]+ ("." [0-9]+)?
-					     { 
+					     {
 	                        PARSE_VALUE(TOK_QUANTIFIER);
 	                     }
 
 	URL                  {  PARSE_VALUE(TOK_URL); }
+
+	URI                  {  goto lookup_parse_uri; }
 
 	[^\000 \t\r\n;,=><'"-]+  { goto lookup_parse; }
 
@@ -262,13 +270,7 @@ parse:
 	goto next;
 
 parse_value:
-	_driver->parse_tok(
-		_tok,
-		( _val.empty()
-		 ? new std::string(_beg, (_cur-_beg))
-		 : new std::string(_val.append(_beg, (_cur-_beg)))
-		)  // parser deletes
-	);
+	_driver->parse_tok(_tok, NEW_VALUE());
 	if(!_val.empty()) _val.clear();
 	_beg = _cur;
 	goto next;
@@ -299,12 +301,19 @@ parse_quoted_str:
 
 lookup_parse:
 	{
-		// parser deletes value
-		std::string *value = ( _val.empty()
-		 ? new std::string(_beg, (_cur-_beg))
-		 : new std::string(_val.append(_beg, (_cur-_beg)))
-		);  // parser deletes
-		_driver->parse_tok(_driver->lookup_pos(*value), value);
+		std::string *val = NEW_VALUE();
+		_driver->parse_tok(_driver->lookup_pos(*val), val);
+	}
+	_beg = _cur;
+	goto next;
+
+lookup_parse_uri:
+	{
+		std::string *val = NEW_VALUE();
+		auto pos = _driver->lookup_pos(*val);
+		/* an HDURI is a special URI that represents a URL
+		   treat any other URI just like other tokens */
+		_driver->parse_tok((pos == TOK_URL ? TOK_HDURI : pos), val);
 	}
 	_beg = _cur;
 	goto next;

@@ -88,7 +88,8 @@ class tagdb_tester : public tagdb::tagdb {
 
 		tagd::code get(tagd::abstract_tag& t, const tagd::id_type& id, ts_flags_t flags = ts_flags_t()) {
 			tag_map::iterator it = db.find(id);
-			if (it == db.end()) return this->ferror(tagd::TS_NOT_FOUND, "unknown tag: %s", id.c_str());
+			if (it == db.end())
+				return this->ferror(tagd::TS_NOT_FOUND, "unknown tag: %s", id.c_str());
 
 			t = it->second;
 			return this->code(tagd::TAGD_OK);
@@ -107,6 +108,13 @@ class tagdb_tester : public tagdb::tagdb {
 				} else {
 					return this->code();
 				}
+			} else if (t.pos() == tagd::POS_URL) {
+				// we could make a tagd::url copy constructor/operator
+				// but this is the only place where this madness occurs
+				tagd::url u;
+				u.init(t.id());
+				u.relations = t.relations;
+				db[u.hduri()] = u;
 			} else {
 				db[t.id()] = t;
 			}
@@ -115,32 +123,37 @@ class tagdb_tester : public tagdb::tagdb {
 		}
 
 		tagd::code del(const tagd::abstract_tag& t, ts_flags_t flags = ts_flags_t()) {
-			if (t.pos() != tagd::POS_URL && !t.super_object().empty()) {
+			if (!t.super_object().empty() && t.pos() != tagd::POS_URL) {
 				return this->ferror(tagd::TS_MISUSE,
 					"sub must not be specified when deleting tag: %s", t.id().c_str());
 			}
 
 			tagd::abstract_tag existing;
-			this->get(existing, t.id(), flags);
+			auto id = (
+				t.pos() == tagd::POS_URL
+				? static_cast<tagd::url const *>(&t)->hduri()
+				: t.id() );
+
+			this->get(existing, id, flags);
 			if (this->code() != tagd::TAGD_OK)
 				return this->code();
 
 			if (t.relations.empty()) {
-				if ( !db.erase(t.id()) )
-					return this->ferror(tagd::TS_ERR, "del failed: %s", t.id().c_str());
-				else
+				if ( db.erase(id) )
 					return this->code(tagd::TAGD_OK);
+				else
+					return this->ferror(tagd::TS_ERR, "del failed: %s", id.c_str());
 			} else {
 				for( auto p : t.relations ) {
 					if (existing.not_relation(p) == tagd::TAG_UNKNOWN) {
 						if (p.modifier.empty()) {
 							this->ferror(tagd::TS_NOT_FOUND,
 								"cannot delete non-existent relation: %s %s %s",
-									t.id().c_str(), p.relator.c_str(), p.object.c_str());
+									id.c_str(), p.relator.c_str(), p.object.c_str());
 						} else {
 							this->ferror(tagd::TS_NOT_FOUND,
 								"cannot delete non-existent relation: %s %s %s = %s",
-									t.id().c_str(), p.relator.c_str(), p.object.c_str(), p.modifier.c_str());
+									id.c_str(), p.relator.c_str(), p.object.c_str(), p.modifier.c_str());
 						}
 					}
 				}
@@ -174,8 +187,12 @@ class tagdb_tester : public tagdb::tagdb {
 		}
 
 		tagd::code dump(std::ostream& os = std::cout) {
-			assert(false);
-			return tagd::TS_ERR;
+			for (auto it = db.begin(); it != db.end(); ++it) {
+				os << "-- " << it->first << " , " << pos_str(it->second.pos()) << std::endl;
+				os << it->second << std::endl << std::endl;
+			}
+
+			return tagd::TAGD_OK;
 		}
 
 		tagd::code dump_grid(std::ostream& os = std::cout) {
@@ -217,9 +234,12 @@ class callback_tester : public TAGL::callback {
 		void cmd_get(const tagd::abstract_tag& t) {
 			cmd = TOK_CMD_GET;
 			renew_last_tag(t.pos());
-			last_code = _tdb->get(*last_tag, t.id());
-			if(t.pos() == tagd::POS_URL)
+			if(t.pos() == tagd::POS_URL) {
 				((tagd::url*)last_tag)->init(t.id());
+				last_code = _tdb->get(*last_tag, ((tagd::url*)last_tag)->hduri());
+			} else {
+				last_code = _tdb->get(*last_tag, t.id());
+			}
 		}
 
 		void cmd_put(const tagd::abstract_tag& t) {
@@ -243,8 +263,10 @@ class callback_tester : public TAGL::callback {
 			cmd = TOK_CMD_DEL;
 			renew_last_tag(t.pos());
 			*last_tag = t;
-			if (t.pos() == tagd::POS_URL)
+			if (t.pos() == tagd::POS_URL) {
 				((tagd::url*)last_tag)->init(t.id());
+			}
+
 			last_code = _tdb->del(*last_tag);
 		}
 
@@ -482,7 +504,8 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_delete(void) {
 		tagdb_tester tdb;
-		TAGL::driver tagl(&tdb);
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb);
 		tagd::code tc = tagl.execute(
 				"!! dog\n"
 				"_has legs, tail, fur\n"
@@ -496,6 +519,18 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related("_has", "fur") )
 		TS_ASSERT( tagl.tag().related("_can", "bark") )
 		TS_ASSERT( tagl.tag().related("_can", "bite") )
+
+		tc = tagl.execute( "!! dog" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		// TODO fix not_found_context_dichotomy (see parser.y)
+		//tc = tagl.execute( "<< dog" );
+		//TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
+		tagl.execute( "<< dog" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
+
+		tc = tagl.execute( "!! dog" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
 	}
 
     void test_url(void) {
@@ -1016,7 +1051,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( cb.last_tag->related("_can", "bite") )
 
 		tagd::abstract_tag t;
-		tagd::code tc = tdb.get(t, "dog");
+		tc = tdb.get(t, "dog");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS( t.id(), "dog" )
 		TS_ASSERT_EQUALS( t.super_object(), "animal" )
@@ -1059,7 +1094,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related("_can", "bite") )
 
 		tagd::abstract_tag t;
-		tagd::code tc = tdb.get(t, "dog");
+		tc = tdb.get(t, "dog");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS( t.id(), "dog" )
 		TS_ASSERT_EQUALS( t.super_object(), "animal" )
@@ -1394,6 +1429,82 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 
 		tc = tagl.execute( "<< https://en.wikipedia.org/wiki/Dog ;" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
+	}
+
+	void test_get_hduri(void) {
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb);
+
+		// looks like quantifier in path
+		tagd::code tc = tagl.execute(
+				">> https://en.wikipedia.org/wiki/-99Dog\n"
+				"about dog\n"
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		tc = tagl.execute( "<< https://en.wikipedia.org/wiki/-99Dog" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		TS_ASSERT_EQUALS( cb.last_tag->id(), "https://en.wikipedia.org/wiki/-99Dog" )
+		TS_ASSERT( cb.last_tag->related("about", "dog") )
+
+		// hduri
+		// tagl.trace_on();
+		tc = tagl.execute( "<< org:wikipedia:en:/wiki/-99Dog:https" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		TS_ASSERT_EQUALS( cb.last_tag->id(), "https://en.wikipedia.org/wiki/-99Dog" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( static_cast<tagd::url *>(cb.last_tag)->hduri(), "org:wikipedia:en:/wiki/-99Dog:https" )
+		TS_ASSERT( cb.last_tag->related("about", "dog") )
+
+		tc = tagl.execute( "!! org:wikipedia:en:/wiki/-99Dog:https" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		// TODO fix not_found_context_dichotomy (see parser.y)
+		//tc = tagl.execute( "<< https://en.wikipedia.org/wiki/-99Dog ;" );
+		//TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
+		tagl.execute( "<< https://en.wikipedia.org/wiki/-99Dog ;" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
+
+		tagl.execute( "<< org:wikipedia:en:/wiki/-99Dog:https" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
+	}
+
+	void test_uri_put_get_semicolon(void) {
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb);
+
+		tagd::code tc = tagl.execute(">> myuri:dog _is_a _entity;");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		tc = tagl.execute(
+				">> https://en.wikipedia.org/wiki/Dog\n"
+				"about myuri:dog;\n"
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		tc = tagl.execute( "<< org:wikipedia:en:/wiki/Dog:https;\n" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		TS_ASSERT_EQUALS( cb.last_tag->id(), "https://en.wikipedia.org/wiki/Dog" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( static_cast<tagd::url *>(cb.last_tag)->hduri(), "org:wikipedia:en:/wiki/Dog:https" )
+		TS_ASSERT( cb.last_tag->related("about", "myuri:dog") )
+
+		tc = tagl.execute( "!! org:wikipedia:en:/wiki/Dog:https;" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		// TODO fix not_found_context_dichotomy (see parser.y)
+		//tc = tagl.execute( "<< https://en.wikipedia.org/wiki/Dog ;" );
+		//TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
+		tagl.execute( "<< https://en.wikipedia.org/wiki/Dog;" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
+
+		tagl.execute( "<< org:wikipedia:en:/wiki/Dog:https;" );
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
 	}
 

@@ -520,31 +520,37 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 	 * TODO surely, there must be a less wasteful way to do this.
 	 */
 
-	tagd::abstract_tag T;
+	tagd::abstract_tag *T;
 	tagd::code tc;
 	if (t.pos() == tagd::POS_URL) {
-		tc = _tx->tdb->get(static_cast<tagd::url&>(T), t.id());
+		T = new tagd::url(t.id());
+		tc = _tx->tdb->get(*T, static_cast<tagd::url *>(T)->hduri());
 	} else {
-		tc = _tx->tdb->get(T, t.id());
+		T = new tagd::abstract_tag();
+		tc = _tx->tdb->get(*T, t.id());
 	}
 
 	if (tc != tagd::TAGD_OK) {
 		output_errors(tc);
 		return;
 	}
+
+#define RET_IF_ERR()              \
+	if (tc != tagd::TAGD_OK) { \
+		output_errors(tc);     \
+		delete T;              \
+		return;                \
+	} \
 
 	view vw;
 	tc = _tx->vws->get(vw, get_view_id(view_name));
-	if (tc != tagd::TAGD_OK) {
-		output_errors(tc);
-		return;
-	}
+	RET_IF_ERR();
 
-	tc = vw.get_function(*_tx, vw, T);
-	if (tc != tagd::TAGD_OK) {
-		output_errors(tc);
-		return;
-	}
+	tc = vw.get_function(*_tx, vw, *T);
+	RET_IF_ERR();
+
+	// no err
+	delete T;
 }
 
 void callback::cmd_put(const tagd::abstract_tag& t) {
@@ -708,7 +714,7 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 		u.init(val);
 		f_set_vals(u.id(), tagd::uri_encode(u.hduri()));
 	} else {
-		f_set_vals(val, tagd::util::esc_and_quote(val));
+		f_set_vals(val, tagd::uri_encode(val));
 	}
 }
 

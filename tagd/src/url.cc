@@ -27,7 +27,7 @@ tagd::code url::init(const std::string &url) {
 
             if (_id.substr(i, 3) == "://") {
 				/*
-				 * hduri://com:example:http
+				 * hduri:com:example:http
 				 * becomes:
 				 * http://example.com
 				 */

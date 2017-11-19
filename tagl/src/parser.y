@@ -159,11 +159,11 @@ push_context ::= context(c) .
 
 get_statement ::= CMD_GET subject .
 get_statement ::= CMD_GET unknown .
-/*
+/* not_found_context_dichotomy
 // We can't set TS_NOT_FOUND as an error here
-// because lookup_pos will return UNKNOWN for
+// because lookup_pos will return pos:UNKNOWN for
 // out of context referents, whereas tagdb::get()
-// will return TS_AMBIGUOUS, so we have to set
+// will return tagd_code:TS_AMBIGUOUS, so we have to set
 // the tag so it makes it to tagdb::get via the callback
 // TODO have lookup_pos return REFERENT for out of context referents
 get_statement ::= CMD_GET UNKNOWN(U) .
@@ -270,6 +270,10 @@ subject ::= URL(U) .
 {
 	NEW_TAG(tagd::url, *U)
 }
+subject ::= HDURI(U) .
+{
+	NEW_TAG(tagd::HDURI, *U)
+}
 subject ::= REFERENT(R) .
 {
 	NEW_TAG(tagd::abstract_tag, *R)
@@ -341,11 +345,6 @@ refers(r) ::= INTERROGATOR(I) .
 {
 	r = I;
 }
-// not sure about urls as referents
-// refers(r) ::= URL(U) .
-// {
-// 	r = U;
-// }
 refers(r) ::= UNKNOWN(U) .
 {
 	r = U;
@@ -385,11 +384,6 @@ refers_to(rt) ::= CONTEXT(C) .
 	rt = C;
 }
 
-// refers_to(rt) ::= URL(U) .
-// {
-// 	rt = U;
-// }
-
 // TAG seems the only sensible context, but we might allow others if they make sense
 context(c) ::= TAG(C) .
 {
@@ -422,11 +416,11 @@ super_object ::=  REFERENT(R) .
 	tagl->_tag->super_object(*R);
 }
 
-
-
-/* URL are concretes.
-   They can't be a sub, unless we devise a way for
-   urls to be subordinate to domains or suburls */
+/*
+	URL are concretes.
+	They can't be a sub, unless we devise a way for
+	urls to be subordinate to domains or suburls
+*/
 
 relations ::= relations predicate_list .
 relations ::= predicate_list .
@@ -468,6 +462,10 @@ object ::= TAG(T) op(o) URL(U) .
 {
 	tagl->_tag->relation(tagl->_relator, *T, *U, o);
 }
+object ::= TAG(T) op(o) HDURI(U) .
+{
+	tagl->_tag->relation(tagl->_relator, *T, *U, o);
+}
 object ::= TAG(T) .
 {
 	tagl->_tag->relation(tagl->_relator, *T);
@@ -481,6 +479,16 @@ object ::= URL(U) .
 		tagl->ferror(u.code(), "bad url: %s", U->c_str());
 	}
 }
+object ::= HDURI(U) .
+{
+	tagd::HDURI u(*U);
+	if (u.code() == tagd::TAGD_OK) {
+		tagl->_tag->relation(tagl->_relator, u.hduri());
+	} else {
+		tagl->ferror(u.code(), "bad hduri: %s", U->c_str());
+	}
+}
+
 object ::= REFERENT(R) .
 {
 	tagl->_tag->relation(tagl->_relator, *R);
