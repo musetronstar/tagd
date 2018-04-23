@@ -23,10 +23,12 @@ LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite \
 		 -L $(TAGSH_DIR)/lib -ltagsh \
 		 -lsqlite3 -levent -lreadline
 
-LIBEVHTP_DIR = $(HOME)/src/libevhtp
-LIBEVHTP_INC = -I$(LIBEVHTP_DIR)/include -I$(LIBEVHTP_DIR)/build/include
-LIBEVHTP_LFLAGS = -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
-LIBEVHTP = $(LIBEVHTP_DIR)/build/libevhtp.a
+INC += -I/usr/include/evhtp
+EVHTP_H = /usr/include/evhtp/evhtp.h
+# if compiling libevhtp from source
+#SRC_DIR = $(HOME)/src/libevhtp
+#INC += -I$(SRC_DIR)/include -I$(SRC_DIR)/build/include
+#EVHTP_H = $(SRC_DIR)/include/evhtp/evhtp.h
 
 all: build
 
@@ -38,7 +40,7 @@ debug: build
 build : httagd.o
 
 # token to string case statements
-evhtp-results.inc: $(LIBEVHTP_DIR)/include/evhtp/evhtp.h
+evhtp-results.inc: $(EVHTP_H)
 	grep '#define EVHTP_RES_[A-Z]' $? | awk '{printf "case %s: return \"%s\";\n", $$2, $$2;}' > $@
 
 httagd.o : evhtp-results.inc httagd.cc

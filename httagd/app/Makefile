@@ -25,10 +25,15 @@ LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite \
 		 -L $(HTTAGD_DIR)/lib -lhttagd \
 		 -lsqlite3 -levent -lreadline -lctemplate_nothreads
 
-LIBEVHTP_DIR = $(HOME)/src/libevhtp
-LIBEVHTP_INC = -I$(LIBEVHTP_DIR)/include -I$(LIBEVHTP_DIR)/build/include
-LIBEVHTP_LFLAGS = -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
-LIBEVHTP = $(LIBEVHTP_DIR)/build/libevhtp.a
+LIBEVHTP_INC = -I/usr/include/evhtp
+# if compiling libevhtp from source
+#SRC_DIR = $(HOME)/src/libevhtp
+#LIBEVHTP_INC = -I$(SRC_DIR)/include -I$(SRC_DIR)/build/include
+#LFLAGS += -L$(SRC_DIR)/build
+
+INC += $(LIBEVHTP_INC)
+
+LFLAGS += -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
 
 all: build
 
@@ -40,10 +45,10 @@ debug: build
 build : $(BIN)
 
 main.o : main.cc
-	$(CXX) $(CXXFLAGS) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
+	$(CXX) $(CXXFLAGS) -c -o $@ $? $(INC)
 
 $(BIN) : main.o
-	$(CXX) $(CXXFLAGS) -o $@ $? $(LFLAGS) $(LIBEVHTP) $(LIBEVHTP_LFLAGS)
+	$(CXX) $(CXXFLAGS) -o $@ $? $(LFLAGS)
 
 clean :
 	rm -f *.o

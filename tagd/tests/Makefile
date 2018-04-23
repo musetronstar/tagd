@@ -2,9 +2,9 @@ INCLUDE = ../include
 
 CXX = g++ -std=c++0x -Wall -Wextra
 CXXFLAGS = -O3
-INC = -I $(HOME)/src/cxxtest -I$(INCLUDE)
+INC = -I$(INCLUDE)
 LFLAGS = -L../lib -ltagd
-CXXTEST = $(HOME)/src/cxxtest/bin/cxxtestgen --error-printer
+CXXTEST = cxxtestgen --error-printer
 
 all: tag_tests url_tests domain_tests
 

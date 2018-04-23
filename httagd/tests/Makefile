@@ -4,11 +4,10 @@ TAGL_DIR = ../../tagl
 TAGSH_DIR = ../../tagsh
 HTTAGD_DIR = ../../httagd
 
-INC  = -I $(HOME)/src/cxxtest
-INC += -I../include -I$(TAGD_DIR)/include -I$(TAGSPACE_DIR)/include -I$(TAGSPACE_DIR)/sqlite/include -I$(TAGL_DIR)/include -I$(TAGSH_DIR)/include
+INC = -I../include -I$(TAGD_DIR)/include -I$(TAGSPACE_DIR)/include -I$(TAGSPACE_DIR)/sqlite/include -I$(TAGL_DIR)/include -I$(TAGSH_DIR)/include
 LIBHTTAGD = $(HTTAGD_DIR)/lib/libhttagd.a
 
-CXXTEST = $(HOME)/src/cxxtest/bin/cxxtestgen --error-printer
+CXXTEST = cxxtestgen --error-printer
 CXX = g++ -std=c++0x 
 CXXFLAGS = -O3 -Wno-write-strings
 LFLAGS  =
@@ -21,12 +20,13 @@ LFLAGS += -L$(TAGSH_DIR)/lib -ltagsh
 LFLAGS +=  -lsqlite3 -levent -lreadline
 LFLAGS += -lctemplate_nothreads
 
-LIBEVHTP_DIR = $(HOME)/src/libevhtp
-LIBEVHTP_INC = -I$(LIBEVHTP_DIR)/include -I$(LIBEVHTP_DIR)/build/include
-LIBEVHTP_LFLAGS = -L$(LIBEVHTP_DIR)/build -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
+INC += -I/usr/include/evhtp
+# if compiling libevhtp from source
+#SRC_DIR = $(HOME)/src/libevhtp
+#INC += -I$(SRC_DIR)/include -I$(SRC_DIR)/build/include
+#LFLAGS += -L$(SRC_DIR)/build
 
-INC += $(LIBEVHTP_INC)
-LFLAGS += $(LIBEVHTP_LFLAGS)
+LFLAGS += -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
 
 all: build
 

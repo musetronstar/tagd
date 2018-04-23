@@ -734,15 +734,21 @@ platforms.
 	* Net::IDN::Encode CPAN module to parse the list
 * [re2c](http://re2c) for the lexer/scanner
 * [lemon](http://www.hwaci.com/sw/lemon/lemon.html) for the parser
-* For testing
-	* [CxxTest](http://cxxtest.com/) for unit tests
-	* [Expect](http://www.tcl.tk/man/expect5.31/expect.1.html) for testing tagsh and httagd
-	* [Curl](http://curl.haxx.se/) for testing httagd
+* [readline](https://tiswww.case.edu/php/chet/readline/rltop.html) for the tagd shell
 * [SQLite v3](http://www.sqlite.org/) libs and development headers
+* [libevent](http://libevent.org/) libs and development headers
 * For the httagd http server
 	* [libevhtp](https://github.com/criticalstack/libevhtp)
 	* [OpenSSL Development Headers](https://www.openssl.org/)
-	* [ctemplate](https://code.google.com/p/ctemplate/) for html/json templates
+	* [ctemplate](https://github.com/olafvdspek/ctemplate) for html/json templates
+* For testing
+	* [CxxTest](http://cxxtest.com/) for unit tests
+	* [Curl](http://curl.haxx.se/) for testing httagd
+	* [Expect](https://core.tcl.tk/expect/index) for interactive testing of tagsh and httagd
+
+###### Install Dependencies on Debian/Ubuntu/Mint
+
+	sudo apt-get install build-essential gperf libnet-idn-encode-perl re2c lemon libreadline-dev libsqlite3-dev libevent-dev libevhtp-dev libssl-dev libctemplate-dev cxxtest expect
 
 Building and Testing:
 
