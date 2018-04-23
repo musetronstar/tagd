@@ -168,7 +168,7 @@ pb.ao, TLD_ICANN
 it.ao, TLD_ICANN
 #  aq : https://en.wikipedia.org/wiki/.aq
 aq, TLD_ICANN
-#  ar : https://nic.ar/normativa-vigente.xhtml
+#  ar : https://nic.ar/nic-argentina/normativa-vigente
 ar, TLD_ICANN
 com.ar, TLD_ICANN
 edu.ar, TLD_ICANN
@@ -176,6 +176,7 @@ gob.ar, TLD_ICANN
 gov.ar, TLD_ICANN
 int.ar, TLD_ICANN
 mil.ar, TLD_ICANN
+musica.ar, TLD_ICANN
 net.ar, TLD_ICANN
 org.ar, TLD_ICANN
 tur.ar, TLD_ICANN
@@ -359,36 +360,87 @@ net.bm, TLD_ICANN
 org.bm, TLD_ICANN
 #  bn : https://en.wikipedia.org/wiki/.bn
 bn, TLD_WILDCARD
-#  bo : http://www.nic.bo/
+#  bo : https://nic.bo/delegacion2015.php#h-1.10
 bo, TLD_ICANN
 com.bo, TLD_ICANN
 edu.bo, TLD_ICANN
-gov.bo, TLD_ICANN
 gob.bo, TLD_ICANN
 int.bo, TLD_ICANN
 org.bo, TLD_ICANN
 net.bo, TLD_ICANN
 mil.bo, TLD_ICANN
 tv.bo, TLD_ICANN
+web.bo, TLD_ICANN
+#  Social Domains
+academia.bo, TLD_ICANN
+agro.bo, TLD_ICANN
+arte.bo, TLD_ICANN
+blog.bo, TLD_ICANN
+bolivia.bo, TLD_ICANN
+ciencia.bo, TLD_ICANN
+cooperativa.bo, TLD_ICANN
+democracia.bo, TLD_ICANN
+deporte.bo, TLD_ICANN
+ecologia.bo, TLD_ICANN
+economia.bo, TLD_ICANN
+empresa.bo, TLD_ICANN
+indigena.bo, TLD_ICANN
+industria.bo, TLD_ICANN
+info.bo, TLD_ICANN
+medicina.bo, TLD_ICANN
+movimiento.bo, TLD_ICANN
+musica.bo, TLD_ICANN
+natural.bo, TLD_ICANN
+nombre.bo, TLD_ICANN
+noticias.bo, TLD_ICANN
+patria.bo, TLD_ICANN
+politica.bo, TLD_ICANN
+profesional.bo, TLD_ICANN
+plurinacional.bo, TLD_ICANN
+pueblo.bo, TLD_ICANN
+revista.bo, TLD_ICANN
+salud.bo, TLD_ICANN
+tecnologia.bo, TLD_ICANN
+tksat.bo, TLD_ICANN
+transporte.bo, TLD_ICANN
+wiki.bo, TLD_ICANN
 #  br : http://registro.br/dominio/categoria.html
 #  Submitted by registry <fneves@registro.br>
 br, TLD_ICANN
+9guacu.br, TLD_ICANN
+abc.br, TLD_ICANN
 adm.br, TLD_ICANN
 adv.br, TLD_ICANN
 agr.br, TLD_ICANN
+aju.br, TLD_ICANN
 am.br, TLD_ICANN
+anani.br, TLD_ICANN
+aparecida.br, TLD_ICANN
 arq.br, TLD_ICANN
 art.br, TLD_ICANN
 ato.br, TLD_ICANN
 b.br, TLD_ICANN
+barueri.br, TLD_ICANN
+belem.br, TLD_ICANN
+bhz.br, TLD_ICANN
 bio.br, TLD_ICANN
 blog.br, TLD_ICANN
 bmd.br, TLD_ICANN
+boavista.br, TLD_ICANN
+bsb.br, TLD_ICANN
+campinagrande.br, TLD_ICANN
+campinas.br, TLD_ICANN
+caxias.br, TLD_ICANN
 cim.br, TLD_ICANN
 cng.br, TLD_ICANN
 cnt.br, TLD_ICANN
 com.br, TLD_ICANN
+contagem.br, TLD_ICANN
 coop.br, TLD_ICANN
+cri.br, TLD_ICANN
+cuiaba.br, TLD_ICANN
+curitiba.br, TLD_ICANN
+def.br, TLD_ICANN
 ecn.br, TLD_ICANN
 eco.br, TLD_ICANN
 edu.br, TLD_ICANN
@@ -398,48 +450,115 @@ esp.br, TLD_ICANN
 etc.br, TLD_ICANN
 eti.br, TLD_ICANN
 far.br, TLD_ICANN
+feira.br, TLD_ICANN
 flog.br, TLD_ICANN
+floripa.br, TLD_ICANN
 fm.br, TLD_ICANN
 fnd.br, TLD_ICANN
+fortal.br, TLD_ICANN
 fot.br, TLD_ICANN
+foz.br, TLD_ICANN
 fst.br, TLD_ICANN
 g12.br, TLD_ICANN
 ggf.br, TLD_ICANN
+goiania.br, TLD_ICANN
 gov.br, TLD_ICANN
+#  gov.br 26 states + df https://en.wikipedia.org/wiki/States_of_Brazil
+ac.gov.br, TLD_ICANN
+al.gov.br, TLD_ICANN
+am.gov.br, TLD_ICANN
+ap.gov.br, TLD_ICANN
+ba.gov.br, TLD_ICANN
+ce.gov.br, TLD_ICANN
+df.gov.br, TLD_ICANN
+es.gov.br, TLD_ICANN
+go.gov.br, TLD_ICANN
+ma.gov.br, TLD_ICANN
+mg.gov.br, TLD_ICANN
+ms.gov.br, TLD_ICANN
+mt.gov.br, TLD_ICANN
+pa.gov.br, TLD_ICANN
+pb.gov.br, TLD_ICANN
+pe.gov.br, TLD_ICANN
+pi.gov.br, TLD_ICANN
+pr.gov.br, TLD_ICANN
+rj.gov.br, TLD_ICANN
+rn.gov.br, TLD_ICANN
+ro.gov.br, TLD_ICANN
+rr.gov.br, TLD_ICANN
+rs.gov.br, TLD_ICANN
+sc.gov.br, TLD_ICANN
+se.gov.br, TLD_ICANN
+sp.gov.br, TLD_ICANN
+to.gov.br, TLD_ICANN
+gru.br, TLD_ICANN
 imb.br, TLD_ICANN
 ind.br, TLD_ICANN
 inf.br, TLD_ICANN
+jab.br, TLD_ICANN
+jampa.br, TLD_ICANN
+jdf.br, TLD_ICANN
+joinville.br, TLD_ICANN
 jor.br, TLD_ICANN
 jus.br, TLD_ICANN
 leg.br, TLD_ICANN
 lel.br, TLD_ICANN
+londrina.br, TLD_ICANN
+macapa.br, TLD_ICANN
+maceio.br, TLD_ICANN
+manaus.br, TLD_ICANN
+maringa.br, TLD_ICANN
 mat.br, TLD_ICANN
 med.br, TLD_ICANN
 mil.br, TLD_ICANN
+morena.br, TLD_ICANN
 mp.br, TLD_ICANN
 mus.br, TLD_ICANN
+natal.br, TLD_ICANN
 net.br, TLD_ICANN
+niteroi.br, TLD_ICANN
 nom.br, TLD_WILDCARD
 not.br, TLD_ICANN
 ntr.br, TLD_ICANN
 odo.br, TLD_ICANN
 org.br, TLD_ICANN
+osasco.br, TLD_ICANN
+palmas.br, TLD_ICANN
+poa.br, TLD_ICANN
 ppg.br, TLD_ICANN
 pro.br, TLD_ICANN
 psc.br, TLD_ICANN
 psi.br, TLD_ICANN
+pvh.br, TLD_ICANN
 qsl.br, TLD_ICANN
 radio.br, TLD_ICANN
 rec.br, TLD_ICANN
+recife.br, TLD_ICANN
+ribeirao.br, TLD_ICANN
+rio.br, TLD_ICANN
+riobranco.br, TLD_ICANN
+riopreto.br, TLD_ICANN
+salvador.br, TLD_ICANN
+sampa.br, TLD_ICANN
+santamaria.br, TLD_ICANN
+santoandre.br, TLD_ICANN
+saobernardo.br, TLD_ICANN
+saogonca.br, TLD_ICANN
+sjc.br, TLD_ICANN
 slg.br, TLD_ICANN
+slz.br, TLD_ICANN
+sorocaba.br, TLD_ICANN
 srv.br, TLD_ICANN
 taxi.br, TLD_ICANN
 teo.br, TLD_ICANN
+the.br, TLD_ICANN
 tmp.br, TLD_ICANN
 trd.br, TLD_ICANN
 tur.br, TLD_ICANN
 tv.br, TLD_ICANN
+udi.br, TLD_ICANN
 vet.br, TLD_ICANN
+vix.br, TLD_ICANN
 vlog.br, TLD_ICANN
 wiki.br, TLD_ICANN
 zlg.br, TLD_ICANN
@@ -655,7 +774,9 @@ org.cw, TLD_ICANN
 #  list of other 2nd level tlds ?
 cx, TLD_ICANN
 gov.cx, TLD_ICANN
-#  cy : https://en.wikipedia.org/wiki/.cy
+#  cy : http://www.nic.cy/
+#  Submitted by registry Panayiotou Fotia <cydns@ucy.ac.cy>
+cy, TLD_ICANN
 ac.cy, TLD_ICANN
 biz.cy, TLD_ICANN
 com.cy, TLD_ICANN
@@ -2497,9 +2618,7 @@ arao.kumamoto.jp, TLD_ICANN
 aso.kumamoto.jp, TLD_ICANN
 choyo.kumamoto.jp, TLD_ICANN
 gyokuto.kumamoto.jp, TLD_ICANN
-hitoyoshi.kumamoto.jp, TLD_ICANN
 kamiamakusa.kumamoto.jp, TLD_ICANN
-kashima.kumamoto.jp, TLD_ICANN
 kikuchi.kumamoto.jp, TLD_ICANN
 kumamoto.kumamoto.jp, TLD_ICANN
 mashiki.kumamoto.jp, TLD_ICANN
@@ -3369,8 +3488,17 @@ tsuru.yamanashi.jp, TLD_ICANN
 uenohara.yamanashi.jp, TLD_ICANN
 yamanakako.yamanashi.jp, TLD_ICANN
 yamanashi.yamanashi.jp, TLD_ICANN
-#  ke : http://www.kenic.or.ke/index.php?option=com_content&task=view&id=117&Itemid=145
-ke, TLD_WILDCARD
+#  ke : http://www.kenic.or.ke/index.php/en/ke-domains/ke-domains
+ke, TLD_ICANN
+ac.ke, TLD_ICANN
+co.ke, TLD_ICANN
+go.ke, TLD_ICANN
+info.ke, TLD_ICANN
+me.ke, TLD_ICANN
+mobi.ke, TLD_ICANN
+ne.ke, TLD_ICANN
+or.ke, TLD_ICANN
+sc.ke, TLD_ICANN
 #  kg : http://www.domain.kg/dmn_n.html
 kg, TLD_ICANN
 org.kg, TLD_ICANN
@@ -4276,9 +4404,17 @@ gov.my, TLD_ICANN
 edu.my, TLD_ICANN
 mil.my, TLD_ICANN
 name.my, TLD_ICANN
-#  mz : http://www.gobin.info/domainname/mz-template.doc
-mz, TLD_WILDCARD
-teledata.mz, TLD_EXCEPTION_REG
+#  mz : http://www.uem.mz/
+#  Submitted by registry <antonio@uem.mz>
+mz, TLD_ICANN
+ac.mz, TLD_ICANN
+adv.mz, TLD_ICANN
+co.mz, TLD_ICANN
+edu.mz, TLD_ICANN
+gov.mz, TLD_ICANN
+mil.mz, TLD_ICANN
+net.mz, TLD_ICANN
+org.mz, TLD_ICANN
 #  na : http://www.na-nic.com.na/
 #  http://www.info.na/domain/
 na, TLD_ICANN
@@ -4304,6 +4440,7 @@ name, TLD_ICANN
 #  nc : http://www.cctld.nc/
 nc, TLD_ICANN
 asso.nc, TLD_ICANN
+nom.nc, TLD_ICANN
 #  ne : https://en.wikipedia.org/wiki/.ne
 ne, TLD_ICANN
 #  net : https://en.wikipedia.org/wiki/.net
@@ -4333,20 +4470,21 @@ net.ng, TLD_ICANN
 org.ng, TLD_ICANN
 sch.ng, TLD_ICANN
 #  ni : http://www.nic.ni/
-com.ni, TLD_ICANN
-gob.ni, TLD_ICANN
-edu.ni, TLD_ICANN
-org.ni, TLD_ICANN
-nom.ni, TLD_ICANN
-net.ni, TLD_ICANN
-mil.ni, TLD_ICANN
-co.ni, TLD_ICANN
-biz.ni, TLD_ICANN
-web.ni, TLD_ICANN
-int.ni, TLD_ICANN
+ni, TLD_ICANN
 ac.ni, TLD_ICANN
+biz.ni, TLD_ICANN
+co.ni, TLD_ICANN
+com.ni, TLD_ICANN
+edu.ni, TLD_ICANN
+gob.ni, TLD_ICANN
 in.ni, TLD_ICANN
 info.ni, TLD_ICANN
+int.ni, TLD_ICANN
+mil.ni, TLD_ICANN
+net.ni, TLD_ICANN
+nom.ni, TLD_ICANN
+org.ni, TLD_ICANN
+web.ni, TLD_ICANN
 #  nl : https://en.wikipedia.org/wiki/.nl
 #       https://www.sidn.nl/
 #       ccTLD for the Netherlands
@@ -5337,6 +5475,8 @@ museum.om, TLD_ICANN
 net.om, TLD_ICANN
 org.om, TLD_ICANN
 pro.om, TLD_ICANN
+#  onion : https://tools.ietf.org/html/rfc7686
+onion, TLD_ICANN
 #  org : https://en.wikipedia.org/wiki/.org
 org, TLD_ICANN
 #  pa : http://www.nic.pa/
@@ -5717,143 +5857,13 @@ edu.rs, TLD_ICANN
 gov.rs, TLD_ICANN
 in.rs, TLD_ICANN
 org.rs, TLD_ICANN
-#  ru : http://www.cctld.ru/ru/docs/aktiv_8.php
-#  Industry domains
+#  ru : https://cctld.ru/en/domains/domens_ru/reserved/
 ru, TLD_ICANN
 ac.ru, TLD_ICANN
-com.ru, TLD_ICANN
 edu.ru, TLD_ICANN
-int.ru, TLD_ICANN
-net.ru, TLD_ICANN
-org.ru, TLD_ICANN
-pp.ru, TLD_ICANN
-#  Geographical domains
-adygeya.ru, TLD_ICANN
-altai.ru, TLD_ICANN
-amur.ru, TLD_ICANN
-arkhangelsk.ru, TLD_ICANN
-astrakhan.ru, TLD_ICANN
-bashkiria.ru, TLD_ICANN
-belgorod.ru, TLD_ICANN
-bir.ru, TLD_ICANN
-bryansk.ru, TLD_ICANN
-buryatia.ru, TLD_ICANN
-cbg.ru, TLD_ICANN
-chel.ru, TLD_ICANN
-chelyabinsk.ru, TLD_ICANN
-chita.ru, TLD_ICANN
-chukotka.ru, TLD_ICANN
-chuvashia.ru, TLD_ICANN
-dagestan.ru, TLD_ICANN
-dudinka.ru, TLD_ICANN
-e-burg.ru, TLD_ICANN
-grozny.ru, TLD_ICANN
-irkutsk.ru, TLD_ICANN
-ivanovo.ru, TLD_ICANN
-izhevsk.ru, TLD_ICANN
-jar.ru, TLD_ICANN
-joshkar-ola.ru, TLD_ICANN
-kalmykia.ru, TLD_ICANN
-kaluga.ru, TLD_ICANN
-kamchatka.ru, TLD_ICANN
-karelia.ru, TLD_ICANN
-kazan.ru, TLD_ICANN
-kchr.ru, TLD_ICANN
-kemerovo.ru, TLD_ICANN
-khabarovsk.ru, TLD_ICANN
-khakassia.ru, TLD_ICANN
-khv.ru, TLD_ICANN
-kirov.ru, TLD_ICANN
-koenig.ru, TLD_ICANN
-komi.ru, TLD_ICANN
-kostroma.ru, TLD_ICANN
-krasnoyarsk.ru, TLD_ICANN
-kuban.ru, TLD_ICANN
-kurgan.ru, TLD_ICANN
-kursk.ru, TLD_ICANN
-lipetsk.ru, TLD_ICANN
-magadan.ru, TLD_ICANN
-mari.ru, TLD_ICANN
-mari-el.ru, TLD_ICANN
-marine.ru, TLD_ICANN
-mordovia.ru, TLD_ICANN
-#  mosreg.ru  Bug 1090800 - removed at request of Aleksey Konstantinov <konstantinovav@mosreg.ru>
-msk.ru, TLD_ICANN
-murmansk.ru, TLD_ICANN
-nalchik.ru, TLD_ICANN
-nnov.ru, TLD_ICANN
-nov.ru, TLD_ICANN
-novosibirsk.ru, TLD_ICANN
-nsk.ru, TLD_ICANN
-omsk.ru, TLD_ICANN
-orenburg.ru, TLD_ICANN
-oryol.ru, TLD_ICANN
-palana.ru, TLD_ICANN
-penza.ru, TLD_ICANN
-perm.ru, TLD_ICANN
-ptz.ru, TLD_ICANN
-rnd.ru, TLD_ICANN
-ryazan.ru, TLD_ICANN
-sakhalin.ru, TLD_ICANN
-samara.ru, TLD_ICANN
-saratov.ru, TLD_ICANN
-simbirsk.ru, TLD_ICANN
-smolensk.ru, TLD_ICANN
-spb.ru, TLD_ICANN
-stavropol.ru, TLD_ICANN
-stv.ru, TLD_ICANN
-surgut.ru, TLD_ICANN
-tambov.ru, TLD_ICANN
-tatarstan.ru, TLD_ICANN
-tom.ru, TLD_ICANN
-tomsk.ru, TLD_ICANN
-tsaritsyn.ru, TLD_ICANN
-tsk.ru, TLD_ICANN
-tula.ru, TLD_ICANN
-tuva.ru, TLD_ICANN
-tver.ru, TLD_ICANN
-tyumen.ru, TLD_ICANN
-udm.ru, TLD_ICANN
-udmurtia.ru, TLD_ICANN
-ulan-ude.ru, TLD_ICANN
-vladikavkaz.ru, TLD_ICANN
-vladimir.ru, TLD_ICANN
-vladivostok.ru, TLD_ICANN
-volgograd.ru, TLD_ICANN
-vologda.ru, TLD_ICANN
-voronezh.ru, TLD_ICANN
-vrn.ru, TLD_ICANN
-vyatka.ru, TLD_ICANN
-yakutia.ru, TLD_ICANN
-yamal.ru, TLD_ICANN
-yaroslavl.ru, TLD_ICANN
-yekaterinburg.ru, TLD_ICANN
-yuzhno-sakhalinsk.ru, TLD_ICANN
-#  More geographical domains
-amursk.ru, TLD_ICANN
-baikal.ru, TLD_ICANN
-cmw.ru, TLD_ICANN
-fareast.ru, TLD_ICANN
-jamal.ru, TLD_ICANN
-kms.ru, TLD_ICANN
-k-uralsk.ru, TLD_ICANN
-kustanai.ru, TLD_ICANN
-kuzbass.ru, TLD_ICANN
-mytis.ru, TLD_ICANN
-nakhodka.ru, TLD_ICANN
-nkz.ru, TLD_ICANN
-norilsk.ru, TLD_ICANN
-oskol.ru, TLD_ICANN
-pyatigorsk.ru, TLD_ICANN
-rubtsovsk.ru, TLD_ICANN
-snz.ru, TLD_ICANN
-syzran.ru, TLD_ICANN
-vdonsk.ru, TLD_ICANN
-zgrad.ru, TLD_ICANN
-#  State domains
 gov.ru, TLD_ICANN
+int.ru, TLD_ICANN
 mil.ru, TLD_ICANN
-#  Technical domains
 test.ru, TLD_ICANN
 #  rw : http://www.nic.rw/cgi-bin/policy.pl
 rw, TLD_ICANN
@@ -6009,38 +6019,6 @@ saotome.st, TLD_ICANN
 store.st, TLD_ICANN
 #  su : https://en.wikipedia.org/wiki/.su
 su, TLD_ICANN
-adygeya.su, TLD_ICANN
-arkhangelsk.su, TLD_ICANN
-balashov.su, TLD_ICANN
-bashkiria.su, TLD_ICANN
-bryansk.su, TLD_ICANN
-dagestan.su, TLD_ICANN
-grozny.su, TLD_ICANN
-ivanovo.su, TLD_ICANN
-kalmykia.su, TLD_ICANN
-kaluga.su, TLD_ICANN
-karelia.su, TLD_ICANN
-khakassia.su, TLD_ICANN
-krasnodar.su, TLD_ICANN
-kurgan.su, TLD_ICANN
-lenug.su, TLD_ICANN
-mordovia.su, TLD_ICANN
-msk.su, TLD_ICANN
-murmansk.su, TLD_ICANN
-nalchik.su, TLD_ICANN
-nov.su, TLD_ICANN
-obninsk.su, TLD_ICANN
-penza.su, TLD_ICANN
-pokrovsk.su, TLD_ICANN
-sochi.su, TLD_ICANN
-spb.su, TLD_ICANN
-togliatti.su, TLD_ICANN
-troitsk.su, TLD_ICANN
-tula.su, TLD_ICANN
-tuva.su, TLD_ICANN
-vladikavkaz.su, TLD_ICANN
-vladimir.su, TLD_ICANN
-vologda.su, TLD_ICANN
 #  sv : http://www.svnet.org.sv/niveldos.pdf
 sv, TLD_ICANN
 com.sv, TLD_ICANN
@@ -6533,7 +6511,7 @@ lib.ca.us, TLD_ICANN
 lib.co.us, TLD_ICANN
 lib.ct.us, TLD_ICANN
 lib.dc.us, TLD_ICANN
-lib.de.us, TLD_ICANN
+#  lib.de.us  Issue #243 - Moved to Private section at request of Ed Moore <Ed.Moore@lib.de.us>
 lib.fl.us, TLD_ICANN
 lib.ga.us, TLD_ICANN
 lib.gu.us, TLD_ICANN
@@ -6586,6 +6564,17 @@ lib.wy.us, TLD_ICANN
 pvt.k12.ma.us, TLD_ICANN
 chtr.k12.ma.us, TLD_ICANN
 paroch.k12.ma.us, TLD_ICANN
+#  Merit Network, Inc. maintains the registry for =~ /(k12|cc|lib).mi.us/ and the following
+#     see also: http://domreg.merit.edu
+#     see also: whois -h whois.domreg.merit.edu help
+ann-arbor.mi.us, TLD_ICANN
+cog.mi.us, TLD_ICANN
+dst.mi.us, TLD_ICANN
+eaton.mi.us, TLD_ICANN
+gen.mi.us, TLD_ICANN
+mus.mi.us, TLD_ICANN
+tec.mi.us, TLD_ICANN
+washtenaw.mi.us, TLD_ICANN
 #  uy : http://www.nic.org.uy/
 uy, TLD_ICANN
 com.uy, TLD_ICANN
@@ -6693,6 +6682,9 @@ xn--y9a3aq, TLD_ICANN
 #  xn--54b7fta0cc ("Bangla", Bangla) : BD
 # বাংলা
 xn--54b7fta0cc, TLD_ICANN
+#  xn--90ae ("bg", Bulgarian) : BG
+# бг
+xn--90ae, TLD_ICANN
 #  xn--90ais ("bel", Belarusian/Russian Cyrillic) : BY
 #  Operated by .by registry
 # бел
@@ -6728,10 +6720,42 @@ xn--qxam, TLD_ICANN
 #  https://www2.hkirc.hk/register/rules.jsp
 # 香港
 xn--j6w193g, TLD_ICANN
+#  xn--2scrj9c ("Bharat", Kannada) : IN
+#  India
+# ಭಾರತ
+xn--2scrj9c, TLD_ICANN
+#  xn--3hcrj9c ("Bharat", Oriya) : IN
+#  India
+# ଭାରତ
+xn--3hcrj9c, TLD_ICANN
+#  xn--45br5cyl ("Bharatam", Assamese) : IN
+#  India
+# ভাৰত
+xn--45br5cyl, TLD_ICANN
+#  xn--h2breg3eve ("Bharatam", Sanskrit) : IN
+#  India
+# भारतम्
+xn--h2breg3eve, TLD_ICANN
+#  xn--h2brj9c8c ("Bharot", Santali) : IN
+#  India
+# भारोत
+xn--h2brj9c8c, TLD_ICANN
+#  xn--mgbgu82a ("Bharat", Sindhi) : IN
+#  India
+# ڀارت
+xn--mgbgu82a, TLD_ICANN
+#  xn--rvc1e0am3e ("Bharatam", Malayalam) : IN
+#  India
+# ഭാരതം
+xn--rvc1e0am3e, TLD_ICANN
 #  xn--h2brj9c ("Bharat", Devanagari) : IN
 #  India
 # भारत
 xn--h2brj9c, TLD_ICANN
+#  xn--mgbbh1a ("Bharat", Kashmiri) : IN
+#  India
+# بارت
+xn--mgbbh1a, TLD_ICANN
 #  xn--mgbbh1a71e ("Bharat", Arabic) : IN
 #  India
 # بھارت
@@ -6876,6 +6900,18 @@ xn--mgbtf8fl, TLD_ICANN
 #  http://www.thnic.co.th
 # ไทย
 xn--o3cw4h, TLD_ICANN
+# ศึกษา.ไทย
+xn--12c1fe0br.xn--o3cw4h, TLD_ICANN
+# ธุรกิจ.ไทย
+xn--12co0c3b4eva.xn--o3cw4h, TLD_ICANN
+# รัฐบาล.ไทย
+xn--h3cuzk1di.xn--o3cw4h, TLD_ICANN
+# ทหาร.ไทย
+xn--o3cyx2a.xn--o3cw4h, TLD_ICANN
+# เน็ต.ไทย
+xn--m3ch0j3a.xn--o3cw4h, TLD_ICANN
+# องค์กร.ไทย
+xn--12cfi8ixb8l.xn--o3cw4h, TLD_ICANN
 #  xn--pgbs0dh ("Tunisia", Arabic) : TN
 #  http://nic.tn
 # تونس
@@ -6933,9 +6969,17 @@ mil.zm, TLD_ICANN
 net.zm, TLD_ICANN
 org.zm, TLD_ICANN
 sch.zm, TLD_ICANN
-#  zw : https://en.wikipedia.org/wiki/.zw
-zw, TLD_WILDCARD
-#  List of new gTLDs imported from https://newgtlds.icann.org/newgtlds.csv on 2016-05-09T22:17:27Z
+#  zw : https://www.potraz.gov.zw/
+#  Confirmed by registry <bmtengwa@potraz.gov.zw> 2017-01-25
+zw, TLD_ICANN
+ac.zw, TLD_ICANN
+co.zw, TLD_ICANN
+gov.zw, TLD_ICANN
+mil.zw, TLD_ICANN
+org.zw, TLD_ICANN
+#  newGTLDs
+#  List of new gTLDs imported from https://newgtlds.icann.org/newgtlds.csv on 2018-04-18T19:16:57Z
+#  This list is auto-generated, don't edit it manually.
 #  aaa : 2015-02-26 American Automobile Association, Inc.
 aaa, TLD_ICANN
 #  aarp : 2015-05-21 AARP
@@ -6952,21 +6996,21 @@ abbvie, TLD_ICANN
 abc, TLD_ICANN
 #  able : 2015-06-25 Able Inc.
 able, TLD_ICANN
-#  abogado : 2014-04-24 Top Level Domain Holdings Limited
+#  abogado : 2014-04-24 Minds + Machines Group Limited
 abogado, TLD_ICANN
 #  abudhabi : 2015-07-30 Abu Dhabi Systems and Information Centre
 abudhabi, TLD_ICANN
-#  academy : 2013-11-07 Half Oaks, LLC
+#  academy : 2013-11-07 Binky Moon, LLC
 academy, TLD_ICANN
 #  accenture : 2014-08-15 Accenture plc
 accenture, TLD_ICANN
 #  accountant : 2014-11-20 dot Accountant Limited
 accountant, TLD_ICANN
-#  accountants : 2014-03-20 Knob Town, LLC
+#  accountants : 2014-03-20 Binky Moon, LLC
 accountants, TLD_ICANN
 #  aco : 2015-01-08 ACO Severin Ahlmann GmbH & Co. KG
 aco, TLD_ICANN
-#  active : 2014-05-01 The Active Network, Inc
+#  active : 2014-05-01 Active Network, LLC
 active, TLD_ICANN
 #  actor : 2013-12-12 United TLD Holdco Ltd.
 actor, TLD_ICANN
@@ -6986,11 +7030,9 @@ afamilycompany, TLD_ICANN
 afl, TLD_ICANN
 #  africa : 2014-03-24 ZA Central Registry NPC trading as Registry.Africa
 africa, TLD_ICANN
-#  africamagic : 2015-03-05 Electronic Media Network (Pty) Ltd
-africamagic, TLD_ICANN
 #  agakhan : 2015-04-23 Fondation Aga Khan (Aga Khan Foundation)
 agakhan, TLD_ICANN
-#  agency : 2013-11-14 Steel Falls, LLC
+#  agency : 2013-11-14 Binky Moon, LLC
 agency, TLD_ICANN
 #  aig : 2014-12-18 American International Group, Inc.
 aig, TLD_ICANN
@@ -7016,7 +7058,7 @@ allfinanz, TLD_ICANN
 allstate, TLD_ICANN
 #  ally : 2015-06-18 Ally Financial Inc.
 ally, TLD_ICANN
-#  alsace : 2014-07-02 REGION D ALSACE
+#  alsace : 2014-07-02 Region Grand Est
 alsace, TLD_ICANN
 #  alstom : 2015-07-30 ALSTOM
 alstom, TLD_ICANN
@@ -7040,9 +7082,9 @@ android, TLD_ICANN
 anquan, TLD_ICANN
 #  anz : 2015-07-31 Australia and New Zealand Banking Group Limited
 anz, TLD_ICANN
-#  aol : 2015-09-17 AOL Inc.
+#  aol : 2015-09-17 Oath Inc.
 aol, TLD_ICANN
-#  apartments : 2014-12-11 June Maple, LLC
+#  apartments : 2014-12-11 Binky Moon, LLC
 apartments, TLD_ICANN
 #  app : 2015-05-14 Charleston Road Registry Inc.
 app, TLD_ICANN
@@ -7054,7 +7096,7 @@ aquarelle, TLD_ICANN
 arab, TLD_ICANN
 #  aramco : 2014-11-20 Aramco Services Company
 aramco, TLD_ICANN
-#  archi : 2014-02-06 STARTING DOT LIMITED
+#  archi : 2014-02-06 Afilias plc
 archi, TLD_ICANN
 #  army : 2014-03-06 United TLD Holdco Ltd.
 army, TLD_ICANN
@@ -7064,31 +7106,31 @@ art, TLD_ICANN
 arte, TLD_ICANN
 #  asda : 2015-07-31 Wal-Mart Stores, Inc.
 asda, TLD_ICANN
-#  associates : 2014-03-06 Baxter Hill, LLC
+#  associates : 2014-03-06 Binky Moon, LLC
 associates, TLD_ICANN
 #  athleta : 2015-07-30 The Gap, Inc.
 athleta, TLD_ICANN
-#  attorney : 2014-03-20
+#  attorney : 2014-03-20 United TLD Holdco Ltd.
 attorney, TLD_ICANN
-#  auction : 2014-03-20
+#  auction : 2014-03-20 United TLD Holdco Ltd.
 auction, TLD_ICANN
 #  audi : 2015-05-21 AUDI Aktiengesellschaft
 audi, TLD_ICANN
-#  audible : 2015-06-25 Amazon EU S.à r.l.
+#  audible : 2015-06-25 Amazon Registry Services, Inc.
 audible, TLD_ICANN
 #  audio : 2014-03-20 Uniregistry, Corp.
 audio, TLD_ICANN
 #  auspost : 2015-08-13 Australian Postal Corporation
 auspost, TLD_ICANN
-#  author : 2014-12-18 Amazon EU S.à r.l.
+#  author : 2014-12-18 Amazon Registry Services, Inc.
 author, TLD_ICANN
-#  auto : 2014-11-13
+#  auto : 2014-11-13 Cars Registry Limited
 auto, TLD_ICANN
 #  autos : 2014-01-09 DERAutos, LLC
 autos, TLD_ICANN
 #  avianca : 2015-01-08 Aerovias del Continente Americano S.A. Avianca
 avianca, TLD_ICANN
-#  aws : 2015-06-25 Amazon EU S.à r.l.
+#  aws : 2015-06-25 Amazon Registry Services, Inc.
 aws, TLD_ICANN
 #  axa : 2013-12-19 AXA SA
 axa, TLD_ICANN
@@ -7102,7 +7144,7 @@ baidu, TLD_ICANN
 banamex, TLD_ICANN
 #  bananarepublic : 2015-07-31 The Gap, Inc.
 bananarepublic, TLD_ICANN
-#  band : 2014-06-12
+#  band : 2014-06-12 United TLD Holdco Ltd.
 band, TLD_ICANN
 #  bank : 2014-09-25 fTLD Registry Services LLC
 bank, TLD_ICANN
@@ -7116,7 +7158,7 @@ barclaycard, TLD_ICANN
 barclays, TLD_ICANN
 #  barefoot : 2015-06-11 Gallo Vineyards, Inc.
 barefoot, TLD_ICANN
-#  bargains : 2013-11-14 Half Hallow, LLC
+#  bargains : 2013-11-14 Binky Moon, LLC
 bargains, TLD_ICANN
 #  baseball : 2015-10-29 MLB Advanced Media DH, LLC
 baseball, TLD_ICANN
@@ -7140,7 +7182,7 @@ bcn, TLD_ICANN
 beats, TLD_ICANN
 #  beauty : 2015-12-03 L'Oréal
 beauty, TLD_ICANN
-#  beer : 2014-01-09 Top Level Domain Holdings Limited
+#  beer : 2014-01-09 Minds + Machines Group Limited
 beer, TLD_ICANN
 #  bentley : 2014-12-18 Bentley Motors Limited
 bentley, TLD_ICANN
@@ -7158,15 +7200,15 @@ bharti, TLD_ICANN
 bible, TLD_ICANN
 #  bid : 2013-12-19 dot Bid Limited
 bid, TLD_ICANN
-#  bike : 2013-08-27 Grand Hollow, LLC
+#  bike : 2013-08-27 Binky Moon, LLC
 bike, TLD_ICANN
 #  bing : 2014-12-18 Microsoft Corporation
 bing, TLD_ICANN
-#  bingo : 2014-12-04 Sand Cedar, LLC
+#  bingo : 2014-12-04 Binky Moon, LLC
 bingo, TLD_ICANN
-#  bio : 2014-03-06 STARTING DOT LIMITED
+#  bio : 2014-03-06 Afilias plc
 bio, TLD_ICANN
-#  black : 2014-01-16 Afilias Limited
+#  black : 2014-01-16 Afilias plc
 black, TLD_ICANN
 #  blackfriday : 2014-01-16 Uniregistry, Corp.
 blackfriday, TLD_ICANN
@@ -7174,11 +7216,11 @@ blackfriday, TLD_ICANN
 blanco, TLD_ICANN
 #  blockbuster : 2015-07-30 Dish DBS Corporation
 blockbuster, TLD_ICANN
-#  blog : 2015-05-14 PRIMER NIVEL S.A.
+#  blog : 2015-05-14 Knock Knock WHOIS There, LLC
 blog, TLD_ICANN
 #  bloomberg : 2014-07-17 Bloomberg IP Holdings LLC
 bloomberg, TLD_ICANN
-#  blue : 2013-11-07 Afilias Limited
+#  blue : 2013-11-07 Afilias plc
 blue, TLD_ICANN
 #  bms : 2014-10-30 Bristol-Myers Squibb Company
 bms, TLD_ICANN
@@ -7192,7 +7234,7 @@ bnpparibas, TLD_ICANN
 boats, TLD_ICANN
 #  boehringer : 2015-07-09 Boehringer Ingelheim International GmbH
 boehringer, TLD_ICANN
-#  bofa : 2015-07-31 NMS Services, Inc.
+#  bofa : 2015-07-31 Bank of America Corporation
 bofa, TLD_ICANN
 #  bom : 2014-10-16 Núcleo de Informação e Coordenação do Ponto BR - NIC.br
 bom, TLD_ICANN
@@ -7200,21 +7242,19 @@ bom, TLD_ICANN
 bond, TLD_ICANN
 #  boo : 2014-01-30 Charleston Road Registry Inc.
 boo, TLD_ICANN
-#  book : 2015-08-27 Amazon EU S.à r.l.
+#  book : 2015-08-27 Amazon Registry Services, Inc.
 book, TLD_ICANN
 #  booking : 2015-07-16 Booking.com B.V.
 booking, TLD_ICANN
-#  boots : 2015-01-08 THE BOOTS COMPANY PLC
-boots, TLD_ICANN
 #  bosch : 2015-06-18 Robert Bosch GMBH
 bosch, TLD_ICANN
 #  bostik : 2015-05-28 Bostik SA
 bostik, TLD_ICANN
-#  boston : 2015-12-10 Boston Globe Media Partners, LLC
+#  boston : 2015-12-10 Boston TLD Management, LLC
 boston, TLD_ICANN
-#  bot : 2014-12-18 Amazon EU S.à r.l.
+#  bot : 2014-12-18 Amazon Registry Services, Inc.
 bot, TLD_ICANN
-#  boutique : 2013-11-14 Over Galley, LLC
+#  boutique : 2013-11-14 Binky Moon, LLC
 boutique, TLD_ICANN
 #  box : 2015-11-12 NS1 Limited
 box, TLD_ICANN
@@ -7224,43 +7264,43 @@ bradesco, TLD_ICANN
 bridgestone, TLD_ICANN
 #  broadway : 2014-12-22 Celebrate Broadway, Inc.
 broadway, TLD_ICANN
-#  broker : 2014-12-11 IG Group Holdings PLC
+#  broker : 2014-12-11 Dotbroker Registry Limited
 broker, TLD_ICANN
 #  brother : 2015-01-29 Brother Industries, Ltd.
 brother, TLD_ICANN
 #  brussels : 2014-02-06 DNS.be vzw
 brussels, TLD_ICANN
-#  budapest : 2013-11-21 Top Level Domain Holdings Limited
+#  budapest : 2013-11-21 Minds + Machines Group Limited
 budapest, TLD_ICANN
 #  bugatti : 2015-07-23 Bugatti International SA
 bugatti, TLD_ICANN
 #  build : 2013-11-07 Plan Bee LLC
 build, TLD_ICANN
-#  builders : 2013-11-07 Atomic Madison, LLC
+#  builders : 2013-11-07 Binky Moon, LLC
 builders, TLD_ICANN
-#  business : 2013-11-07 Spring Cross, LLC
+#  business : 2013-11-07 Binky Moon, LLC
 business, TLD_ICANN
-#  buy : 2014-12-18 Amazon EU S.à r.l.
+#  buy : 2014-12-18 Amazon Registry Services, Inc.
 buy, TLD_ICANN
 #  buzz : 2013-10-02 DOTSTRATEGY CO.
 buzz, TLD_ICANN
 #  bzh : 2014-02-27 Association www.bzh
 bzh, TLD_ICANN
-#  cab : 2013-10-24 Half Sunset, LLC
+#  cab : 2013-10-24 Binky Moon, LLC
 cab, TLD_ICANN
-#  cafe : 2015-02-11 Pioneer Canyon, LLC
+#  cafe : 2015-02-11 Binky Moon, LLC
 cafe, TLD_ICANN
 #  cal : 2014-07-24 Charleston Road Registry Inc.
 cal, TLD_ICANN
-#  call : 2014-12-18 Amazon EU S.à r.l.
+#  call : 2014-12-18 Amazon Registry Services, Inc.
 call, TLD_ICANN
 #  calvinklein : 2015-07-30 PVH gTLD Holdings LLC
 calvinklein, TLD_ICANN
 #  cam : 2016-04-21 AC Webconnecting Holding B.V.
 cam, TLD_ICANN
-#  camera : 2013-08-27 Atomic Maple, LLC
+#  camera : 2013-08-27 Binky Moon, LLC
 camera, TLD_ICANN
-#  camp : 2013-11-07 Delta Dynamite, LLC
+#  camp : 2013-11-07 Binky Moon, LLC
 camp, TLD_ICANN
 #  cancerresearch : 2014-05-15 Australian Cancer Research Foundation
 cancerresearch, TLD_ICANN
@@ -7268,37 +7308,37 @@ cancerresearch, TLD_ICANN
 canon, TLD_ICANN
 #  capetown : 2014-03-24 ZA Central Registry NPC trading as ZA Central Registry
 capetown, TLD_ICANN
-#  capital : 2014-03-06 Delta Mill, LLC
+#  capital : 2014-03-06 Binky Moon, LLC
 capital, TLD_ICANN
 #  capitalone : 2015-08-06 Capital One Financial Corporation
 capitalone, TLD_ICANN
-#  car : 2015-01-22
+#  car : 2015-01-22 Cars Registry Limited
 car, TLD_ICANN
 #  caravan : 2013-12-12 Caravan International, Inc.
 caravan, TLD_ICANN
-#  cards : 2013-12-05 Foggy Hollow, LLC
+#  cards : 2013-12-05 Binky Moon, LLC
 cards, TLD_ICANN
-#  care : 2014-03-06 Goose Cross
+#  care : 2014-03-06 Binky Moon, LLC
 care, TLD_ICANN
 #  career : 2013-10-09 dotCareer LLC
 career, TLD_ICANN
-#  careers : 2013-10-02 Wild Corner, LLC
+#  careers : 2013-10-02 Binky Moon, LLC
 careers, TLD_ICANN
-#  cars : 2014-11-13
+#  cars : 2014-11-13 Cars Registry Limited
 cars, TLD_ICANN
 #  cartier : 2014-06-23 Richemont DNS Inc.
 cartier, TLD_ICANN
-#  casa : 2013-11-21 Top Level Domain Holdings Limited
+#  casa : 2013-11-21 Minds + Machines Group Limited
 casa, TLD_ICANN
 #  case : 2015-09-03 CNH Industrial N.V.
 case, TLD_ICANN
 #  caseih : 2015-09-03 CNH Industrial N.V.
 caseih, TLD_ICANN
-#  cash : 2014-03-06 Delta Lake, LLC
+#  cash : 2014-03-06 Binky Moon, LLC
 cash, TLD_ICANN
-#  casino : 2014-12-18 Binky Sky, LLC
+#  casino : 2014-12-18 Binky Moon, LLC
 casino, TLD_ICANN
-#  catering : 2013-12-05 New Falls. LLC
+#  catering : 2013-12-05 Binky Moon, LLC
 catering, TLD_ICANN
 #  catholic : 2015-10-21 Pontificium Consilium de Comunicationibus Socialibus (PCCS) (Pontifical Council for Social Communication)
 catholic, TLD_ICANN
@@ -7312,7 +7352,7 @@ cbre, TLD_ICANN
 cbs, TLD_ICANN
 #  ceb : 2015-04-09 The Corporate Executive Board Company
 ceb, TLD_ICANN
-#  center : 2013-11-07 Tin Mill, LLC
+#  center : 2013-11-07 Binky Moon, LLC
 center, TLD_ICANN
 #  ceo : 2013-11-07 CEOTLD Pty Ltd
 ceo, TLD_ICANN
@@ -7320,33 +7360,33 @@ ceo, TLD_ICANN
 cern, TLD_ICANN
 #  cfa : 2014-08-28 CFA Institute
 cfa, TLD_ICANN
-#  cfd : 2014-12-11 IG Group Holdings PLC
+#  cfd : 2014-12-11 DotCFD Registry Limited
 cfd, TLD_ICANN
 #  chanel : 2015-04-09 Chanel International B.V.
 chanel, TLD_ICANN
 #  channel : 2014-05-08 Charleston Road Registry Inc.
 channel, TLD_ICANN
-#  chase : 2015-04-30 JPMorgan Chase & Co.
+#  charity : 2018-04-11 Corn Lake, LLC
+charity, TLD_ICANN
+#  chase : 2015-04-30 JPMorgan Chase Bank, National Association
 chase, TLD_ICANN
-#  chat : 2014-12-04 Sand Fields, LLC
+#  chat : 2014-12-04 Binky Moon, LLC
 chat, TLD_ICANN
-#  cheap : 2013-11-14 Sand Cover, LLC
+#  cheap : 2013-11-14 Binky Moon, LLC
 cheap, TLD_ICANN
 #  chintai : 2015-06-11 CHINTAI Corporation
 chintai, TLD_ICANN
-#  chloe : 2014-10-16 Richemont DNS Inc.
-chloe, TLD_ICANN
 #  christmas : 2013-11-21 Uniregistry, Corp.
 christmas, TLD_ICANN
 #  chrome : 2014-07-24 Charleston Road Registry Inc.
 chrome, TLD_ICANN
 #  chrysler : 2015-07-30 FCA US LLC.
 chrysler, TLD_ICANN
-#  church : 2014-02-06 Holly Fields, LLC
+#  church : 2014-02-06 Binky Moon, LLC
 church, TLD_ICANN
 #  cipriani : 2015-02-19 Hotel Cipriani Srl
 cipriani, TLD_ICANN
-#  circle : 2014-12-18 Amazon EU S.à r.l.
+#  circle : 2014-12-18 Amazon Registry Services, Inc.
 circle, TLD_ICANN
 #  cisco : 2014-12-22 Cisco Technology, Inc.
 cisco, TLD_ICANN
@@ -7356,81 +7396,81 @@ citadel, TLD_ICANN
 citi, TLD_ICANN
 #  citic : 2014-01-09 CITIC Group Corporation
 citic, TLD_ICANN
-#  city : 2014-05-29 Snow Sky, LLC
+#  city : 2014-05-29 Binky Moon, LLC
 city, TLD_ICANN
 #  cityeats : 2014-12-11 Lifestyle Domain Holdings, Inc.
 cityeats, TLD_ICANN
-#  claims : 2014-03-20 Black Corner, LLC
+#  claims : 2014-03-20 Binky Moon, LLC
 claims, TLD_ICANN
-#  cleaning : 2013-12-05 Fox Shadow, LLC
+#  cleaning : 2013-12-05 Binky Moon, LLC
 cleaning, TLD_ICANN
 #  click : 2014-06-05 Uniregistry, Corp.
 click, TLD_ICANN
-#  clinic : 2014-03-20 Goose Park, LLC
+#  clinic : 2014-03-20 Binky Moon, LLC
 clinic, TLD_ICANN
 #  clinique : 2015-10-01 The Estée Lauder Companies Inc.
 clinique, TLD_ICANN
-#  clothing : 2013-08-27 Steel Lake, LLC
+#  clothing : 2013-08-27 Binky Moon, LLC
 clothing, TLD_ICANN
-#  cloud : 2015-04-16 ARUBA S.p.A.
+#  cloud : 2015-04-16 Aruba PEC S.p.A.
 cloud, TLD_ICANN
 #  club : 2013-11-08 .CLUB DOMAINS, LLC
 club, TLD_ICANN
 #  clubmed : 2015-06-25 Club Méditerranée S.A.
 clubmed, TLD_ICANN
-#  coach : 2014-10-09 Koko Island, LLC
+#  coach : 2014-10-09 Binky Moon, LLC
 coach, TLD_ICANN
-#  codes : 2013-10-31 Puff Willow, LLC
+#  codes : 2013-10-31 Binky Moon, LLC
 codes, TLD_ICANN
-#  coffee : 2013-10-17 Trixy Cover, LLC
+#  coffee : 2013-10-17 Binky Moon, LLC
 coffee, TLD_ICANN
 #  college : 2014-01-16 XYZ.COM LLC
 college, TLD_ICANN
-#  cologne : 2014-02-05 NetCologne Gesellschaft für Telekommunikation mbH
+#  cologne : 2014-02-05 punkt.wien GmbH
 cologne, TLD_ICANN
 #  comcast : 2015-07-23 Comcast IP Holdings I, LLC
 comcast, TLD_ICANN
 #  commbank : 2014-06-26 COMMONWEALTH BANK OF AUSTRALIA
 commbank, TLD_ICANN
-#  community : 2013-12-05 Fox Orchard, LLC
+#  community : 2013-12-05 Binky Moon, LLC
 community, TLD_ICANN
-#  company : 2013-11-07 Silver Avenue, LLC
+#  company : 2013-11-07 Binky Moon, LLC
 company, TLD_ICANN
 #  compare : 2015-10-08 iSelect Ltd
 compare, TLD_ICANN
-#  computer : 2013-10-24 Pine Mill, LLC
+#  computer : 2013-10-24 Binky Moon, LLC
 computer, TLD_ICANN
 #  comsec : 2015-01-08 VeriSign, Inc.
 comsec, TLD_ICANN
-#  condos : 2013-12-05 Pine House, LLC
+#  condos : 2013-12-05 Binky Moon, LLC
 condos, TLD_ICANN
-#  construction : 2013-09-16 Fox Dynamite, LLC
+#  construction : 2013-09-16 Binky Moon, LLC
 construction, TLD_ICANN
-#  consulting : 2013-12-05
+#  consulting : 2013-12-05 United TLD Holdco Ltd.
 consulting, TLD_ICANN
 #  contact : 2015-01-08 Top Level Spectrum, Inc.
 contact, TLD_ICANN
-#  contractors : 2013-09-10 Magic Woods, LLC
+#  contractors : 2013-09-10 Binky Moon, LLC
 contractors, TLD_ICANN
-#  cooking : 2013-11-21 Top Level Domain Holdings Limited
+#  cooking : 2013-11-21 Minds + Machines Group Limited
 cooking, TLD_ICANN
 #  cookingchannel : 2015-07-02 Lifestyle Domain Holdings, Inc.
 cookingchannel, TLD_ICANN
-#  cool : 2013-11-14 Koko Lake, LLC
+#  cool : 2013-11-14 Binky Moon, LLC
 cool, TLD_ICANN
 #  corsica : 2014-09-25 Collectivité Territoriale de Corse
 corsica, TLD_ICANN
-#  country : 2013-12-19 Top Level Domain Holdings Limited
+#  country : 2013-12-19 DotCountry LLC
 country, TLD_ICANN
-#  coupon : 2015-02-26 Amazon EU S.à r.l.
+#  coupon : 2015-02-26 Amazon Registry Services, Inc.
 coupon, TLD_ICANN
-#  coupons : 2015-03-26 Black Island, LLC
+#  coupons : 2015-03-26 Binky Moon, LLC
 coupons, TLD_ICANN
 #  courses : 2014-12-04 OPEN UNIVERSITIES AUSTRALIA PTY LTD
 courses, TLD_ICANN
-#  credit : 2014-03-20 Snow Shadow, LLC
+#  credit : 2014-03-20 Binky Moon, LLC
 credit, TLD_ICANN
-#  creditcard : 2014-03-20 Binky Frostbite, LLC
+#  creditcard : 2014-03-20 Binky Moon, LLC
 creditcard, TLD_ICANN
 #  creditunion : 2015-01-22 CUNA Performance Resources, LLC
 creditunion, TLD_ICANN
@@ -7442,7 +7482,7 @@ crown, TLD_ICANN
 crs, TLD_ICANN
 #  cruise : 2015-12-10 Viking River Cruises (Bermuda) Ltd.
 cruise, TLD_ICANN
-#  cruises : 2013-12-05 Spring Way, LLC
+#  cruises : 2013-12-05 Binky Moon, LLC
 cruises, TLD_ICANN
 #  csc : 2014-09-25 Alliance-One Services, Inc.
 csc, TLD_ICANN
@@ -7458,9 +7498,11 @@ dabur, TLD_ICANN
 dad, TLD_ICANN
 #  dance : 2013-10-24 United TLD Holdco Ltd.
 dance, TLD_ICANN
+#  data : 2016-06-02 Dish DBS Corporation
+data, TLD_ICANN
 #  date : 2014-11-20 dot Date Limited
 date, TLD_ICANN
-#  dating : 2013-12-05 Pine Fest, LLC
+#  dating : 2013-12-05 Binky Moon, LLC
 dating, TLD_ICANN
 #  datsun : 2014-03-27 NISSAN MOTOR CO., LTD.
 datsun, TLD_ICANN
@@ -7468,17 +7510,17 @@ datsun, TLD_ICANN
 day, TLD_ICANN
 #  dclk : 2014-11-20 Charleston Road Registry Inc.
 dclk, TLD_ICANN
-#  dds : 2015-05-07 Top Level Domain Holdings Limited
+#  dds : 2015-05-07 Minds + Machines Group Limited
 dds, TLD_ICANN
-#  deal : 2015-06-25 Amazon EU S.à r.l.
+#  deal : 2015-06-25 Amazon Registry Services, Inc.
 deal, TLD_ICANN
 #  dealer : 2014-12-22 Dealer Dot Com, Inc.
 dealer, TLD_ICANN
-#  deals : 2014-05-22 Sand Sunset, LLC
+#  deals : 2014-05-22 Binky Moon, LLC
 deals, TLD_ICANN
-#  degree : 2014-03-06
+#  degree : 2014-03-06 United TLD Holdco Ltd.
 degree, TLD_ICANN
-#  delivery : 2014-09-11 Steel Station, LLC
+#  delivery : 2014-09-11 Binky Moon, LLC
 delivery, TLD_ICANN
 #  dell : 2014-10-24 Dell Inc.
 dell, TLD_ICANN
@@ -7488,9 +7530,9 @@ deloitte, TLD_ICANN
 delta, TLD_ICANN
 #  democrat : 2013-10-24 United TLD Holdco Ltd.
 democrat, TLD_ICANN
-#  dental : 2014-03-20 Tin Birch, LLC
+#  dental : 2014-03-20 Binky Moon, LLC
 dental, TLD_ICANN
-#  dentist : 2014-03-20
+#  dentist : 2014-03-20 United TLD Holdco Ltd.
 dentist, TLD_ICANN
 #  desi : 2013-11-14 Desi Networks LLC
 desi, TLD_ICANN
@@ -7500,17 +7542,17 @@ design, TLD_ICANN
 dev, TLD_ICANN
 #  dhl : 2015-07-23 Deutsche Post AG
 dhl, TLD_ICANN
-#  diamonds : 2013-09-22 John Edge, LLC
+#  diamonds : 2013-09-22 Binky Moon, LLC
 diamonds, TLD_ICANN
 #  diet : 2014-06-26 Uniregistry, Corp.
 diet, TLD_ICANN
-#  digital : 2014-03-06 Dash Park, LLC
+#  digital : 2014-03-06 Binky Moon, LLC
 digital, TLD_ICANN
-#  direct : 2014-04-10 Half Trail, LLC
+#  direct : 2014-04-10 Binky Moon, LLC
 direct, TLD_ICANN
-#  directory : 2013-09-20 Extra Madison, LLC
+#  directory : 2013-09-20 Binky Moon, LLC
 directory, TLD_ICANN
-#  discount : 2014-03-06 Holly Hill, LLC
+#  discount : 2014-03-06 Binky Moon, LLC
 discount, TLD_ICANN
 #  discover : 2015-07-23 Discover Financial Services
 discover, TLD_ICANN
@@ -7522,13 +7564,15 @@ diy, TLD_ICANN
 dnp, TLD_ICANN
 #  docs : 2014-10-16 Charleston Road Registry Inc.
 docs, TLD_ICANN
+#  doctor : 2016-06-02 Binky Moon, LLC
+doctor, TLD_ICANN
 #  dodge : 2015-07-30 FCA US LLC.
 dodge, TLD_ICANN
-#  dog : 2014-12-04 Koko Mill, LLC
+#  dog : 2014-12-04 Binky Moon, LLC
 dog, TLD_ICANN
 #  doha : 2014-09-18 Communications Regulatory Authority (CRA)
 doha, TLD_ICANN
-#  domains : 2013-10-17 Sugar Cross, LLC
+#  domains : 2013-10-17 Binky Moon, LLC
 domains, TLD_ICANN
 #  dot : 2015-05-21 Dish DBS Corporation
 dot, TLD_ICANN
@@ -7536,8 +7580,6 @@ dot, TLD_ICANN
 download, TLD_ICANN
 #  drive : 2015-03-05 Charleston Road Registry Inc.
 drive, TLD_ICANN
-#  dstv : 2015-03-12 MultiChoice (Proprietary) Limited
-dstv, TLD_ICANN
 #  dtv : 2015-06-04 Dish DBS Corporation
 dtv, TLD_ICANN
 #  dubai : 2015-01-01 Dubai Smart Government Department
@@ -7554,35 +7596,35 @@ dupont, TLD_ICANN
 durban, TLD_ICANN
 #  dvag : 2014-06-23 Deutsche Vermögensberatung Aktiengesellschaft DVAG
 dvag, TLD_ICANN
-#  dwg : 2015-07-23 Autodesk, Inc.
-dwg, TLD_ICANN
+#  dvr : 2016-05-26 Hughes Satellite Systems Corporation
+dvr, TLD_ICANN
 #  earth : 2014-12-04 Interlink Co., Ltd.
 earth, TLD_ICANN
 #  eat : 2014-01-23 Charleston Road Registry Inc.
 eat, TLD_ICANN
+#  eco : 2016-07-08 Big Room Inc.
+eco, TLD_ICANN
 #  edeka : 2014-12-18 EDEKA Verband kaufmännischer Genossenschaften e.V.
 edeka, TLD_ICANN
-#  education : 2013-11-07 Brice Way, LLC
+#  education : 2013-11-07 Binky Moon, LLC
 education, TLD_ICANN
-#  email : 2013-10-31 Spring Madison, LLC
+#  email : 2013-10-31 Binky Moon, LLC
 email, TLD_ICANN
 #  emerck : 2014-04-03 Merck KGaA
 emerck, TLD_ICANN
-#  emerson : 2015-07-23 Emerson Electric Co.
-emerson, TLD_ICANN
-#  energy : 2014-09-11 Binky Birch, LLC
+#  energy : 2014-09-11 Binky Moon, LLC
 energy, TLD_ICANN
 #  engineer : 2014-03-06 United TLD Holdco Ltd.
 engineer, TLD_ICANN
-#  engineering : 2014-03-06 Romeo Canyon
+#  engineering : 2014-03-06 Binky Moon, LLC
 engineering, TLD_ICANN
-#  enterprises : 2013-09-20 Snow Oaks, LLC
+#  enterprises : 2013-09-20 Binky Moon, LLC
 enterprises, TLD_ICANN
 #  epost : 2015-07-23 Deutsche Post AG
 epost, TLD_ICANN
 #  epson : 2014-12-04 Seiko Epson Corporation
 epson, TLD_ICANN
-#  equipment : 2013-08-27 Corn Station, LLC
+#  equipment : 2013-08-27 Binky Moon, LLC
 equipment, TLD_ICANN
 #  ericsson : 2015-07-09 Telefonaktiebolaget L M Ericsson
 ericsson, TLD_ICANN
@@ -7590,7 +7632,7 @@ ericsson, TLD_ICANN
 erni, TLD_ICANN
 #  esq : 2014-05-08 Charleston Road Registry Inc.
 esq, TLD_ICANN
-#  estate : 2013-08-27 Trixy Park, LLC
+#  estate : 2013-08-27 Binky Moon, LLC
 estate, TLD_ICANN
 #  esurance : 2015-07-23 Esurance Insurance Company
 esurance, TLD_ICANN
@@ -7600,41 +7642,41 @@ etisalat, TLD_ICANN
 eurovision, TLD_ICANN
 #  eus : 2013-12-12 Puntueus Fundazioa
 eus, TLD_ICANN
-#  events : 2013-12-05 Pioneer Maple, LLC
+#  events : 2013-12-05 Binky Moon, LLC
 events, TLD_ICANN
 #  everbank : 2014-05-15 EverBank
 everbank, TLD_ICANN
-#  exchange : 2014-03-06 Spring Falls, LLC
+#  exchange : 2014-03-06 Binky Moon, LLC
 exchange, TLD_ICANN
-#  expert : 2013-11-21 Magic Pass, LLC
+#  expert : 2013-11-21 Binky Moon, LLC
 expert, TLD_ICANN
-#  exposed : 2013-12-05 Victor Beach, LLC
+#  exposed : 2013-12-05 Binky Moon, LLC
 exposed, TLD_ICANN
-#  express : 2015-02-11 Sea Sunset, LLC
+#  express : 2015-02-11 Binky Moon, LLC
 express, TLD_ICANN
 #  extraspace : 2015-05-14 Extra Space Storage LLC
 extraspace, TLD_ICANN
 #  fage : 2014-12-18 Fage International S.A.
 fage, TLD_ICANN
-#  fail : 2014-03-06 Atomic Pipe, LLC
+#  fail : 2014-03-06 Binky Moon, LLC
 fail, TLD_ICANN
 #  fairwinds : 2014-11-13 FairWinds Partners, LLC
 fairwinds, TLD_ICANN
 #  faith : 2014-11-20 dot Faith Limited
 faith, TLD_ICANN
-#  family : 2015-04-02
+#  family : 2015-04-02 United TLD Holdco Ltd.
 family, TLD_ICANN
-#  fan : 2014-03-06
+#  fan : 2014-03-06 Asiamix Digital Limited
 fan, TLD_ICANN
 #  fans : 2014-11-07 Asiamix Digital Limited
 fans, TLD_ICANN
-#  farm : 2013-11-07 Just Maple, LLC
+#  farm : 2013-11-07 Binky Moon, LLC
 farm, TLD_ICANN
 #  farmers : 2015-07-09 Farmers Insurance Exchange
 farmers, TLD_ICANN
-#  fashion : 2014-07-03 Top Level Domain Holdings Limited
+#  fashion : 2014-07-03 Minds + Machines Group Limited
 fashion, TLD_ICANN
-#  fast : 2014-12-18 Amazon EU S.à r.l.
+#  fast : 2014-12-18 Amazon Registry Services, Inc.
 fast, TLD_ICANN
 #  fedex : 2015-08-06 Federal Express Corporation
 fedex, TLD_ICANN
@@ -7648,42 +7690,40 @@ ferrero, TLD_ICANN
 fiat, TLD_ICANN
 #  fidelity : 2015-07-30 Fidelity Brokerage Services LLC
 fidelity, TLD_ICANN
-#  fido : 2015-08-06 Rogers Communications Partnership
+#  fido : 2015-08-06 Rogers Communications Canada Inc.
 fido, TLD_ICANN
 #  film : 2015-01-08 Motion Picture Domain Registry Pty Ltd
 film, TLD_ICANN
 #  final : 2014-10-16 Núcleo de Informação e Coordenação do Ponto BR - NIC.br
 final, TLD_ICANN
-#  finance : 2014-03-20 Cotton Cypress, LLC
+#  finance : 2014-03-20 Binky Moon, LLC
 finance, TLD_ICANN
-#  financial : 2014-03-06 Just Cover, LLC
+#  financial : 2014-03-06 Binky Moon, LLC
 financial, TLD_ICANN
-#  fire : 2015-06-25 Amazon EU S.à r.l.
+#  fire : 2015-06-25 Amazon Registry Services, Inc.
 fire, TLD_ICANN
-#  firestone : 2014-12-18 Bridgestone Corporation
+#  firestone : 2014-12-18 Bridgestone Licensing Services, Inc
 firestone, TLD_ICANN
 #  firmdale : 2014-03-27 Firmdale Holdings Limited
 firmdale, TLD_ICANN
-#  fish : 2013-12-12 Fox Woods, LLC
+#  fish : 2013-12-12 Binky Moon, LLC
 fish, TLD_ICANN
-#  fishing : 2013-11-21 Top Level Domain Holdings Limited
+#  fishing : 2013-11-21 Minds + Machines Group Limited
 fishing, TLD_ICANN
-#  fit : 2014-11-07 Top Level Domain Holdings Limited
+#  fit : 2014-11-07 Minds + Machines Group Limited
 fit, TLD_ICANN
-#  fitness : 2014-03-06 Brice Orchard, LLC
+#  fitness : 2014-03-06 Binky Moon, LLC
 fitness, TLD_ICANN
 #  flickr : 2015-04-02 Yahoo! Domain Services Inc.
 flickr, TLD_ICANN
-#  flights : 2013-12-05 Fox Station, LLC
+#  flights : 2013-12-05 Binky Moon, LLC
 flights, TLD_ICANN
 #  flir : 2015-07-23 FLIR Systems, Inc.
 flir, TLD_ICANN
-#  florist : 2013-11-07 Half Cypress, LLC
+#  florist : 2013-11-07 Binky Moon, LLC
 florist, TLD_ICANN
 #  flowers : 2014-10-09 Uniregistry, Corp.
 flowers, TLD_ICANN
-#  flsmidth : 2014-07-24 FLSmidth A/S
-flsmidth, TLD_ICANN
 #  fly : 2014-05-08 Charleston Road Registry Inc.
 fly, TLD_ICANN
 #  foo : 2014-01-23 Charleston Road Registry Inc.
@@ -7692,21 +7732,21 @@ foo, TLD_ICANN
 food, TLD_ICANN
 #  foodnetwork : 2015-07-02 Lifestyle Domain Holdings, Inc.
 foodnetwork, TLD_ICANN
-#  football : 2014-12-18 Foggy Farms, LLC
+#  football : 2014-12-18 Binky Moon, LLC
 football, TLD_ICANN
 #  ford : 2014-11-13 Ford Motor Company
 ford, TLD_ICANN
-#  forex : 2014-12-11 IG Group Holdings PLC
+#  forex : 2014-12-11 Dotforex Registry Limited
 forex, TLD_ICANN
-#  forsale : 2014-05-22
+#  forsale : 2014-05-22 United TLD Holdco Ltd.
 forsale, TLD_ICANN
 #  forum : 2015-04-02 Fegistry, LLC
 forum, TLD_ICANN
-#  foundation : 2013-12-05 John Dale, LLC
+#  foundation : 2013-12-05 Binky Moon, LLC
 foundation, TLD_ICANN
 #  fox : 2015-09-11 FOX Registry, LLC
 fox, TLD_ICANN
-#  free : 2015-12-10 Amazon EU S.à r.l.
+#  free : 2015-12-10 Amazon Registry Services, Inc.
 free, TLD_ICANN
 #  fresenius : 2015-07-30 Fresenius Immobilien-Verwaltungs-GmbH
 fresenius, TLD_ICANN
@@ -7724,19 +7764,19 @@ ftr, TLD_ICANN
 fujitsu, TLD_ICANN
 #  fujixerox : 2015-07-23 Xerox DNHC LLC
 fujixerox, TLD_ICANN
-#  fun : 2016-01-14 Oriental Trading Company, Inc.
+#  fun : 2016-01-14 DotSpace Inc.
 fun, TLD_ICANN
-#  fund : 2014-03-20 John Castle, LLC
+#  fund : 2014-03-20 Binky Moon, LLC
 fund, TLD_ICANN
-#  furniture : 2014-03-20 Lone Fields, LLC
+#  furniture : 2014-03-20 Binky Moon, LLC
 furniture, TLD_ICANN
-#  futbol : 2013-09-20
+#  futbol : 2013-09-20 United TLD Holdco Ltd.
 futbol, TLD_ICANN
-#  fyi : 2015-04-02 Silver Tigers, LLC
+#  fyi : 2015-04-02 Binky Moon, LLC
 fyi, TLD_ICANN
 #  gal : 2013-11-07 Asociación puntoGAL
 gal, TLD_ICANN
-#  gallery : 2013-09-13 Sugar House, LLC
+#  gallery : 2013-09-13 Binky Moon, LLC
 gallery, TLD_ICANN
 #  gallo : 2015-06-11 Gallo Vineyards, Inc.
 gallo, TLD_ICANN
@@ -7744,11 +7784,11 @@ gallo, TLD_ICANN
 gallup, TLD_ICANN
 #  game : 2015-05-28 Uniregistry, Corp.
 game, TLD_ICANN
-#  games : 2015-05-28 Foggy Beach, LLC
+#  games : 2015-05-28 United TLD Holdco Ltd.
 games, TLD_ICANN
 #  gap : 2015-07-31 The Gap, Inc.
 gap, TLD_ICANN
-#  garden : 2014-06-26 Top Level Domain Holdings Limited
+#  garden : 2014-06-26 Minds + Machines Group Limited
 garden, TLD_ICANN
 #  gbiz : 2014-07-17 Charleston Road Registry Inc.
 gbiz, TLD_ICANN
@@ -7756,7 +7796,7 @@ gbiz, TLD_ICANN
 gdn, TLD_ICANN
 #  gea : 2014-12-04 GEA Group Aktiengesellschaft
 gea, TLD_ICANN
-#  gent : 2014-01-23 COMBELL GROUP NV/SA
+#  gent : 2014-01-23 COMBELL NV
 gent, TLD_ICANN
 #  genting : 2015-03-12 Resorts World Inc Pte. Ltd.
 genting, TLD_ICANN
@@ -7764,9 +7804,9 @@ genting, TLD_ICANN
 george, TLD_ICANN
 #  ggee : 2014-01-09 GMO Internet, Inc.
 ggee, TLD_ICANN
-#  gift : 2013-10-17 Uniregistry, Corp.
+#  gift : 2013-10-17 DotGift, LLC
 gift, TLD_ICANN
-#  gifts : 2014-07-03 Goose Sky, LLC
+#  gifts : 2014-07-03 Binky Moon, LLC
 gifts, TLD_ICANN
 #  gives : 2014-03-06 United TLD Holdco Ltd.
 gives, TLD_ICANN
@@ -7774,29 +7814,29 @@ gives, TLD_ICANN
 giving, TLD_ICANN
 #  glade : 2015-07-23 Johnson Shareholdings, Inc.
 glade, TLD_ICANN
-#  glass : 2013-11-07 Black Cover, LLC
+#  glass : 2013-11-07 Binky Moon, LLC
 glass, TLD_ICANN
 #  gle : 2014-07-24 Charleston Road Registry Inc.
 gle, TLD_ICANN
-#  global : 2014-04-17 Dot GLOBAL AS
+#  global : 2014-04-17 Dot Global Domain Registry Limited
 global, TLD_ICANN
 #  globo : 2013-12-19 Globo Comunicação e Participações S.A
 globo, TLD_ICANN
 #  gmail : 2014-05-01 Charleston Road Registry Inc.
 gmail, TLD_ICANN
-#  gmbh : 2016-01-29 Extra Dynamite, LLC
+#  gmbh : 2016-01-29 Binky Moon, LLC
 gmbh, TLD_ICANN
-#  gmo : 2014-01-09 GMO Internet, Inc.
+#  gmo : 2014-01-09 GMO Internet Pte. Ltd.
 gmo, TLD_ICANN
 #  gmx : 2014-04-24 1&1 Mail & Media GmbH
 gmx, TLD_ICANN
 #  godaddy : 2015-07-23 Go Daddy East, LLC
 godaddy, TLD_ICANN
-#  gold : 2015-01-22 June Edge, LLC
+#  gold : 2015-01-22 Binky Moon, LLC
 gold, TLD_ICANN
 #  goldpoint : 2014-11-20 YODOBASHI CAMERA CO.,LTD.
 goldpoint, TLD_ICANN
-#  golf : 2014-12-18 Lone falls, LLC
+#  golf : 2014-12-18 Binky Moon, LLC
 golf, TLD_ICANN
 #  goo : 2014-12-18 NTT Resonant Inc.
 goo, TLD_ICANN
@@ -7810,21 +7850,21 @@ goog, TLD_ICANN
 google, TLD_ICANN
 #  gop : 2014-01-16 Republican State Leadership Committee, Inc.
 gop, TLD_ICANN
-#  got : 2014-12-18 Amazon EU S.à r.l.
+#  got : 2014-12-18 Amazon Registry Services, Inc.
 got, TLD_ICANN
-#  gotv : 2015-03-12 MultiChoice (Proprietary) Limited
-gotv, TLD_ICANN
 #  grainger : 2015-05-07 Grainger Registry Services, LLC
 grainger, TLD_ICANN
-#  graphics : 2013-09-13 Over Madison, LLC
+#  graphics : 2013-09-13 Binky Moon, LLC
 graphics, TLD_ICANN
-#  gratis : 2014-03-20 Pioneer Tigers, LLC
+#  gratis : 2014-03-20 Binky Moon, LLC
 gratis, TLD_ICANN
-#  green : 2014-05-08 Afilias Limited
+#  green : 2014-05-08 Afilias plc
 green, TLD_ICANN
-#  gripe : 2014-03-06 Corn Sunset, LLC
+#  gripe : 2014-03-06 Binky Moon, LLC
 gripe, TLD_ICANN
-#  group : 2014-08-15 Romeo Town, LLC
+#  grocery : 2016-06-16 Wal-Mart Stores, Inc.
+grocery, TLD_ICANN
+#  group : 2014-08-15 Binky Moon, LLC
 group, TLD_ICANN
 #  guardian : 2015-07-30 The Guardian Life Insurance Company of America
 guardian, TLD_ICANN
@@ -7832,11 +7872,11 @@ guardian, TLD_ICANN
 gucci, TLD_ICANN
 #  guge : 2014-08-28 Charleston Road Registry Inc.
 guge, TLD_ICANN
-#  guide : 2013-09-13 Snow Moon, LLC
+#  guide : 2013-09-13 Binky Moon, LLC
 guide, TLD_ICANN
 #  guitars : 2013-11-14 Uniregistry, Corp.
 guitars, TLD_ICANN
-#  guru : 2013-08-27 Pioneer Cypress, LLC
+#  guru : 2013-08-27 Binky Moon, LLC
 guru, TLD_ICANN
 #  hair : 2015-12-03 L'Oréal
 hair, TLD_ICANN
@@ -7844,7 +7884,7 @@ hair, TLD_ICANN
 hamburg, TLD_ICANN
 #  hangout : 2014-11-13 Charleston Road Registry Inc.
 hangout, TLD_ICANN
-#  haus : 2013-12-05
+#  haus : 2013-12-05 United TLD Holdco Ltd.
 haus, TLD_ICANN
 #  hbo : 2015-07-30 HBO Registry Services, Inc.
 hbo, TLD_ICANN
@@ -7854,7 +7894,7 @@ hdfc, TLD_ICANN
 hdfcbank, TLD_ICANN
 #  health : 2015-02-11 DotHealth, LLC
 health, TLD_ICANN
-#  healthcare : 2014-06-12 Silver Glen, LLC
+#  healthcare : 2014-06-12 Binky Moon, LLC
 healthcare, TLD_ICANN
 #  help : 2014-06-26 Uniregistry, Corp.
 help, TLD_ICANN
@@ -7872,17 +7912,17 @@ hiphop, TLD_ICANN
 hisamitsu, TLD_ICANN
 #  hitachi : 2014-10-31 Hitachi, Ltd.
 hitachi, TLD_ICANN
-#  hiv : 2014-03-13
+#  hiv : 2014-03-13 Uniregistry, Corp.
 hiv, TLD_ICANN
 #  hkt : 2015-05-14 PCCW-HKT DataCom Services Limited
 hkt, TLD_ICANN
-#  hockey : 2015-03-19 Half Willow, LLC
+#  hockey : 2015-03-19 Binky Moon, LLC
 hockey, TLD_ICANN
-#  holdings : 2013-08-27 John Madison, LLC
+#  holdings : 2013-08-27 Binky Moon, LLC
 holdings, TLD_ICANN
-#  holiday : 2013-11-07 Goose Woods, LLC
+#  holiday : 2013-11-07 Binky Moon, LLC
 holiday, TLD_ICANN
-#  homedepot : 2015-04-02 Homer TLC, Inc.
+#  homedepot : 2015-04-02 Home Depot Product Authority, LLC
 homedepot, TLD_ICANN
 #  homegoods : 2015-07-16 The TJX Companies, Inc.
 homegoods, TLD_ICANN
@@ -7894,13 +7934,15 @@ homesense, TLD_ICANN
 honda, TLD_ICANN
 #  honeywell : 2015-07-23 Honeywell GTLD LLC
 honeywell, TLD_ICANN
-#  horse : 2013-11-21 Top Level Domain Holdings Limited
+#  horse : 2013-11-21 Minds + Machines Group Limited
 horse, TLD_ICANN
+#  hospital : 2016-10-20 Binky Moon, LLC
+hospital, TLD_ICANN
 #  host : 2014-04-17 DotHost Inc.
 host, TLD_ICANN
 #  hosting : 2014-05-29 Uniregistry, Corp.
 hosting, TLD_ICANN
-#  hot : 2015-08-27 Amazon EU S.à r.l.
+#  hot : 2015-08-27 Amazon Registry Services, Inc.
 hot, TLD_ICANN
 #  hoteles : 2015-03-05 Travel Reservations SRL
 hoteles, TLD_ICANN
@@ -7908,14 +7950,12 @@ hoteles, TLD_ICANN
 hotels, TLD_ICANN
 #  hotmail : 2014-12-18 Microsoft Corporation
 hotmail, TLD_ICANN
-#  house : 2013-11-07 Sugar Park, LLC
+#  house : 2013-11-07 Binky Moon, LLC
 house, TLD_ICANN
 #  how : 2014-01-23 Charleston Road Registry Inc.
 how, TLD_ICANN
-#  hsbc : 2014-10-24 HSBC Holdings PLC
+#  hsbc : 2014-10-24 HSBC Global Services (UK) Limited
 hsbc, TLD_ICANN
-#  htc : 2015-04-02 HTC corporation
-htc, TLD_ICANN
 #  hughes : 2015-07-30 Hughes Satellite Systems Corporation
 hughes, TLD_ICANN
 #  hyatt : 2015-07-30 Hyatt GTLD, L.L.C.
@@ -7928,25 +7968,25 @@ ibm, TLD_ICANN
 icbc, TLD_ICANN
 #  ice : 2014-10-30 IntercontinentalExchange, Inc.
 ice, TLD_ICANN
-#  icu : 2015-01-08 One.com A/S
+#  icu : 2015-01-08 ShortDot SA
 icu, TLD_ICANN
 #  ieee : 2015-07-23 IEEE Global LLC
 ieee, TLD_ICANN
 #  ifm : 2014-01-30 ifm electronic gmbh
 ifm, TLD_ICANN
-#  iinet : 2014-07-03 Connect West Pty. Ltd.
-iinet, TLD_ICANN
 #  ikano : 2015-07-09 Ikano S.A.
 ikano, TLD_ICANN
 #  imamat : 2015-08-06 Fondation Aga Khan (Aga Khan Foundation)
 imamat, TLD_ICANN
-#  imdb : 2015-06-25 Amazon EU S.à r.l.
+#  imdb : 2015-06-25 Amazon Registry Services, Inc.
 imdb, TLD_ICANN
-#  immo : 2014-07-10 Auburn Bloom, LLC
+#  immo : 2014-07-10 Binky Moon, LLC
 immo, TLD_ICANN
 #  immobilien : 2013-11-07 United TLD Holdco Ltd.
 immobilien, TLD_ICANN
-#  industries : 2013-12-05 Outer House, LLC
+#  inc : 2018-03-10 GTLD Limited
+inc, TLD_ICANN
+#  industries : 2013-12-05 Binky Moon, LLC
 industries, TLD_ICANN
 #  infiniti : 2014-03-27 NISSAN MOTOR CO., LTD.
 infiniti, TLD_ICANN
@@ -7954,23 +7994,23 @@ infiniti, TLD_ICANN
 ing, TLD_ICANN
 #  ink : 2013-12-05 Top Level Design, LLC
 ink, TLD_ICANN
-#  institute : 2013-11-07 Outer Maple, LLC
+#  institute : 2013-11-07 Binky Moon, LLC
 institute, TLD_ICANN
 #  insurance : 2015-02-19 fTLD Registry Services LLC
 insurance, TLD_ICANN
-#  insure : 2014-03-20 Pioneer Willow, LLC
+#  insure : 2014-03-20 Binky Moon, LLC
 insure, TLD_ICANN
 #  intel : 2015-08-06 Intel Corporation
 intel, TLD_ICANN
-#  international : 2013-11-07 Wild Way, LLC
+#  international : 2013-11-07 Binky Moon, LLC
 international, TLD_ICANN
 #  intuit : 2015-07-30 Intuit Administrative Services, Inc.
 intuit, TLD_ICANN
-#  investments : 2014-03-20 Holly Glen, LLC
+#  investments : 2014-03-20 Binky Moon, LLC
 investments, TLD_ICANN
 #  ipiranga : 2014-08-28 Ipiranga Produtos de Petroleo S.A.
 ipiranga, TLD_ICANN
-#  irish : 2014-08-07 Dot-Irish LLC
+#  irish : 2014-08-07 Binky Moon, LLC
 irish, TLD_ICANN
 #  iselect : 2015-02-11 iSelect Ltd
 iselect, TLD_ICANN
@@ -7998,11 +8038,11 @@ jcb, TLD_ICANN
 jcp, TLD_ICANN
 #  jeep : 2015-07-30 FCA US LLC.
 jeep, TLD_ICANN
-#  jetzt : 2014-01-09
+#  jetzt : 2014-01-09 Binky Moon, LLC
 jetzt, TLD_ICANN
-#  jewelry : 2015-03-05 Wild Bloom, LLC
+#  jewelry : 2015-03-05 Binky Moon, LLC
 jewelry, TLD_ICANN
-#  jio : 2015-04-02 Affinity Names, Inc.
+#  jio : 2015-04-02 Reliance Industries Limited
 jio, TLD_ICANN
 #  jlc : 2014-12-04 Richemont DNS Inc.
 jlc, TLD_ICANN
@@ -8014,11 +8054,11 @@ jmp, TLD_ICANN
 jnj, TLD_ICANN
 #  joburg : 2014-03-24 ZA Central Registry NPC trading as ZA Central Registry
 joburg, TLD_ICANN
-#  jot : 2014-12-18 Amazon EU S.à r.l.
+#  jot : 2014-12-18 Amazon Registry Services, Inc.
 jot, TLD_ICANN
-#  joy : 2014-12-18 Amazon EU S.à r.l.
+#  joy : 2014-12-18 Amazon Registry Services, Inc.
 joy, TLD_ICANN
-#  jpmorgan : 2015-04-30 JPMorgan Chase & Co.
+#  jpmorgan : 2015-04-30 JPMorgan Chase Bank, National Association
 jpmorgan, TLD_ICANN
 #  jprs : 2014-09-18 Japan Registry Services Co., Ltd.
 jprs, TLD_ICANN
@@ -8040,17 +8080,17 @@ kerryproperties, TLD_ICANN
 kfh, TLD_ICANN
 #  kia : 2015-07-09 KIA MOTORS CORPORATION
 kia, TLD_ICANN
-#  kim : 2013-09-23 Afilias Limited
+#  kim : 2013-09-23 Afilias plc
 kim, TLD_ICANN
 #  kinder : 2014-11-07 Ferrero Trading Lux S.A.
 kinder, TLD_ICANN
-#  kindle : 2015-06-25 Amazon EU S.à r.l.
+#  kindle : 2015-06-25 Amazon Registry Services, Inc.
 kindle, TLD_ICANN
-#  kitchen : 2013-09-20 Just Goodbye, LLC
+#  kitchen : 2013-09-20 Binky Moon, LLC
 kitchen, TLD_ICANN
 #  kiwi : 2013-09-20 DOT KIWI LIMITED
 kiwi, TLD_ICANN
-#  koeln : 2014-01-09 NetCologne Gesellschaft für Telekommunikation mbH
+#  koeln : 2014-01-09 punkt.wien GmbH
 koeln, TLD_ICANN
 #  komatsu : 2015-01-08 Komatsu Ltd.
 komatsu, TLD_ICANN
@@ -8066,11 +8106,9 @@ krd, TLD_ICANN
 kred, TLD_ICANN
 #  kuokgroup : 2015-04-09 Kerry Trading Co. Limited
 kuokgroup, TLD_ICANN
-#  kyknet : 2015-03-05 Electronic Media Network (Pty) Ltd
-kyknet, TLD_ICANN
 #  kyoto : 2014-11-07 Academic Institution: Kyoto Jyoho Gakuen
 kyoto, TLD_ICANN
-#  lacaixa : 2014-01-09 CAIXA D'ESTALVIS I PENSIONS DE BARCELONA
+#  lacaixa : 2014-01-09 Fundación Bancaria Caixa d’Estalvis i Pensions de Barcelona, “la Caixa”
 lacaixa, TLD_ICANN
 #  ladbrokes : 2015-08-06 LADBROKES INTERNATIONAL PLC
 ladbrokes, TLD_ICANN
@@ -8084,7 +8122,7 @@ lancaster, TLD_ICANN
 lancia, TLD_ICANN
 #  lancome : 2015-07-23 L'Oréal
 lancome, TLD_ICANN
-#  land : 2013-09-10 Pine Moon, LLC
+#  land : 2013-09-10 Binky Moon, LLC
 land, TLD_ICANN
 #  landrover : 2014-11-13 Jaguar Land Rover Ltd
 landrover, TLD_ICANN
@@ -8100,43 +8138,43 @@ latino, TLD_ICANN
 latrobe, TLD_ICANN
 #  law : 2015-01-22 Minds + Machines Group Limited
 law, TLD_ICANN
-#  lawyer : 2014-03-20
+#  lawyer : 2014-03-20 United TLD Holdco Ltd.
 lawyer, TLD_ICANN
 #  lds : 2014-03-20 IRI Domain Management, LLC ("Applicant")
 lds, TLD_ICANN
-#  lease : 2014-03-06 Victor Trail, LLC
+#  lease : 2014-03-06 Binky Moon, LLC
 lease, TLD_ICANN
 #  leclerc : 2014-08-07 A.C.D. LEC Association des Centres Distributeurs Edouard Leclerc
 leclerc, TLD_ICANN
 #  lefrak : 2015-07-16 LeFrak Organization, Inc.
 lefrak, TLD_ICANN
-#  legal : 2014-10-16 Blue Falls, LLC
+#  legal : 2014-10-16 Binky Moon, LLC
 legal, TLD_ICANN
 #  lego : 2015-07-16 LEGO Juris A/S
 lego, TLD_ICANN
 #  lexus : 2015-04-23 TOYOTA MOTOR CORPORATION
 lexus, TLD_ICANN
-#  lgbt : 2014-05-08 Afilias Limited
+#  lgbt : 2014-05-08 Afilias plc
 lgbt, TLD_ICANN
 #  liaison : 2014-10-02 Liaison Technologies, Incorporated
 liaison, TLD_ICANN
 #  lidl : 2014-09-18 Schwarz Domains und Services GmbH & Co. KG
 lidl, TLD_ICANN
-#  life : 2014-02-06 Trixy Oaks, LLC
+#  life : 2014-02-06 Binky Moon, LLC
 life, TLD_ICANN
 #  lifeinsurance : 2015-01-15 American Council of Life Insurers
 lifeinsurance, TLD_ICANN
 #  lifestyle : 2014-12-11 Lifestyle Domain Holdings, Inc.
 lifestyle, TLD_ICANN
-#  lighting : 2013-08-27 John McCook, LLC
+#  lighting : 2013-08-27 Binky Moon, LLC
 lighting, TLD_ICANN
-#  like : 2014-12-18 Amazon EU S.à r.l.
+#  like : 2014-12-18 Amazon Registry Services, Inc.
 like, TLD_ICANN
 #  lilly : 2015-07-31 Eli Lilly and Company
 lilly, TLD_ICANN
-#  limited : 2014-03-06 Big Fest, LLC
+#  limited : 2014-03-06 Binky Moon, LLC
 limited, TLD_ICANN
-#  limo : 2013-10-17 Hidden Frostbite, LLC
+#  limo : 2013-10-17 Binky Moon, LLC
 limo, TLD_ICANN
 #  lincoln : 2014-11-13 Ford Motor Company
 lincoln, TLD_ICANN
@@ -8146,15 +8184,17 @@ linde, TLD_ICANN
 link, TLD_ICANN
 #  lipsy : 2015-06-25 Lipsy Ltd
 lipsy, TLD_ICANN
-#  live : 2014-12-04
+#  live : 2014-12-04 United TLD Holdco Ltd.
 live, TLD_ICANN
 #  living : 2015-07-30 Lifestyle Domain Holdings, Inc.
 living, TLD_ICANN
 #  lixil : 2015-03-19 LIXIL Group Corporation
 lixil, TLD_ICANN
+#  llc : 2017-12-14 Afilias plc
+llc, TLD_ICANN
 #  loan : 2014-11-20 dot Loan Limited
 loan, TLD_ICANN
-#  loans : 2014-03-20 June Woods, LLC
+#  loans : 2014-03-20 Binky Moon, LLC
 loans, TLD_ICANN
 #  locker : 2015-06-04 Dish DBS Corporation
 locker, TLD_ICANN
@@ -8168,7 +8208,7 @@ lol, TLD_ICANN
 london, TLD_ICANN
 #  lotte : 2014-11-07 Lotte Holdings Co., Ltd.
 lotte, TLD_ICANN
-#  lotto : 2014-04-10 Afilias Limited
+#  lotto : 2014-04-10 Afilias plc
 lotto, TLD_ICANN
 #  love : 2014-12-22 Merchant Law Group LLP
 love, TLD_ICANN
@@ -8176,15 +8216,15 @@ love, TLD_ICANN
 lpl, TLD_ICANN
 #  lplfinancial : 2015-07-30 LPL Holdings, Inc.
 lplfinancial, TLD_ICANN
-#  ltd : 2014-09-25 Over Corner, LLC
+#  ltd : 2014-09-25 Binky Moon, LLC
 ltd, TLD_ICANN
-#  ltda : 2014-04-17 DOMAIN ROBOT SERVICOS DE HOSPEDAGEM NA INTERNET LTDA
+#  ltda : 2014-04-17 InterNetX, Corp
 ltda, TLD_ICANN
 #  lundbeck : 2015-08-06 H. Lundbeck A/S
 lundbeck, TLD_ICANN
 #  lupin : 2014-11-07 LUPIN LIMITED
 lupin, TLD_ICANN
-#  luxe : 2014-01-09 Top Level Domain Holdings Limited
+#  luxe : 2014-01-09 Minds + Machines Group Limited
 luxe, TLD_ICANN
 #  luxury : 2013-10-17 Luxury Partners, LLC
 luxury, TLD_ICANN
@@ -8194,21 +8234,23 @@ macys, TLD_ICANN
 madrid, TLD_ICANN
 #  maif : 2014-10-02 Mutuelle Assurance Instituteur France (MAIF)
 maif, TLD_ICANN
-#  maison : 2013-12-05 Victor Frostbite, LLC
+#  maison : 2013-12-05 Binky Moon, LLC
 maison, TLD_ICANN
 #  makeup : 2015-01-15 L'Oréal
 makeup, TLD_ICANN
 #  man : 2014-12-04 MAN SE
 man, TLD_ICANN
-#  management : 2013-11-07 John Goodbye, LLC
+#  management : 2013-11-07 Binky Moon, LLC
 management, TLD_ICANN
 #  mango : 2013-10-24 PUNTO FA S.L.
 mango, TLD_ICANN
-#  market : 2014-03-06
+#  map : 2016-06-09 Charleston Road Registry Inc.
+map, TLD_ICANN
+#  market : 2014-03-06 United TLD Holdco Ltd.
 market, TLD_ICANN
-#  marketing : 2013-11-07 Fern Pass, LLC
+#  marketing : 2013-11-07 Binky Moon, LLC
 marketing, TLD_ICANN
-#  markets : 2014-12-11 IG Group Holdings PLC
+#  markets : 2014-12-11 Dotmarkets Registry Limited
 markets, TLD_ICANN
 #  marriott : 2014-10-09 Marriott Worldwide Corporation
 marriott, TLD_ICANN
@@ -8218,19 +8260,15 @@ marshalls, TLD_ICANN
 maserati, TLD_ICANN
 #  mattel : 2015-08-06 Mattel Sites, Inc.
 mattel, TLD_ICANN
-#  mba : 2015-04-02 Lone Hollow, LLC
+#  mba : 2015-04-02 Binky Moon, LLC
 mba, TLD_ICANN
-#  mcd : 2015-07-30 McDonald’s Corporation
-mcd, TLD_ICANN
-#  mcdonalds : 2015-07-30 McDonald’s Corporation
-mcdonalds, TLD_ICANN
 #  mckinsey : 2015-07-31 McKinsey Holdings, Inc.
 mckinsey, TLD_ICANN
 #  med : 2015-08-06 Medistry LLC
 med, TLD_ICANN
-#  media : 2014-03-06 Grand Glen, LLC
+#  media : 2014-03-06 Binky Moon, LLC
 media, TLD_ICANN
-#  meet : 2014-01-16
+#  meet : 2014-01-16 Charleston Road Registry Inc.
 meet, TLD_ICANN
 #  melbourne : 2014-05-29 The Crown in right of the State of Victoria, represented by its Department of State Development, Business and Innovation
 melbourne, TLD_ICANN
@@ -8242,11 +8280,13 @@ memorial, TLD_ICANN
 men, TLD_ICANN
 #  menu : 2013-09-11 Wedding TLD2, LLC
 menu, TLD_ICANN
-#  meo : 2014-11-07 PT Comunicacoes S.A.
+#  meo : 2014-11-07 MEO Servicos de Comunicacoes e Multimedia, S.A.
 meo, TLD_ICANN
+#  merckmsd : 2016-07-14 MSD Registry Holdings, Inc.
+merckmsd, TLD_ICANN
 #  metlife : 2015-05-07 MetLife Services and Solutions, LLC
 metlife, TLD_ICANN
-#  miami : 2013-12-19 Top Level Domain Holdings Limited
+#  miami : 2013-12-19 Minds + Machines Group Limited
 miami, TLD_ICANN
 #  microsoft : 2014-12-18 Microsoft Corporation
 microsoft, TLD_ICANN
@@ -8264,41 +8304,39 @@ mlb, TLD_ICANN
 mls, TLD_ICANN
 #  mma : 2014-11-07 MMA IARD
 mma, TLD_ICANN
-#  mnet : 2015-03-05 Electronic Media Network (Pty) Ltd
-mnet, TLD_ICANN
+#  mobile : 2016-06-02 Dish DBS Corporation
+mobile, TLD_ICANN
 #  mobily : 2014-12-18 GreenTech Consultancy Company W.L.L.
 mobily, TLD_ICANN
 #  moda : 2013-11-07 United TLD Holdco Ltd.
 moda, TLD_ICANN
 #  moe : 2013-11-13 Interlink Co., Ltd.
 moe, TLD_ICANN
-#  moi : 2014-12-18 Amazon EU S.à r.l.
+#  moi : 2014-12-18 Amazon Registry Services, Inc.
 moi, TLD_ICANN
 #  mom : 2015-04-16 Uniregistry, Corp.
 mom, TLD_ICANN
 #  monash : 2013-09-30 Monash University
 monash, TLD_ICANN
-#  money : 2014-10-16 Outer McCook, LLC
+#  money : 2014-10-16 Binky Moon, LLC
 money, TLD_ICANN
 #  monster : 2015-09-11 Monster Worldwide, Inc.
 monster, TLD_ICANN
-#  montblanc : 2014-06-23 Richemont DNS Inc.
-montblanc, TLD_ICANN
 #  mopar : 2015-07-30 FCA US LLC.
 mopar, TLD_ICANN
 #  mormon : 2013-12-05 IRI Domain Management, LLC ("Applicant")
 mormon, TLD_ICANN
-#  mortgage : 2014-03-20
+#  mortgage : 2014-03-20 United TLD Holdco Ltd.
 mortgage, TLD_ICANN
 #  moscow : 2013-12-19 Foundation for Assistance for Internet Technologies and Infrastructure Development (FAITID)
 moscow, TLD_ICANN
-#  moto : 2015-06-04 Charleston Road Registry Inc.
+#  moto : 2015-06-04 Motorola Trademark Holdings, LLC
 moto, TLD_ICANN
 #  motorcycles : 2014-01-09 DERMotorcycles, LLC
 motorcycles, TLD_ICANN
 #  mov : 2014-01-30 Charleston Road Registry Inc.
 mov, TLD_ICANN
-#  movie : 2015-02-05 New Frostbite, LLC
+#  movie : 2015-02-05 Binky Moon, LLC
 movie, TLD_ICANN
 #  movistar : 2014-10-16 Telefónica S.A.
 movistar, TLD_ICANN
@@ -8306,26 +8344,16 @@ movistar, TLD_ICANN
 msd, TLD_ICANN
 #  mtn : 2014-12-04 MTN Dubai Limited
 mtn, TLD_ICANN
-#  mtpc : 2014-11-20 Mitsubishi Tanabe Pharma Corporation
-mtpc, TLD_ICANN
 #  mtr : 2015-03-12 MTR Corporation Limited
 mtr, TLD_ICANN
-#  multichoice : 2015-03-12 MultiChoice (Proprietary) Limited
-multichoice, TLD_ICANN
 #  mutual : 2015-04-02 Northwestern Mutual MU TLD Registry, LLC
 mutual, TLD_ICANN
-#  mutuelle : 2015-06-18 Fédération Nationale de la Mutualité Française
-mutuelle, TLD_ICANN
-#  mzansimagic : 2015-03-05 Electronic Media Network (Pty) Ltd
-mzansimagic, TLD_ICANN
 #  nab : 2015-08-20 National Australia Bank Limited
 nab, TLD_ICANN
-#  nadex : 2014-12-11 IG Group Holdings PLC
+#  nadex : 2014-12-11 Nadex Domains, Inc.
 nadex, TLD_ICANN
 #  nagoya : 2013-10-24 GMO Registry, Inc.
 nagoya, TLD_ICANN
-#  naspers : 2015-02-12 Intelprop (Proprietary) Limited
-naspers, TLD_ICANN
 #  nationwide : 2015-07-23 Nationwide Mutual Insurance Company
 nationwide, TLD_ICANN
 #  natura : 2015-03-12 NATURA COSMÉTICOS S.A.
@@ -8340,7 +8368,7 @@ nec, TLD_ICANN
 netbank, TLD_ICANN
 #  netflix : 2015-06-18 Netflix, Inc.
 netflix, TLD_ICANN
-#  network : 2013-11-14 Trixy Manor, LLC
+#  network : 2013-11-14 Binky Moon, LLC
 network, TLD_ICANN
 #  neustar : 2013-12-05 NeuStar, Inc.
 neustar, TLD_ICANN
@@ -8348,7 +8376,7 @@ neustar, TLD_ICANN
 new, TLD_ICANN
 #  newholland : 2015-09-03 CNH Industrial N.V.
 newholland, TLD_ICANN
-#  news : 2014-12-18
+#  news : 2014-12-18 United TLD Holdco Ltd.
 news, TLD_ICANN
 #  next : 2015-06-18 Next plc
 next, TLD_ICANN
@@ -8380,7 +8408,7 @@ nokia, TLD_ICANN
 northwesternmutual, TLD_ICANN
 #  norton : 2014-12-04 Symantec Corporation
 norton, TLD_ICANN
-#  now : 2015-06-25 Amazon EU S.à r.l.
+#  now : 2015-06-25 Amazon Registry Services, Inc.
 now, TLD_ICANN
 #  nowruz : 2014-09-04 Asia Green IT System Bilgisayar San. ve Tic. Ltd. Sti.
 nowruz, TLD_ICANN
@@ -8396,13 +8424,13 @@ ntt, TLD_ICANN
 nyc, TLD_ICANN
 #  obi : 2014-09-25 OBI Group Holding SE & Co. KGaA
 obi, TLD_ICANN
-#  observer : 2015-04-30 Guardian News and Media Limited
+#  observer : 2015-04-30 Top Level Spectrum, Inc.
 observer, TLD_ICANN
 #  off : 2015-07-23 Johnson Shareholdings, Inc.
 off, TLD_ICANN
 #  office : 2015-03-12 Microsoft Corporation
 office, TLD_ICANN
-#  okinawa : 2013-12-05 BusinessRalliart Inc.
+#  okinawa : 2013-12-05 BRregistry, Inc.
 okinawa, TLD_ICANN
 #  olayan : 2015-05-14 Crescent Holding GmbH
 olayan, TLD_ICANN
@@ -8432,13 +8460,11 @@ open, TLD_ICANN
 oracle, TLD_ICANN
 #  orange : 2015-03-12 Orange Brand Services Limited
 orange, TLD_ICANN
-#  organic : 2014-03-27 Afilias Limited
+#  organic : 2014-03-27 Afilias plc
 organic, TLD_ICANN
-#  orientexpress : 2015-02-05 Belmond Ltd.
-orientexpress, TLD_ICANN
 #  origins : 2015-10-01 The Estée Lauder Companies Inc.
 origins, TLD_ICANN
-#  osaka : 2014-09-04 Interlink Co., Ltd.
+#  osaka : 2014-09-04 Osaka Registry Co., Ltd.
 osaka, TLD_ICANN
 #  otsuka : 2013-10-11 Otsuka Holdings Co., Ltd.
 otsuka, TLD_ICANN
@@ -8448,8 +8474,6 @@ ott, TLD_ICANN
 ovh, TLD_ICANN
 #  page : 2014-12-04 Charleston Road Registry Inc.
 page, TLD_ICANN
-#  pamperedchef : 2015-02-05 The Pampered Chef, Ltd.
-pamperedchef, TLD_ICANN
 #  panasonic : 2015-07-30 Panasonic Corporation
 panasonic, TLD_ICANN
 #  panerai : 2014-11-07 Richemont DNS Inc.
@@ -8458,18 +8482,16 @@ panerai, TLD_ICANN
 paris, TLD_ICANN
 #  pars : 2014-09-04 Asia Green IT System Bilgisayar San. ve Tic. Ltd. Sti.
 pars, TLD_ICANN
-#  partners : 2013-12-05 Magic Glen, LLC
+#  partners : 2013-12-05 Binky Moon, LLC
 partners, TLD_ICANN
-#  parts : 2013-12-05 Sea Goodbye, LLC
+#  parts : 2013-12-05 Binky Moon, LLC
 parts, TLD_ICANN
 #  party : 2014-09-11 Blue Sky Registry Limited
 party, TLD_ICANN
 #  passagens : 2015-03-05 Travel Reservations SRL
 passagens, TLD_ICANN
-#  pay : 2015-08-27 Amazon EU S.à r.l.
+#  pay : 2015-08-27 Amazon Registry Services, Inc.
 pay, TLD_ICANN
-#  payu : 2015-02-12 MIH PayU B.V.
-payu, TLD_ICANN
 #  pccw : 2015-05-14 PCCW Enterprises Limited
 pccw, TLD_ICANN
 #  pet : 2015-05-07 Afilias plc
@@ -8478,13 +8500,17 @@ pet, TLD_ICANN
 pfizer, TLD_ICANN
 #  pharmacy : 2014-06-19 National Association of Boards of Pharmacy
 pharmacy, TLD_ICANN
+#  phd : 2016-07-28 Charleston Road Registry Inc.
+phd, TLD_ICANN
 #  philips : 2014-11-07 Koninklijke Philips N.V.
 philips, TLD_ICANN
+#  phone : 2016-06-02 Dish DBS Corporation
+phone, TLD_ICANN
 #  photo : 2013-11-14 Uniregistry, Corp.
 photo, TLD_ICANN
-#  photography : 2013-09-20 Sugar Glen, LLC
+#  photography : 2013-09-20 Binky Moon, LLC
 photography, TLD_ICANN
-#  photos : 2013-10-17 Sea Corner, LLC
+#  photos : 2013-10-17 Binky Moon, LLC
 photos, TLD_ICANN
 #  physio : 2014-05-01 PhysBiz Pty Ltd
 physio, TLD_ICANN
@@ -8494,35 +8520,35 @@ piaget, TLD_ICANN
 pics, TLD_ICANN
 #  pictet : 2014-06-26 Pictet Europe S.A.
 pictet, TLD_ICANN
-#  pictures : 2014-03-06 Foggy Sky, LLC
+#  pictures : 2014-03-06 Binky Moon, LLC
 pictures, TLD_ICANN
 #  pid : 2015-01-08 Top Level Spectrum, Inc.
 pid, TLD_ICANN
-#  pin : 2014-12-18 Amazon EU S.à r.l.
+#  pin : 2014-12-18 Amazon Registry Services, Inc.
 pin, TLD_ICANN
 #  ping : 2015-06-11 Ping Registry Provider, Inc.
 ping, TLD_ICANN
-#  pink : 2013-10-01 Afilias Limited
+#  pink : 2013-10-01 Afilias plc
 pink, TLD_ICANN
 #  pioneer : 2015-07-16 Pioneer Corporation
 pioneer, TLD_ICANN
-#  pizza : 2014-06-26 Foggy Moon, LLC
+#  pizza : 2014-06-26 Binky Moon, LLC
 pizza, TLD_ICANN
-#  place : 2014-04-24 Snow Galley, LLC
+#  place : 2014-04-24 Binky Moon, LLC
 place, TLD_ICANN
 #  play : 2015-03-05 Charleston Road Registry Inc.
 play, TLD_ICANN
 #  playstation : 2015-07-02 Sony Computer Entertainment Inc.
 playstation, TLD_ICANN
-#  plumbing : 2013-09-10 Spring Tigers, LLC
+#  plumbing : 2013-09-10 Binky Moon, LLC
 plumbing, TLD_ICANN
-#  plus : 2015-02-05 Sugar Mill, LLC
+#  plus : 2015-02-05 Binky Moon, LLC
 plus, TLD_ICANN
 #  pnc : 2015-07-02 PNC Domain Co., LLC
 pnc, TLD_ICANN
 #  pohl : 2014-06-23 Deutsche Vermögensberatung Aktiengesellschaft DVAG
 pohl, TLD_ICANN
-#  poker : 2014-07-03 Afilias Domains No. 5 Limited
+#  poker : 2014-07-03 Afilias plc
 poker, TLD_ICANN
 #  politie : 2015-08-20 Politie Nederland
 politie, TLD_ICANN
@@ -8534,23 +8560,23 @@ pramerica, TLD_ICANN
 praxi, TLD_ICANN
 #  press : 2014-04-03 DotPress Inc.
 press, TLD_ICANN
-#  prime : 2015-06-25 Amazon EU S.à r.l.
+#  prime : 2015-06-25 Amazon Registry Services, Inc.
 prime, TLD_ICANN
 #  prod : 2014-01-23 Charleston Road Registry Inc.
 prod, TLD_ICANN
-#  productions : 2013-12-05 Magic Birch, LLC
+#  productions : 2013-12-05 Binky Moon, LLC
 productions, TLD_ICANN
 #  prof : 2014-07-24 Charleston Road Registry Inc.
 prof, TLD_ICANN
 #  progressive : 2015-07-23 Progressive Casualty Insurance Company
 progressive, TLD_ICANN
-#  promo : 2014-12-18
+#  promo : 2014-12-18 Afilias plc
 promo, TLD_ICANN
-#  properties : 2013-12-05 Big Pass, LLC
+#  properties : 2013-12-05 Binky Moon, LLC
 properties, TLD_ICANN
 #  property : 2014-05-22 Uniregistry, Corp.
 property, TLD_ICANN
-#  protection : 2015-04-23
+#  protection : 2015-04-23 XYZ.COM LLC
 protection, TLD_ICANN
 #  pru : 2015-07-30 Prudential Financial, Inc.
 pru, TLD_ICANN
@@ -8570,9 +8596,11 @@ quest, TLD_ICANN
 qvc, TLD_ICANN
 #  racing : 2014-12-04 Premier Registry Limited
 racing, TLD_ICANN
+#  radio : 2016-07-21 European Broadcasting Union (EBU)
+radio, TLD_ICANN
 #  raid : 2015-07-23 Johnson Shareholdings, Inc.
 raid, TLD_ICANN
-#  read : 2014-12-18 Amazon EU S.à r.l.
+#  read : 2014-12-18 Amazon Registry Services, Inc.
 read, TLD_ICANN
 #  realestate : 2015-09-11 dotRealEstate LLC
 realestate, TLD_ICANN
@@ -8580,9 +8608,9 @@ realestate, TLD_ICANN
 realtor, TLD_ICANN
 #  realty : 2015-03-19 Fegistry, LLC
 realty, TLD_ICANN
-#  recipes : 2013-10-17 Grand Island, LLC
+#  recipes : 2013-10-17 Binky Moon, LLC
 recipes, TLD_ICANN
-#  red : 2013-11-07 Afilias Limited
+#  red : 2013-11-07 Afilias plc
 red, TLD_ICANN
 #  redstone : 2014-10-31 Redstone Haute Couture Co., Ltd.
 redstone, TLD_ICANN
@@ -8590,9 +8618,9 @@ redstone, TLD_ICANN
 redumbrella, TLD_ICANN
 #  rehab : 2014-03-06 United TLD Holdco Ltd.
 rehab, TLD_ICANN
-#  reise : 2014-03-13
+#  reise : 2014-03-13 Binky Moon, LLC
 reise, TLD_ICANN
-#  reisen : 2014-03-06 New Cypress, LLC
+#  reisen : 2014-03-06 Binky Moon, LLC
 reisen, TLD_ICANN
 #  reit : 2014-09-04 National Association of Real Estate Investment Trusts, Inc.
 reit, TLD_ICANN
@@ -8600,23 +8628,23 @@ reit, TLD_ICANN
 reliance, TLD_ICANN
 #  ren : 2013-12-12 Beijing Qianxiang Wangjing Technology Development Co., Ltd.
 ren, TLD_ICANN
-#  rent : 2014-12-04 DERRent, LLC
+#  rent : 2014-12-04 XYZ.COM LLC
 rent, TLD_ICANN
-#  rentals : 2013-12-05 Big Hollow,LLC
+#  rentals : 2013-12-05 Binky Moon, LLC
 rentals, TLD_ICANN
-#  repair : 2013-11-07 Lone Sunset, LLC
+#  repair : 2013-11-07 Binky Moon, LLC
 repair, TLD_ICANN
-#  report : 2013-12-05 Binky Glen, LLC
+#  report : 2013-12-05 Binky Moon, LLC
 report, TLD_ICANN
 #  republican : 2014-03-20 United TLD Holdco Ltd.
 republican, TLD_ICANN
 #  rest : 2013-12-19 Punto 2012 Sociedad Anonima Promotora de Inversion de Capital Variable
 rest, TLD_ICANN
-#  restaurant : 2014-07-03 Snow Avenue, LLC
+#  restaurant : 2014-07-03 Binky Moon, LLC
 restaurant, TLD_ICANN
 #  review : 2014-11-20 dot Review Limited
 review, TLD_ICANN
-#  reviews : 2013-09-13
+#  reviews : 2013-09-13 United TLD Holdco Ltd.
 reviews, TLD_ICANN
 #  rexroth : 2015-06-18 Robert Bosch GMBH
 rexroth, TLD_ICANN
@@ -8638,35 +8666,37 @@ rip, TLD_ICANN
 rmit, TLD_ICANN
 #  rocher : 2014-12-18 Ferrero Trading Lux S.A.
 rocher, TLD_ICANN
-#  rocks : 2013-11-14
+#  rocks : 2013-11-14 United TLD Holdco Ltd.
 rocks, TLD_ICANN
-#  rodeo : 2013-12-19 Top Level Domain Holdings Limited
+#  rodeo : 2013-12-19 Minds + Machines Group Limited
 rodeo, TLD_ICANN
-#  rogers : 2015-08-06 Rogers Communications Partnership
+#  rogers : 2015-08-06 Rogers Communications Canada Inc.
 rogers, TLD_ICANN
-#  room : 2014-12-18 Amazon EU S.à r.l.
+#  room : 2014-12-18 Amazon Registry Services, Inc.
 room, TLD_ICANN
 #  rsvp : 2014-05-08 Charleston Road Registry Inc.
 rsvp, TLD_ICANN
+#  rugby : 2016-12-15 World Rugby Strategic Developments Limited
+rugby, TLD_ICANN
 #  ruhr : 2013-10-02 regiodot GmbH & Co. KG
 ruhr, TLD_ICANN
-#  run : 2015-03-19 Snow Park, LLC
+#  run : 2015-03-19 Binky Moon, LLC
 run, TLD_ICANN
 #  rwe : 2015-04-02 RWE AG
 rwe, TLD_ICANN
-#  ryukyu : 2014-01-09 BusinessRalliart Inc.
+#  ryukyu : 2014-01-09 BRregistry, Inc.
 ryukyu, TLD_ICANN
 #  saarland : 2013-12-12 dotSaarland GmbH
 saarland, TLD_ICANN
-#  safe : 2014-12-18 Amazon EU S.à r.l.
+#  safe : 2014-12-18 Amazon Registry Services, Inc.
 safe, TLD_ICANN
 #  safety : 2015-01-08 Safety Registry Services, LLC.
 safety, TLD_ICANN
 #  sakura : 2014-12-18 SAKURA Internet Inc.
 sakura, TLD_ICANN
-#  sale : 2014-10-16
+#  sale : 2014-10-16 United TLD Holdco Ltd.
 sale, TLD_ICANN
-#  salon : 2014-12-11 Outer Orchard, LLC
+#  salon : 2014-12-11 Binky Moon, LLC
 salon, TLD_ICANN
 #  samsclub : 2015-07-31 Wal-Mart Stores, Inc.
 samsclub, TLD_ICANN
@@ -8680,13 +8710,13 @@ sandvikcoromant, TLD_ICANN
 sanofi, TLD_ICANN
 #  sap : 2014-03-27 SAP AG
 sap, TLD_ICANN
-#  sapo : 2014-11-07 PT Comunicacoes S.A.
+#  sapo : 2014-11-07 MEO Servicos de Comunicacoes e Multimedia, S.A.
 sapo, TLD_ICANN
-#  sarl : 2014-07-03 Delta Orchard, LLC
+#  sarl : 2014-07-03 Binky Moon, LLC
 sarl, TLD_ICANN
 #  sas : 2015-04-02 Research IP LLC
 sas, TLD_ICANN
-#  save : 2015-06-25 Amazon EU S.à r.l.
+#  save : 2015-06-25 Amazon Registry Services, Inc.
 save, TLD_ICANN
 #  saxo : 2014-10-31 Saxo Bank A/S
 saxo, TLD_ICANN
@@ -8704,9 +8734,9 @@ schaeffler, TLD_ICANN
 schmidt, TLD_ICANN
 #  scholarships : 2014-04-24 Scholarships.com, LLC
 scholarships, TLD_ICANN
-#  school : 2014-12-18 Little Galley, LLC
+#  school : 2014-12-18 Binky Moon, LLC
 school, TLD_ICANN
-#  schule : 2014-03-06 Outer Moon, LLC
+#  schule : 2014-03-06 Binky Moon, LLC
 schule, TLD_ICANN
 #  schwarz : 2014-09-18 Schwarz Domains und Services GmbH & Co. KG
 schwarz, TLD_ICANN
@@ -8718,11 +8748,13 @@ scjohnson, TLD_ICANN
 scor, TLD_ICANN
 #  scot : 2014-01-23 Dot Scot Registry Limited
 scot, TLD_ICANN
+#  search : 2016-06-09 Charleston Road Registry Inc.
+search, TLD_ICANN
 #  seat : 2014-05-22 SEAT, S.A. (Sociedad Unipersonal)
 seat, TLD_ICANN
-#  secure : 2015-08-27 Amazon EU S.à r.l.
+#  secure : 2015-08-27 Amazon Registry Services, Inc.
 secure, TLD_ICANN
-#  security : 2015-05-14
+#  security : 2015-05-14 XYZ.COM LLC
 security, TLD_ICANN
 #  seek : 2014-12-04 Seek Limited
 seek, TLD_ICANN
@@ -8730,7 +8762,7 @@ seek, TLD_ICANN
 select, TLD_ICANN
 #  sener : 2014-10-24 Sener Ingeniería y Sistemas, S.A.
 sener, TLD_ICANN
-#  services : 2014-02-27 Fox Castle, LLC
+#  services : 2014-02-27 Binky Moon, LLC
 services, TLD_ICANN
 #  ses : 2015-07-23 SES
 ses, TLD_ICANN
@@ -8754,35 +8786,35 @@ shaw, TLD_ICANN
 shell, TLD_ICANN
 #  shia : 2014-09-04 Asia Green IT System Bilgisayar San. ve Tic. Ltd. Sti.
 shia, TLD_ICANN
-#  shiksha : 2013-11-14 Afilias Limited
+#  shiksha : 2013-11-14 Afilias plc
 shiksha, TLD_ICANN
-#  shoes : 2013-10-02 Binky Galley, LLC
+#  shoes : 2013-10-02 Binky Moon, LLC
 shoes, TLD_ICANN
 #  shop : 2016-04-08 GMO Registry, Inc.
 shop, TLD_ICANN
-#  shopping : 2016-03-31
+#  shopping : 2016-03-31 Binky Moon, LLC
 shopping, TLD_ICANN
 #  shouji : 2015-01-08 QIHOO 360 TECHNOLOGY CO. LTD.
 shouji, TLD_ICANN
-#  show : 2015-03-05 Snow Beach, LLC
+#  show : 2015-03-05 Binky Moon, LLC
 show, TLD_ICANN
 #  showtime : 2015-08-06 CBS Domains Inc.
 showtime, TLD_ICANN
 #  shriram : 2014-01-23 Shriram Capital Ltd.
 shriram, TLD_ICANN
-#  silk : 2015-06-25 Amazon EU S.à r.l.
+#  silk : 2015-06-25 Amazon Registry Services, Inc.
 silk, TLD_ICANN
 #  sina : 2015-03-12 Sina Corporation
 sina, TLD_ICANN
-#  singles : 2013-08-27 Fern Madison, LLC
+#  singles : 2013-08-27 Binky Moon, LLC
 singles, TLD_ICANN
 #  site : 2015-01-15 DotSite Inc.
 site, TLD_ICANN
-#  ski : 2015-04-09 STARTING DOT LIMITED
+#  ski : 2015-04-09 Afilias plc
 ski, TLD_ICANN
 #  skin : 2015-01-15 L'Oréal
 skin, TLD_ICANN
-#  sky : 2014-06-19 Sky IP International Ltd, a company incorporated in England and Wales, operating via its registered Swiss branch
+#  sky : 2014-06-19 Sky International AG
 sky, TLD_ICANN
 #  skype : 2014-12-18 Microsoft Corporation
 skype, TLD_ICANN
@@ -8790,25 +8822,25 @@ skype, TLD_ICANN
 sling, TLD_ICANN
 #  smart : 2015-07-09 Smart Communications, Inc. (SMART)
 smart, TLD_ICANN
-#  smile : 2014-12-18 Amazon EU S.à r.l.
+#  smile : 2014-12-18 Amazon Registry Services, Inc.
 smile, TLD_ICANN
 #  sncf : 2015-02-19 Société Nationale des Chemins de fer Francais S N C F
 sncf, TLD_ICANN
-#  soccer : 2015-03-26 Foggy Shadow, LLC
+#  soccer : 2015-03-26 Binky Moon, LLC
 soccer, TLD_ICANN
 #  social : 2013-11-07 United TLD Holdco Ltd.
 social, TLD_ICANN
 #  softbank : 2015-07-02 SoftBank Corp.
 softbank, TLD_ICANN
-#  software : 2014-03-20
+#  software : 2014-03-20 United TLD Holdco Ltd.
 software, TLD_ICANN
 #  sohu : 2013-12-19 Sohu.com Limited
 sohu, TLD_ICANN
-#  solar : 2013-11-07 Ruby Town, LLC
+#  solar : 2013-11-07 Binky Moon, LLC
 solar, TLD_ICANN
-#  solutions : 2013-11-07 Silver Cover, LLC
+#  solutions : 2013-11-07 Binky Moon, LLC
 solutions, TLD_ICANN
-#  song : 2015-02-26 Amazon EU S.à r.l.
+#  song : 2015-02-26 Amazon Registry Services, Inc.
 song, TLD_ICANN
 #  sony : 2015-01-08 Sony Corporation
 sony, TLD_ICANN
@@ -8818,11 +8850,13 @@ soy, TLD_ICANN
 space, TLD_ICANN
 #  spiegel : 2014-02-05 SPIEGEL-Verlag Rudolf Augstein GmbH & Co. KG
 spiegel, TLD_ICANN
-#  spot : 2015-02-26 Amazon EU S.à r.l.
+#  sport : 2017-11-16 Global Association of International Sports Federations (GAISF)
+sport, TLD_ICANN
+#  spot : 2015-02-26 Amazon Registry Services, Inc.
 spot, TLD_ICANN
-#  spreadbetting : 2014-12-11 IG Group Holdings PLC
+#  spreadbetting : 2014-12-11 Dotspreadbetting Registry Limited
 spreadbetting, TLD_ICANN
-#  srl : 2015-05-07 mySRL GmbH
+#  srl : 2015-05-07 InterNetX, Corp
 srl, TLD_ICANN
 #  srt : 2015-07-30 FCA US LLC.
 srt, TLD_ICANN
@@ -8846,31 +8880,29 @@ stc, TLD_ICANN
 stcgroup, TLD_ICANN
 #  stockholm : 2014-12-18 Stockholms kommun
 stockholm, TLD_ICANN
-#  storage : 2014-12-22 Self Storage Company LLC
+#  storage : 2014-12-22 XYZ.COM LLC
 storage, TLD_ICANN
 #  store : 2015-04-09 DotStore Inc.
 store, TLD_ICANN
 #  stream : 2016-01-08 dot Stream Limited
 stream, TLD_ICANN
-#  studio : 2015-02-11
+#  studio : 2015-02-11 United TLD Holdco Ltd.
 studio, TLD_ICANN
 #  study : 2014-12-11 OPEN UNIVERSITIES AUSTRALIA PTY LTD
 study, TLD_ICANN
 #  style : 2014-12-04 Binky Moon, LLC
 style, TLD_ICANN
-#  sucks : 2014-12-22 Vox Populi Registry Inc.
+#  sucks : 2014-12-22 Vox Populi Registry Ltd.
 sucks, TLD_ICANN
-#  supersport : 2015-03-05 SuperSport International Holdings Proprietary Limited
-supersport, TLD_ICANN
-#  supplies : 2013-12-19 Atomic Fields, LLC
+#  supplies : 2013-12-19 Binky Moon, LLC
 supplies, TLD_ICANN
-#  supply : 2013-12-19 Half Falls, LLC
+#  supply : 2013-12-19 Binky Moon, LLC
 supply, TLD_ICANN
-#  support : 2013-10-24 Grand Orchard, LLC
+#  support : 2013-10-24 Binky Moon, LLC
 support, TLD_ICANN
-#  surf : 2014-01-09 Top Level Domain Holdings Limited
+#  surf : 2014-01-09 Minds + Machines Group Limited
 surf, TLD_ICANN
-#  surgery : 2014-03-20 Tin Avenue, LLC
+#  surgery : 2014-03-20 Binky Moon, LLC
 surgery, TLD_ICANN
 #  suzuki : 2014-02-20 SUZUKI MOTOR CORPORATION
 suzuki, TLD_ICANN
@@ -8884,13 +8916,13 @@ swiss, TLD_ICANN
 sydney, TLD_ICANN
 #  symantec : 2014-12-04 Symantec Corporation
 symantec, TLD_ICANN
-#  systems : 2013-11-07 Dash Cypress, LLC
+#  systems : 2013-11-07 Binky Moon, LLC
 systems, TLD_ICANN
 #  tab : 2014-12-04 Tabcorp Holdings Limited
 tab, TLD_ICANN
 #  taipei : 2014-07-10 Taipei City Government
 taipei, TLD_ICANN
-#  talk : 2015-04-09 Amazon EU S.à r.l.
+#  talk : 2015-04-09 Amazon Registry Services, Inc.
 talk, TLD_ICANN
 #  taobao : 2015-01-15 Alibaba Group Holding Limited
 taobao, TLD_ICANN
@@ -8902,19 +8934,19 @@ tatamotors, TLD_ICANN
 tatar, TLD_ICANN
 #  tattoo : 2013-08-30 Uniregistry, Corp.
 tattoo, TLD_ICANN
-#  tax : 2014-03-20 Storm Orchard, LLC
+#  tax : 2014-03-20 Binky Moon, LLC
 tax, TLD_ICANN
-#  taxi : 2015-03-19 Pine Falls, LLC
+#  taxi : 2015-03-19 Binky Moon, LLC
 taxi, TLD_ICANN
 #  tci : 2014-09-12 Asia Green IT System Bilgisayar San. ve Tic. Ltd. Sti.
 tci, TLD_ICANN
 #  tdk : 2015-06-11 TDK Corporation
 tdk, TLD_ICANN
-#  team : 2015-03-05 Atomic Lake, LLC
+#  team : 2015-03-05 Binky Moon, LLC
 team, TLD_ICANN
-#  tech : 2015-01-30 Dot Tech LLC
+#  tech : 2015-01-30 Personals TLD Inc.
 tech, TLD_ICANN
-#  technology : 2013-09-13 Auburn Falls
+#  technology : 2013-09-13 Binky Moon, LLC
 technology, TLD_ICANN
 #  telecity : 2015-02-19 TelecityGroup International Limited
 telecity, TLD_ICANN
@@ -8922,29 +8954,27 @@ telecity, TLD_ICANN
 telefonica, TLD_ICANN
 #  temasek : 2014-08-07 Temasek Holdings (Private) Limited
 temasek, TLD_ICANN
-#  tennis : 2014-12-04 Cotton Bloom, LLC
+#  tennis : 2014-12-04 Binky Moon, LLC
 tennis, TLD_ICANN
 #  teva : 2015-07-02 Teva Pharmaceutical Industries Limited
 teva, TLD_ICANN
-#  thd : 2015-04-02 Homer TLC, Inc.
+#  thd : 2015-04-02 Home Depot Product Authority, LLC
 thd, TLD_ICANN
-#  theater : 2015-03-19 Blue Tigers, LLC
+#  theater : 2015-03-19 Binky Moon, LLC
 theater, TLD_ICANN
-#  theatre : 2015-05-07
+#  theatre : 2015-05-07 XYZ.COM LLC
 theatre, TLD_ICANN
-#  theguardian : 2015-04-30 Guardian News and Media Limited
-theguardian, TLD_ICANN
 #  tiaa : 2015-07-23 Teachers Insurance and Annuity Association of America
 tiaa, TLD_ICANN
 #  tickets : 2015-02-05 Accent Media Limited
 tickets, TLD_ICANN
-#  tienda : 2013-11-14 Victor Manor, LLC
+#  tienda : 2013-11-14 Binky Moon, LLC
 tienda, TLD_ICANN
 #  tiffany : 2015-01-30 Tiffany and Company
 tiffany, TLD_ICANN
-#  tips : 2013-09-20 Corn Willow, LLC
+#  tips : 2013-09-20 Binky Moon, LLC
 tips, TLD_ICANN
-#  tires : 2014-11-07 Dog Edge, LLC
+#  tires : 2014-11-07 Binky Moon, LLC
 tires, TLD_ICANN
 #  tirol : 2014-04-24 punkt Tirol GmbH
 tirol, TLD_ICANN
@@ -8956,13 +8986,13 @@ tjx, TLD_ICANN
 tkmaxx, TLD_ICANN
 #  tmall : 2015-01-15 Alibaba Group Holding Limited
 tmall, TLD_ICANN
-#  today : 2013-09-20 Pearl Woods, LLC
+#  today : 2013-09-20 Binky Moon, LLC
 today, TLD_ICANN
 #  tokyo : 2013-11-13 GMO Registry, Inc.
 tokyo, TLD_ICANN
-#  tools : 2013-11-21 Pioneer North, LLC
+#  tools : 2013-11-21 Binky Moon, LLC
 tools, TLD_ICANN
-#  top : 2014-03-20 Jiangsu Bangning Science & Technology Co.,Ltd.
+#  top : 2014-03-20 .TOP Registry
 top, TLD_ICANN
 #  toray : 2014-12-18 Toray Industries, Inc.
 toray, TLD_ICANN
@@ -8970,19 +9000,19 @@ toray, TLD_ICANN
 toshiba, TLD_ICANN
 #  total : 2015-08-06 Total SA
 total, TLD_ICANN
-#  tours : 2015-01-22 Sugar Station, LLC
+#  tours : 2015-01-22 Binky Moon, LLC
 tours, TLD_ICANN
-#  town : 2014-03-06 Koko Moon, LLC
+#  town : 2014-03-06 Binky Moon, LLC
 town, TLD_ICANN
 #  toyota : 2015-04-23 TOYOTA MOTOR CORPORATION
 toyota, TLD_ICANN
-#  toys : 2014-03-06 Pioneer Orchard, LLC
+#  toys : 2014-03-06 Binky Moon, LLC
 toys, TLD_ICANN
 #  trade : 2014-01-23 Elite Registry Limited
 trade, TLD_ICANN
-#  trading : 2014-12-11 IG Group Holdings PLC
+#  trading : 2014-12-11 Dottrading Registry Limited
 trading, TLD_ICANN
-#  training : 2013-11-07 Wild Willow, LLC
+#  training : 2013-11-07 Binky Moon, LLC
 training, TLD_ICANN
 #  travelchannel : 2015-07-02 Lifestyle Domain Holdings, Inc.
 travelchannel, TLD_ICANN
@@ -8990,7 +9020,7 @@ travelchannel, TLD_ICANN
 travelers, TLD_ICANN
 #  travelersinsurance : 2015-03-26 Travelers TLD, LLC
 travelersinsurance, TLD_ICANN
-#  trust : 2014-10-16
+#  trust : 2014-10-16 NCC Group Inc.
 trust, TLD_ICANN
 #  trv : 2015-03-26 Travelers TLD, LLC
 trv, TLD_ICANN
@@ -8998,9 +9028,9 @@ trv, TLD_ICANN
 tube, TLD_ICANN
 #  tui : 2014-07-03 TUI AG
 tui, TLD_ICANN
-#  tunes : 2015-02-26 Amazon EU S.à r.l.
+#  tunes : 2015-02-26 Amazon Registry Services, Inc.
 tunes, TLD_ICANN
-#  tushu : 2014-12-18 Amazon EU S.à r.l.
+#  tushu : 2014-12-18 Amazon Registry Services, Inc.
 tushu, TLD_ICANN
 #  tvs : 2015-02-19 T V SUNDRAM IYENGAR  & SONS LIMITED
 tvs, TLD_ICANN
@@ -9012,7 +9042,7 @@ ubs, TLD_ICANN
 uconnect, TLD_ICANN
 #  unicom : 2015-10-15 China United Network Communications Corporation Limited
 unicom, TLD_ICANN
-#  university : 2014-03-06 Little Station, LLC
+#  university : 2014-03-06 Binky Moon, LLC
 university, TLD_ICANN
 #  uno : 2013-09-11 Dot Latin LLC
 uno, TLD_ICANN
@@ -9020,7 +9050,7 @@ uno, TLD_ICANN
 uol, TLD_ICANN
 #  ups : 2015-06-25 UPS Market Driver, Inc.
 ups, TLD_ICANN
-#  vacations : 2013-12-05 Atomic Tigers, LLC
+#  vacations : 2013-12-05 Binky Moon, LLC
 vacations, TLD_ICANN
 #  vana : 2014-12-11 Lifestyle Domain Holdings, Inc.
 vana, TLD_ICANN
@@ -9028,25 +9058,25 @@ vana, TLD_ICANN
 vanguard, TLD_ICANN
 #  vegas : 2014-01-16 Dot Vegas, Inc.
 vegas, TLD_ICANN
-#  ventures : 2013-08-27 Binky Lake, LLC
+#  ventures : 2013-08-27 Binky Moon, LLC
 ventures, TLD_ICANN
 #  verisign : 2015-08-13 VeriSign, Inc.
 verisign, TLD_ICANN
-#  versicherung : 2014-03-20 dotversicherung-registry GmbH
+#  versicherung : 2014-03-20 TLD-BOX Registrydienstleistungen GmbH
 versicherung, TLD_ICANN
-#  vet : 2014-03-06
+#  vet : 2014-03-06 United TLD Holdco Ltd.
 vet, TLD_ICANN
-#  viajes : 2013-10-17 Black Madison, LLC
+#  viajes : 2013-10-17 Binky Moon, LLC
 viajes, TLD_ICANN
-#  video : 2014-10-16
+#  video : 2014-10-16 United TLD Holdco Ltd.
 video, TLD_ICANN
 #  vig : 2015-05-14 VIENNA INSURANCE GROUP AG Wiener Versicherung Gruppe
 vig, TLD_ICANN
 #  viking : 2015-04-02 Viking River Cruises (Bermuda) Ltd.
 viking, TLD_ICANN
-#  villas : 2013-12-05 New Sky, LLC
+#  villas : 2013-12-05 Binky Moon, LLC
 villas, TLD_ICANN
-#  vin : 2015-06-18 Holly Shadow, LLC
+#  vin : 2015-06-18 Binky Moon, LLC
 vin, TLD_ICANN
 #  vip : 2015-01-22 Minds + Machines Group Limited
 vip, TLD_ICANN
@@ -9054,7 +9084,7 @@ vip, TLD_ICANN
 virgin, TLD_ICANN
 #  visa : 2015-07-30 Visa Worldwide Pte. Limited
 visa, TLD_ICANN
-#  vision : 2013-12-05 Koko Station, LLC
+#  vision : 2013-12-05 Binky Moon, LLC
 vision, TLD_ICANN
 #  vista : 2014-09-18 Vistaprint Limited
 vista, TLD_ICANN
@@ -9066,7 +9096,7 @@ viva, TLD_ICANN
 vivo, TLD_ICANN
 #  vlaanderen : 2014-02-06 DNS.be vzw
 vlaanderen, TLD_ICANN
-#  vodka : 2013-12-19 Top Level Domain Holdings Limited
+#  vodka : 2013-12-19 Minds + Machines Group Limited
 vodka, TLD_ICANN
 #  volkswagen : 2015-05-14 Volkswagen Group of America Inc.
 volkswagen, TLD_ICANN
@@ -9078,7 +9108,7 @@ vote, TLD_ICANN
 voting, TLD_ICANN
 #  voto : 2013-11-21 Monolith Registry LLC
 voto, TLD_ICANN
-#  voyage : 2013-08-27 Ruby House, LLC
+#  voyage : 2013-08-27 Binky Moon, LLC
 voyage, TLD_ICANN
 #  vuelos : 2015-03-05 Travel Reservations SRL
 vuelos, TLD_ICANN
@@ -9088,19 +9118,19 @@ wales, TLD_ICANN
 walmart, TLD_ICANN
 #  walter : 2014-11-13 Sandvik AB
 walter, TLD_ICANN
-#  wang : 2013-10-24 Zodiac Leo Limited
+#  wang : 2013-10-24 Zodiac Wang Limited
 wang, TLD_ICANN
-#  wanggou : 2014-12-18 Amazon EU S.à r.l.
+#  wanggou : 2014-12-18 Amazon Registry Services, Inc.
 wanggou, TLD_ICANN
 #  warman : 2015-06-18 Weir Group IP Limited
 warman, TLD_ICANN
-#  watch : 2013-11-14 Sand Shadow, LLC
+#  watch : 2013-11-14 Binky Moon, LLC
 watch, TLD_ICANN
 #  watches : 2014-12-22 Richemont DNS Inc.
 watches, TLD_ICANN
-#  weather : 2015-01-08 The Weather Channel, LLC
+#  weather : 2015-01-08 International Business Machines Corporation
 weather, TLD_ICANN
-#  weatherchannel : 2015-03-12 The Weather Channel, LLC
+#  weatherchannel : 2015-03-12 International Business Machines Corporation
 weatherchannel, TLD_ICANN
 #  webcam : 2014-01-23 dot Webcam Limited
 webcam, TLD_ICANN
@@ -9110,7 +9140,7 @@ weber, TLD_ICANN
 website, TLD_ICANN
 #  wed : 2013-10-01 Atgron, Inc.
 wed, TLD_ICANN
-#  wedding : 2014-04-24 Top Level Domain Holdings Limited
+#  wedding : 2014-04-24 Minds + Machines Group Limited
 wedding, TLD_ICANN
 #  weibo : 2015-03-05 Sina Corporation
 weibo, TLD_ICANN
@@ -9128,7 +9158,7 @@ williamhill, TLD_ICANN
 win, TLD_ICANN
 #  windows : 2014-12-18 Microsoft Corporation
 windows, TLD_ICANN
-#  wine : 2015-06-18 June Station, LLC
+#  wine : 2015-06-18 Binky Moon, LLC
 wine, TLD_ICANN
 #  winners : 2015-07-16 The TJX Companies, Inc.
 winners, TLD_ICANN
@@ -9138,17 +9168,17 @@ wme, TLD_ICANN
 wolterskluwer, TLD_ICANN
 #  woodside : 2015-07-09 Woodside Petroleum Limited
 woodside, TLD_ICANN
-#  work : 2013-12-19 Top Level Domain Holdings Limited
+#  work : 2013-12-19 Minds + Machines Group Limited
 work, TLD_ICANN
-#  works : 2013-11-14 Little Dynamite, LLC
+#  works : 2013-11-14 Binky Moon, LLC
 works, TLD_ICANN
-#  world : 2014-06-12 Bitter Fields, LLC
+#  world : 2014-06-12 Binky Moon, LLC
 world, TLD_ICANN
-#  wow : 2015-10-08 Amazon EU S.à r.l.
+#  wow : 2015-10-08 Amazon Registry Services, Inc.
 wow, TLD_ICANN
 #  wtc : 2013-12-19 World Trade Centers Association, Inc.
 wtc, TLD_ICANN
-#  wtf : 2014-03-06 Hidden Way, LLC
+#  wtf : 2014-03-06 Binky Moon, LLC
 wtf, TLD_ICANN
 #  xbox : 2014-12-18 Microsoft Corporation
 xbox, TLD_ICANN
@@ -9163,7 +9193,7 @@ xin, TLD_ICANN
 #  xn--11b4c3d : 2015-01-15 VeriSign Sarl
 # कॉम
 xn--11b4c3d, TLD_ICANN
-#  xn--1ck2e1b : 2015-02-26 Amazon EU S.à r.l.
+#  xn--1ck2e1b : 2015-02-26 Amazon Registry Services, Inc.
 # セール
 xn--1ck2e1b, TLD_ICANN
 #  xn--1qqw23a : 2014-01-09 Guangzhou YU Wei Information Technology Co., Ltd.
@@ -9187,19 +9217,16 @@ xn--3pxu8k, TLD_ICANN
 #  xn--42c2d9a : 2015-01-15 VeriSign Sarl
 # คอม
 xn--42c2d9a, TLD_ICANN
-#  xn--45q11c : 2013-11-21 Zodiac Scorpio Limited
+#  xn--45q11c : 2013-11-21 Zodiac Gemini Ltd
 # 八卦
 xn--45q11c, TLD_ICANN
 #  xn--4gbrim : 2013-10-04 Suhub Electronic Establishment
 # موقع
 xn--4gbrim, TLD_ICANN
-#  xn--4gq48lf9j : 2015-07-31 Wal-Mart Stores, Inc.
-# 一号店
-xn--4gq48lf9j, TLD_ICANN
 #  xn--55qw42g : 2013-11-08 China Organizational Name Administration Center
 # 公益
 xn--55qw42g, TLD_ICANN
-#  xn--55qx5d : 2013-11-14 Computer Network Information Center of Chinese Academy of Sciences （China Internet Network Information Center）
+#  xn--55qx5d : 2013-11-14 China Internet Network Information Center (CNNIC)
 # 公司
 xn--55qx5d, TLD_ICANN
 #  xn--5su34j936bgsg : 2015-09-03 Shangri‐La International Hotel Management Limited
@@ -9208,7 +9235,7 @@ xn--5su34j936bgsg, TLD_ICANN
 #  xn--5tzm5g : 2014-12-22 Global Website TLD Asia Limited
 # 网站
 xn--5tzm5g, TLD_ICANN
-#  xn--6frz82g : 2013-09-23 Afilias Limited
+#  xn--6frz82g : 2013-09-23 Afilias plc
 # 移动
 xn--6frz82g, TLD_ICANN
 #  xn--6qq986b3xl : 2013-09-13 Tycoon Treasure Limited
@@ -9241,7 +9268,7 @@ xn--9krt00a, TLD_ICANN
 #  xn--b4w605ferd : 2014-08-07 Temasek Holdings (Private) Limited
 # 淡马锡
 xn--b4w605ferd, TLD_ICANN
-#  xn--bck1b9a5dre4c : 2015-02-26 Amazon EU S.à r.l.
+#  xn--bck1b9a5dre4c : 2015-02-26 Amazon Registry Services, Inc.
 # ファッション
 xn--bck1b9a5dre4c, TLD_ICANN
 #  xn--c1avg : 2013-11-14 Public Interest Registry
@@ -9250,34 +9277,34 @@ xn--c1avg, TLD_ICANN
 #  xn--c2br7g : 2015-01-15 VeriSign Sarl
 # नेट
 xn--c2br7g, TLD_ICANN
-#  xn--cck2b3b : 2015-02-26 Amazon EU S.à r.l.
+#  xn--cck2b3b : 2015-02-26 Amazon Registry Services, Inc.
 # ストア
 xn--cck2b3b, TLD_ICANN
 #  xn--cg4bki : 2013-09-27 SAMSUNG SDS CO., LTD
 # 삼성
 xn--cg4bki, TLD_ICANN
-#  xn--czr694b : 2014-01-16 HU YI GLOBAL INFORMATION RESOURCES (HOLDING) COMPANY. HONGKONG LIMITED
+#  xn--czr694b : 2014-01-16 Dot Trademark TLD Holding Company Limited
 # 商标
 xn--czr694b, TLD_ICANN
-#  xn--czrs0t : 2013-12-19 Wild Island, LLC
+#  xn--czrs0t : 2013-12-19 Binky Moon, LLC
 # 商店
 xn--czrs0t, TLD_ICANN
-#  xn--czru2d : 2013-11-21 Zodiac Capricorn Limited
+#  xn--czru2d : 2013-11-21 Zodiac Aquarius Limited
 # 商城
 xn--czru2d, TLD_ICANN
 #  xn--d1acj3b : 2013-11-20 The Foundation for Network Initiatives “The Smart Internet”
 # дети
 xn--d1acj3b, TLD_ICANN
-#  xn--eckvdtc9d : 2014-12-18 Amazon EU S.à r.l.
+#  xn--eckvdtc9d : 2014-12-18 Amazon Registry Services, Inc.
 # ポイント
 xn--eckvdtc9d, TLD_ICANN
-#  xn--efvy88h : 2014-08-22 Xinhua News Agency Guangdong Branch 新华通讯社广东分社
+#  xn--efvy88h : 2014-08-22 Guangzhou YU Wei Information Technology Co., Ltd.
 # 新闻
 xn--efvy88h, TLD_ICANN
 #  xn--estv75g : 2015-02-19 Industrial and Commercial Bank of China Limited
 # 工行
 xn--estv75g, TLD_ICANN
-#  xn--fct429k : 2015-04-09 Amazon EU S.à r.l.
+#  xn--fct429k : 2015-04-09 Amazon Registry Services, Inc.
 # 家電
 xn--fct429k, TLD_ICANN
 #  xn--fhbei : 2015-01-15 VeriSign Sarl
@@ -9289,7 +9316,7 @@ xn--fiq228c5hs, TLD_ICANN
 #  xn--fiq64b : 2013-10-14 CITIC Group Corporation
 # 中信
 xn--fiq64b, TLD_ICANN
-#  xn--fjq720a : 2014-05-22 Will Bloom, LLC
+#  xn--fjq720a : 2014-05-22 Binky Moon, LLC
 # 娱乐
 xn--fjq720a, TLD_ICANN
 #  xn--flw351e : 2014-07-31 Charleston Road Registry Inc.
@@ -9301,22 +9328,22 @@ xn--fzys8d69uvgm, TLD_ICANN
 #  xn--g2xx48c : 2015-01-30 Minds + Machines Group Limited
 # 购物
 xn--g2xx48c, TLD_ICANN
-#  xn--gckr3f0f : 2015-02-26 Amazon EU S.à r.l.
+#  xn--gckr3f0f : 2015-02-26 Amazon Registry Services, Inc.
 # クラウド
 xn--gckr3f0f, TLD_ICANN
-#  xn--gk3at1e : 2015-10-08 Amazon EU S.à r.l.
+#  xn--gk3at1e : 2015-10-08 Amazon Registry Services, Inc.
 # 通販
 xn--gk3at1e, TLD_ICANN
-#  xn--hxt814e : 2014-05-15 Zodiac Libra Limited
+#  xn--hxt814e : 2014-05-15 Zodiac Taurus Limited
 # 网店
 xn--hxt814e, TLD_ICANN
 #  xn--i1b6b1a6a2e : 2013-11-14 Public Interest Registry
 # संगठन
 xn--i1b6b1a6a2e, TLD_ICANN
-#  xn--imr513n : 2014-12-11 HU YI GLOBAL INFORMATION RESOURCES (HOLDING) COMPANY. HONGKONG LIMITED
+#  xn--imr513n : 2014-12-11 Dot Trademark TLD Holding Company Limited
 # 餐厅
 xn--imr513n, TLD_ICANN
-#  xn--io0a7i : 2013-11-14 Computer Network Information Center of Chinese Academy of Sciences （China Internet Network Information Center）
+#  xn--io0a7i : 2013-11-14 China Internet Network Information Center (CNNIC)
 # 网络
 xn--io0a7i, TLD_ICANN
 #  xn--j1aef : 2015-01-15 VeriSign Sarl
@@ -9325,7 +9352,7 @@ xn--j1aef, TLD_ICANN
 #  xn--jlq61u9w7b : 2015-01-08 Nokia Corporation
 # 诺基亚
 xn--jlq61u9w7b, TLD_ICANN
-#  xn--jvr189m : 2015-02-26 Amazon EU S.à r.l.
+#  xn--jvr189m : 2015-02-26 Amazon Registry Services, Inc.
 # 食品
 xn--jvr189m, TLD_ICANN
 #  xn--kcrx77d1x4a : 2014-11-07 Koninklijke Philips N.V.
@@ -9385,6 +9412,9 @@ xn--nqv7fs00ema, TLD_ICANN
 #  xn--nyqy26a : 2014-11-07 Stable Tone Limited
 # 健康
 xn--nyqy26a, TLD_ICANN
+#  xn--otu796d : 2017-08-06 Dot Trademark TLD Holding Company Limited
+# 招聘
+xn--otu796d, TLD_ICANN
 #  xn--p1acf : 2013-12-12 Rusnames Limited
 # рус
 xn--p1acf, TLD_ICANN
@@ -9403,10 +9433,10 @@ xn--qcka1pmc, TLD_ICANN
 #  xn--rhqv96g : 2013-09-11 Stable Tone Limited
 # 世界
 xn--rhqv96g, TLD_ICANN
-#  xn--rovu88b : 2015-02-26 Amazon EU S.à r.l.
+#  xn--rovu88b : 2015-02-26 Amazon Registry Services, Inc.
 # 書籍
 xn--rovu88b, TLD_ICANN
-#  xn--ses554g : 2014-01-16
+#  xn--ses554g : 2014-01-16 KNET Co., Ltd.
 # 网址
 xn--ses554g, TLD_ICANN
 #  xn--t60b56a : 2015-01-15 VeriSign Sarl
@@ -9418,7 +9448,7 @@ xn--tckwe, TLD_ICANN
 #  xn--tiq49xqyj : 2015-10-21 Pontificium Consilium de Comunicationibus Socialibus (PCCS) (Pontifical Council for Social Communication)
 # 天主教
 xn--tiq49xqyj, TLD_ICANN
-#  xn--unup4y : 2013-07-14 Spring Fields, LLC
+#  xn--unup4y : 2013-07-14 Binky Moon, LLC
 # 游戏
 xn--unup4y, TLD_ICANN
 #  xn--vermgensberater-ctb : 2014-06-23 Deutsche Vermögensberatung Aktiengesellschaft DVAG
@@ -9427,7 +9457,7 @@ xn--vermgensberater-ctb, TLD_ICANN
 #  xn--vermgensberatung-pwb : 2014-06-23 Deutsche Vermögensberatung Aktiengesellschaft DVAG
 # vermögensberatung
 xn--vermgensberatung-pwb, TLD_ICANN
-#  xn--vhquv : 2013-08-27 Dash McCook, LLC
+#  xn--vhquv : 2013-08-27 Binky Moon, LLC
 # 企业
 xn--vhquv, TLD_ICANN
 #  xn--vuq861b : 2014-10-16 Beijing Tele-info Network Technology Co., Ltd.
@@ -9453,39 +9483,44 @@ xyz, TLD_ICANN
 yachts, TLD_ICANN
 #  yahoo : 2015-04-02 Yahoo! Domain Services Inc.
 yahoo, TLD_ICANN
-#  yamaxun : 2014-12-18 Amazon EU S.à r.l.
+#  yamaxun : 2014-12-18 Amazon Registry Services, Inc.
 yamaxun, TLD_ICANN
 #  yandex : 2014-04-10 YANDEX, LLC
 yandex, TLD_ICANN
 #  yodobashi : 2014-11-20 YODOBASHI CAMERA CO.,LTD.
 yodobashi, TLD_ICANN
-#  yoga : 2014-05-29 Top Level Domain Holdings Limited
+#  yoga : 2014-05-29 Minds + Machines Group Limited
 yoga, TLD_ICANN
 #  yokohama : 2013-12-12 GMO Registry, Inc.
 yokohama, TLD_ICANN
-#  you : 2015-04-09 Amazon EU S.à r.l.
+#  you : 2015-04-09 Amazon Registry Services, Inc.
 you, TLD_ICANN
 #  youtube : 2014-05-01 Charleston Road Registry Inc.
 youtube, TLD_ICANN
 #  yun : 2015-01-08 QIHOO 360 TECHNOLOGY CO. LTD.
 yun, TLD_ICANN
-#  zappos : 2015-06-25 Amazon EU S.à r.l.
+#  zappos : 2015-06-25 Amazon Registry Services, Inc.
 zappos, TLD_ICANN
 #  zara : 2014-11-07 Industria de Diseño Textil, S.A. (INDITEX, S.A.)
 zara, TLD_ICANN
-#  zero : 2014-12-18 Amazon EU S.à r.l.
+#  zero : 2014-12-18 Amazon Registry Services, Inc.
 zero, TLD_ICANN
 #  zip : 2014-05-08 Charleston Road Registry Inc.
 zip, TLD_ICANN
 #  zippo : 2015-07-02 Zadco Company
 zippo, TLD_ICANN
-#  zone : 2013-11-14 Outer Falls, LLC
+#  zone : 2013-11-14 Binky Moon, LLC
 zone, TLD_ICANN
 #  zuerich : 2014-11-07 Kanton Zürich (Canton of Zurich)
 zuerich, TLD_ICANN
 #  ===END ICANN DOMAINS===
 #  ===BEGIN PRIVATE DOMAINS===
 #  (Note: these are in alphabetical order by company name)
+#  1GB LLC : https://www.1gb.ua/
+#  Submitted by 1GB LLC <noc@1gb.com.ua>
+cc.ua, TLD_PRIVATE
+inf.ua, TLD_PRIVATE
+ltd.ua, TLD_PRIVATE
 #  Agnat sp. z o.o. : https://domena.pl
 #  Submitted by Przemyslaw Plewa <it-admin@domena.pl>
 beep.pl, TLD_PRIVATE
@@ -9493,72 +9528,152 @@ beep.pl, TLD_PRIVATE
 #  Submitted by Mark J. Titorenko <mark.titorenko@alces-software.com>
 compute.estate, TLD_WILDCARD
 alces.network, TLD_WILDCARD
+#  alwaysdata : https://www.alwaysdata.com
+#  Submitted by Cyril <admin@alwaysdata.com>
+alwaysdata.net, TLD_PRIVATE
 #  Amazon CloudFront : https://aws.amazon.com/cloudfront/
 #  Submitted by Donavan Miller <donavanm@amazon.com>
 cloudfront.net, TLD_PRIVATE
-#  Amazon Elastic Compute Cloud: https://aws.amazon.com/ec2/
-#  Submitted by Philip Allchin <pallchin@amazon.com>
-compute.amazonaws.com, TLD_PRIVATE
-ap-northeast-1.compute.amazonaws.com, TLD_PRIVATE
-ap-northeast-2.compute.amazonaws.com, TLD_PRIVATE
-ap-southeast-1.compute.amazonaws.com, TLD_PRIVATE
-ap-southeast-2.compute.amazonaws.com, TLD_PRIVATE
-eu-central-1.compute.amazonaws.com, TLD_PRIVATE
-eu-west-1.compute.amazonaws.com, TLD_PRIVATE
-sa-east-1.compute.amazonaws.com, TLD_PRIVATE
-us-gov-west-1.compute.amazonaws.com, TLD_PRIVATE
-us-west-1.compute.amazonaws.com, TLD_PRIVATE
-us-west-2.compute.amazonaws.com, TLD_PRIVATE
+#  Amazon Elastic Compute Cloud : https://aws.amazon.com/ec2/
+#  Submitted by Luke Wells <psl-maintainers@amazon.com>
+compute.amazonaws.com, TLD_WILDCARD
+compute-1.amazonaws.com, TLD_WILDCARD
+compute.amazonaws.com.cn, TLD_WILDCARD
 us-east-1.amazonaws.com, TLD_PRIVATE
-compute-1.amazonaws.com, TLD_PRIVATE
-z-1.compute-1.amazonaws.com, TLD_PRIVATE
-z-2.compute-1.amazonaws.com, TLD_PRIVATE
-compute.amazonaws.com.cn, TLD_PRIVATE
-cn-north-1.compute.amazonaws.com.cn, TLD_PRIVATE
 #  Amazon Elastic Beanstalk : https://aws.amazon.com/elasticbeanstalk/
-#  Submitted by Adam Stein <astein@amazon.com>
+#  Submitted by Luke Wells <psl-maintainers@amazon.com>
+cn-north-1.eb.amazonaws.com.cn, TLD_PRIVATE
 elasticbeanstalk.com, TLD_PRIVATE
+ap-northeast-1.elasticbeanstalk.com, TLD_PRIVATE
+ap-northeast-2.elasticbeanstalk.com, TLD_PRIVATE
+ap-northeast-3.elasticbeanstalk.com, TLD_PRIVATE
+ap-south-1.elasticbeanstalk.com, TLD_PRIVATE
+ap-southeast-1.elasticbeanstalk.com, TLD_PRIVATE
+ap-southeast-2.elasticbeanstalk.com, TLD_PRIVATE
+ca-central-1.elasticbeanstalk.com, TLD_PRIVATE
+eu-central-1.elasticbeanstalk.com, TLD_PRIVATE
+eu-west-1.elasticbeanstalk.com, TLD_PRIVATE
+eu-west-2.elasticbeanstalk.com, TLD_PRIVATE
+eu-west-3.elasticbeanstalk.com, TLD_PRIVATE
+sa-east-1.elasticbeanstalk.com, TLD_PRIVATE
+us-east-1.elasticbeanstalk.com, TLD_PRIVATE
+us-east-2.elasticbeanstalk.com, TLD_PRIVATE
+us-gov-west-1.elasticbeanstalk.com, TLD_PRIVATE
+us-west-1.elasticbeanstalk.com, TLD_PRIVATE
+us-west-2.elasticbeanstalk.com, TLD_PRIVATE
 #  Amazon Elastic Load Balancing : https://aws.amazon.com/elasticloadbalancing/
-#  Submitted by Scott Vidmar <svidmar@amazon.com>
-elb.amazonaws.com, TLD_PRIVATE
+#  Submitted by Luke Wells <psl-maintainers@amazon.com>
+elb.amazonaws.com, TLD_WILDCARD
+elb.amazonaws.com.cn, TLD_WILDCARD
 #  Amazon S3 : https://aws.amazon.com/s3/
-#  Submitted by Luke Wells <lawells@amazon.com>
+#  Submitted by Luke Wells <psl-maintainers@amazon.com>
 s3.amazonaws.com, TLD_PRIVATE
 s3-ap-northeast-1.amazonaws.com, TLD_PRIVATE
 s3-ap-northeast-2.amazonaws.com, TLD_PRIVATE
+s3-ap-south-1.amazonaws.com, TLD_PRIVATE
 s3-ap-southeast-1.amazonaws.com, TLD_PRIVATE
 s3-ap-southeast-2.amazonaws.com, TLD_PRIVATE
+s3-ca-central-1.amazonaws.com, TLD_PRIVATE
 s3-eu-central-1.amazonaws.com, TLD_PRIVATE
 s3-eu-west-1.amazonaws.com, TLD_PRIVATE
+s3-eu-west-2.amazonaws.com, TLD_PRIVATE
+s3-eu-west-3.amazonaws.com, TLD_PRIVATE
 s3-external-1.amazonaws.com, TLD_PRIVATE
-s3-external-2.amazonaws.com, TLD_PRIVATE
 s3-fips-us-gov-west-1.amazonaws.com, TLD_PRIVATE
 s3-sa-east-1.amazonaws.com, TLD_PRIVATE
 s3-us-gov-west-1.amazonaws.com, TLD_PRIVATE
+s3-us-east-2.amazonaws.com, TLD_PRIVATE
 s3-us-west-1.amazonaws.com, TLD_PRIVATE
 s3-us-west-2.amazonaws.com, TLD_PRIVATE
 s3.ap-northeast-2.amazonaws.com, TLD_PRIVATE
+s3.ap-south-1.amazonaws.com, TLD_PRIVATE
 s3.cn-north-1.amazonaws.com.cn, TLD_PRIVATE
+s3.ca-central-1.amazonaws.com, TLD_PRIVATE
 s3.eu-central-1.amazonaws.com, TLD_PRIVATE
+s3.eu-west-2.amazonaws.com, TLD_PRIVATE
+s3.eu-west-3.amazonaws.com, TLD_PRIVATE
+s3.us-east-2.amazonaws.com, TLD_PRIVATE
+s3.dualstack.ap-northeast-1.amazonaws.com, TLD_PRIVATE
+s3.dualstack.ap-northeast-2.amazonaws.com, TLD_PRIVATE
+s3.dualstack.ap-south-1.amazonaws.com, TLD_PRIVATE
+s3.dualstack.ap-southeast-1.amazonaws.com, TLD_PRIVATE
+s3.dualstack.ap-southeast-2.amazonaws.com, TLD_PRIVATE
+s3.dualstack.ca-central-1.amazonaws.com, TLD_PRIVATE
+s3.dualstack.eu-central-1.amazonaws.com, TLD_PRIVATE
+s3.dualstack.eu-west-1.amazonaws.com, TLD_PRIVATE
+s3.dualstack.eu-west-2.amazonaws.com, TLD_PRIVATE
+s3.dualstack.eu-west-3.amazonaws.com, TLD_PRIVATE
+s3.dualstack.sa-east-1.amazonaws.com, TLD_PRIVATE
+s3.dualstack.us-east-1.amazonaws.com, TLD_PRIVATE
+s3.dualstack.us-east-2.amazonaws.com, TLD_PRIVATE
+s3-website-us-east-1.amazonaws.com, TLD_PRIVATE
+s3-website-us-west-1.amazonaws.com, TLD_PRIVATE
+s3-website-us-west-2.amazonaws.com, TLD_PRIVATE
+s3-website-ap-northeast-1.amazonaws.com, TLD_PRIVATE
+s3-website-ap-southeast-1.amazonaws.com, TLD_PRIVATE
+s3-website-ap-southeast-2.amazonaws.com, TLD_PRIVATE
+s3-website-eu-west-1.amazonaws.com, TLD_PRIVATE
+s3-website-sa-east-1.amazonaws.com, TLD_PRIVATE
+s3-website.ap-northeast-2.amazonaws.com, TLD_PRIVATE
+s3-website.ap-south-1.amazonaws.com, TLD_PRIVATE
+s3-website.ca-central-1.amazonaws.com, TLD_PRIVATE
+s3-website.eu-central-1.amazonaws.com, TLD_PRIVATE
+s3-website.eu-west-2.amazonaws.com, TLD_PRIVATE
+s3-website.eu-west-3.amazonaws.com, TLD_PRIVATE
+s3-website.us-east-2.amazonaws.com, TLD_PRIVATE
+#  Amune : https://amune.org/
+#  Submitted by Team Amune <cert@amune.org>
+t3l3p0rt.net, TLD_PRIVATE
+tele.amune.org, TLD_PRIVATE
 #  Aptible : https://www.aptible.com/
 #  Submitted by Thomas Orozco <thomas@aptible.com>
 on-aptible.com, TLD_PRIVATE
+#  Asociación Amigos de la Informática "Euskalamiga" : http://encounter.eus/
+#  Submitted by Hector Martin <marcan@euskalencounter.org>
+user.party.eus, TLD_PRIVATE
 #  Association potager.org : https://potager.org/
 #  Submitted by Lunar <jardiniers@potager.org>
-potager.org, TLD_PRIVATE
-poivron.org, TLD_PRIVATE
-sweetpepper.org, TLD_PRIVATE
 pimienta.org, TLD_PRIVATE
+poivron.org, TLD_PRIVATE
+potager.org, TLD_PRIVATE
+sweetpepper.org, TLD_PRIVATE
+#  ASUSTOR Inc. : http://www.asustor.com
+#  Submitted by Vincent Tseng <vincenttseng@asustor.com>
+myasustor.com, TLD_PRIVATE
 #  AVM : https://avm.de
 #  Submitted by Andreas Weise <a.weise@avm.de>
 myfritz.net, TLD_PRIVATE
+#  AW AdvisorWebsites.com Software Inc : https://advisorwebsites.com
+#  Submitted by James Kennedy <domains@advisorwebsites.com>
+awdev.ca, TLD_WILDCARD
+advisor.ws, TLD_WILDCARD
+#  backplane : https://www.backplane.io
+#  Submitted by Anthony Voutas <anthony@backplane.io>
+backplaneapp.io, TLD_PRIVATE
 #  BetaInABox
 #  Submitted by Adrian <adrian@betainabox.com>
 betainabox.com, TLD_PRIVATE
+#  BinaryLane : http://www.binarylane.com
+#  Submitted by Nathan O'Sullivan <nathan@mammoth.com.au>
+bnr.la, TLD_PRIVATE
+#  Boomla : https://boomla.com
+#  Submitted by Tibor Halter <thalter@boomla.com>
+boomla.net, TLD_PRIVATE
 #  Boxfuse : https://boxfuse.com
 #  Submitted by Axel Fontaine <axel@boxfuse.com>
 boxfuse.io, TLD_PRIVATE
-#  callidomus: https://www.callidomus.com/
+#  bplaced : https://www.bplaced.net/
+#  Submitted by Miroslav Bozic <security@bplaced.net>
+square7.ch, TLD_PRIVATE
+bplaced.com, TLD_PRIVATE
+bplaced.de, TLD_PRIVATE
+square7.de, TLD_PRIVATE
+bplaced.net, TLD_PRIVATE
+square7.net, TLD_PRIVATE
+#  BrowserSafetyMark
+#  Submitted by Dave Tharp <browsersafetymark.io@quicinc.com>
+browsersafetymark.io, TLD_PRIVATE
+#  callidomus : https://www.callidomus.com/
 #  Submitted by Marcus Popp <admin@callidomus.com>
 mycd.eu, TLD_PRIVATE
 #  CentralNic : http://www.centralnic.com/names/domains
@@ -9583,7 +9698,6 @@ no.com, TLD_PRIVATE
 qc.com, TLD_PRIVATE
 ru.com, TLD_PRIVATE
 sa.com, TLD_PRIVATE
-se.com, TLD_PRIVATE
 se.net, TLD_PRIVATE
 uk.com, TLD_PRIVATE
 uk.net, TLD_PRIVATE
@@ -9617,6 +9731,20 @@ xenapponazure.com, TLD_PRIVATE
 #  ClearVox : http://www.clearvox.nl/
 #  Submitted by Leon Rowland <leon@clearvox.nl>
 virtueeldomein.nl, TLD_PRIVATE
+#  Clever Cloud : https://www.clever-cloud.com/
+#  Submitted by Quentin Adam <noc@clever-cloud.com>
+cleverapps.io, TLD_PRIVATE
+#  Cloud66 : https://www.cloud66.com/
+#  Submitted by Khash Sajadi <khash@cloud66.com>
+c66.me, TLD_PRIVATE
+cloud66.ws, TLD_PRIVATE
+#  CloudAccess.net : https://www.cloudaccess.net/
+#  Submitted by Pawel Panek <noc@cloudaccess.net>
+jdevcloud.com, TLD_PRIVATE
+wpdevcloud.com, TLD_PRIVATE
+cloudaccess.host, TLD_PRIVATE
+freesite.host, TLD_PRIVATE
+cloudaccess.net, TLD_PRIVATE
 #  cloudControl : https://www.cloudcontrol.com/
 #  Submitted by Tobias Wilken <tw@cloudcontrol.com>
 cloudcontrolled.com, TLD_PRIVATE
@@ -9633,12 +9761,40 @@ cdn77-ssl.net, TLD_PRIVATE
 r.cdn77.net, TLD_PRIVATE
 rsc.cdn77.org, TLD_PRIVATE
 ssl.origin.cdn77-secure.org, TLD_PRIVATE
+#  Cloud DNS Ltd : http://www.cloudns.net
+#  Submitted by Aleksander Hristov <noc@cloudns.net>
+cloudns.asia, TLD_PRIVATE
+cloudns.biz, TLD_PRIVATE
+cloudns.club, TLD_PRIVATE
+cloudns.cc, TLD_PRIVATE
+cloudns.eu, TLD_PRIVATE
+cloudns.in, TLD_PRIVATE
+cloudns.info, TLD_PRIVATE
+cloudns.org, TLD_PRIVATE
+cloudns.pro, TLD_PRIVATE
+cloudns.pw, TLD_PRIVATE
+cloudns.us, TLD_PRIVATE
+#  Cloudeity Inc : https://cloudeity.com
+#  Submitted by Stefan Dimitrov <contact@cloudeity.com>
+cloudeity.net, TLD_PRIVATE
 #  CoDNS B.V.
 co.nl, TLD_PRIVATE
 co.no, TLD_PRIVATE
-#  Commerce Guys, SAS
-#  Submitted by Damien Tournoud <damien@commerceguys.com>
-platform.sh, TLD_WILDCARD
+#  Combell.com : https://www.combell.com
+#  Submitted by Thomas Wouters <thomas.wouters@combellgroup.com>
+webhosting.be, TLD_PRIVATE
+hosting-cluster.nl, TLD_PRIVATE
+#  COSIMO GmbH : http://www.cosimo.de
+#  Submitted by Rene Marticke <rmarticke@cosimo.de>
+dyn.cosidns.de, TLD_PRIVATE
+dynamisches-dns.de, TLD_PRIVATE
+dnsupdater.de, TLD_PRIVATE
+internet-dns.de, TLD_PRIVATE
+l-o-g-i-n.de, TLD_PRIVATE
+dynamic-dns.info, TLD_PRIVATE
+feste-ip.net, TLD_PRIVATE
+knx-server.net, TLD_PRIVATE
+static-access.net, TLD_PRIVATE
 #  Craynic, s.r.o. : http://www.craynic.com/
 #  Submitted by Ales Krajnik <ales.krajnik@craynic.com>
 realm.cz, TLD_PRIVATE
@@ -9655,6 +9811,7 @@ cyon.site, TLD_PRIVATE
 #  Daplie, Inc : https://daplie.com
 #  Submitted by AJ ONeal <aj@daplie.com>
 daplie.me, TLD_PRIVATE
+localhost.daplie.me, TLD_PRIVATE
 #  Dansk.net : http://www.dansk.net/
 #  Submitted by Anani Voule <digital@digital.co.dk>
 biz.dk, TLD_PRIVATE
@@ -9662,18 +9819,28 @@ co.dk, TLD_PRIVATE
 firm.dk, TLD_PRIVATE
 reg.dk, TLD_PRIVATE
 store.dk, TLD_PRIVATE
+#  Debian : https://www.debian.org/
+#  Submitted by Peter Palfrader / Debian Sysadmin Team <dsa-publicsuffixlist@debian.org>
+debian.net, TLD_PRIVATE
 #  deSEC : https://desec.io/
 #  Submitted by Peter Thomassen <peter@desec.io>
 dedyn.io, TLD_PRIVATE
 #  DNShome : https://www.dnshome.de/
 #  Submitted by Norbert Auler <mail@dnshome.de>
 dnshome.de, TLD_PRIVATE
+#  DrayTek Corp. : https://www.draytek.com/
+#  Submitted by Paul Fang <mis@draytek.com>
+drayddns.com, TLD_PRIVATE
 #  DreamHost : http://www.dreamhost.com/
 #  Submitted by Andrew Farmer <andrew.farmer@dreamhost.com>
 dreamhosters.com, TLD_PRIVATE
 #  Drobo : http://www.drobo.com/
 #  Submitted by Ricardo Padilha <rpadilha@drobo.com>
 mydrobo.com, TLD_PRIVATE
+#  Drud Holdings, LLC. : https://www.drud.com/
+#  Submitted by Kevin Bridges <kevin@drud.com>
+drud.io, TLD_PRIVATE
+drud.us, TLD_PRIVATE
 #  DuckDNS : http://www.duckdns.org/
 #  Submitted by Richard Harper <richard@duckdns.org>
 duckdns.org, TLD_PRIVATE
@@ -9961,12 +10128,53 @@ webhop.net, TLD_PRIVATE
 webhop.org, TLD_PRIVATE
 worse-than.tv, TLD_PRIVATE
 writesthisblog.com, TLD_PRIVATE
+#  ddnss.de : https://www.ddnss.de/
+#  Submitted by Robert Niedziela <webmaster@ddnss.de>
+ddnss.de, TLD_PRIVATE
+dyn.ddnss.de, TLD_PRIVATE
+dyndns.ddnss.de, TLD_PRIVATE
+dyndns1.de, TLD_PRIVATE
+dyn-ip24.de, TLD_PRIVATE
+home-webserver.de, TLD_PRIVATE
+dyn.home-webserver.de, TLD_PRIVATE
+myhome-server.de, TLD_PRIVATE
+ddnss.org, TLD_PRIVATE
+#  Definima : http://www.definima.com/
+#  Submitted by Maxence Bitterli <maxence@definima.com>
+definima.net, TLD_PRIVATE
+definima.io, TLD_PRIVATE
+#  Dynu.com : https://www.dynu.com/
+#  Submitted by Sue Ye <sue@dynu.com>
+ddnsfree.com, TLD_PRIVATE
+ddnsgeek.com, TLD_PRIVATE
+giize.com, TLD_PRIVATE
+gleeze.com, TLD_PRIVATE
+kozow.com, TLD_PRIVATE
+loseyourip.com, TLD_PRIVATE
+ooguy.com, TLD_PRIVATE
+theworkpc.com, TLD_PRIVATE
+casacam.net, TLD_PRIVATE
+dynu.net, TLD_PRIVATE
+accesscam.org, TLD_PRIVATE
+camdvr.org, TLD_PRIVATE
+freeddns.org, TLD_PRIVATE
+mywire.org, TLD_PRIVATE
+webredirect.org, TLD_PRIVATE
+myddns.rocks, TLD_PRIVATE
+blogsite.xyz, TLD_PRIVATE
 #  dynv6 : https://dynv6.com
-#  Submitted by Dominik Menke <dom@digineo.de> 2016-01-18
+#  Submitted by Dominik Menke <dom@digineo.de>
 dynv6.net, TLD_PRIVATE
 #  E4YOU spol. s.r.o. : https://e4you.cz/
 #  Submitted by Vladimir Dudr <info@e4you.cz>
 e4.cz, TLD_PRIVATE
+#  Enalean SAS: https://www.enalean.com
+#  Submitted by Thomas Cottier <thomas.cottier@enalean.com>
+mytuleap.com, TLD_PRIVATE
+#  Enonic : http://enonic.com/
+#  Submitted by Erik Kaareng-Sunde <esu@enonic.com>
+enonic.io, TLD_PRIVATE
+customer.enonic.io, TLD_PRIVATE
 #  EU.org https://eu.org/
 #  Submitted by Pierre Beyssac <hostmaster@eu.org>
 eu.org, TLD_PRIVATE
@@ -10029,27 +10237,131 @@ us.eu.org, TLD_PRIVATE
 #  Submitted by Michal Kralik <support@evennode.com>
 eu-1.evennode.com, TLD_PRIVATE
 eu-2.evennode.com, TLD_PRIVATE
+eu-3.evennode.com, TLD_PRIVATE
+eu-4.evennode.com, TLD_PRIVATE
 us-1.evennode.com, TLD_PRIVATE
 us-2.evennode.com, TLD_PRIVATE
+us-3.evennode.com, TLD_PRIVATE
+us-4.evennode.com, TLD_PRIVATE
+#  eDirect Corp. : https://hosting.url.com.tw/
+#  Submitted by C.S. chang <cschang@corp.url.com.tw>
+twmail.cc, TLD_PRIVATE
+twmail.net, TLD_PRIVATE
+twmail.org, TLD_PRIVATE
+mymailer.com.tw, TLD_PRIVATE
+url.tw, TLD_PRIVATE
 #  Facebook, Inc.
 #  Submitted by Peter Ruibal <public-suffix@fb.com>
 apps.fbsbx.com, TLD_PRIVATE
-#  Fastly Inc. http://www.fastly.com/
-#  Submitted by Vladimir Vuksan <vladimir@fastly.com>
+#  FAITID : https://faitid.org/
+#  Submitted by Maxim Alzoba <tech.contact@faitid.org>
+#  https://www.flexireg.net/stat_info
+ru.net, TLD_PRIVATE
+adygeya.ru, TLD_PRIVATE
+bashkiria.ru, TLD_PRIVATE
+bir.ru, TLD_PRIVATE
+cbg.ru, TLD_PRIVATE
+com.ru, TLD_PRIVATE
+dagestan.ru, TLD_PRIVATE
+grozny.ru, TLD_PRIVATE
+kalmykia.ru, TLD_PRIVATE
+kustanai.ru, TLD_PRIVATE
+marine.ru, TLD_PRIVATE
+mordovia.ru, TLD_PRIVATE
+msk.ru, TLD_PRIVATE
+mytis.ru, TLD_PRIVATE
+nalchik.ru, TLD_PRIVATE
+nov.ru, TLD_PRIVATE
+pyatigorsk.ru, TLD_PRIVATE
+spb.ru, TLD_PRIVATE
+vladikavkaz.ru, TLD_PRIVATE
+vladimir.ru, TLD_PRIVATE
+abkhazia.su, TLD_PRIVATE
+adygeya.su, TLD_PRIVATE
+aktyubinsk.su, TLD_PRIVATE
+arkhangelsk.su, TLD_PRIVATE
+armenia.su, TLD_PRIVATE
+ashgabad.su, TLD_PRIVATE
+azerbaijan.su, TLD_PRIVATE
+balashov.su, TLD_PRIVATE
+bashkiria.su, TLD_PRIVATE
+bryansk.su, TLD_PRIVATE
+bukhara.su, TLD_PRIVATE
+chimkent.su, TLD_PRIVATE
+dagestan.su, TLD_PRIVATE
+east-kazakhstan.su, TLD_PRIVATE
+exnet.su, TLD_PRIVATE
+georgia.su, TLD_PRIVATE
+grozny.su, TLD_PRIVATE
+ivanovo.su, TLD_PRIVATE
+jambyl.su, TLD_PRIVATE
+kalmykia.su, TLD_PRIVATE
+kaluga.su, TLD_PRIVATE
+karacol.su, TLD_PRIVATE
+karaganda.su, TLD_PRIVATE
+karelia.su, TLD_PRIVATE
+khakassia.su, TLD_PRIVATE
+krasnodar.su, TLD_PRIVATE
+kurgan.su, TLD_PRIVATE
+kustanai.su, TLD_PRIVATE
+lenug.su, TLD_PRIVATE
+mangyshlak.su, TLD_PRIVATE
+mordovia.su, TLD_PRIVATE
+msk.su, TLD_PRIVATE
+murmansk.su, TLD_PRIVATE
+nalchik.su, TLD_PRIVATE
+navoi.su, TLD_PRIVATE
+north-kazakhstan.su, TLD_PRIVATE
+nov.su, TLD_PRIVATE
+obninsk.su, TLD_PRIVATE
+penza.su, TLD_PRIVATE
+pokrovsk.su, TLD_PRIVATE
+sochi.su, TLD_PRIVATE
+spb.su, TLD_PRIVATE
+tashkent.su, TLD_PRIVATE
+termez.su, TLD_PRIVATE
+togliatti.su, TLD_PRIVATE
+troitsk.su, TLD_PRIVATE
+tselinograd.su, TLD_PRIVATE
+tula.su, TLD_PRIVATE
+tuva.su, TLD_PRIVATE
+vladikavkaz.su, TLD_PRIVATE
+vladimir.su, TLD_PRIVATE
+vologda.su, TLD_PRIVATE
+#  Fancy Bits, LLC : http://getchannels.com
+#  Submitted by Aman Gupta <aman@getchannels.com>
+channelsdvr.net, TLD_PRIVATE
+#  Fastly Inc. : http://www.fastly.com/
+#  Submitted by Fastly Security <security@fastly.com>
+fastlylb.net, TLD_PRIVATE
+map.fastlylb.net, TLD_PRIVATE
+freetls.fastly.net, TLD_PRIVATE
+map.fastly.net, TLD_PRIVATE
+a.prod.fastly.net, TLD_PRIVATE
+global.prod.fastly.net, TLD_PRIVATE
 a.ssl.fastly.net, TLD_PRIVATE
 b.ssl.fastly.net, TLD_PRIVATE
 global.ssl.fastly.net, TLD_PRIVATE
-a.prod.fastly.net, TLD_PRIVATE
-global.prod.fastly.net, TLD_PRIVATE
 #  Featherhead : https://featherhead.xyz/
 #  Submitted by Simon Menke <simon@featherhead.xyz>
 fhapp.xyz, TLD_PRIVATE
+#  Fedora : https://fedoraproject.org/
+#  submitted by Patrick Uiterwijk <puiterwijk@fedoraproject.org>
+fedorainfracloud.org, TLD_PRIVATE
+fedorapeople.org, TLD_PRIVATE
+cloud.fedoraproject.org, TLD_PRIVATE
+app.os.fedoraproject.org, TLD_PRIVATE
+app.os.stg.fedoraproject.org, TLD_PRIVATE
+#  Filegear Inc. : https://www.filegear.com
+#  Submitted by Jason Zhu <jason@owtware.com>
+filegear.me, TLD_PRIVATE
 #  Firebase, Inc.
 #  Submitted by Chris Raynor <chris@firebase.com>
 firebaseapp.com, TLD_PRIVATE
 #  Flynn : https://flynn.io
 #  Submitted by Jonathan Rudenberg <jonathan@flynn.io>
 flynnhub.com, TLD_PRIVATE
+flynnhosting.net, TLD_PRIVATE
 #  Freebox : http://www.freebox.fr
 #  Submitted by Romain Fliedel <rfliedel@freebox.fr>
 freebox-os.com, TLD_PRIVATE
@@ -10058,6 +10370,14 @@ fbx-os.fr, TLD_PRIVATE
 fbxos.fr, TLD_PRIVATE
 freebox-os.fr, TLD_PRIVATE
 freeboxos.fr, TLD_PRIVATE
+#  Futureweb OG : http://www.futureweb.at
+#  Submitted by Andreas Schnederle-Wagner <schnederle@futureweb.at>
+futurecms.at, TLD_WILDCARD
+futurehosting.at, TLD_PRIVATE
+futuremailing.at, TLD_PRIVATE
+ex.ortsinfo.at, TLD_WILDCARD
+kunden.ortsinfo.at, TLD_WILDCARD
+statics.cloud, TLD_WILDCARD
 #  GDS : https://www.gov.uk/service-manual/operations/operating-servicegovuk-subdomains
 #  Submitted by David Illsley <david.illsley@digital.cabinet-office.gov.uk>
 service.gov.uk, TLD_PRIVATE
@@ -10065,14 +10385,16 @@ service.gov.uk, TLD_PRIVATE
 #  Submitted by Patrick Toomey <security@github.com>
 github.io, TLD_PRIVATE
 githubusercontent.com, TLD_PRIVATE
-githubcloud.com, TLD_PRIVATE
-api.githubcloud.com, TLD_WILDCARD
-ext.githubcloud.com, TLD_WILDCARD
-gist.githubcloud.com, TLD_PRIVATE
-githubcloudusercontent.com, TLD_WILDCARD
+#  GitLab, Inc.
+#  Submitted by Alex Hanselka <alex@gitlab.com>
+gitlab.io, TLD_PRIVATE
+#  UKHomeOffice : https://www.gov.uk/government/organisations/home-office
+#  Submitted by Jon Shanks <jon.shanks@digital.homeoffice.gov.uk>
+homeoffice.gov.uk, TLD_PRIVATE
 #  GlobeHosting, Inc.
 #  Submitted by Zoltan Egresi <egresi@globehosting.com>
-ro.com, TLD_PRIVATE
+ro.im, TLD_PRIVATE
+shop.ro, TLD_PRIVATE
 #  GoIP DNS Services : http://www.goip.de
 #  Submitted by Christian Poulter <milchstrasse@goip.de>
 goip.de, TLD_PRIVATE
@@ -10155,10 +10477,12 @@ blogspot.tw, TLD_PRIVATE
 blogspot.ug, TLD_PRIVATE
 blogspot.vn, TLD_PRIVATE
 cloudfunctions.net, TLD_PRIVATE
+cloud.goog, TLD_PRIVATE
 codespot.com, TLD_PRIVATE
 googleapis.com, TLD_PRIVATE
 googlecode.com, TLD_PRIVATE
 pagespeedmobilizer.com, TLD_PRIVATE
+publishproxy.com, TLD_PRIVATE
 withgoogle.com, TLD_PRIVATE
 withyoutube.com, TLD_PRIVATE
 #  Hashbang : https://hashbang.sh
@@ -10173,31 +10497,161 @@ hepforge.org, TLD_PRIVATE
 #  Submitted by Tom Maher <tmaher@heroku.com>
 herokuapp.com, TLD_PRIVATE
 herokussl.com, TLD_PRIVATE
+#  Hibernating Rhinos
+#  Submitted by Oren Eini <oren@ravendb.net>
+myravendb.com, TLD_PRIVATE
+ravendb.community, TLD_PRIVATE
+ravendb.me, TLD_PRIVATE
+development.run, TLD_PRIVATE
+ravendb.run, TLD_PRIVATE
+#  Ici la Lune : http://www.icilalune.com/
+#  Submitted by Simon Morvan <simon@icilalune.com>
+moonscale.net, TLD_PRIVATE
 #  iki.fi
 #  Submitted by Hannu Aronsson <haa@iki.fi>
 iki.fi, TLD_PRIVATE
 #  info.at : http://www.info.at/
 biz.at, TLD_PRIVATE
 info.at, TLD_PRIVATE
+#  info.cx : http://info.cx
+#  Submitted by Jacob Slater <whois@igloo.to>
+info.cx, TLD_PRIVATE
+#  Interlegis : http://www.interlegis.leg.br
+#  Submitted by Gabriel Ferreira <registrobr@interlegis.leg.br>
+ac.leg.br, TLD_PRIVATE
+al.leg.br, TLD_PRIVATE
+am.leg.br, TLD_PRIVATE
+ap.leg.br, TLD_PRIVATE
+ba.leg.br, TLD_PRIVATE
+ce.leg.br, TLD_PRIVATE
+df.leg.br, TLD_PRIVATE
+es.leg.br, TLD_PRIVATE
+go.leg.br, TLD_PRIVATE
+ma.leg.br, TLD_PRIVATE
+mg.leg.br, TLD_PRIVATE
+ms.leg.br, TLD_PRIVATE
+mt.leg.br, TLD_PRIVATE
+pa.leg.br, TLD_PRIVATE
+pb.leg.br, TLD_PRIVATE
+pe.leg.br, TLD_PRIVATE
+pi.leg.br, TLD_PRIVATE
+pr.leg.br, TLD_PRIVATE
+rj.leg.br, TLD_PRIVATE
+rn.leg.br, TLD_PRIVATE
+ro.leg.br, TLD_PRIVATE
+rr.leg.br, TLD_PRIVATE
+rs.leg.br, TLD_PRIVATE
+sc.leg.br, TLD_PRIVATE
+se.leg.br, TLD_PRIVATE
+sp.leg.br, TLD_PRIVATE
+to.leg.br, TLD_PRIVATE
+#  intermetrics GmbH : https://pixolino.com/
+#  Submitted by Wolfgang Schwarz <admin@intermetrics.de>
+pixolino.com, TLD_PRIVATE
+#  IPiFony Systems, Inc. : https://www.ipifony.com/
+#  Submitted by Matthew Hardeman <mhardeman@ipifony.com>
+ipifony.net, TLD_PRIVATE
+#  Jino : https://www.jino.ru
+#  Submitted by Sergey Ulyashin <ulyashin@jino.ru>
+myjino.ru, TLD_PRIVATE
+hosting.myjino.ru, TLD_WILDCARD
+landing.myjino.ru, TLD_WILDCARD
+spectrum.myjino.ru, TLD_WILDCARD
+vps.myjino.ru, TLD_WILDCARD
+#  Joyent : https://www.joyent.com/
+#  Submitted by Brian Bennett <brian.bennett@joyent.com>
+triton.zone, TLD_WILDCARD
+cns.joyent.com, TLD_WILDCARD
+#  JS.ORG : http://dns.js.org
+#  Submitted by Stefan Keim <admin@js.org>
+js.org, TLD_PRIVATE
+#  Keyweb AG : https://www.keyweb.de
+#  Submitted by Martin Dannehl <postmaster@keymachine.de>
+keymachine.de, TLD_PRIVATE
+#  KnightPoint Systems, LLC : http://www.knightpoint.com/
+#  Submitted by Roy Keene <rkeene@knightpoint.com>
+knightpoint.systems, TLD_PRIVATE
+#  .KRD : http://nic.krd/data/krd/Registration%20Policy.pdf
+co.krd, TLD_PRIVATE
+edu.krd, TLD_PRIVATE
+#  LCube - Professional hosting e.K. : https://www.lcube-webhosting.de
+#  Submitted by Lars Laehn <info@lcube.de>
+git-repos.de, TLD_PRIVATE
+lcube-server.de, TLD_PRIVATE
+svn-repos.de, TLD_PRIVATE
+#  linkyard ldt: https://www.linkyard.ch/
+#  Submitted by Mario Siegenthaler <mario.siegenthaler@linkyard.ch>
+linkyard.cloud, TLD_PRIVATE
+linkyard-cloud.ch, TLD_PRIVATE
+#  LiquidNet Ltd : http://www.liquidnetlimited.com/
+#  Submitted by Victor Velchev <admin@liquidnetlimited.com>
+we.bs, TLD_PRIVATE
+#  Lug.org.uk : https://lug.org.uk
+#  Submitted by Jon Spriggs <admin@lug.org.uk>
+uklugs.org, TLD_PRIVATE
+glug.org.uk, TLD_PRIVATE
+lug.org.uk, TLD_PRIVATE
+lugs.org.uk, TLD_PRIVATE
+#  Lukanet Ltd : https://lukanet.com
+#  Submitted by Anton Avramov <register@lukanet.com>
+barsy.bg, TLD_PRIVATE
+barsyonline.com, TLD_PRIVATE
+barsy.de, TLD_PRIVATE
+barsy.eu, TLD_PRIVATE
+barsy.in, TLD_PRIVATE
+barsy.net, TLD_PRIVATE
+barsy.online, TLD_PRIVATE
+barsy.support, TLD_PRIVATE
 #  Magento Commerce
 #  Submitted by Damien Tournoud <dtournoud@magento.cloud>
 magentosite.cloud, TLD_WILDCARD
+#  Mail.Ru Group : https://hb.cldmail.ru
+#  Submitted by Ilya Zaretskiy <zaretskiy@corp.mail.ru>
+hb.cldmail.ru, TLD_PRIVATE
+#  MetaCentrum, CESNET z.s.p.o. : https://www.metacentrum.cz/en/
+#  Submitted by Zdeněk Šustr <zdenek.sustr@cesnet.cz>
+cloud.metacentrum.cz, TLD_PRIVATE
+custom.metacentrum.cz, TLD_PRIVATE
+#  MetaCentrum, CESNET z.s.p.o. : https://www.metacentrum.cz/en/
+#  Submitted by Radim Janča <janca@cesnet.cz>
+flt.cloud.muni.cz, TLD_PRIVATE
+usr.cloud.muni.cz, TLD_PRIVATE
+#  Meteor Development Group : https://www.meteor.com/hosting
+#  Submitted by Pierre Carrier <pierre@meteor.com>
+meteorapp.com, TLD_PRIVATE
+eu.meteorapp.com, TLD_PRIVATE
 #  Michau Enterprises Limited : http://www.co.pl/
 co.pl, TLD_PRIVATE
-#  Microsoft : http://microsoft.com
-#  Submitted by Barry Dorrans <bdorrans@microsoft.com>
+#  Microsoft Corporation : http://microsoft.com
+#  Submitted by Justin Luk <juluk@microsoft.com>
+azurecontainer.io, TLD_PRIVATE
 azurewebsites.net, TLD_PRIVATE
 azure-mobile.net, TLD_PRIVATE
 cloudapp.net, TLD_PRIVATE
+#  Mozilla Corporation : https://mozilla.com
+#  Submitted by Ben Francis <bfrancis@mozilla.com>
+mozilla-iot.org, TLD_PRIVATE
 #  Mozilla Foundation : https://mozilla.org/
 #  Submitted by glob <glob@mozilla.com>
 bmoattachments.org, TLD_PRIVATE
+#  MSK-IX : https://www.msk-ix.ru/
+#  Submitted by Khannanov Roman <r.khannanov@msk-ix.ru>
+net.ru, TLD_PRIVATE
+org.ru, TLD_PRIVATE
+pp.ru, TLD_PRIVATE
+#  Netlify : https://www.netlify.com
+#  Submitted by Jessica Parsons <jessica@netlify.com>
+bitballoon.com, TLD_PRIVATE
+netlify.com, TLD_PRIVATE
 #  Neustar Inc.
 #  Submitted by Trung Tran <Trung.Tran@neustar.biz>
 4u.com, TLD_PRIVATE
 #  ngrok : https://ngrok.com/
 #  Submitted by Alan Shreve <alan@ngrok.com>
 ngrok.io, TLD_PRIVATE
+#  Nimbus Hosting Ltd. : https://www.nimbushosting.co.uk/
+#  Submitted by Nicholas Ford <nick@nimbushosting.co.uk>
+nh-serv.co.uk, TLD_PRIVATE
 #  NFSN, Inc. : https://www.NearlyFreeSpeech.NET/
 #  Submitted by Jeff Wheelhouse <support@nearlyfreespeech.net>
 nfshost.com, TLD_PRIVATE
@@ -10292,21 +10746,80 @@ servequake.com, TLD_PRIVATE
 sytes.net, TLD_PRIVATE
 webhop.me, TLD_PRIVATE
 zapto.org, TLD_PRIVATE
+#  NodeArt : https://nodeart.io
+#  Submitted by Konstantin Nosov <Nosov@nodeart.io>
+stage.nodeart.io, TLD_PRIVATE
+#  Nodum B.V. : https://nodum.io/
+#  Submitted by Wietse Wind <hello+publicsuffixlist@nodum.io>
+nodum.co, TLD_PRIVATE
+nodum.io, TLD_PRIVATE
+#  Nucleos Inc. : https://nucleos.com
+#  Submitted by Piotr Zduniak <piotr@nucleos.com>
+pcloud.host, TLD_PRIVATE
 #  NYC.mn : http://www.information.nyc.mn
 #  Submitted by Matthew Brown <mattbrown@nyc.mn>
 nyc.mn, TLD_PRIVATE
+#  NymNom : https://nymnom.com/
+#  Submitted by Dave McCormack <dave.mccormack@nymnom.com>
+nom.ae, TLD_PRIVATE
+nom.ai, TLD_PRIVATE
+nom.al, TLD_PRIVATE
+nym.by, TLD_PRIVATE
+nym.bz, TLD_PRIVATE
+nom.cl, TLD_PRIVATE
+nom.gd, TLD_PRIVATE
+nom.gl, TLD_PRIVATE
+nym.gr, TLD_PRIVATE
+nom.gt, TLD_PRIVATE
+nom.hn, TLD_PRIVATE
+nom.im, TLD_PRIVATE
+nym.kz, TLD_PRIVATE
+nym.la, TLD_PRIVATE
+nom.li, TLD_PRIVATE
+nym.li, TLD_PRIVATE
+nym.lt, TLD_PRIVATE
+nym.lu, TLD_PRIVATE
+nym.me, TLD_PRIVATE
+nom.mk, TLD_PRIVATE
+nym.mx, TLD_PRIVATE
+nom.nu, TLD_PRIVATE
+nym.nz, TLD_PRIVATE
+nym.pe, TLD_PRIVATE
+nym.pt, TLD_PRIVATE
+nom.pw, TLD_PRIVATE
+nom.qa, TLD_PRIVATE
+nom.rs, TLD_PRIVATE
+nom.si, TLD_PRIVATE
+nym.sk, TLD_PRIVATE
+nym.su, TLD_PRIVATE
+nym.sx, TLD_PRIVATE
+nym.tw, TLD_PRIVATE
+nom.ug, TLD_PRIVATE
+nom.uy, TLD_PRIVATE
+nom.vc, TLD_PRIVATE
+nom.vg, TLD_PRIVATE
+#  Octopodal Solutions, LLC. : https://ulterius.io/
+#  Submitted by Andrew Sampson <andrew@ulterius.io>
+cya.gg, TLD_PRIVATE
 #  One Fold Media : http://www.onefoldmedia.com/
 #  Submitted by Eddie Jones <eddie@onefoldmedia.com>
 nid.io, TLD_PRIVATE
+#  OpenCraft GmbH : http://opencraft.com/
+#  Submitted by Sven Marnach <sven@opencraft.com>
+opencraft.hosting, TLD_PRIVATE
 #  Opera Software, A.S.A.
 #  Submitted by Yngve Pettersen <yngve@opera.com>
 operaunite.com, TLD_PRIVATE
 #  OutSystems
 #  Submitted by Duarte Santos <domain-admin@outsystemscloud.com>
 outsystemscloud.com, TLD_PRIVATE
-#  OwnProvider : http://www.ownprovider.com
+#  OwnProvider GmbH: http://www.ownprovider.com
 #  Submitted by Jan Moennich <jan.moennich@ownprovider.com>
 ownprovider.com, TLD_PRIVATE
+own.pm, TLD_PRIVATE
+#  OX : http://www.ox.rs
+#  Submitted by Adam Grand <webmaster@mail.ox.rs>
+ox.rs, TLD_PRIVATE
 #  oy.lc
 #  Submitted by Charly Coste <changaco@changaco.oy.lc>
 oy.lc, TLD_PRIVATE
@@ -10330,18 +10843,44 @@ gotpantheon.com, TLD_PRIVATE
 #  Peplink | Pepwave : http://peplink.com/
 #  Submitted by Steve Leung <steveleung@peplink.com>
 mypep.link, TLD_PRIVATE
+#  Planet-Work : https://www.planet-work.com/
+#  Submitted by Frédéric VANNIÈRE <f.vanniere@planet-work.com>
+on-web.fr, TLD_PRIVATE
+#  Platform.sh : https://platform.sh
+#  Submitted by Nikola Kotur <nikola@platform.sh>
+platform.sh, TLD_WILDCARD
+platformsh.site, TLD_WILDCARD
 #  prgmr.com : https://prgmr.com/
 #  Submitted by Sarah Newman <owner@prgmr.com>
 xen.prgmr.com, TLD_PRIVATE
 #  priv.at : http://www.nic.priv.at/
 #  Submitted by registry <lendl@nic.at>
 priv.at, TLD_PRIVATE
+#  Protonet GmbH : http://protonet.io
+#  Submitted by Martin Meier <admin@protonet.io>
+protonet.io, TLD_PRIVATE
 #  Publication Presse Communication SARL : https://ppcom.fr
 #  Submitted by Yaacov Akiba Slama <admin@chirurgiens-dentistes-en-france.fr>
 chirurgiens-dentistes-en-france.fr, TLD_PRIVATE
+byen.site, TLD_PRIVATE
+#  Russian Academy of Sciences
+#  Submitted by Tech Support <support@rasnet.ru>
+ras.ru, TLD_PRIVATE
 #  QA2
 #  Submitted by Daniel Dent (https://www.danieldent.com/)
 qa2.com, TLD_PRIVATE
+#  QNAP System Inc : https://www.qnap.com
+#  Submitted by Nick Chang <nickchang@qnap.com>
+dev-myqnapcloud.com, TLD_PRIVATE
+alpha-myqnapcloud.com, TLD_PRIVATE
+myqnapcloud.com, TLD_PRIVATE
+#  Quip : https://quip.com
+#  Submitted by Patrick Linehan <plinehan@quip.com>
+quipelements.com, TLD_WILDCARD
+#  Qutheory LLC : http://qutheory.io
+#  Submitted by Jonas Schwartz <jonas@qutheory.io>
+vapor.cloud, TLD_PRIVATE
+vaporcloud.io, TLD_PRIVATE
 #  Rackmaze LLC : https://www.rackmaze.com
 #  Submitted by Kirill Pertsev <kika@rackmaze.com>
 rackmaze.com, TLD_PRIVATE
@@ -10349,9 +10888,18 @@ rackmaze.net, TLD_PRIVATE
 #  Red Hat, Inc. OpenShift : https://openshift.redhat.com/
 #  Submitted by Tim Kramer <tkramer@rhcloud.com>
 rhcloud.com, TLD_PRIVATE
+#  Resin.io : https://resin.io
+#  Submitted by Tim Perry <tim@resin.io>
+resindevice.io, TLD_PRIVATE
+devices.resinstaging.io, TLD_PRIVATE
 #  RethinkDB : https://www.rethinkdb.com/
 #  Submitted by Chris Kastorff <info@rethinkdb.com>
 hzc.io, TLD_PRIVATE
+#  Revitalised Limited : http://www.revitalised.co.uk
+#  Submitted by Jack Price <jack@revitalised.co.uk>
+wellbeingzone.eu, TLD_PRIVATE
+ptplus.fit, TLD_PRIVATE
+wellbeingzone.co.uk, TLD_PRIVATE
 #  Sandstorm Development Group, Inc. : https://sandcats.io/
 #  Submitted by Asheesh Laroia <asheesh@sandstorm.io>
 sandcats.io, TLD_PRIVATE
@@ -10359,27 +10907,75 @@ sandcats.io, TLD_PRIVATE
 #  Submitted by Norman Meilick <nm@sbe.de>
 logoip.de, TLD_PRIVATE
 logoip.com, TLD_PRIVATE
+#  schokokeks.org GbR : https://schokokeks.org/
+#  Submitted by Hanno Böck <hanno@schokokeks.org>
+schokokeks.net, TLD_PRIVATE
+#  Scry Security : http://www.scrysec.com
+#  Submitted by Shante Adam <shante@skyhat.io>
+scrysec.com, TLD_PRIVATE
+#  Securepoint GmbH : https://www.securepoint.de
+#  Submitted by Erik Anders <erik.anders@securepoint.de>
+firewall-gateway.com, TLD_PRIVATE
+firewall-gateway.de, TLD_PRIVATE
+my-gateway.de, TLD_PRIVATE
+my-router.de, TLD_PRIVATE
+spdns.de, TLD_PRIVATE
+spdns.eu, TLD_PRIVATE
+firewall-gateway.net, TLD_PRIVATE
+my-firewall.org, TLD_PRIVATE
+myfirewall.org, TLD_PRIVATE
+spdns.org, TLD_PRIVATE
+#  SensioLabs, SAS : https://sensiolabs.com/
+#  Submitted by Fabien Potencier <fabien.potencier@sensiolabs.com>
+s5y.io, TLD_WILDCARD
+sensiosite.cloud, TLD_WILDCARD
 #  Service Online LLC : http://drs.ua/
 #  Submitted by Serhii Bulakh <support@drs.ua>
 biz.ua, TLD_PRIVATE
 co.ua, TLD_PRIVATE
 pp.ua, TLD_PRIVATE
+#  ShiftEdit : https://shiftedit.net/
+#  Submitted by Adam Jimenez <adam@shiftcreate.com>
+shiftedit.io, TLD_PRIVATE
 #  Shopblocks : http://www.shopblocks.com/
 #  Submitted by Alex Bowers <alex@shopblocks.com>
 myshopblocks.com, TLD_PRIVATE
 #  SinaAppEngine : http://sae.sina.com.cn/
 #  Submitted by SinaAppEngine <saesupport@sinacloud.com>
+1kapp.com, TLD_PRIVATE
+appchizi.com, TLD_PRIVATE
+applinzi.com, TLD_PRIVATE
 sinaapp.com, TLD_PRIVATE
 vipsinaapp.com, TLD_PRIVATE
-1kapp.com, TLD_PRIVATE
 #  Skyhat : http://www.skyhat.io
 #  Submitted by Shante Adam <shante@skyhat.io>
 bounty-full.com, TLD_PRIVATE
 alpha.bounty-full.com, TLD_PRIVATE
 beta.bounty-full.com, TLD_PRIVATE
+#  staticland : https://static.land
+#  Submitted by Seth Vincent <sethvincent@gmail.com>
+static.land, TLD_PRIVATE
+dev.static.land, TLD_PRIVATE
+sites.static.land, TLD_PRIVATE
+#  SourceLair PC : https://www.sourcelair.com
+#  Submitted by Antonis Kalipetis <akalipetis@sourcelair.com>
+apps.lair.io, TLD_PRIVATE
+stolos.io, TLD_WILDCARD
 #  SpaceKit : https://www.spacekit.io/
 #  Submitted by Reza Akhavan <spacekit.io@gmail.com>
 spacekit.io, TLD_PRIVATE
+#  SpeedPartner GmbH: https://www.speedpartner.de/
+#  Submitted by Stefan Neufeind <info@speedpartner.de>
+customer.speedpartner.de, TLD_PRIVATE
+#  Stackspace : https://www.stackspace.io/
+#  Submitted by Lina He <info@stackspace.io>
+stackspace.space, TLD_PRIVATE
+#  Storj Labs Inc. : https://storj.io/
+#  Submitted by Philip Hutchins <hostmaster@storj.io>
+storj.farm, TLD_PRIVATE
+#  Sub 6 Limited: http://www.sub6.com
+#  Submitted by Dan Miller <dm@sub6.com>
+temp-dns.com, TLD_PRIVATE
 #  Synology, Inc. : https://www.synology.com/
 #  Submitted by Rony Weng <ronyweng@synology.com>
 diskstation.me, TLD_PRIVATE
@@ -10395,33 +10991,139 @@ familyds.org, TLD_PRIVATE
 i234.me, TLD_PRIVATE
 myds.me, TLD_PRIVATE
 synology.me, TLD_PRIVATE
+vpnplus.to, TLD_PRIVATE
+#  TAIFUN Software AG : http://taifun-software.de
+#  Submitted by Bjoern Henke <dev-server@taifun-software.de>
+taifun-dns.de, TLD_PRIVATE
 #  TASK geographical domains (www.task.gda.pl/uslugi/dns)
 gda.pl, TLD_PRIVATE
 gdansk.pl, TLD_PRIVATE
 gdynia.pl, TLD_PRIVATE
 med.pl, TLD_PRIVATE
 sopot.pl, TLD_PRIVATE
+#  The Gwiddle Foundation : https://gwiddlefoundation.org.uk
+#  Submitted by Joshua Bayfield <joshua.bayfield@gwiddlefoundation.org.uk>
+gwiddle.co.uk, TLD_PRIVATE
+#  Thingdust AG : https://thingdust.com/
+#  Submitted by Adrian Imboden <adi@thingdust.com>
+cust.dev.thingdust.io, TLD_PRIVATE
+cust.disrec.thingdust.io, TLD_PRIVATE
+cust.prod.thingdust.io, TLD_PRIVATE
+cust.testing.thingdust.io, TLD_PRIVATE
 #  TownNews.com : http://www.townnews.com
 #  Submitted by Dustin Ward <dward@townnews.com>
 bloxcms.com, TLD_PRIVATE
 townnews-staging.com, TLD_PRIVATE
+#  TrafficPlex GmbH : https://www.trafficplex.de/
+#  Submitted by Phillipp Röll <phillipp.roell@trafficplex.de>
+12hp.at, TLD_PRIVATE
+2ix.at, TLD_PRIVATE
+4lima.at, TLD_PRIVATE
+lima-city.at, TLD_PRIVATE
+12hp.ch, TLD_PRIVATE
+2ix.ch, TLD_PRIVATE
+4lima.ch, TLD_PRIVATE
+lima-city.ch, TLD_PRIVATE
+trafficplex.cloud, TLD_PRIVATE
+de.cool, TLD_PRIVATE
+12hp.de, TLD_PRIVATE
+2ix.de, TLD_PRIVATE
+4lima.de, TLD_PRIVATE
+lima-city.de, TLD_PRIVATE
+1337.pictures, TLD_PRIVATE
+clan.rip, TLD_PRIVATE
+lima-city.rocks, TLD_PRIVATE
+webspace.rocks, TLD_PRIVATE
+lima.zone, TLD_PRIVATE
+#  TransIP : htts://www.transip.nl
+#  Submitted by Rory Breuk <rbreuk@transip.nl>
+transurl.be, TLD_WILDCARD
+transurl.eu, TLD_WILDCARD
+transurl.nl, TLD_WILDCARD
 #  TuxFamily : http://tuxfamily.org
 #  Submitted by TuxFamily administrators <adm@staff.tuxfamily.org>
 tuxfamily.org, TLD_PRIVATE
+#  TwoDNS : https://www.twodns.de/
+#  Submitted by TwoDNS-Support <support@two-dns.de>
+dd-dns.de, TLD_PRIVATE
+diskstation.eu, TLD_PRIVATE
+diskstation.org, TLD_PRIVATE
+dray-dns.de, TLD_PRIVATE
+draydns.de, TLD_PRIVATE
+dyn-vpn.de, TLD_PRIVATE
+dynvpn.de, TLD_PRIVATE
+mein-vigor.de, TLD_PRIVATE
+my-vigor.de, TLD_PRIVATE
+my-wan.de, TLD_PRIVATE
+syno-ds.de, TLD_PRIVATE
+synology-diskstation.de, TLD_PRIVATE
+synology-ds.de, TLD_PRIVATE
+#  Uberspace : https://uberspace.de
+#  Submitted by Moritz Werner <mwerner@jonaspasche.com>
+uber.space, TLD_PRIVATE
 #  UDR Limited : http://www.udr.hk.com
 #  Submitted by registry <hostmaster@udr.hk.com>
 hk.com, TLD_PRIVATE
 hk.org, TLD_PRIVATE
 ltd.hk, TLD_PRIVATE
 inc.hk, TLD_PRIVATE
+#  .US
+#  Submitted by Ed Moore <Ed.Moore@lib.de.us>
+lib.de.us, TLD_PRIVATE
+#  VeryPositive SIA : http://very.lv
+#  Submitted by Danko Aleksejevs <danko@very.lv>
+2038.io, TLD_PRIVATE
 #  Viprinet Europe GmbH : http://www.viprinet.com
 #  Submitted by Simon Kissel <hostmaster@viprinet.com>
 router.management, TLD_PRIVATE
+#  Virtual-Info : https://www.virtual-info.info/
+#  Submitted by Adnan RIHAN <hostmaster@v-info.info>
+v-info.info, TLD_PRIVATE
+#  WeDeploy by Liferay, Inc. : https://www.wedeploy.com
+#  Submitted by Henrique Vicente <security@wedeploy.com>
+wedeploy.io, TLD_PRIVATE
+wedeploy.me, TLD_PRIVATE
+wedeploy.sh, TLD_PRIVATE
+#  Western Digital Technologies, Inc : https://www.wdc.com
+#  Submitted by Jung Jin <jungseok.jin@wdc.com>
+remotewd.com, TLD_PRIVATE
+#  Wikimedia Labs : https://wikitech.wikimedia.org
+#  Submitted by Yuvi Panda <yuvipanda@wikimedia.org>
+wmflabs.org, TLD_PRIVATE
+#  XnBay Technology : http://www.xnbay.com/
+#  Submitted by XnBay Developer <developer.xncloud@gmail.com>
+xnbay.com, TLD_PRIVATE
+u2.xnbay.com, TLD_PRIVATE
+u2-local.xnbay.com, TLD_PRIVATE
+#  XS4ALL Internet bv : https://www.xs4all.nl/
+#  Submitted by Daniel Mostertman <unixbeheer+publicsuffix@xs4all.net>
+cistron.nl, TLD_PRIVATE
+demon.nl, TLD_PRIVATE
+xs4all.space, TLD_PRIVATE
+#  YesCourse Pty Ltd : https://yescourse.com
+#  Submitted by Atul Bhouraskar <atul@yescourse.com>
+official.academy, TLD_PRIVATE
 #  Yola : https://www.yola.com/
 #  Submitted by Stefano Rivera <stefano@yola.com>
 yolasite.com, TLD_PRIVATE
+#  Yombo : https://yombo.net
+#  Submitted by Mitch Schwenk <mitch@yombo.net>
+ybo.faith, TLD_PRIVATE
+yombo.me, TLD_PRIVATE
+homelink.one, TLD_PRIVATE
+ybo.party, TLD_PRIVATE
+ybo.review, TLD_PRIVATE
+ybo.science, TLD_PRIVATE
+ybo.trade, TLD_PRIVATE
+#  Yunohost : https://yunohost.org
+#  Submitted by Valentin Grimaud <security@yunohost.org>
+nohost.me, TLD_PRIVATE
+noho.st, TLD_PRIVATE
 #  ZaNiC : http://www.za.net/
 #  Submitted by registry <hostmaster@nic.za.net>
 za.net, TLD_PRIVATE
 za.org, TLD_PRIVATE
+#  Zeit, Inc. : https://zeit.domains/
+#  Submitted by Olli Vanhoja <olli@zeit.co>
+now.sh, TLD_PRIVATE
 #  ===END PRIVATE DOMAINS===
