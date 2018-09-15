@@ -12,18 +12,22 @@ DEBUG=
 debug: DEBUG=debug
 debug: build
 
+# if defined, will propogate to subsequent make targets
+# otherwise,EVHTP should be installed globally, ie: /usr/include/evhtp
+#EVHTP_ARGS=EVHTP_SRC_DIR=$(HOME)/src/libevhtp
+
 build: src lib
 
 src: force_look
 	[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
-	make -C	$(SRC_DIR) $(DEBUG)
+	make -C	$(SRC_DIR) $(DEBUG) $(EVHTP_ARGS)
 
 app: force_look lib
 	[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
-	make -C	$(APP_DIR) $(DEBUG)
+	make -C	$(APP_DIR) $(DEBUG) $(EVHTP_ARGS)
 
 tests: force_look app
-	make -C $(TEST_DIR) $(DEBUG)
+	make -C $(TEST_DIR) $(DEBUG) $(EVHTP_ARGS)
 
 lib: src $(LIB)
 

@@ -23,12 +23,13 @@ LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite \
 		 -L $(TAGSH_DIR)/lib -ltagsh \
 		 -lsqlite3 -levent -lreadline
 
-INC += -I/usr/include/evhtp
-EVHTP_H = /usr/include/evhtp/evhtp.h
-# if compiling libevhtp from source
-#SRC_DIR = $(HOME)/src/libevhtp
-#INC += -I$(SRC_DIR)/include -I$(SRC_DIR)/build/include
-#EVHTP_H = $(SRC_DIR)/include/evhtp/evhtp.h
+ifdef EVHTP_SRC_DIR
+	INC += -I$(EVHTP_SRC_DIR)/include -I$(EVHTP_SRC_DIR)/build/include
+	EVHTP_H = $(EVHTP_SRC_DIR)/include/evhtp/evhtp.h
+else
+	INC += -I/usr/include/evhtp
+	EVHTP_H = /usr/include/evhtp/evhtp.h
+endif
 
 all: build
 

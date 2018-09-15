@@ -20,11 +20,12 @@ LFLAGS += -L$(TAGSH_DIR)/lib -ltagsh
 LFLAGS +=  -lsqlite3 -levent -lreadline
 LFLAGS += -lctemplate_nothreads
 
-INC += -I/usr/include/evhtp
-# if compiling libevhtp from source
-#SRC_DIR = $(HOME)/src/libevhtp
-#INC += -I$(SRC_DIR)/include -I$(SRC_DIR)/build/include
-#LFLAGS += -L$(SRC_DIR)/build
+ifdef EVHTP_SRC_DIR
+	INC += -I$(EVHTP_SRC_DIR)/include -I$(EVHTP_SRC_DIR)/build/include
+	LFLAGS += -L$(EVHTP_SRC_DIR)/build
+else
+	INC += -I/usr/include/evhtp
+endif
 
 LFLAGS += -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
 

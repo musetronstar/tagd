@@ -25,13 +25,12 @@ LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite \
 		 -L $(HTTAGD_DIR)/lib -lhttagd \
 		 -lsqlite3 -levent -lreadline -lctemplate_nothreads
 
-LIBEVHTP_INC = -I/usr/include/evhtp
-# if compiling libevhtp from source
-#SRC_DIR = $(HOME)/src/libevhtp
-#LIBEVHTP_INC = -I$(SRC_DIR)/include -I$(SRC_DIR)/build/include
-#LFLAGS += -L$(SRC_DIR)/build
-
-INC += $(LIBEVHTP_INC)
+ifdef EVHTP_SRC_DIR
+	INC += -I$(EVHTP_SRC_DIR)/include -I$(EVHTP_SRC_DIR)/build/include
+	LFLAGS += -L$(EVHTP_SRC_DIR)/build
+else
+	INC += -I/usr/include/evhtp
+endif
 
 LFLAGS += -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
 
