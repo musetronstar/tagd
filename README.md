@@ -236,6 +236,11 @@ Results should be:
 	whale ,
 	fish
 
+The `_interrogator` tag is optional, the following statements are synonymous:
+
+	?? _interrogator _is_a animal lives_in water;
+	?? _is_a animal lives_in water;
+
 But `whale _is_a mammal` and `fish _is_a vertibrate` - how did we query for
 `_is_a animal` and get a match?  Since tagspace is organized as a tree, and
 animal is a parent (aka subordinate or hypernym) of both vertibrate and
@@ -287,13 +292,16 @@ Results:
 
 	query_statement ::= "??" interrogator_sub_relation relations
 	query_statement ::= "??" interrogator_sub_relation
-	query_statement ::= "??" INTERROGATOR query_relations
+	query_statement ::= "??" interrogator query_relations
 	query_statement ::= "??" "<search terms>"
 
 	query_relations ::= relations
 	query_relations ::= relator HARD_TAG_TERMS = "<search terms>"
 
-	interrogator_sub_relation ::= INTERROGATOR SUB TAG
+	interrogator_sub_relation ::= interrogator SUB TAG
+
+	interrogator ::= INTERROGATOR
+	interrogator ::= ""
 
 #### URLs
 

@@ -247,6 +247,11 @@ interrogator ::= INTERROGATOR(I) .
 	NEW_TAG(tagd::interrogator, *I)
 }
 
+interrogator ::= .
+{
+	NEW_TAG(tagd::interrogator, HARD_TAG_INTERROGATOR)
+}
+
 subject_sub_relation ::= subject sub_relator super_object .
 subject_sub_relation ::= unknown sub_relator super_object .
 
