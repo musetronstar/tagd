@@ -9,7 +9,7 @@ namespace tagdb {
 typedef enum {
 	F_NO_POS_CAST	         = 1 << 0, // don't cast a tag according to its pos (i.e. url, referent...)
 	F_NO_TRANSFORM_REFERENTS = 1 << 1, // don't transform to/from referent to tag when putting/getting
-	F_NO_NOT_FOUND_ERROR     = 1 << 2, // don't set error when get() is TS_NOT_FOUND
+	F_NO_NOT_FOUND_ERROR     = 1 << 2, // don't set error when get() returns TS_NOT_FOUND
 	F_IGNORE_DUPLICATES      = 1 << 3  // don't set error when TS_DUPLICATE would be set 
 	// ...
 	//          	= 1 << 31,
