@@ -89,7 +89,7 @@ class driver : public tagd::errorable {
 		scanner *_scanner;
 		void *_parser;	// lemon parser context
 		int _token;		// last token scanned
-		std::string _filename;
+		std::string _path;
 		tagdb::flags_t _flags;
 
 		static bool _trace_on;
@@ -124,6 +124,8 @@ class driver : public tagd::errorable {
 		tagdb::flags_t flags() const { return _flags; }
 		int lookup_pos(const std::string&) const;
 		void parse_tok(int, std::string*);
+		tagd::code include_file(const std::string&);
+		int open_rel(const std::string& path, int flags);
 
 		int cmd() const { return _cmd; }
 
@@ -131,8 +133,8 @@ class driver : public tagd::errorable {
 			return _scanner->_line_number;
 		}
 
-		void filename(const std::string& f) { _filename = f; }
-		const std::string& filename() const { return _filename; }
+		void path(const std::string& f) { _path = f; }
+		const std::string& path() const { return _path; }
 
 		const tagd::abstract_tag& tag() const {
 			static const tagd::abstract_tag empty_tag;

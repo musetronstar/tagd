@@ -1,0 +1,29 @@
+>> can _type_of _rel
+
+>> about _type_of _rel
+
+>> what _is_a _interrogator
+
+>> physical_object _is_a _entity
+
+>> living_thing _is_a physical_object
+
+>> body_part _is_a physical_object
+
+>> substance _is_a _entity
+
+>> mind _is_a _entity
+
+>> knowledge _sub mind
+
+>> concept _type_of knowledge
+
+>> science _type_of knowledge
+
+>> creativity _sub mind
+
+>> refers_to _refers_to _refers_to
+
+>> is_a _refers_to _is_a
+
+>> has _refers_to _has

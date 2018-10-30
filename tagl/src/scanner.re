@@ -151,6 +151,8 @@ next:
 	URI = URI_SCHEME SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
 	URL = URI_SCHEME "//" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
 
+	TAGL_FILE  = [^\000 \t\r\n'"]* ".tagl";
+
 	"--"
 	{
 		goto comment;
@@ -220,15 +222,17 @@ next:
 
 	URI                  {  goto lookup_parse_uri; }
 
+	TAGL_FILE            {  goto lookup_tagl_file; }
+
 	[^\000 \t\r\n;,=><'"-]+  { goto lookup_parse; }
 
 	[\000]               { return; }
 
 	[^]                  { // ANY
 							_driver->error(tagd::TAGL_ERR, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, std::string(_beg,(_cur-_beg))));
-							if (!_driver->filename().empty()) {
+							if (!_driver->path().empty()) {
 								_driver->last_error_relation(
-									tagd::predicate(HARD_TAG_CAUSED_BY, "_file", _driver->filename()) );
+									tagd::predicate(HARD_TAG_CAUSED_BY, "_file", _driver->path()) );
 							}
 							if (_line_number) {
 								_driver->last_error_relation(
@@ -288,12 +292,17 @@ parse_quoted_str:
 	sz = (_cur-_beg);
 	_val.append(_beg, sz);
 	// parse the value in quotes, not the quotes themselves
+	int tok;
+	switch(_driver->_token) {
+		case TOK_CMD_QUERY:
+		case TOK_INCLUDE:
+			tok = TOK_QUOTED_STR;  // don't lookup, just pass through
+			break;
+		default:
+			tok = _driver->lookup_pos(_val.substr(1, sz-2));
+	}
 	_driver->parse_tok(
-		( _driver->_token == TOK_CMD_QUERY
-			? TOK_QUOTED_STR	// indicates search
-			: _driver->lookup_pos(_val.substr(1, sz-2))
-		),
-		new std::string(_val.substr(1, sz-2))  // parser deletes
+		tok, new std::string(_val.substr(1, sz-2))  // parser deletes
 	);
 	_val.clear();
 	_beg = _cur;
@@ -317,7 +326,16 @@ lookup_parse_uri:
 	}
 	_beg = _cur;
 	goto next;
-}
+
+lookup_tagl_file:
+	{
+		std::string *val = NEW_VALUE();
+		_driver->parse_tok(TOK_TAGL_FILE, val);
+	}
+	_beg = _cur;
+	goto next;
+
+} // end scan
 
 } // namespace TAGL
 

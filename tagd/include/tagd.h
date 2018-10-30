@@ -144,8 +144,8 @@ bool tag_set_equal(const tag_set A, const tag_set B);
 typedef enum {
     POS_UNKNOWN       = 0,
     POS_TAG           = 1 << 0,
-    POS_SUB_RELATOR = 1 << 1,
-    POS_SUB_OBJECT  = 1 << 2,
+    POS_SUB_RELATOR   = 1 << 1,
+    POS_SUB_OBJECT    = 1 << 2,
 // relator is used as a "Copula" to link subjects to predicates
 // (even more general than a "linking verb")
     POS_RELATOR       = 1 << 3,
@@ -162,9 +162,42 @@ typedef enum {
     POS_REFERS        = 1 << 12,
     POS_REFERS_TO     = 1 << 13,
     POS_CONTEXT       = 1 << 14,
-    POS_FLAG          = 1 << 15
+    POS_FLAG          = 1 << 15,
+    POS_INCLUDE       = 1 << 16
 } part_of_speech;
-const int POS_END     = 1 << 16;
+const int POS_END     = 1 << 17;
+
+/*\
+|*| tagd_pos rank tree
+|*| ------------------
+|*| Each tagd_pos is a tagd::rank type
+|*| that holds the HARD_TAG_POS rank + tadg_pos_ subtree rank 
+|*|
+|*| Encoding the tad_pos into the tagspace rank tree help us
+|*|   * eliminate t_id <=> id_t conversion in tagddb
+|*|     The rank now fills the role of:
+|*|     * each rank uniquely identifies rank == old t_id 
+|*|     * rank == t_id 
+|*|       relation    tad rank     offset
+|*|       --------    --------     ------
+|*|       id          == tagd::rank + POS_ID (0)
+|*|       sub_relator == tagd::rank + POS_SUB
+|*|       sub_relator == tagd::rank + POS_SUB
+|*|               pos == tagd::rank + POS_POS
+|*|     * rank == (rank + pos) to deduce value of other each pos in a tag
+|*|     * makes a tagd rank an iterable set over a buffer of data
+|*|       from start == rank == id to end
+|*|     * allow to deduce the end of a tag in a buffer of data given any rank,
+|*|		* allows us to copy an entire tagdb/tagspace (by value)
+|*|		  using only a buffer of utf8 and list of ranks
+|*|       VERY PORTABLE!
+|*| So that each tagd_id utf8 string value 
+|*| tagdb indexes will optimize reads of
+|*| an entire tag as all the data will be
+
+|*| Also this allows us to make tagd_pos searchable and extensible in TAGL
+|*| And allow to seek directly within a rank index
+\*/
 
 // wrap in struct so we can define here
 struct tag_util {

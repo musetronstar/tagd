@@ -1419,6 +1419,9 @@ tagd::part_of_speech sqlite::term_pos_occurence(const tagd::id_type& id, bool se
 	if (_term_pos_occurence_stmt == NULL) {
 		// TODO there is probably a more optimal way of doing this
 		// I know, WTF, but when in doubt, use brute force
+		// TODO this might not even be needed
+		// if we are to do it, remove the dynamic SQL and embedded tagd::POS_* values not needed 
+		// next, accomodate all tagd::part_of_speech types
 		std::stringstream ss;
 		ss << "SELECT pos FROM tags WHERE tag = tid(?) "
 		   << "UNION "
@@ -1633,7 +1636,7 @@ tagd::code sqlite::delete_tag(const tagd::id_type& id) {
 		this->term_pos_occurence(id, true);
 
 		assert(_code == tagd::TS_FOREIGN_KEY);
-		if (!_code == tagd::TS_FOREIGN_KEY)  // unknown cause of FK constraint failure, should't happen
+		if (_code != tagd::TS_FOREIGN_KEY)  // unknown cause of FK constraint failure, should't happen
 			return this->ferror(tagd::TS_ERR, "delete tag unknown constraint failure: %s", id.c_str());
 		else  // error(s) set
 			return _code;
@@ -2152,7 +2155,7 @@ tagd::code sqlite::insert_relations(const tagd::abstract_tag& t, flags_t flags) 
 tagd::code sqlite::insert_referent(const tagd::referent& put_ref, flags_t flags) {
     assert( !put_ref.refers().empty() );
     assert( !put_ref.refers_to().empty() );
-	assert( flags < 32 );  // use flags here to suppress unused param warning
+	assert( flags >= 0 );  // use flags here to suppress unused param warning
 
 	tagd::referent t;
 	if (flags & F_NO_TRANSFORM_REFERENTS) {

@@ -44,12 +44,15 @@
 
 /***** messages *****/
 #define HARD_TAG_MESSAGE	"_message"	//gperf HARD_TAG_ENTITY, tagd::POS_TAG
-#define HARD_TAG_TERMS		"_terms"		//gperf HARD_TAG_MESSAGE, tagd::POS_TAG
+#define HARD_TAG_TERMS		"_terms"	//gperf HARD_TAG_MESSAGE, tagd::POS_TAG
 
 /***** flags *****/
-#define HARD_TAG_FLAG		"_flag"			//gperf HARD_TAG_ENTITY, tagd::POS_FLAG
+#define HARD_TAG_FLAG		"_flag"		//gperf HARD_TAG_ENTITY, tagd::POS_FLAG
 // ignore TS_DUPLICATE errors
 #define HARD_TAG_IGNORE_DUPLICATES	"_ignore_duplicates"	//gperf HARD_TAG_FLAG, tagd::POS_FLAG
+
+/***** flags *****/
+#define HARD_TAG_INCLUDE	"_include"		//gperf HARD_TAG_RELATOR, tagd::POS_INCLUDE
 
 /***** errors *****/
 #define HARD_TAG_ERROR			"_error"		//gperf HARD_TAG_ENTITY, tagd::POS_TAG

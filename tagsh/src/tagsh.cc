@@ -2,13 +2,13 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <unistd.h>
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -311,44 +311,7 @@ int tagsh::interpret(std::istream& ins) {
 }
 
 int tagsh::interpret_fname(const  std::string& fname) {
-	int fd = open(fname.c_str(), O_RDONLY);
-	
-	if (fd < 0) 
-		return error("failed to open: %s", fname.c_str());
-
-	struct stat st;
-	if (fstat(fd, &st) < 0) {
-		close(fd);
-		return error("stat failed: %s", fname.c_str());
-	}
-
-	struct evbuffer *input = evbuffer_new();
-
-	if (st.st_size == 0) {
-		std::cerr << "ignoring zero length file: "  << fname << std::endl;
-		if (fcntl(fd, F_GETFD) != -1)
-			close(fd);
-		return 0;  // warn, don't fail
-	}
-
-	// evbuffer_add_file closes fd for us
-	if (evbuffer_add_file(input, fd, 0, st.st_size) == 0) {
-		bool echo_rc = _CB->_echo_result_code;
-		_CB->_echo_result_code = false;
-
-		_driver.filename(fname);
-		_driver.execute(input);
-
-		_CB->_echo_result_code = echo_rc;
-	} else {
-		return error("evbuffer_add_file failed: %s", fname.c_str());
-		if (fcntl(fd, F_GETFD) != -1)
-			close(fd);
-	}
-
-	evbuffer_free(input);
-
-	return 0;
+	return _driver.include_file(fname);
 }
 
 void tagsh::cmd_show() {

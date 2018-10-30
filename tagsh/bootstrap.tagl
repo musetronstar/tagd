@@ -1,12 +1,4 @@
->> can _is_a _rel
-
->> about _is_a _rel
-
->> what _is_a _interrogator
-
->> physical_object _is_a _entity
-
->> living_thing _is_a physical_object
+%% _include bootstrap.inc.tagl
 
 >> animal _is_a living_thing
 
@@ -38,8 +30,6 @@
 
 >> spider _is_a insect
 
->> body_part _is_a physical_object
-
 >> teeth _is_a body_part
 
 >> fangs _is_a teeth
@@ -56,23 +46,11 @@
 
 >> fins _is_a body_part
 
->> substance _is_a _entity
-
 >> body_fluid _is_a substance
 
 >> blood _is_a body_fluid
 
->> mind _is_a _entity
-
->> knowledge _is_a mind
-
->> concept _is_a knowledge
-
->> science _is_a knowledge
-
 >> computer_security _is_a science
-
->> creativity _is_a mind
 
 >> art _is_a creativity
 
@@ -140,9 +118,3 @@ _has feathers, wings
 can fly
 
 >> spider _has fangs
-
->> refers_to _refers_to _refers_to
-
->> is_a _refers_to _is_a
-
->> has _refers_to _has

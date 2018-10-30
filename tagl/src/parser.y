@@ -55,9 +55,9 @@
 			else
 				tagl->error(tagd::TAGL_ERR, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
 	}
-	if (!tagl->filename().empty()) {
+	if (!tagl->path().empty()) {
 		tagl->last_error_relation(
-			tagd::predicate(HARD_TAG_CAUSED_BY, "_file", tagl->filename()) );
+			tagd::predicate(HARD_TAG_CAUSED_BY, "_file", tagl->path()) );
 	}
 	if (tagl->line_number()) {
 		tagl->last_error_relation(
@@ -121,9 +121,12 @@ statement ::= query_statement TERMINATOR .
 statement ::= TERMINATOR .
 
 %type context { std::string * }
+%type boolean_value { bool }
+
 set_statement ::= CMD_SET set_context .
 set_statement ::= CMD_SET set_flag .
-%type boolean_value { bool }
+set_statement ::= CMD_SET set_include .
+
 set_flag ::= FLAG(F) boolean_value(b) .
 {
 	// TODO hard tag flags will need to have a flag_value relation holding
@@ -155,6 +158,19 @@ context_list ::= push_context .
 push_context ::= context(c) .
 {
 	tagl->_tdb->push_context(*c);
+}
+
+set_include ::= INCLUDE tagl_file(f) .
+{
+	tagl->include_file(*f);
+}
+tagl_file(f) ::= TAGL_FILE(F) .
+{
+	f = F;
+}
+tagl_file(f) ::= QUOTED_STR(S) .
+{
+	f = S;
 }
 
 get_statement ::= CMD_GET subject .
