@@ -35,9 +35,8 @@ const char* scanner::fill() {
 	if (driver::_trace_on) {
 		std::cerr << "fill ln: " << _line_number << std::endl;
 		std::cerr << "fill _cur(" << (_cur-_buf) << "): " << ((int)*_cur) << ", " << *_cur << std::endl;
+		print_buf();
 	}
-
-	if (driver::_trace_on) print_buf();
 
 // YYFILL(n)  should adjust YYCURSOR, YYLIMIT, YYMARKER and YYCTXMARKER as needed.
 	if (_cur == '\0') {
@@ -52,7 +51,7 @@ const char* scanner::fill() {
 	assert(sz <= buf_sz);
 
 	if (sz >= buf_sz) {
-		// buffer is full, so overflow into a std::string _val
+		// buffer is full, so overflow into a std::string _val (TODO perhaps an evbuffer)
 		// _cur is at the end of the buffer, so append everything up to _cur into _val
 		// and copy _cur to the beginning of the buffer for scanning
 		auto apnd_sz = buf_sz - 1;
