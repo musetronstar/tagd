@@ -13,11 +13,11 @@ namespace TAGL {
 
 void scanner::print_buf() {
 	std::cerr << "print_buf:" << std::endl;
-	for(size_t i=0; i<buf_sz; ++i) {
+	for(size_t i=0; i<BUF_SZ; ++i) {
 		std::cerr << (i % 10);
 	}
 	std::cerr << std::endl;
-	for(size_t i=0; i<buf_sz; ++i) {
+	for(size_t i=0; i<BUF_SZ; ++i) {
 		std::cerr << _buf[i];
 	}
 	std::cerr << std::endl;
@@ -48,13 +48,13 @@ const char* scanner::fill() {
 	size_t sz, offset;
 	assert(_lim >= _beg);
 	sz = _lim - _beg;
-	assert(sz <= buf_sz);
+	assert(sz <= BUF_SZ);
 
-	if (sz >= buf_sz) {
+	if (sz >= BUF_SZ) {
 		// buffer is full, so overflow into a std::string _val (TODO perhaps an evbuffer)
 		// _cur is at the end of the buffer, so append everything up to _cur into _val
 		// and copy _cur to the beginning of the buffer for scanning
-		auto apnd_sz = buf_sz - 1;
+		auto apnd_sz = BUF_SZ - 1;
 		_val.append(_buf, apnd_sz);
 		if (driver::_trace_on) {
 			std::cerr << "fill _val.append(" << apnd_sz << "): `" << std::string(_buf, apnd_sz) << "'" << std::endl;
@@ -78,7 +78,7 @@ const char* scanner::fill() {
 		std::cerr << "fill buf(" << sz << "): `" << std::string(_buf, sz) << "'" << std::endl;
 	}
 
-	size_t read_sz = buf_sz - offset;
+	size_t read_sz = BUF_SZ - offset;
 	if (driver::_trace_on) {
 		std::cerr << "fill sz: " << sz << std::endl;
 		std::cerr << "fill offset: " << offset << std::endl;

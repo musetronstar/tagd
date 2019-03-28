@@ -35,7 +35,7 @@ class callback {
         virtual void finish() {} // optionally, can be overridden
 };
 
-const size_t buf_sz = 16384;
+const size_t BUF_SZ = 16384;
 
 class scanner {
 	friend void ::yy_reduce(yyParser *, int);
@@ -46,7 +46,7 @@ class scanner {
 		size_t _line_number;
 
 		const char *_beg, *_cur, *_mark, *_lim, *_eof;
-		char _buf[buf_sz];
+		char _buf[BUF_SZ];
 		int _tok;
 		int32_t _state;
 		std::string _val;
@@ -58,7 +58,9 @@ class scanner {
 		scanner(driver *d) :
 			_driver(d), _line_number(1),
 			_beg{nullptr}, _cur{nullptr}, _mark{nullptr}, _lim{nullptr}, _eof{nullptr},
-			_tok{-1}, _state{-1}, _do_fill{false}, _evbuf{nullptr} {}
+			_tok{-1}, _state{-1}, _do_fill{false}, _evbuf{nullptr} {
+				_buf[0] = '\0';
+			}
 		virtual ~scanner() {}
 
 		const char* fill();
@@ -89,6 +91,7 @@ class driver : public tagd::errorable {
 		scanner *_scanner;
 		void *_parser;	// lemon parser context
 		int _token;		// last token scanned
+		int _cmd;		// _token value representing a TAGL command
 		std::string _path;
 		tagdb::flags_t _flags;
 
@@ -100,7 +103,6 @@ class driver : public tagd::errorable {
 
 		tagdb::tagdb *_tdb;
 		callback *_callback;
-		int _cmd;
 		tagd::abstract_tag *_tag;  // tag of the current statement
 		tagd::id_type _relator;    // current relator
 
