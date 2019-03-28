@@ -53,6 +53,7 @@ struct flag_util {
 	}
 };
 
+// matches sqlite_int64 type defined in sqlite.h
 typedef long long int rowid_t;
 
 class hard_tag {
@@ -82,12 +83,12 @@ class tagdb : public tagd::errorable {
 		virtual tagd::code pop_context();
 		virtual tagd::code clear_context();
 
-		virtual tagd::code get(tagd::abstract_tag&, const tagd::id_type&, flags_t = flags_t()) = 0; // get into tag, given id
-		virtual tagd::code put(const tagd::abstract_tag&, flags_t = flags_t()) = 0;
-		virtual tagd::code del(const tagd::abstract_tag&, flags_t = flags_t()) = 0;
-		virtual tagd::part_of_speech pos(const tagd::id_type&, flags_t = flags_t()) = 0; 
+		virtual tagd::code get(tagd::abstract_tag&, const tagd::id_type&, flags_t = 0) = 0; // get into tag, given id
+		virtual tagd::code put(const tagd::abstract_tag&, flags_t = 0) = 0;
+		virtual tagd::code del(const tagd::abstract_tag&, flags_t = 0) = 0;
+		virtual tagd::part_of_speech pos(const tagd::id_type&, flags_t = 0) = 0; 
 		virtual tagd::code exists(const tagd::id_type&) = 0;
-		virtual tagd::code query(tagd::tag_set&, const tagd::interrogator&, flags_t = flags_t()) = 0;
+		virtual tagd::code query(tagd::tag_set&, const tagd::interrogator&, flags_t = 0) = 0;
 		virtual tagd::code dump(std::ostream& os = std::cout) = 0;
 
 		virtual tagd::code dump_grid(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }

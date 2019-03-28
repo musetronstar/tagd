@@ -39,8 +39,8 @@ tokens.inc: $(PARSER_H)
 parser.o: $(PARSER_H) parser.cc
 	$(CXX) $(CXXFLAGS) -c -o $@ parser.cc $(INC) 
 
-tagl.o: parser.o tokens.inc tagl.cc
-	$(CXX) $(CXXFLAGS) -c -o $@ tagl.cc parser.o $(INC) 
+tagl.o: tokens.inc tagl.cc
+	$(CXX) $(CXXFLAGS) -c -o $@ tagl.cc $(INC) 
  
 .PHONY: clean
 clean:

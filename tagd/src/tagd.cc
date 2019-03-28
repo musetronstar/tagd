@@ -10,11 +10,11 @@
 namespace tagd {
 
 void insert_predicate(predicate_set& P,
-    const id_type &relator, const id_type &object, const id_type &modifier ) {
-    if (object.empty())
-        return;
+	const id_type &relator, const id_type &object, const id_type &modifier ) {
+	if (object.empty())
+		return;
 
-    P.insert(predicate(relator, object, modifier));
+	P.insert(predicate(relator, object, modifier));
 }
 
 void print_tags(const tag_set& T, std::ostream& os) {
@@ -40,75 +40,75 @@ void print_tag_ids(const tag_set& T, std::ostream& os) {
 }
 
 void merge_tags(tag_set& A, const tag_set& B) {
-    if (A.empty()) {
-        A.insert(B.begin(), B.end());
-        return;
-    }
+	if (A.empty()) {
+		A.insert(B.begin(), B.end());
+		return;
+	}
 
-    tagd::tag_set::iterator a = A.begin();
-    for (tagd::tag_set::iterator b = B.begin(); b != B.end(); ++b) {
-        a = A.insert(a, *b);
-        if ( a->id() == b->id() ) { // duplicate
-            // copy/erase/insert because sets are const iterators
-            tagd::abstract_tag t(*a);
-            t.predicates(b->relations);  // merge relations
-            tagd::tag_set::iterator it = a; // for speeding up insertion
-            if (it != A.begin()) --it;
-            A.erase(a);
-            a = A.insert(it, t);
-        }
-    }
+	tagd::tag_set::iterator a = A.begin();
+	for (tagd::tag_set::iterator b = B.begin(); b != B.end(); ++b) {
+		a = A.insert(a, *b);
+		if ( a->id() == b->id() ) { // duplicate
+			// copy/erase/insert because sets are const iterators
+			tagd::abstract_tag t(*a);
+			t.predicates(b->relations);  // merge relations
+			tagd::tag_set::iterator it = a; // for speeding up insertion
+			if (it != A.begin()) --it;
+			A.erase(a);
+			a = A.insert(it, t);
+		}
+	}
 }
 
 size_t merge_tags_erase_diffs(tag_set& A, const tag_set& B) {
-    assert (B.size() != 0);
+	assert (B.size() != 0);
 
-    if (A.size() == 0) {
-        A.insert(B.begin(), B.end());
-        return A.size();
-    }
+	if (A.size() == 0) {
+		A.insert(B.begin(), B.end());
+		return A.size();
+	}
 
-    // TODO find a more efficient way to erase/insert against A without a temp containter
-    tagd::tag_set T;  // tmp
-    tagd::tag_set::iterator a = A.begin();
-    tagd::tag_set::iterator b = B.begin();
-    tagd::tag_set::iterator it = T.begin();  
+	// TODO find a more efficient way to erase/insert against A without a temp containter
+	tagd::tag_set T;  // tmp
+	tagd::tag_set::iterator a = A.begin();
+	tagd::tag_set::iterator b = B.begin();
+	tagd::tag_set::iterator it = T.begin();  
 
-    while (b != B.end()) {
-        if (a == A.end())
-            break; 
-        
-        if (*a < *b) {
-            ++a;
+	while (b != B.end()) {
+		if (a == A.end())
+			break; 
+		
+		if (*a < *b) {
+			++a;
 			// TODO check if a contains b, and if so, merge
-        } else if (*b < *a) {
-            ++b;
-        } else {
-            assert( a->id() == b->id() );
-            tagd::abstract_tag t(*a);
-            t.predicates(b->relations);  // merge relations
-            it = T.insert(it, t);
-            ++a;
-            ++b;
-        }
-    }
+		} else if (*b < *a) {
+			++b;
+		} else {
+			assert( a->id() == b->id() );
+			tagd::abstract_tag t(*a);
+			t.predicates(b->relations);  // merge relations
+			it = T.insert(it, t);
+			++a;
+			++b;
+		}
+	}
 
-    A.clear();
-    if (T.size() > 0)
-        A.insert(T.begin(), T.end());
+	A.clear();
+	if (T.size() > 0)
+		A.insert(T.begin(), T.end());
 
-    return T.size();
+	return T.size();
 }
 
 size_t merge_containing_tags(tag_set& A, const tag_set& B) {
-    assert (B.size() != 0);
+	assert (B.size() != 0);
 
-    if (A.size() == 0) {
-        A.insert(B.begin(), B.end());
-        return A.size();
-    }
+	if (A.size() == 0) {
+		A.insert(B.begin(), B.end());
+		return A.size();
+	}
 
-    auto a = A.begin();
+	auto a = A.begin();
 	while (a != A.end()) {
 		size_t merged = 0;
 		for(auto b = B.begin(); b != B.end(); ++b) {
@@ -126,24 +126,24 @@ size_t merge_containing_tags(tag_set& A, const tag_set& B) {
 			A.erase(a++);
 	}
 
-    return A.size();
+	return A.size();
 } 
 
 bool tag_set_equal(const tag_set A, const tag_set B) {
-    if (A.size() != B.size())
-        return false;
+	if (A.size() != B.size())
+		return false;
 
-    tagd::tag_set::iterator a = A.begin();
-    tagd::tag_set::iterator b = B.begin();
+	tagd::tag_set::iterator a = A.begin();
+	tagd::tag_set::iterator b = B.begin();
 
-    while ( (a != A.end()) && (b != B.end()) ) {
-        if (*a != *b) {
-            return false;
-        }
-        ++a; ++b;
-    }
+	while ( (a != A.end()) && (b != B.end()) ) {
+		if (*a != *b) {
+			return false;
+		}
+		++a; ++b;
+	}
 
-    return true;
+	return true;
 }
 
 bool abstract_tag::operator==(const abstract_tag& rhs) const {
@@ -191,62 +191,62 @@ void abstract_tag::clear() {
 }
 
 tagd::code abstract_tag::relation(const tagd::predicate &p) {
-    if (p.empty())
-        return TAG_ILLEGAL;
+	if (p.empty())
+		return TAG_ILLEGAL;
 
-    predicate_pair pr = relations.insert(p);
-    return (pr.second ? TAGD_OK : TAG_DUPLICATE);
+	predicate_pair pr = relations.insert(p);
+	return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
 tagd::code abstract_tag::relation(const id_type &relator, const id_type &object) {
-    if (relator.empty() && object.empty())
-        return TAG_ILLEGAL;
+	if (relator.empty() && object.empty())
+		return TAG_ILLEGAL;
 
-    predicate_pair pr = relations.insert(predicate(relator, object));
-    return (pr.second ? TAGD_OK : TAG_DUPLICATE);
+	predicate_pair pr = relations.insert(predicate(relator, object));
+	return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
 tagd::code abstract_tag::relation(
-    const id_type &relator, const id_type &object, const id_type &modifier ) {
-    if (relator.empty() && object.empty())
-        return TAG_ILLEGAL;
+	const id_type &relator, const id_type &object, const id_type &modifier ) {
+	if (relator.empty() && object.empty())
+		return TAG_ILLEGAL;
 
-    predicate_pair pr = relations.insert(predicate(relator, object, modifier));
-    return (pr.second ? TAGD_OK : TAG_DUPLICATE);
+	predicate_pair pr = relations.insert(predicate(relator, object, modifier));
+	return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
 tagd::code abstract_tag::relation(
-    const id_type &relator, const id_type &object, const id_type &modifier, operator_t op ) {
-    if (relator.empty() && object.empty())
-        return TAG_ILLEGAL;
+	const id_type &relator, const id_type &object, const id_type &modifier, operator_t op ) {
+	if (relator.empty() && object.empty())
+		return TAG_ILLEGAL;
 
-    predicate_pair pr = relations.insert(predicate(relator, object, modifier, op));
-    return (pr.second ? TAGD_OK : TAG_DUPLICATE);
+	predicate_pair pr = relations.insert(predicate(relator, object, modifier, op));
+	return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
 tagd::code abstract_tag::relation(
-    const id_type &relator, const id_type &object, const id_type &modifier, operator_t op, data_t d) {
-    if (relator.empty() && object.empty())
-        return TAG_ILLEGAL;
+	const id_type &relator, const id_type &object, const id_type &modifier, operator_t op, data_t d) {
+	if (relator.empty() && object.empty())
+		return TAG_ILLEGAL;
 
-    predicate_pair pr = relations.insert(predicate(relator, object, modifier, op, d));
-    return (pr.second ? TAGD_OK : TAG_DUPLICATE);
+	predicate_pair pr = relations.insert(predicate(relator, object, modifier, op, d));
+	return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
 tagd::code abstract_tag::not_relation(const tagd::predicate &p) {
-    if (p.empty())
-        return TAG_ILLEGAL;
+	if (p.empty())
+		return TAG_ILLEGAL;
 
 	size_t erased = relations.erase(p);
-    return (erased ? TAGD_OK : TAG_UNKNOWN);
+	return (erased ? TAGD_OK : TAG_UNKNOWN);
 }
 
 tagd::code abstract_tag::not_relation(const id_type &relator, const id_type &object) {
-    if (relator.empty() && object.empty())
-        return TAG_ILLEGAL;
+	if (relator.empty() && object.empty())
+		return TAG_ILLEGAL;
 
 	size_t erased = relations.erase(predicate(relator, object));
-    return (erased ? TAGD_OK : TAG_UNKNOWN);
+	return (erased ? TAGD_OK : TAG_UNKNOWN);
 }
 
 void abstract_tag::predicates(const predicate_set &p) {
@@ -254,79 +254,79 @@ void abstract_tag::predicates(const predicate_set &p) {
 }
 
 bool abstract_tag::has_relator(const id_type &r) const {
-    if (r.empty())
-        return false;
+	if (r.empty())
+		return false;
 
-    for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
-        if (it->relator == r) {
-            return true;
-        }
-    }
+	for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
+		if (it->relator == r) {
+			return true;
+		}
+	}
    
-    return false;
+	return false;
 }
 
 bool abstract_tag::has_relator(const id_type &r, predicate_set& P) const {
-    if (r.empty())
-        return false;
+	if (r.empty())
+		return false;
 
 	bool match = false;
-    for (auto it = relations.begin(); it != relations.end(); ++it) {
-        if (it->relator == r) {
-            match = true;
+	for (auto it = relations.begin(); it != relations.end(); ++it) {
+		if (it->relator == r) {
+			match = true;
 			P.insert(*it);
-        }
-    }
+		}
+	}
    
-    return match;
+	return match;
 }
 
 bool abstract_tag::related(const id_type &object) const {
-    if (object.empty())
-        return false;
+	if (object.empty())
+		return false;
 
-    // WTF not sure if is the best way - propably more efficient methods
-    for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
-        if (it->object == object)
-            return true;
-    }
+	// WTF not sure if is the best way - propably more efficient methods
+	for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
+		if (it->object == object)
+			return true;
+	}
    
-    return false;
+	return false;
 }
 
 bool abstract_tag::related(const id_type &relator, const id_type &object) const {
-    for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
-        if (it->relator == relator && it->object == object)
-            return true;
-    }
+	for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
+		if (it->relator == relator && it->object == object)
+			return true;
+	}
 
 	return false;
 }
 
 size_t abstract_tag::related(const id_type &object, predicate_set& how) const {
-    if (object.empty())
-        return 0;
+	if (object.empty())
+		return 0;
 
 	size_t matches = 0;
-    // WTF not sure if is the best way - propably more efficient methods
-    for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
-        if (it->object == object) {
+	// WTF not sure if is the best way - propably more efficient methods
+	for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
+		if (it->object == object) {
 			how.insert(*it);
-            matches++;
-        }
-    }
+			matches++;
+		}
+	}
    
-    return matches;
+	return matches;
 }
 
 // referents
 id_type referent::context() const {
-    for (predicate_set::const_iterator it = relations.begin(); it != relations.end(); ++it) {
-        if (it->relator == HARD_TAG_CONTEXT)
-            return it->object;
-    }
+	for (predicate_set::const_iterator it = relations.begin(); it != relations.end(); ++it) {
+		if (it->relator == HARD_TAG_CONTEXT)
+			return it->object;
+	}
    
-    return id_type();
+	return id_type();
 }
 
 // tag output functions
@@ -358,6 +358,7 @@ std::string util::esc_and_quote(id_type s) {
 			case '=':
 			case '-':
 				do_quotes = true;
+				[[fallthrough]];
 			default:
 				continue;
 		}
@@ -426,7 +427,7 @@ std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
 		}
 	}
  
-    return os;
+	return os;
 }
 // end tag output functions
 
@@ -458,12 +459,12 @@ char* util::csprintf(const char *fmt, va_list& args) {
 }
 
 id_type error::message() const {
-    for (predicate_set::const_iterator it = relations.begin(); it != relations.end(); ++it) {
-        if (it->object == HARD_TAG_MESSAGE)
-            return it->modifier;
-    }
+	for (predicate_set::const_iterator it = relations.begin(); it != relations.end(); ++it) {
+		if (it->object == HARD_TAG_MESSAGE)
+			return it->modifier;
+	}
 
-    return id_type();
+	return id_type();
 }
 
 tagd::error errorable::last_error() const {
@@ -576,7 +577,7 @@ void errorable::print_errors(std::ostream& os) const {
 		++it;
 	}
 
-    for(; it != _errors.get()->end(); ++it)
+	for(; it != _errors.get()->end(); ++it)
 		os << std::endl << *it << std::endl;
 }
 

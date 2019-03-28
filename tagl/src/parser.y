@@ -4,6 +4,7 @@
 	#include <iostream>
 	#include "tagd.h"
 	#include "tagl.h"  // includes parser.h
+	#include "tagdb.h"
 
 #define NEW_TAG(TAG_TYPE, TAG_ID)	\
 	if (tagl->_constrain_tag_id.empty() || (tagl->_constrain_tag_id == TAG_ID)) {	\
@@ -67,10 +68,11 @@
 	if (tagl->is_trace_on()) {
 		std::cerr << "syntax_error stack: " << std::endl;
 		fprintf(stderr,"yymajor: %s\n",yyTokenName[yymajor]);
-		if( yypParser->yyidx>0 ){
-			int i;
-			for(i=1; i<=yypParser->yyidx; i++)
-				fprintf(stderr," %s",yyTokenName[yypParser->yystack[i].major]);
+		if( yypParser->yytos > yypParser->yystack ) {
+			// loop from start of stack to top of stack
+			auto p = yypParser->yystack;
+			while(p <= yypParser->yytos)
+				fprintf(stderr," %s",yyTokenName[p->major]);
 			fprintf(stderr,"\n");
 		}
 	}

@@ -153,38 +153,38 @@ class sqlite: public tagdb {
 		tagd::code clear_context();
 
         // get into tag given id
-        tagd::code get(tagd::abstract_tag&, const tagd::id_type&, flags_t = flags_t());
-        tagd::code get(tagd::url&, const tagd::id_type&, flags_t = flags_t());
+        tagd::code get(tagd::abstract_tag&, const tagd::id_type&, flags_t = 0);
+        tagd::code get(tagd::url&, const tagd::id_type&, flags_t = 0);
 
         tagd::code exists(const tagd::id_type& id); 
 
         // put tag, will overrite existing (move + update)
-        tagd::code put(const tagd::abstract_tag&, flags_t = flags_t());
-        tagd::code put(const tagd::url&, flags_t = flags_t());
-        tagd::code put(const tagd::referent&, flags_t = flags_t());
+        tagd::code put(const tagd::abstract_tag&, flags_t = 0);
+        tagd::code put(const tagd::url&, flags_t = 0);
+        tagd::code put(const tagd::referent&, flags_t = 0);
 
 		// delete tag and/or relations
-        tagd::code del(const tagd::abstract_tag&, flags_t = flags_t());
-        tagd::code del(const tagd::url&, flags_t = flags_t());
-        tagd::code del(const tagd::referent&, flags_t = flags_t());
+        tagd::code del(const tagd::abstract_tag&, flags_t = 0);
+        tagd::code del(const tagd::url&, flags_t = 0);
+        tagd::code del(const tagd::referent&, flags_t = 0);
 
 		tagd::part_of_speech term_pos(const tagd::id_type& t) {
 			return this->term_pos(t, NULL);
 		}
-		tagd::part_of_speech pos(const tagd::id_type&, flags_t = flags_t());
+		tagd::part_of_speech pos(const tagd::id_type&, flags_t = 0);
 
 		// get refers_to given refers
 		tagd::code refers_to(tagd::id_type&, const tagd::id_type&);
 		// get refers given refers_to
 		tagd::code refers(tagd::id_type&, const tagd::id_type&);
 
-        tagd::code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type&, flags_t = flags_t());
-        tagd::code related(tagd::tag_set &T, const tagd::predicate &p, flags_t f = flags_t()) {
+        tagd::code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type&, flags_t = 0);
+        tagd::code related(tagd::tag_set &T, const tagd::predicate &p, flags_t f = 0) {
 			return this->related(T, p, tagd::id_type(), f);
 		}
-        tagd::code query(tagd::tag_set&, const tagd::interrogator&, flags_t = flags_t());
-        tagd::code search(tagd::tag_set&, const std::string&, flags_t = flags_t());
-        tagd::code get_children(tagd::tag_set&, const tagd::id_type&, flags_t = flags_t());
+        tagd::code query(tagd::tag_set&, const tagd::interrogator&, flags_t = 0);
+        tagd::code search(tagd::tag_set&, const std::string&, flags_t = 0);
+        tagd::code get_children(tagd::tag_set&, const tagd::id_type&, flags_t = 0);
         tagd::code query_referents(tagd::tag_set&, const tagd::interrogator&);
 
         tagd::code dump(std::ostream& = std::cout);
@@ -208,8 +208,8 @@ class sqlite: public tagdb {
         tagd::code update_term(const tagd::id_type&, const tagd::part_of_speech);
         tagd::code delete_term(const tagd::id_type&);
 
-        tagd::code insert_fts_tag(const tagd::id_type&, flags_t = flags_t());
-        tagd::code update_fts_tag(const tagd::id_type&, flags_t = flags_t());
+        tagd::code insert_fts_tag(const tagd::id_type&, flags_t = 0);
+        tagd::code update_fts_tag(const tagd::id_type&, flags_t = 0);
         tagd::code delete_fts_tag(const tagd::id_type&);
 
         // insert - new, destination (sub of new tag)
@@ -217,8 +217,8 @@ class sqlite: public tagdb {
         // update - updated, new destination
         tagd::code update(const tagd::abstract_tag&, const tagd::abstract_tag&);
 
-        tagd::code insert_relations(const tagd::abstract_tag&, flags_t = flags_t());
-		tagd::code insert_referent(const tagd::referent&, flags_t = flags_t());
+        tagd::code insert_relations(const tagd::abstract_tag&, flags_t = 0);
+		tagd::code insert_referent(const tagd::referent&, flags_t = 0);
 
 		void encode_referent(tagd::id_type&, const tagd::id_type&);
 		void encode_referents(tagd::predicate_set&, const tagd::predicate_set&);
@@ -241,7 +241,7 @@ class sqlite: public tagdb {
 		tagd::code delete_refers_to(const tagd::id_type&);
 		tagd::part_of_speech term_pos_occurence(const tagd::id_type&, bool = false);
 		tagd::code update_pos_occurence(const tagd::id_type&);
-        tagd::code get_relations(tagd::predicate_set&, const tagd::id_type&, flags_t = flags_t());
+        tagd::code get_relations(tagd::predicate_set&, const tagd::id_type&, flags_t = 0);
 
         tagd::code next_rank(tagd::rank&, const tagd::abstract_tag&);
         tagd::code child_ranks(tagd::rank_set&, const tagd::id_type&);

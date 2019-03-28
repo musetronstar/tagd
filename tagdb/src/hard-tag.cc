@@ -35,7 +35,7 @@ tagd::part_of_speech hard_tag::term_pos(const tagd::id_type& id, rowid_t* row_id
 // returns pos, given term row_id - if non-null term passed in, it will be set if found
 tagd::part_of_speech hard_tag::term_id_pos(rowid_t row_id, tagd::id_type *term) {
 	// row == 0 unused
-	if (row_id <= 0 || row_id >= hard_tag_rows_end)
+	if (row_id <= 0 || static_cast<decltype(hard_tag_rows_end)>(row_id) >= hard_tag_rows_end)
 		return tagd::POS_UNKNOWN;
 
 	tagd::id_type id{ hard_tag_rows[row_id] };

@@ -35,27 +35,24 @@ namespace TAGL {
 bool driver::_trace_on = false;
 
 driver::driver(tagdb::tagdb *tdb) :
-		tagd::errorable(tagd::TAGL_INIT), _own_scanner{true}, _scanner{new scanner(this)}, _parser(nullptr),
-		_token(-1), _flags(0), _tdb(tdb), _callback(nullptr),
-		_cmd(), _tag(nullptr), _relator()
+		tagd::errorable(tagd::TAGL_INIT), _own_scanner{true}, _scanner{new scanner(this)}, _parser{nullptr},
+		_token{-1}, _cmd{-1}, _flags{0}, _tdb{tdb}, _callback{nullptr}, _tag{nullptr}
 {
 	this->init();
 }
 
 driver::driver(tagdb::tagdb *tdb, scanner *s) :
 		tagd::errorable(tagd::TAGL_INIT),
-		_own_scanner{false}, _scanner{s}, _parser(nullptr),
-		_token(-1), _flags(0), _tdb(tdb), _callback(nullptr),
-		_cmd(), _tag(nullptr), _relator()
+		_own_scanner{false}, _scanner{s}, _parser{nullptr},
+		_token{-1}, _cmd{-1}, _flags{0}, _tdb{tdb}, _callback{nullptr}, _tag{nullptr}
 {
 	this->init();
 }
 
 driver::driver(tagdb::tagdb *tdb, scanner *s, callback *cb) :
 		tagd::errorable(tagd::TAGL_INIT),
-		_own_scanner{false}, _scanner{s}, _parser(nullptr),
-		_token(-1), _flags(0), _tdb(tdb), _callback(cb),
-		_cmd(), _tag(nullptr), _relator()
+		_own_scanner{false}, _scanner{s}, _parser{nullptr},
+		_token{-1}, _cmd{-1}, _flags{0}, _tdb{tdb}, _callback{cb}, _tag{nullptr}
 {
 	cb->_driver = this;
 	this->init();
@@ -63,9 +60,8 @@ driver::driver(tagdb::tagdb *tdb, scanner *s, callback *cb) :
 
 driver::driver(tagdb::tagdb *tdb, callback *cb) :
 		tagd::errorable(tagd::TAGL_INIT),
-		_own_scanner{true}, _scanner{new scanner(this)}, _parser(nullptr),
-		_token(-1), _flags(0), _tdb(tdb), _callback(cb),
-		_cmd(), _tag(nullptr), _relator()
+		_own_scanner{true}, _scanner{new scanner(this)}, _parser{nullptr},
+		_token{-1}, _cmd{-1}, _flags{0}, _tdb{tdb}, _callback{cb}, _tag{nullptr}
 {
 	cb->_driver = this;
 	this->init();
@@ -137,7 +133,7 @@ void driver::finish() {
 	if (_parser != nullptr) {
 		if (_token != TOK_TERMINATOR && !this->has_errors())
 			Parse(_parser, TOK_TERMINATOR, NULL, this);
-		if (_token != -1 || _token != 0)
+		if (_token > 0)
 			Parse(_parser, 0, NULL, this);
 		ParseFree(_parser, free);
 		_parser = nullptr;
@@ -257,13 +253,12 @@ tagd::code driver::execute(const std::string& statement) {
 tagd::code driver::execute(struct evbuffer *input) {
 	this->init();
 
-	size_t sz, read_sz;
-
-	read_sz = buf_sz - 1;
-	if ((sz = evbuffer_remove(input, _scanner->_buf, read_sz)) > 0) {
+	size_t read_sz = BUF_SZ - 1;
+	size_t sz = evbuffer_remove(input, _scanner->_buf, read_sz); 
+	if (sz > 0) {
 		if (_trace_on)
 			std::cout << "scanning: " << std::string(_scanner->_buf, sz) << std::endl;
-		if (sz < buf_sz && _scanner->_buf[sz] != '\0')
+		if (sz < BUF_SZ)
 			_scanner->_buf[sz] = '\0';
 		_scanner->evbuf(input);
 		_scanner->scan(_scanner->_buf, sz);

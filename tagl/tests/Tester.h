@@ -1544,14 +1544,14 @@ class Tester : public CxxTest::TestSuite {
 
 		// fill buf
 		auto sz = ss.str().size();
-		while ( sz++ < TAGL::buf_sz )
+		while ( sz++ < TAGL::BUF_SZ )
 			ss << ' ';
 
 		// trigger a fill so that a quoted string
 		// completely fills the buffer
 		ss1 << '"';
 		sz = ss1.str().size();
-		while ( sz++ < TAGL::buf_sz - 1 )
+		while ( sz++ < TAGL::BUF_SZ - 1 )
 			ss1 << (char)(sz % 10 + 48);  // ascii 0-9
 		ss1 << '"';
 
@@ -1577,7 +1577,7 @@ class Tester : public CxxTest::TestSuite {
 		   << HARD_TAG_HAS " " HARD_TAG_MESSAGE " = \"";
 
 		auto sz = ss.str().size();
-		while ( sz++  < (TAGL::buf_sz * 3) )
+		while ( sz++  < (TAGL::BUF_SZ * 3) )
 			ss << (char)(sz % 10 + 48);  // ascii 0-9
 
 		ss << "\"\n\n";

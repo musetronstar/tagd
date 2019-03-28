@@ -40,7 +40,7 @@ void add_history_lines_clear(cmdlines_t& lines) {
 		hst.append(l);
 		if (l != lines.back())
 			hst.push_back('\n');
-		delete l;
+		free(l); // match readline's malloc
 	}
 	lines.clear();
 	if (!hst.empty())
