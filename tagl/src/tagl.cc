@@ -35,24 +35,22 @@ namespace TAGL {
 bool driver::_trace_on = false;
 
 driver::driver(tagdb::tagdb *tdb) :
-		tagd::errorable(tagd::TAGL_INIT), _own_scanner{true}, _scanner{new scanner(this)}, _parser{nullptr},
-		_token{-1}, _cmd{-1}, _flags{0}, _tdb{tdb}, _callback{nullptr}, _tag{nullptr}
+		tagd::errorable(tagd::TAGL_INIT),
+		_scanner{new scanner(this)}, _tdb{tdb}
 {
 	this->init();
 }
 
 driver::driver(tagdb::tagdb *tdb, scanner *s) :
 		tagd::errorable(tagd::TAGL_INIT),
-		_own_scanner{false}, _scanner{s}, _parser{nullptr},
-		_token{-1}, _cmd{-1}, _flags{0}, _tdb{tdb}, _callback{nullptr}, _tag{nullptr}
+		_own_scanner{false}, _scanner{s}, _tdb{tdb}
 {
 	this->init();
 }
 
 driver::driver(tagdb::tagdb *tdb, scanner *s, callback *cb) :
 		tagd::errorable(tagd::TAGL_INIT),
-		_own_scanner{false}, _scanner{s}, _parser{nullptr},
-		_token{-1}, _cmd{-1}, _flags{0}, _tdb{tdb}, _callback{cb}, _tag{nullptr}
+		_scanner{s}, _tdb{tdb}, _callback{cb}
 {
 	cb->_driver = this;
 	this->init();
@@ -60,8 +58,7 @@ driver::driver(tagdb::tagdb *tdb, scanner *s, callback *cb) :
 
 driver::driver(tagdb::tagdb *tdb, callback *cb) :
 		tagd::errorable(tagd::TAGL_INIT),
-		_own_scanner{true}, _scanner{new scanner(this)}, _parser{nullptr},
-		_token{-1}, _cmd{-1}, _flags{0}, _tdb{tdb}, _callback{cb}, _tag{nullptr}
+		_scanner{new scanner(this)}, _tdb{tdb}, _callback{cb}
 {
 	cb->_driver = this;
 	this->init();

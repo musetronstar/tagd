@@ -85,29 +85,27 @@ class driver : public tagd::errorable {
 	friend class TAGL::scanner;
 
 	private:
-		bool _own_scanner;
+		bool _own_scanner = true;
 
 	protected:
-		scanner *_scanner;
-		void *_parser;	// lemon parser context
-		int _token;		// last token scanned
-		int _cmd;		// _token value representing a TAGL command
+		scanner *_scanner = nullptr;
+		void *_parser = nullptr;	// lemon parser context
+		int _token = -1;		// last token scanned: 0 = <End of Input>, -1 = unitialized (ready for new parse tree)
+		int _cmd = -1;		// _token value representing a TAGL command
+		tagdb::flags_t _flags = 0;
+
+		tagdb::tagdb *_tdb = nullptr;
+		callback *_callback = nullptr;
+		tagd::abstract_tag *_tag = nullptr;  // tag of the current statement
+		tagd::id_type _relator;    // current relator
+		tagd::id_type _constrain_tag_id; // if set, the assigned _tag.id() must be equal to this
 		std::string _path;
-		tagdb::flags_t _flags;
 
 		static bool _trace_on;
 
 		// sets up scanner and parser for a fresh start
 		void init();
 		int parse_tokens();
-
-		tagdb::tagdb *_tdb;
-		callback *_callback;
-		tagd::abstract_tag *_tag;  // tag of the current statement
-		tagd::id_type _relator;    // current relator
-
-		// if set, the assigned _tag.id() must be equal to this
-		tagd::id_type _constrain_tag_id;
 
 	public:
 		driver(tagdb::tagdb *);

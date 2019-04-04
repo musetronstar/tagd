@@ -589,7 +589,7 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
 		tagd::code tc = tagl.execute("");
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_INIT" )
 		TS_ASSERT( tc == tagl.code() )
 		TS_ASSERT( tagl.tag().empty() )
 	}

@@ -32,18 +32,18 @@ class tagsh {
 	protected:
 		tagdb_type *_tdb;
 		tagsh_callback *_CB;
-		bool _own_callback;  // true if this alloced the callback pointer
+		bool _own_callback = false;  // true if this alloced the callback pointer
 		TAGL::driver _driver;
 
 	public:
-		std::string prompt;
+		std::string prompt = "tagd> ";
 		tagsh(tagdb_type *tdb, tagsh_callback *cb) :
-			_tdb(tdb), _CB(cb), _own_callback{false}, _driver(tdb, cb), prompt("tagd> ")
+			_tdb{tdb}, _CB{cb}, _driver(tdb, cb)
 		{}
 
 		tagsh(tagdb_type *tdb) :
-			_tdb(tdb), _CB{ new tagsh_callback(_tdb) }, _own_callback{true},
-			_driver(_tdb, _CB), prompt("tagd> ")
+			_tdb{tdb}, _CB{new tagsh_callback(_tdb)}, _own_callback{true},
+			_driver(_tdb, _CB)
 		{}
 
 		~tagsh() {
