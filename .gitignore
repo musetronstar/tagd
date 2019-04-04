@@ -19,6 +19,7 @@ bin/
 
 # vim leftovers
 *~
+*.swp
 
 # sqlite files
 *.sqlite
