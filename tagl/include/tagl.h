@@ -114,7 +114,11 @@ class driver : public tagd::errorable {
 		driver(tagdb::tagdb *, callback *);
 		virtual ~driver();
 
-		void callback_ptr(callback *c) { _callback = c; c->_driver = this; }
+		void callback_ptr(callback *c) {
+			_callback = c;
+			// TODO this can produce nasty side effects.  There must be a better way...
+			c->_driver = this;
+		}
 		callback *callback_ptr() { return _callback; }
 		tagd::code parseln(const std::string& = std::string());
 		tagd::code execute(const std::string&);
