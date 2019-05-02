@@ -14,6 +14,8 @@ static void yy_reduce(yyParser*, unsigned int, int, std::string*);
 
 namespace TAGL {
 
+const char* token_str(int);
+
 class driver;
 
 class callback {
@@ -105,6 +107,7 @@ class driver : public tagd::errorable {
 
 		// sets up scanner and parser for a fresh start
 		void init();
+		void free_parser();
 		int parse_tokens();
 
 	public:
@@ -150,8 +153,7 @@ class driver : public tagd::errorable {
 		bool is_setup();
 		void do_callback();
 
-		// adds end of input to parser,
-		// frees scanner and parser
+		// adds end of input to parser and frees scanner and parser
 		void finish();
 
 		static void trace_on(char * = nullptr);

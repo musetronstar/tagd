@@ -30,6 +30,7 @@ $(PARSER_H): lemonfiles
 lemonfiles: parser.y
 	lemon parser.y -s
 	mv parser.c parser.cc  # or make will launch bison as a prereq
+	perl -pi -e 's/parser\.c/parser\.cc/g' parser.cc # replace the #line statements (for debugging)
 	mv parser.h $(PARSER_H)
 
 # token to string case statements

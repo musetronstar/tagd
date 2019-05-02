@@ -6,6 +6,8 @@
 	#include "tagl.h"  // includes parser.h
 	#include "tagdb.h"
 
+#define DELETE(P) delete P;
+
 #define NEW_TAG(TAG_TYPE, TAG_ID)	\
 	if (tagl->_constrain_tag_id.empty() || (tagl->_constrain_tag_id == TAG_ID)) {	\
 		if (tagl->_tag != nullptr)	\
@@ -31,7 +33,6 @@
 
 %extra_argument { TAGL::driver *tagl }
 %token_type {std::string *}
-%token_destructor { delete $$; }
 %token_prefix	TOK_
 
 %parse_accept
@@ -77,6 +78,8 @@
 		}
 	}
 
+	if (TOKEN != NULL)
+		DELETE(TOKEN)
 	tagl->do_callback();
 }
 
@@ -122,13 +125,12 @@ statement ::= query_statement TERMINATOR .
 }
 statement ::= TERMINATOR .
 
-%type context { std::string * }
-%type boolean_value { bool }
 
 set_statement ::= CMD_SET set_context .
 set_statement ::= CMD_SET set_flag .
 set_statement ::= CMD_SET set_include .
 
+%type boolean_value { bool }
 set_flag ::= FLAG(F) boolean_value(b) .
 {
 	// TODO hard tag flags will need to have a flag_value relation holding
@@ -142,6 +144,7 @@ set_flag ::= FLAG(F) boolean_value(b) .
 	} else {
 		tagl->ferror(tagd::TAGL_ERR, "bad flag: %s", F->c_str());
 	}
+	DELETE(F)
 }
 boolean_value(b) ::= QUANTIFIER(Q) .
 {
@@ -150,21 +153,25 @@ boolean_value(b) ::= QUANTIFIER(Q) .
 
 set_context ::= set_context context_list .
 set_context ::= set_context EMPTY_STR .
-set_context ::= CONTEXT .
+set_context ::= CONTEXT(C) .
 {
 	// clear context before pushing, or errors occur if not empty
 	tagl->_tdb->clear_context();
+	DELETE(C)
 }
 context_list ::= context_list COMMA push_context .
 context_list ::= push_context .
 push_context ::= context(c) .
 {
 	tagl->_tdb->push_context(*c);
+	DELETE(c)
 }
 
-set_include ::= INCLUDE tagl_file(f) .
+set_include ::= INCLUDE(I) tagl_file(f) .
 {
 	tagl->include_file(*f);
+	DELETE(I)
+	DELETE(f)
 }
 tagl_file(f) ::= TAGL_FILE(F) .
 {
@@ -188,11 +195,13 @@ get_statement ::= CMD_GET UNKNOWN(U) .
 {
 	tagl->error(tagd::TS_NOT_FOUND,
 		tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *U));
+	DELETE(U)
 }
 */
 get_statement ::= CMD_GET REFERS(R) .
 {
 	NEW_TAG(tagd::abstract_tag, *R)
+	DELETE(R)
 }
 
 put_statement ::= CMD_PUT subject_sub_relation relations .
@@ -209,6 +218,7 @@ get_statement ::= CMD_DEL UNKNOWN(U) .
 		tagl->last_error_relation(
 			tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
 	}
+	DELETE(U)
 }
 del_statement ::= CMD_DEL del_subject_sub_err .
 {
@@ -234,6 +244,7 @@ interrogator_query ::= CMD_QUERY interrogator relations .
 interrogator_query ::= CMD_QUERY interrogator sub_relator REFERENT(R) query_referent_relations .
 {
 	tagl->_tag->super_object(*R);
+	DELETE(R)
 }
 interrogator_query ::= CMD_QUERY interrogator query_referent_relations .
 {
@@ -245,24 +256,25 @@ search_query ::= CMD_QUERY QUOTED_STR(S) search_query_list .
 	// use quoted str in production so we can reduce here
 	NEW_TAG(tagd::interrogator, HARD_TAG_SEARCH)
 	tagl->_tag->relation(HARD_TAG_HAS, HARD_TAG_TERMS, *S);
+	DELETE(S)
 }
 
-search_query_list ::= search_query_list COMMA QUOTED_STR(S) .
-{
-	tagl->_tag->relation(HARD_TAG_HAS, HARD_TAG_TERMS, *S);
-}
-search_query_list ::= QUOTED_STR(S) .
-{
-	tagl->_tag->relation(HARD_TAG_HAS, HARD_TAG_TERMS, *S);
-}
+search_query_list ::= search_query_list COMMA search_query_quoted_str .
+search_query_list ::= search_query_quoted_str .
 search_query_list ::= .
 
+search_query_quoted_str ::= QUOTED_STR(S) .
+{
+	tagl->_tag->relation(HARD_TAG_HAS, HARD_TAG_TERMS, *S);
+	DELETE(S)
+}
 
 interrogator_sub_relation ::= interrogator sub_relator super_object .
 
 interrogator ::= INTERROGATOR(I) .
 {
 	NEW_TAG(tagd::interrogator, *I)
+	DELETE(I)
 }
 
 interrogator ::= .
@@ -275,77 +287,100 @@ subject_sub_relation ::= unknown sub_relator super_object .
 
 subject ::= TAG(T) .
 {
-	NEW_TAG(tagd::tag, *T)
+	NEW_TAG(tagd::tag, *T);
+	DELETE(T)
 }
 subject ::= SUB_RELATOR(S) .
 {
-	NEW_TAG(tagd::tag, *S)
+	NEW_TAG(tagd::tag, *S);
+	DELETE(S)
 }
 subject ::= RELATOR(R) .
 {
-	NEW_TAG(tagd::relator, *R)
+	NEW_TAG(tagd::relator, *R);
+	DELETE(R)
 }
 subject ::= INTERROGATOR(I) .
 {
-	NEW_TAG(tagd::interrogator, *I)
+	NEW_TAG(tagd::interrogator, *I);
+	DELETE(I)
 }
 subject ::= URL(U) .
 {
-	NEW_TAG(tagd::url, *U)
+	NEW_TAG(tagd::url, *U);
+	DELETE(U)
 }
 subject ::= HDURI(U) .
 {
-	NEW_TAG(tagd::HDURI, *U)
+	NEW_TAG(tagd::HDURI, *U);
+	DELETE(U)
 }
 subject ::= REFERENT(R) .
 {
-	NEW_TAG(tagd::abstract_tag, *R)
+	NEW_TAG(tagd::abstract_tag, *R);
+	DELETE(R)
 }
 subject ::= REFERS_TO(R) .
 {
-	NEW_TAG(tagd::abstract_tag, *R)
+	NEW_TAG(tagd::abstract_tag, *R);
+	DELETE(R)
 }
 subject ::= CONTEXT(R) .
 {
-	NEW_TAG(tagd::abstract_tag, *R)
+	NEW_TAG(tagd::abstract_tag, *R);
+	DELETE(R)
 }
 subject ::= FLAG(F) .
 {
-	NEW_TAG(tagd::abstract_tag, *F)
+	NEW_TAG(tagd::abstract_tag, *F);
+	DELETE(F)
 }
 
 unknown ::= UNKNOWN(U) .
 {
-	NEW_TAG(tagd::abstract_tag, *U)
+	NEW_TAG(tagd::abstract_tag, *U);
+	DELETE(U)
 }
 
 
-%type refers { std::string * }
-%type refers_to { std::string * }
-referent_relation ::= refers(r) REFERS_TO refers_to(rt) .
+referent_relation ::= refers(r) REFERS_TO(RT) refers_to(rt) .
 {
-	NEW_REFERENT(*r, *rt, std::string())
+	NEW_REFERENT(*r, *rt, std::string());
+	DELETE(r)
+	DELETE(RT)
+	DELETE(rt)
 }
-referent_relation ::= refers(r) REFERS_TO refers_to(rt) CONTEXT context(c) .
+referent_relation ::= refers(r) REFERS_TO(RT) refers_to(rt) CONTEXT(C) context(c) .
 {
 	// WTF not sure why gcc freaks calling *c a pointer type and not the others
 	NEW_REFERENT(*r, *rt, (*c))
+	DELETE(r)
+	DELETE(RT)
+	DELETE(rt)
+	DELETE(C)
+	DELETE(c)
 }
 
 query_referent_relations ::= query_referent_relations query_referent_relation .
 query_referent_relations ::= query_referent_relation .
 
-query_referent_relation ::= REFERS refers(r) .
+query_referent_relation ::= REFERS(R) refers(r) .
 {
 	tagl->_tag->relation(HARD_TAG_REFERS, *r);
+	DELETE(R)
+	DELETE(r)
 }
-query_referent_relation ::= REFERS_TO refers_to(rt) .
+query_referent_relation ::= REFERS_TO(RT) refers_to(rt) .
 {
 	tagl->_tag->relation(HARD_TAG_REFERS_TO, *rt);
+	DELETE(RT)
+	DELETE(rt)
 }
-query_referent_relation ::= CONTEXT context(c) .
+query_referent_relation ::= CONTEXT(C) context(c) .
 {
 	tagl->_tag->relation(HARD_TAG_CONTEXT, *c);
+	DELETE(C)
+	DELETE(c)
 }
 
 refers(r) ::= TAG(T) .
@@ -416,27 +451,33 @@ context(c) ::= TAG(C) .
 sub_relator ::= SUB_RELATOR(S) .
 {
 	tagl->_tag->sub_relator(*S);
+	DELETE(S)
 }
 
 super_object ::=  TAG(T) .
 {
 	tagl->_tag->super_object(*T);
+	DELETE(T)
 }
 super_object ::=  SUB_RELATOR(S) .
 {
 	tagl->_tag->super_object(*S);
+	DELETE(S)
 }
 super_object ::=  RELATOR(R) .
 {
 	tagl->_tag->super_object(*R);
+	DELETE(R)
 }
 super_object ::=  INTERROGATOR(I) .
 {
 	tagl->_tag->super_object(*I);
+	DELETE(I)
 }
 super_object ::=  REFERENT(R) .
 {
 	tagl->_tag->super_object(*R);
+	DELETE(R)
 }
 
 /*
@@ -458,6 +499,7 @@ predicate_list ::= relator object_list .
 relator ::= RELATOR(R) .
 {
 	tagl->_relator = *R;
+	DELETE(R)
 }
 
 relator ::= WILDCARD .
@@ -472,26 +514,37 @@ object_list ::= object .
 object ::= TAG(T) op(o) QUANTIFIER(Q) .
 {
 	tagl->_tag->relation(tagl->_relator, *T, *Q, o);
+	DELETE(T)
+	DELETE(Q)
 }
 object ::= TAG(T) op(o) MODIFIER(M) .
 {
 	tagl->_tag->relation(tagl->_relator, *T, *M, o);
+	DELETE(T)
+	DELETE(M)
 }
 object ::= TAG(T) op(o) QUOTED_STR(Q) .
 {
 	tagl->_tag->relation(tagl->_relator, *T, *Q, o);
+	DELETE(T)
+	DELETE(Q)
 }
 object ::= TAG(T) op(o) URL(U) .
 {
 	tagl->_tag->relation(tagl->_relator, *T, *U, o);
+	DELETE(T)
+	DELETE(U)
 }
 object ::= TAG(T) op(o) HDURI(U) .
 {
 	tagl->_tag->relation(tagl->_relator, *T, *U, o);
+	DELETE(T)
+	DELETE(U)
 }
 object ::= TAG(T) .
 {
 	tagl->_tag->relation(tagl->_relator, *T);
+	DELETE(T)
 }
 object ::= URL(U) .
 {
@@ -501,6 +554,7 @@ object ::= URL(U) .
 	} else {
 		tagl->ferror(u.code(), "bad url: %s", U->c_str());
 	}
+	DELETE(U)
 }
 object ::= HDURI(U) .
 {
@@ -510,11 +564,13 @@ object ::= HDURI(U) .
 	} else {
 		tagl->ferror(u.code(), "bad hduri: %s", U->c_str());
 	}
+	DELETE(U)
 }
 
 object ::= REFERENT(R) .
 {
 	tagl->_tag->relation(tagl->_relator, *R);
+	DELETE(R)
 }
 
 

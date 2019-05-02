@@ -16,6 +16,11 @@
 #include <event2/buffer.h>
 
 #include <stdio.h>
+
+/*
+ * TODO when available in lemon, replace %extra_argument with %extra_context
+ * add extra argument to ParseAlloc() and remove from Parse()
+ */
 void* ParseAlloc(void* (*allocProc)(size_t));
 void* Parse(void*, int, std::string *, TAGL::driver*);
 void* ParseFree(void*, void(*freeProc)(void*));
@@ -23,14 +28,14 @@ void* ParseFree(void*, void(*freeProc)(void*));
 // debug
 void* ParseTrace(FILE *stream, char *zPrefix);
 
+namespace TAGL {
+
 const char* token_str(int tok) {
 	switch (tok) {
 #include "tokens.inc"
 		default: return "UNKNOWN_TOKEN";
 	}
 }
-
-namespace TAGL {
 
 bool driver::_trace_on = false;
 
@@ -67,6 +72,7 @@ driver::driver(tagdb::tagdb *tdb, callback *cb) :
 }
 
 driver::~driver() {
+	this->free_parser();
 	if (_own_scanner)
 		delete _scanner;
 	if (_tag != nullptr)
@@ -128,7 +134,7 @@ void driver::init() {
 	// _msg.clear(); 
 }
 
-void driver::finish() {
+void driver::free_parser() {
 	if (_parser != nullptr) {
 		if (_token != TOK_TERMINATOR && !this->has_errors())
 			Parse(_parser, TOK_TERMINATOR, NULL, this);
@@ -137,7 +143,10 @@ void driver::finish() {
 		ParseFree(_parser, free);
 		_parser = nullptr;
 	}
+}
 
+void driver::finish() {
+	this->free_parser();
 	_scanner->reset();
 	_token = -1;
 	_path.clear();
