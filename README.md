@@ -756,7 +756,7 @@ platforms.
 
 ###### Install Dependencies on Debian/Ubuntu/Mint
 
-	sudo apt-get install build-essential gperf libnet-idn-encode-perl re2c lemon libreadline-dev libsqlite3-dev libevent-dev libevhtp-dev libssl-dev libctemplate-dev cxxtest expect
+	sudo apt install build-essential gperf libnet-idn-encode-perl re2c lemon libreadline-dev libsqlite3-dev libevent-dev libevhtp-dev libssl-dev libctemplate-dev cxxtest expect
 
 Building and Testing:
 
