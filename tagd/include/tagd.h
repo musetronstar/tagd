@@ -358,10 +358,7 @@ class abstract_tag {
             if (it == relations.end())
 				return false;
 
-			if (!p.modifier.empty())
-				return (p.modifier == it->modifier);
-			else
-				return true;
+			return (p.modifier.empty() || p.modifier == it->modifier);
         }
 
         // relator, object, modifier

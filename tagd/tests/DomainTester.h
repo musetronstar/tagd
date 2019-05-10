@@ -8,71 +8,38 @@
 // domain where setting cookies would be allowed
 // (according to the public suffix list)
 // returns NULL if setting cookies would not be allowed
-const char* public_suffix(const char *dom) {
-    if (dom == NULL) return NULL;
-    if (dom[0] == '.') return NULL;
+std::string public_suffix(const char *dom) {
+	if (dom == nullptr) return "NULL";
+	if (dom[0] == '.') return "NULL";
 
-    tagd::domain d(dom);
+	tagd::domain d(dom);
 
-    // std::cout << "tld_code: " << tld_code_str(d.code()) << std::endl;
-
-/*
-    if (d.is_registrable())
-        return d.reg().c_str();
-    else
-        return NULL;
-*/
-    switch (d.code()) {
-        case TLD_UNKNOWN: {
-            /* return label2.label1 or NULL if label2 not exists */
-            size_t i = strlen(dom);
-            bool got_dot = false;
-            while (i > 0) {
-                if (dom[i] == '.') {
-                    if (got_dot) {
-                        i++;
-                        return &dom[i];
-                    }
-                    got_dot = true;
-                }
-                i--;
-            }
-            return (got_dot ? &dom[i] : NULL);
-        } 
-        case TLD_ICANN_REG:
-        case TLD_WILDCARD_REG:
-        case TLD_EXCEPTION_REG:
-        case TLD_PRIVATE_REG:
-            return d.reg().c_str();
-        case TLD_ICANN:
-        case TLD_WILDCARD:
-        case TLD_PRIVATE:
-        case TLD_ERR:
-        default:
-            return NULL;
-    }
-}
-
-// returns whether A and B match according
-// to the return value of public_suffix()
-bool checkPublicSuffix(const char *A, const char *B) {
-
-    // std::cout << "====================" << std::endl;
-    // std::cout << "checkPublicSuffix( " << (A == NULL ? "NULL" : A)
-    //           << " , " << (B == NULL ? "NULL" : B) << " )" << std::endl;
-
-    const char *res = public_suffix(A);
-
-    // std::cout << "suffix: " << (A == NULL ? "NULL" : A)
-    //           << " => " << (res == NULL ? "NULL" : res) << std::endl;
-
-    if (res == NULL)
-        return (B == NULL);
-
-    if (B == NULL)
-        return (res == NULL);
-
-    return ( strcmp(res, B) == 0 );
+	switch (d.code()) {
+		case TLD_UNKNOWN: {
+			size_t i = strlen(dom);
+			bool got_dot = false;
+			while (i > 0) {
+				if (dom[i] == '.') {
+					if (got_dot)
+						return std::string(&dom[++i]);
+					got_dot = true;
+				}
+				i--;
+			}
+			return (got_dot ? std::string(&dom[i]) : "NULL");
+		}
+		case TLD_ICANN_REG:
+		case TLD_WILDCARD_REG:
+		case TLD_EXCEPTION_REG:
+		case TLD_PRIVATE_REG:
+			return std::string(d.reg());
+		case TLD_ICANN:
+		case TLD_WILDCARD:
+		case TLD_PRIVATE:
+		case TLD_ERR:
+		default:
+			return "NULL";
+	}
 }
 
 class Tester : public CxxTest::TestSuite {
@@ -89,12 +56,12 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( d.priv_label(), "example" );
         TS_ASSERT_EQUALS( d.sub(), "www" );
         TS_ASSERT_EQUALS( d.str(), "www.example.com" );
-        TS_ASSERT( d.is_registrable() );
     }
 
     void test_domain_init(void) {
         tagd::domain d;
         TS_ASSERT( d.empty() );
+        TS_ASSERT_EQUALS( tld_code_str(d.code()), "TLD_UNKNOWN" );
 
         d.init("www.example.com");
         TS_ASSERT( d.is_registrable() );
@@ -104,7 +71,28 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( d.priv(), "www.example" );
         TS_ASSERT_EQUALS( d.priv_label(), "example" );
         TS_ASSERT_EQUALS( d.str(), "www.example.com" );
-        TS_ASSERT( d.is_registrable() );
+    }
+
+    void test_domain_uppercase(void) {
+		const char* strs[] = {
+			"EXAMPLE.COM",
+			"EXAMPLE.com",
+			"eXaMpLe.Com",
+			"example.COM"
+		};
+
+		for (auto s : strs) {
+			tagd::domain d(s);
+			TS_ASSERT( !d.empty() );
+			TS_ASSERT( d.is_registrable() );
+			TS_ASSERT_EQUALS( tld_code_str(d.code()), "TLD_ICANN_REG" );
+			TS_ASSERT_EQUALS( d.pub(), "com" );
+			TS_ASSERT_EQUALS( d.reg(), "example.com" );
+			TS_ASSERT_EQUALS( d.priv(), "example" );
+			TS_ASSERT_EQUALS( d.priv_label(), "example" );
+			TS_ASSERT_EQUALS( d.sub(), "" );
+			TS_ASSERT_EQUALS( d.str(), "example.com" );
+		}
     }
 
     void test_garbage(void) {
@@ -295,86 +283,126 @@ class Tester : public CxxTest::TestSuite {
         // http://creativecommons.org/publicdomain/zero/1.0/
 
         // NULL input.
-        TS_ASSERT( checkPublicSuffix(NULL, NULL) );
+        TS_ASSERT_EQUALS( public_suffix(NULL), "NULL" );
         // Mixed case.
-        TS_ASSERT( checkPublicSuffix("COM", NULL) );
-        TS_ASSERT( checkPublicSuffix("example.COM", "example.com") );
-        TS_ASSERT( checkPublicSuffix("WwW.example.COM", "example.com") );
+        TS_ASSERT_EQUALS( public_suffix("COM"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("example.COM"), "example.com" );
+        TS_ASSERT_EQUALS( public_suffix("WwW.example.COM"), "example.com" );
         // Leading dot.
-        TS_ASSERT( checkPublicSuffix(".com", NULL) );
-        TS_ASSERT( checkPublicSuffix(".example", NULL) );
-        TS_ASSERT( checkPublicSuffix(".example.com", NULL) );
-        TS_ASSERT( checkPublicSuffix(".example.example", NULL) );
+        TS_ASSERT_EQUALS( public_suffix(".com"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix(".example"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix(".example.com"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix(".example.example"), "NULL" );
         // Unlisted TLD.
-        TS_ASSERT( checkPublicSuffix("example", NULL) );
-        TS_ASSERT( checkPublicSuffix("example.example", "example.example") );
-        TS_ASSERT( checkPublicSuffix("b.example.example", "example.example") );
-        TS_ASSERT( checkPublicSuffix("a.b.example.example", "example.example") );
+        TS_ASSERT_EQUALS( public_suffix("example"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("example.example"), "example.example" );
+        TS_ASSERT_EQUALS( public_suffix("b.example.example"), "example.example" );
+        TS_ASSERT_EQUALS( public_suffix("a.b.example.example"), "example.example" );
         // Listed, but non-Internet, TLD.
-        //TS_ASSERT( checkPublicSuffix("local", NULL) );
-        //TS_ASSERT( checkPublicSuffix("example.local", NULL) );
-        //TS_ASSERT( checkPublicSuffix("b.example.local", NULL) );
-        //TS_ASSERT( checkPublicSuffix("a.b.example.local", NULL) );
+        //TS_ASSERT_EQUALS( public_suffix("local"), "NULL" );
+        //TS_ASSERT_EQUALS( public_suffix("example.local"), "NULL" );
+        //TS_ASSERT_EQUALS( public_suffix("b.example.local"), "NULL" );
+        //TS_ASSERT_EQUALS( public_suffix("a.b.example.local"), "NULL" );
         // TLD with only 1 rule.
-        TS_ASSERT( checkPublicSuffix("biz", NULL) );
-        TS_ASSERT( checkPublicSuffix("domain.biz", "domain.biz") );
-        TS_ASSERT( checkPublicSuffix("b.domain.biz", "domain.biz") );
-        TS_ASSERT( checkPublicSuffix("a.b.domain.biz", "domain.biz") );
+        TS_ASSERT_EQUALS( public_suffix("biz"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("domain.biz"), "domain.biz" );
+        TS_ASSERT_EQUALS( public_suffix("b.domain.biz"), "domain.biz" );
+        TS_ASSERT_EQUALS( public_suffix("a.b.domain.biz"), "domain.biz" );
         // TLD with some 2-level rules.
-        TS_ASSERT( checkPublicSuffix("com", NULL) );
-        TS_ASSERT( checkPublicSuffix("example.com", "example.com") );
-        TS_ASSERT( checkPublicSuffix("b.example.com", "example.com") );
-        TS_ASSERT( checkPublicSuffix("a.b.example.com", "example.com") );
-        TS_ASSERT( checkPublicSuffix("uk.com", NULL) );
-        TS_ASSERT( checkPublicSuffix("example.uk.com", "example.uk.com") );
-        TS_ASSERT( checkPublicSuffix("b.example.uk.com", "example.uk.com") );
-        TS_ASSERT( checkPublicSuffix("a.b.example.uk.com", "example.uk.com") );
-        TS_ASSERT( checkPublicSuffix("test.ac", "test.ac") );
+        TS_ASSERT_EQUALS( public_suffix("com"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("example.com"), "example.com" );
+        TS_ASSERT_EQUALS( public_suffix("b.example.com"), "example.com" );
+        TS_ASSERT_EQUALS( public_suffix("a.b.example.com"), "example.com" );
+        TS_ASSERT_EQUALS( public_suffix("uk.com"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("example.uk.com"), "example.uk.com" );
+        TS_ASSERT_EQUALS( public_suffix("b.example.uk.com"), "example.uk.com" );
+        TS_ASSERT_EQUALS( public_suffix("a.b.example.uk.com"), "example.uk.com" );
+        TS_ASSERT_EQUALS( public_suffix("test.ac"), "test.ac" );
         // TLD with only 1 (wildcard) rule.
-        TS_ASSERT( checkPublicSuffix("bd", NULL) );
-        TS_ASSERT( checkPublicSuffix("c.bd", NULL) );
-        TS_ASSERT( checkPublicSuffix("b.c.bd", "b.c.bd") );
-        TS_ASSERT( checkPublicSuffix("a.b.c.bd", "b.c.bd") );
+        TS_ASSERT_EQUALS( public_suffix("bd"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("c.bd"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("b.c.bd"), "b.c.bd" );
+        TS_ASSERT_EQUALS( public_suffix("a.b.c.bd"), "b.c.bd" );
         // More complex TLD.
-        TS_ASSERT( checkPublicSuffix("jp", NULL) );
-        TS_ASSERT( checkPublicSuffix("test.jp", "test.jp") );
-        TS_ASSERT( checkPublicSuffix("www.test.jp", "test.jp") );
-        TS_ASSERT( checkPublicSuffix("ac.jp", NULL) );
-        TS_ASSERT( checkPublicSuffix("test.ac.jp", "test.ac.jp") );
-        TS_ASSERT( checkPublicSuffix("www.test.ac.jp", "test.ac.jp") );
-        TS_ASSERT( checkPublicSuffix("kyoto.jp", NULL) );
-        TS_ASSERT( checkPublicSuffix("test.kyoto.jp", "test.kyoto.jp") );
-        TS_ASSERT( checkPublicSuffix("ide.kyoto.jp", NULL) );
-        TS_ASSERT( checkPublicSuffix("b.ide.kyoto.jp", "b.ide.kyoto.jp") );
-        TS_ASSERT( checkPublicSuffix("a.b.ide.kyoto.jp", "b.ide.kyoto.jp") );
-        /* WTF inconsistent with PSL
-        TS_ASSERT( checkPublicSuffix("c.kobe.jp", NULL) );
-        TS_ASSERT( checkPublicSuffix("b.c.kobe.jp", "b.c.kobe.jp") );
-        TS_ASSERT( checkPublicSuffix("a.b.c.kobe.jp", "b.c.kobe.jp") );
-        */
-        TS_ASSERT( checkPublicSuffix("c.kobe.jp", "c.kobe.jp") );
-        TS_ASSERT( checkPublicSuffix("b.c.kobe.jp", "c.kobe.jp") );
-        TS_ASSERT( checkPublicSuffix("a.b.c.kobe.jp", "c.kobe.jp") );
-
-        TS_ASSERT( checkPublicSuffix("city.kobe.jp", "city.kobe.jp") );
-        TS_ASSERT( checkPublicSuffix("www.city.kobe.jp", "city.kobe.jp") );
+        TS_ASSERT_EQUALS( public_suffix("jp"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("test.jp"), "test.jp" );
+        TS_ASSERT_EQUALS( public_suffix("www.test.jp"), "test.jp" );
+        TS_ASSERT_EQUALS( public_suffix("ac.jp"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("test.ac.jp"), "test.ac.jp" );
+        TS_ASSERT_EQUALS( public_suffix("www.test.ac.jp"), "test.ac.jp" );
+        TS_ASSERT_EQUALS( public_suffix("kyoto.jp"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("test.kyoto.jp"), "test.kyoto.jp" );
+        TS_ASSERT_EQUALS( public_suffix("ide.kyoto.jp"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("b.ide.kyoto.jp"), "b.ide.kyoto.jp" );
+        TS_ASSERT_EQUALS( public_suffix("a.b.ide.kyoto.jp"), "b.ide.kyoto.jp" );
+		/* rule *.kobe.jp
+		 * TODO fix bugs in TLD_WILDCARD, follow PSL logic and algorithm 
+        TS_ASSERT_EQUALS( public_suffix("c.kobe.jp"), "c.kobe.jp" );
+        TS_ASSERT_EQUALS( public_suffix("b.c.kobe.jp"), "c.kobe.jp" );
+        TS_ASSERT_EQUALS( public_suffix("a.b.c.kobe.jp"), "c.kobe.jp" );
+		*/
+        TS_ASSERT_EQUALS( public_suffix("city.kobe.jp"), "city.kobe.jp" );
+        TS_ASSERT_EQUALS( public_suffix("www.city.kobe.jp"), "city.kobe.jp" );
         // TLD with a wildcard rule and exceptions.
-        TS_ASSERT( checkPublicSuffix("ck", NULL) );
-        TS_ASSERT( checkPublicSuffix("test.ck", NULL) );
-        TS_ASSERT( checkPublicSuffix("b.test.ck", "b.test.ck") );
-        TS_ASSERT( checkPublicSuffix("a.b.test.ck", "b.test.ck") );
-        TS_ASSERT( checkPublicSuffix("www.ck", "www.ck") );
-        TS_ASSERT( checkPublicSuffix("www.www.ck", "www.ck") );
+        TS_ASSERT_EQUALS( public_suffix("ck"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("test.ck"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("b.test.ck"), "b.test.ck" );
+        TS_ASSERT_EQUALS( public_suffix("a.b.test.ck"), "b.test.ck" );
+        TS_ASSERT_EQUALS( public_suffix("www.ck"), "www.ck" );
+        TS_ASSERT_EQUALS( public_suffix("www.www.ck"), "www.ck" );
         // US K12.
-        TS_ASSERT( checkPublicSuffix("us", NULL) );
-        TS_ASSERT( checkPublicSuffix("test.us", "test.us") );
-        TS_ASSERT( checkPublicSuffix("www.test.us", "test.us") );
-        TS_ASSERT( checkPublicSuffix("ak.us", NULL) );
-        TS_ASSERT( checkPublicSuffix("test.ak.us", "test.ak.us") );
-        TS_ASSERT( checkPublicSuffix("www.test.ak.us", "test.ak.us") );
-        TS_ASSERT( checkPublicSuffix("k12.ak.us", NULL) );
-        TS_ASSERT( checkPublicSuffix("test.k12.ak.us", "test.k12.ak.us") );
-        TS_ASSERT( checkPublicSuffix("www.test.k12.ak.us", "test.k12.ak.us") );
+        TS_ASSERT_EQUALS( public_suffix("us"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("test.us"), "test.us" );
+        TS_ASSERT_EQUALS( public_suffix("www.test.us"), "test.us" );
+        TS_ASSERT_EQUALS( public_suffix("ak.us"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("test.ak.us"), "test.ak.us" );
+        TS_ASSERT_EQUALS( public_suffix("www.test.ak.us"), "test.ak.us" );
+        TS_ASSERT_EQUALS( public_suffix("k12.ak.us"), "NULL" );
+        TS_ASSERT_EQUALS( public_suffix("test.k12.ak.us"), "test.k12.ak.us" );
+        TS_ASSERT_EQUALS( public_suffix("www.test.k12.ak.us"), "test.k12.ak.us" );
 
+		// from: https://raw.githubusercontent.com/publicsuffix/list/master/tests/test_psl.txt
+		// Any copyright is dedicated to the Public Domain.
+		// https://creativecommons.org/publicdomain/zero/1.0/
+
+		// Listed, but non-Internet, TLD.
+		//TS_ASSERT_EQUALS( public_suffix("local"), "NULL" );
+		//TS_ASSERT_EQUALS( public_suffix("example.local"), "NULL" );
+		//TS_ASSERT_EQUALS( public_suffix("b.example.local"), "NULL" );
+		//TS_ASSERT_EQUALS( public_suffix("a.b.example.local"), "NULL" );
+
+		// TLD with only 1 (wildcard) rule.
+		TS_ASSERT_EQUALS( public_suffix("mm"), "NULL" );
+		TS_ASSERT_EQUALS( public_suffix("c.mm"), "NULL" );
+		TS_ASSERT_EQUALS( public_suffix("b.c.mm"), "b.c.mm" );
+		TS_ASSERT_EQUALS( public_suffix("a.b.c.mm"), "b.c.mm" );
+		// More complex TLD.
+		/* TODO
+		TS_ASSERT_EQUALS( public_suffix("c.kobe.jp"), "NULL" );
+		TS_ASSERT_EQUALS( public_suffix("b.c.kobe.jp"), "b.c.kobe.jp" );
+		TS_ASSERT_EQUALS( public_suffix("a.b.c.kobe.jp"), "b.c.kobe.jp" );
+		*/
+		// IDN labels.
+		/* TODO UTF-8 domains
+		TS_ASSERT_EQUALS( public_suffix("食狮.com.cn"), "食狮.com.cn" );
+		TS_ASSERT_EQUALS( public_suffix("食狮.公司.cn"), "食狮.公司.cn" );
+		TS_ASSERT_EQUALS( public_suffix("www.食狮.公司.cn"), "食狮.公司.cn" );
+		TS_ASSERT_EQUALS( public_suffix("shishi.公司.cn"), "shishi.公司.cn" );
+		TS_ASSERT_EQUALS( public_suffix("公司.cn"), "NULL" );
+		TS_ASSERT_EQUALS( public_suffix("食狮.中国"), "食狮.中国" );
+		TS_ASSERT_EQUALS( public_suffix("www.食狮.中国"), "食狮.中国" );
+		TS_ASSERT_EQUALS( public_suffix("shishi.中国"), "shishi.中国" );
+		TS_ASSERT_EQUALS( public_suffix("中国"), "NULL" );
+		*/
+		// Same as above, but punycoded.
+		TS_ASSERT_EQUALS( public_suffix("xn--85x722f.com.cn"), "xn--85x722f.com.cn" );
+		TS_ASSERT_EQUALS( public_suffix("xn--85x722f.xn--55qx5d.cn"), "xn--85x722f.xn--55qx5d.cn" );
+		TS_ASSERT_EQUALS( public_suffix("www.xn--85x722f.xn--55qx5d.cn"), "xn--85x722f.xn--55qx5d.cn" );
+		TS_ASSERT_EQUALS( public_suffix("shishi.xn--55qx5d.cn"), "shishi.xn--55qx5d.cn" );
+		TS_ASSERT_EQUALS( public_suffix("xn--55qx5d.cn"), "NULL" );
+		TS_ASSERT_EQUALS( public_suffix("xn--85x722f.xn--fiqs8s"), "xn--85x722f.xn--fiqs8s" );
+		TS_ASSERT_EQUALS( public_suffix("www.xn--85x722f.xn--fiqs8s"), "xn--85x722f.xn--fiqs8s" );
+		TS_ASSERT_EQUALS( public_suffix("shishi.xn--fiqs8s"), "shishi.xn--fiqs8s" );
+		TS_ASSERT_EQUALS( public_suffix("xn--fiqs8s"), "NULL" );
     }
 };

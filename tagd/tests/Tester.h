@@ -325,15 +325,18 @@ class Tester : public CxxTest::TestSuite {
 
     void test_rank_maximums(void) {
         // test RANK_MAX_LEN
-        char max[tagd::RANK_MAX_LEN+1];
-        std::fill(max, (max+tagd::RANK_MAX_LEN+1), 1);
+        char max[tagd::RANK_MAX_LEN+2];
+        std::fill(max, (max+tagd::RANK_MAX_LEN+2), 1);
+        max[tagd::RANK_MAX_LEN+1] = '\0';
 
         tagd::rank r1;
         tagd::code rc = r1.init(max);
         TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "RANK_MAX_LEN");
 
+        tagd::rank r2;
+		rc = tagd::TAGD_OK;
         for (size_t i=0; i<tagd::RANK_MAX_LEN+1; ++i) {
-            rc = r1.push_back(1);
+            rc = r2.push_back(1);
         }
         TS_ASSERT_EQUALS (TAGD_CODE_STRING(rc) , "RANK_MAX_LEN");
     }
@@ -353,8 +356,10 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( t.rank().dotted_str() , "1.2.120" );
 
         // error passthrough
-        char max[tagd::RANK_MAX_LEN+1];
-        std::fill(max, (max+tagd::RANK_MAX_LEN+1), 1);
+        char max[tagd::RANK_MAX_LEN+2];
+        std::fill(max, (max+tagd::RANK_MAX_LEN+2), 1);
+        max[tagd::RANK_MAX_LEN+1] = '\0';
+
         rc = t.rank(max);
         TS_ASSERT_EQUALS (rc , tagd::RANK_MAX_LEN);
 
@@ -829,6 +834,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( dog.relation("has","legs", "4"), tagd::TAGD_OK )
 		TS_ASSERT( dog.related("has", "teeth")  )
 		TS_ASSERT( dog.related("legs") )
+		TS_ASSERT( !dog.related("has", "fins") )
 		TS_ASSERT( dog.related("has", "legs", "4") )
 		TS_ASSERT( !dog.related("has", "legs", "5") )
 		TS_ASSERT( dog.related(tagd::predicate("has", "legs", "4")) )
@@ -844,6 +850,10 @@ class Tester : public CxxTest::TestSuite {
 			TS_ASSERT_EQUALS( it->modifier, "4" )
 		}
 
+		dog.relation("has", "fins");
+		TS_ASSERT( dog.related("has", "fins") )
+
+		dog.not_relation("has", "fins");
 		TS_ASSERT( !dog.related("has", "fins") )
 	}
 
