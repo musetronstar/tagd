@@ -17,56 +17,43 @@ class sqlite: public tagdb {
         std::string _db_fname;
 
     private:
-        // prepared statement handles, must be sqlite3_finalized in the destructor
-        sqlite3_stmt *_get_stmt;
-        sqlite3_stmt *_exists_stmt;
-        sqlite3_stmt *_term_pos_stmt;
-        sqlite3_stmt *_term_id_pos_stmt;
-        sqlite3_stmt *_pos_stmt;
-        sqlite3_stmt *_refers_to_stmt;
-        sqlite3_stmt *_refers_stmt;
-        sqlite3_stmt *_insert_term_stmt;
-        sqlite3_stmt *_update_term_stmt;
-        sqlite3_stmt *_delete_term_stmt;
-        sqlite3_stmt *_insert_fts_tag_stmt;
-        sqlite3_stmt *_update_fts_tag_stmt;
-        sqlite3_stmt *_delete_fts_tag_stmt;
-        sqlite3_stmt *_search_stmt;
-        sqlite3_stmt *_insert_stmt;
-        sqlite3_stmt *_update_tag_stmt;
-        sqlite3_stmt *_update_ranks_stmt;
-        sqlite3_stmt *_child_ranks_stmt;
-        sqlite3_stmt *_max_child_rank_stmt;
-        sqlite3_stmt *_insert_relations_stmt;
-        sqlite3_stmt *_insert_referents_stmt;
-        sqlite3_stmt *_insert_context_stmt;
-        sqlite3_stmt *_delete_context_stmt;
-        sqlite3_stmt *_delete_tag_stmt;
-        sqlite3_stmt *_delete_subject_relations_stmt;
-        sqlite3_stmt *_delete_relation_stmt;
-        sqlite3_stmt *_delete_refers_to_stmt;
-        sqlite3_stmt *_term_pos_occurence_stmt;
-        sqlite3_stmt *_truncate_context_stmt;
-        sqlite3_stmt *_get_relations_stmt;
-        sqlite3_stmt *_related_stmt;
-        sqlite3_stmt *_related_modifier_stmt;
-        sqlite3_stmt *_related_null_sub_stmt;
-		sqlite3_stmt *_get_children_stmt;
-        sqlite3_stmt *_related_null_sub_modifier_stmt;
-        /*** uridb ***/
-        sqlite3_stmt *_get_uri_stmt;
-        sqlite3_stmt *_get_uri_specs_stmt;
-        sqlite3_stmt *_get_host_stmt;
-        sqlite3_stmt *_get_authority_stmt;
-        sqlite3_stmt *_get_uri_relations_stmt;
-        sqlite3_stmt *_insert_uri_stmt;
-        sqlite3_stmt *_insert_uri_specs_stmt;
-        sqlite3_stmt *_insert_host_stmt;
-        sqlite3_stmt *_insert_authority_stmt;
-        sqlite3_stmt *_insert_uri_relations_stmt;
-
 		// performing init() operations
 		bool _doing_init;
+
+        // prepared statement handles, must be sqlite3_finalized in the destructor
+        sqlite3_stmt *_get_stmt = nullptr;
+        sqlite3_stmt *_exists_stmt = nullptr;
+        sqlite3_stmt *_term_pos_stmt = nullptr;
+        sqlite3_stmt *_term_id_pos_stmt = nullptr;
+        sqlite3_stmt *_pos_stmt = nullptr;
+        sqlite3_stmt *_refers_to_stmt = nullptr;
+        sqlite3_stmt *_refers_stmt = nullptr;
+        sqlite3_stmt *_insert_term_stmt = nullptr;
+        sqlite3_stmt *_update_term_stmt = nullptr;
+        sqlite3_stmt *_delete_term_stmt = nullptr;
+        sqlite3_stmt *_insert_fts_tag_stmt = nullptr;
+        sqlite3_stmt *_update_fts_tag_stmt = nullptr;
+        sqlite3_stmt *_delete_fts_tag_stmt = nullptr;
+        sqlite3_stmt *_search_stmt = nullptr;
+        sqlite3_stmt *_insert_stmt = nullptr;
+        sqlite3_stmt *_update_tag_stmt = nullptr;
+        sqlite3_stmt *_update_ranks_stmt = nullptr;
+        sqlite3_stmt *_child_ranks_stmt = nullptr;
+        sqlite3_stmt *_max_child_rank_stmt = nullptr;
+        sqlite3_stmt *_insert_relations_stmt = nullptr;
+        sqlite3_stmt *_insert_referents_stmt = nullptr;
+        sqlite3_stmt *_insert_context_stmt = nullptr;
+        sqlite3_stmt *_delete_context_stmt = nullptr;
+        sqlite3_stmt *_delete_tag_stmt = nullptr;
+        sqlite3_stmt *_delete_subject_relations_stmt = nullptr;
+        sqlite3_stmt *_delete_relation_stmt = nullptr;
+        sqlite3_stmt *_delete_refers_to_stmt = nullptr;
+        sqlite3_stmt *_term_pos_occurence_stmt = nullptr;
+        sqlite3_stmt *_truncate_context_stmt = nullptr;
+        sqlite3_stmt *_get_relations_stmt = nullptr;
+        sqlite3_stmt *_related_stmt = nullptr;
+        sqlite3_stmt *_related_modifier_stmt = nullptr;
+		sqlite3_stmt *_get_children_stmt = nullptr;
 
 		// wrapped by init(), sets _doing_init
         tagd::code _init(const std::string&);
@@ -78,52 +65,6 @@ class sqlite: public tagdb {
 			tagdb(),
             _db(NULL),
             _db_fname(),
-            _get_stmt(NULL),
-            _exists_stmt(NULL),
-            _term_pos_stmt(NULL),
-            _term_id_pos_stmt(NULL),
-            _pos_stmt(NULL),
-            _refers_to_stmt(NULL),
-            _refers_stmt(NULL),
-            _insert_term_stmt(NULL),
-            _update_term_stmt(NULL),
-            _delete_term_stmt(NULL),
-            _insert_fts_tag_stmt(NULL),
-            _update_fts_tag_stmt(NULL),
-            _delete_fts_tag_stmt(NULL),
-            _search_stmt(NULL),
-            _insert_stmt(NULL),
-            _update_tag_stmt(NULL),
-            _update_ranks_stmt(NULL),
-            _child_ranks_stmt(NULL),
-            _max_child_rank_stmt(NULL),
-            _insert_relations_stmt(NULL),
-			_insert_referents_stmt(NULL),
-			_insert_context_stmt(NULL),
-			_delete_context_stmt(NULL),
-			_delete_tag_stmt(NULL),
-			_delete_subject_relations_stmt(NULL),
-			_delete_relation_stmt(NULL),
-			_delete_refers_to_stmt(NULL),
-			_term_pos_occurence_stmt(NULL),
-			_truncate_context_stmt(NULL),
-            _get_relations_stmt(NULL),
-            _related_stmt(NULL),
-            _related_modifier_stmt(NULL),
-            _related_null_sub_stmt(NULL),
-			_get_children_stmt(NULL),
-            _related_null_sub_modifier_stmt(NULL),
-            /*** uridb ***/
-            _get_uri_stmt(NULL),
-            _get_uri_specs_stmt(NULL),
-            _get_host_stmt(NULL),
-            _get_authority_stmt(NULL),
-            _get_uri_relations_stmt(NULL),
-            _insert_uri_stmt(NULL),
-            _insert_uri_specs_stmt(NULL),
-            _insert_host_stmt(NULL),
-            _insert_authority_stmt(NULL),
-            _insert_uri_relations_stmt(NULL),
 			_doing_init(false)
         {
 			_f_encode_referent = [this](const tagd::id_type &from) -> tagd::id_type {

@@ -25,7 +25,6 @@ const tagd::id_vec& tagdb::context() const { return _context; }
 tagd::code tagdb::pop_context() { _context.pop_back(); return tagd::TAGD_OK; }
 tagd::code tagdb::clear_context() { _context.clear(); return tagd::TAGD_OK; }
 
-
 std::string util::user_db() {
 	struct passwd *pw = getpwuid(getuid());
 	std::string str(pw->pw_dir);  // home dir

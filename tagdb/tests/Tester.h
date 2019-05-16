@@ -1560,6 +1560,8 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
 		// delete relation
+		a.not_relation("about", "dog");
+		TS_ASSERT(!a.relation("about", "dog"));
 		tc = tdb.del(a);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
