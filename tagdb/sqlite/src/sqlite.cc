@@ -1181,6 +1181,7 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, flags_t flags) {
 
 	this->exec("BEGIN");
 
+	// empty del_tag relations means delete entire tag for given id
 	if (del_tag.relations.empty()) {
 		// don't allow deleting tags having a referent as the id
 		if (t.id() != del_tag.id()) {   // referent was decoded
@@ -1204,7 +1205,11 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, flags_t flags) {
 		tagd::interrogator q_refers_to(HARD_TAG_INTERROGATOR, HARD_TAG_REFERENT);
 		q_refers_to.relation(HARD_TAG_REFERS_TO, del_tag.id());
 		this->query(R, q_refers_to);
-		if (_code != tagd::TS_NOT_FOUND) {
+		if (_code == tagd::TS_NOT_FOUND) {
+			// having _code hold state of return codes that aren't actual error conditions
+			// is extremely buggy. TODO this behaviour should probably be redesigned
+			_code = tagd::TAGD_OK;
+		} else {
 			OK_OR_ROLLBACK_RET_ERR();
 			for ( auto r : R )
 				tag_affected(terms_affected, r);
