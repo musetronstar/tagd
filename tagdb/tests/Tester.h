@@ -316,8 +316,9 @@ class Tester : public CxxTest::TestSuite {
 		tc = tdb.del(tagd::tag("teeth"));
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_FOREIGN_KEY");
 		TS_ASSERT_EQUALS( tdb.errors().size() , 2 );
-		if (tdb.errors().size() == 2) {
-			auto it = tdb.errors().begin();
+		auto errs = tdb.errors();
+		if (errs.size() == 2) {
+			auto it = errs.begin();
 			TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, "super_object", "teeth") );
 			it++;
 			TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, "object", "teeth") );

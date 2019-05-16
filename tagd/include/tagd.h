@@ -602,6 +602,8 @@ class errorable {
 
 		void clear_errors();
 		void print_errors(std::ostream& os = std::cerr) const;
+
+		// TODO WTF cant we return a const reference instead of a copy?
 		errors_t errors() const;
 };
 

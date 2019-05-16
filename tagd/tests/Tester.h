@@ -1074,13 +1074,33 @@ class Tester : public CxxTest::TestSuite {
 
 		// test iterating errors_t
 		size_t num_rel = 0;
-		const tagd::errors_t E	= R1.errors();
-		for (auto e : E) {
+		const tagd::errors_t E1	= R1.errors();
+		for (auto e : E1) {
 			for (auto p : e.relations) {
 				num_rel++;
 			}
 		}
 		TS_ASSERT_EQUALS( num_rel, 4 )
+
+		// errors() returns a copy, not a reference,
+		// so code like this will cause errors
+		// in the error::~error() destructor, etc.
+		// auto it = R1.errors().begin();
+		const tagd::errors_t E2	= R1.errors();
+		auto it = E2.begin();
+		TS_ASSERT( it != R1.errors().end() );
+		TS_ASSERT_EQUALS( it->id() , "TAGD_ERR" );
+		TS_ASSERT( it->related(HARD_TAG_HAS, HARD_TAG_MESSAGE, "bad tag: oops") );
+		it++;
+		TS_ASSERT_EQUALS( it->id() , "TS_MISUSE" );
+		TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah") );
+		it++;
+		TS_ASSERT_EQUALS( it->id() , "TAGD_ERR" );
+		TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") );
+		TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23") );
+		it++;
+		// TS_ASSERT( it == R1.errors().end() );
+		TS_ASSERT( it == E2.end() );
 
 		R1.clear_errors();
 		TS_ASSERT_EQUALS( R1.size() , 0 );
