@@ -604,7 +604,7 @@ class errorable {
 		void print_errors(std::ostream& os = std::cerr) const;
 
 		// TODO WTF cant we return a const reference instead of a copy?
-		errors_t errors() const;
+		const errors_t& errors() const;
 };
 
 struct util {

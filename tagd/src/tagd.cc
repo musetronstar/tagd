@@ -518,10 +518,10 @@ void errorable::clear_errors() {
 		_errors.get()->clear();
 }
 
-// TODO WTF cant we return a const reference instead of a copy?
-errors_t errorable::errors() const {
+const errors_t& errorable::errors() const {
+	const static errors_t empty_errors;
 	if (_errors == nullptr)
-		return errors_t();
+		return empty_errors;
 	return *_errors.get();
 }
 
