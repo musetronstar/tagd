@@ -55,7 +55,7 @@ driver::driver(tagdb::tagdb *tdb, scanner *s) :
 
 driver::driver(tagdb::tagdb *tdb, scanner *s, callback *cb) :
 		tagd::errorable(tagd::TAGL_INIT),
-		_scanner{s}, _tdb{tdb}, _callback{cb}
+		_own_scanner{false}, _scanner{s}, _tdb{tdb}, _callback{cb}
 {
 	// TODO this can produce nasty side effects.  There must be a better way...
 	cb->_driver = this;

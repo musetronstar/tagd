@@ -300,8 +300,37 @@ class Tester : public CxxTest::TestSuite {
 
     void test_ctor(void) {
 		tagdb_tester tdb;
-		TAGL::driver tagl(&tdb);
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_INIT" )
+		{
+			TAGL::driver tagl(&tdb);
+			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_INIT" )
+		}
+
+		{
+			// for test puposes only, we would never pass a nullptr TAGL::driver
+			TAGL::scanner scnr(nullptr);
+			TAGL::driver tagl(&tdb, &scnr);
+			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_INIT" )
+		}
+
+		{
+			// for test puposes only, we would never pass a nullptr as TAGL::driver*
+			TAGL::scanner scnr(nullptr);
+			TAGL::driver tagl(&tdb, &scnr);  // _own_scanner will be false, so _scanner not deleted
+			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_INIT" )
+		}
+
+		{
+			TAGL::scanner scnr(nullptr);
+			callback_tester clbk(&tdb);
+			TAGL::driver tagl(&tdb, &scnr, &clbk);
+			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_INIT" )
+		}
+
+		{
+			callback_tester clbk(&tdb);
+			TAGL::driver tagl(&tdb, &clbk);
+			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_INIT" )
+		}
 	}
 
     void test_subject(void) {
