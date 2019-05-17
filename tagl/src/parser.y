@@ -149,6 +149,7 @@ set_flag ::= FLAG(F) boolean_value(b) .
 boolean_value(b) ::= QUANTIFIER(Q) .
 {
 	b = (*Q != "0");
+	DELETE(Q)
 }
 
 set_context ::= set_context context_list .

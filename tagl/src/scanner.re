@@ -64,7 +64,7 @@ const char* scanner::fill() {
 		_beg = _cur = &_buf[0];
 		sz = offset = 1;
 	} else {
-		strncpy(&_buf[0], _beg, sz);
+		memmove(&_buf[0], _beg, sz);  // cannot strncpy, dst and src overlap
 		_cur = &_buf[_cur-_beg];
 		_beg = &_buf[0];
 		offset = sz;

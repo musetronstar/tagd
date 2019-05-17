@@ -213,7 +213,7 @@ class callback_tester : public TAGL::callback {
 		tagdb::tagdb *_tdb;
 
 		void renew_last_tag(const tagd::part_of_speech& pos = tagd::POS_TAG) {
-			if (last_tag != NULL)
+			if (last_tag != nullptr)
 				delete last_tag;
 
 			if (pos == tagd::POS_URL)
@@ -230,8 +230,13 @@ class callback_tester : public TAGL::callback {
 		int err_cmd;
 
 		callback_tester(tagdb::tagdb *tdb) :
-			last_code(), last_tag(NULL), err_cmd(-1) {
+			last_code(), last_tag(nullptr), err_cmd(-1) {
 			_tdb = tdb;
+		}
+
+		~callback_tester() {
+			if(last_tag != nullptr)
+				delete last_tag;
 		}
 
 		void cmd_get(const tagd::abstract_tag& t) {
