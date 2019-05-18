@@ -32,13 +32,5 @@ int main(int argc, char **argv) {
 	}
 
 	tagsh shell(&tdb);
-
-	if (args.tagl_file_statements.size() == 0) {
-		std::cout << "use .show to list commands" << std::endl;
-		return shell.interpret_readline();
-	} else {
-		return args.interpret(shell);
-	}
-
-	return 0;
+	return args.interpret(shell);
 }

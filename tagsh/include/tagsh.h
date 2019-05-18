@@ -14,11 +14,11 @@ class tagsh;
 class tagsh_callback : public TAGL::callback {
 		friend class tagsh;
 		tagdb_type *_tdb;
+		tagsh *_tsh;
 		cmdlines_t _lines;
-		bool _echo_result_code;
 
 	public:
-		tagsh_callback(tagdb_type *tdb) : _tdb{tdb}, _echo_result_code{true} {}
+		tagsh_callback(tagdb_type *tdb, tagsh *tsh) : _tdb{tdb}, _tsh{tsh} {}
 		~tagsh_callback() { for(auto l : _lines) delete l; }
 
 		void cmd_get(const tagd::abstract_tag&);
@@ -36,13 +36,16 @@ class tagsh {
 		TAGL::driver _driver;
 
 	public:
-		std::string prompt = "tagd> ";
+		static constexpr const char* DEFAULT_PROMPT = "tagd> ";
+		std::string prompt = DEFAULT_PROMPT;
+		bool echo_result_code = true;
+
 		tagsh(tagdb_type *tdb, tagsh_callback *cb) :
 			_tdb{tdb}, _CB{cb}, _driver(tdb, cb)
 		{}
 
 		tagsh(tagdb_type *tdb) :
-			_tdb{tdb}, _CB{new tagsh_callback(_tdb)}, _own_callback{true},
+			_tdb{tdb}, _CB{new tagsh_callback(_tdb, this)}, _own_callback{true},
 			_driver(_tdb, _CB)
 		{}
 
@@ -50,13 +53,18 @@ class tagsh {
 			if (_own_callback)
 				delete _CB;
 		}
-		
+	
+		void trace_on() {
+			_tdb->trace_on();  // specific to sqlite
+			_driver.trace_on("trace: ");
+		}
 
 		void command(const std::string&);
 		int interpret_readline();
 		int interpret(std::istream&);
 		int interpret(const std::string&);  // tagl statement
 		int interpret_fname(const std::string&);  // filename
+		void dump() { _tdb->dump(); }
 		void dump_file(const std::string&, bool = true);
 		static int error(const char *errfmt, ...);
 		static bool file_exists(const std::string&);
@@ -75,11 +83,12 @@ class cmd_args : public tagd::errorable {
 		cmd_handler_map_t _cmds;
 
 	public:
-		typedef std::vector<std::string> str_vec_t; 
-		str_vec_t tagl_file_statements;
+		std::vector<std::string> tagl_statements;
 		std::string db_fname;
-		bool opt_create;
-		bool opt_trace;
+		bool opt_db_create = false;
+		bool opt_trace = false;
+		bool opt_noshell = false;
+		bool opt_dump = false;
 
 		cmd_args();
 		void parse(int, char **); 

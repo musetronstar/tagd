@@ -74,7 +74,7 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 	tagd::code tc = _tdb->put(t, _driver->flags());
 	if (_tdb->ok()) {
-		if (_echo_result_code)
+		if (_tsh->echo_result_code)
 			std::cout << "-- " << tagd_code_str(tc) << std::endl;
 	} else {
 		_driver->code(_tdb->code()); // stops the scanner
@@ -87,10 +87,10 @@ void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 	tagd::code tc = _tdb->del(t, _driver->flags());
 	if (_tdb->ok()) {
-		if (_echo_result_code)
+		if (_tsh->echo_result_code)
 			std::cout << "-- " << tagd_code_str(tc) << std::endl;
 	} else if (_tdb->code() == tagd::TS_NOT_FOUND ) {
-		if (_echo_result_code)
+		if (_tsh->echo_result_code)
 			std::cout << "-- " << tagd_code_str(tc) << std::endl;
 	} else {
 		_driver->code(_tdb->code()); // stops the scanner
@@ -111,7 +111,7 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 				tagd::print_tag_ids(T);
 			break;
 		case tagd::TS_NOT_FOUND:  // TS_NOT_FOUND not an error for queries
-			if (_echo_result_code)
+			if (_tsh->echo_result_code)
 				std::cout << "-- " << tagd_code_str(_tdb->code()) << std::endl;
 			break;
 		default:	
@@ -190,13 +190,14 @@ void tagsh::command(const std::string& cmdline) {
 		}
 
 		this->interpret_fname(V[1]);
+
 		return;
 	}
 
 	if ( cmd == ".dump" ) {
 		switch (V.size()) {
 			case 1:
-				_tdb->dump();
+				this->dump();
 				return;
 			case 2:
 				this->dump_file(V[1]);
@@ -233,8 +234,7 @@ void tagsh::command(const std::string& cmdline) {
 	}
 
 	if ( cmd == ".trace_on" ) {
-		_tdb->trace_on();  // specific to sqlite
-		_driver.trace_on("trace: ");
+		this->trace_on();
 		return;
 	}
 
@@ -311,7 +311,9 @@ int tagsh::interpret(std::istream& ins) {
 }
 
 int tagsh::interpret_fname(const  std::string& fname) {
-	return _driver.include_file(fname);
+	int ret = _driver.include_file(fname);
+	_driver.finish();
+	return ret;
 }
 
 void tagsh::cmd_show() {
@@ -329,15 +331,14 @@ void tagsh::cmd_show() {
 	std::cout << ".show\t# show commands" << std::endl;
 }
 
-cmd_args::cmd_args() :
-	opt_create{false}, opt_trace{false}
+cmd_args::cmd_args()
 {
 	_cmds["--db"] = {
 		[this](char *val) {
 			if (val[0] == '-')
 				this->db_fname = ":memory:";
 			else {
-				if (!this->opt_create && !tagsh::file_exists(val)) {
+				if (!this->opt_db_create && !tagsh::file_exists(val)) {
 					this->ferror(tagd::TAGD_ERR, "no such file: %s", val);
 					return;
 				}
@@ -347,41 +348,65 @@ cmd_args::cmd_args() :
 	};
 
 	_cmds["--create"] = {
-		[this](char *) { this->opt_create = true; },
+		[this](char *) { this->opt_db_create = true; },
 		false
 	}; 
 
-	_cmds["--tagl"] = {
+	cmd_handler noshell_handler = {
+		[this](char *) { this->opt_noshell = true; },
+		false
+	};
+	_cmds["--noshell"] = noshell_handler;
+	_cmds["-n"] = noshell_handler;
+
+	cmd_handler tagl_handler = {
 		[this](char *val) { 
-				tagl_file_statements.push_back(
-						std::string("--tagl").append(" ").append(val) );
+			// files and statements processed in order
+			tagl_statements.push_back(std::string("t:").append(val));
 		}, true
 	};
+	_cmds["--tagl"] = tagl_handler;
+	_cmds["-t"] = tagl_handler;
 
-	auto trace_f = [this](char *val) {
-		val = nullptr; assert(!val);  // suppress unused param warning
-		opt_trace = true;
+	cmd_handler file_handler = {
+		[this](char *val) {
+			if (!tagsh::file_exists(val)) {
+				this->ferror(tagd::TAGD_ERR, "no such file: %s", val);
+				return;
+			}
+			// files and statements processed in order
+			tagl_statements.push_back(std::string("f:").append(val));
+		}, true
 	};
-	_cmds["--trace"] = { trace_f, false };
-	_cmds["--trace_on"] = { trace_f, false };
+	_cmds["--file"] = file_handler;
+	_cmds["-f"] = file_handler;
+
+	cmd_handler trace_handler = {
+		[this](char *) { opt_trace = true; },
+		false
+	};
+	_cmds["--trace"] = trace_handler;
+	_cmds["--trace_on"] = trace_handler;
+
+	_cmds["--dump"] = {
+		[this](char *) {
+			opt_dump = true;
+			opt_noshell = true;
+		},
+		false
+	};
 }
 
 void cmd_args::parse(int argc, char **argv) {
 	for (int i=1; i<argc; i++) {
-
-		if (argv[i][0] != '-') {
-			tagl_file_statements.push_back(argv[i]);
-			continue;
-		}
-
-		auto cmd_it = _cmds.find(std::string(argv[i]));
-		if (cmd_it != _cmds.end()) {
-			auto h = cmd_it->second;
+		auto it = _cmds.find(std::string(argv[i]));
+		if (it != _cmds.end()) {
+			auto h = it->second;
 			if (h.has_arg) {
 				if (++i < argc) {
-					h.handler( argv[i] );
+					h.handler(argv[i]);
 				} else {
-					this->ferror(tagd::TAGD_OK, "option required: %s <val>", argv[i-1]);
+					this->ferror(tagd::TAGD_ERR, "value required: %s <val>", argv[i-1]);
 					return;
 				}
 			} else {
@@ -390,19 +415,21 @@ void cmd_args::parse(int argc, char **argv) {
 			if (this->has_errors()) return;
 			continue;
 		} else {
-			this->ferror(tagd::TAGD_OK, "invalid option: %s", argv[i]);
+			this->ferror(tagd::TAGD_ERR, "invalid option: %s", argv[i]);
 			return;
 		}
 	}
 
-	if (db_fname.empty())
-		db_fname = tagdb::util::user_db();
+	if (db_fname.empty()) {
+		// if a default tagdb file is desired ..
+		// this->db_fname = tagdb::util::user_db();
+		this->db_fname = ":memory:";
+	}
 
 	this->code(tagd::TAGD_OK);
 }
 
 int cmd_args::interpret(tagsh& shell) {
-
 	auto f_tagl_statement = [&](const std::string &s) -> int {
 		int err;
 		shell.prompt.clear();
@@ -412,28 +439,47 @@ int cmd_args::interpret(tagsh& shell) {
 		return err;
 	};
 
-	if (opt_trace) {
-		shell.interpret(".trace_on");
+	if (this->opt_trace)
+		shell.trace_on();
+	else
+		shell.echo_result_code = false;
+
+	int err;
+	// input files and tagl statements process in order,
+	// each string prepended with:
+	//   "t:"  tagl statment
+	//   "f:"  filename
+	for(auto s : this->tagl_statements) {
+		auto k = s.substr(0, 2);
+		auto v = s.substr(2, std::string::npos);
+		if (k == "t:") {
+			if (v == "-") {  // fname == "-", use interpret stdin
+				// TODO create an evbuffer from stdin, so shell commands are not exposed
+				shell.prompt.clear();
+				err = shell.interpret(std::cin);
+			} else {
+				err = f_tagl_statement(v);
+			}
+		} else if (k == "f:") {
+			err = shell.interpret_fname(v);
+		} else {
+			assert(0);
+			return this->error(tagd::TAGL_ERR, "cmd_args: internal error processing tagl_statements");
+		}
+
+		if (err) return err;
 	}
 
-	const std::string TAGL_OPT("--tagl");
-	int err;
-	// input file(s) 
-	for(auto s : tagl_file_statements) {
-		if (s == "-") {  // fname == "-", use interpret stdin
-			// TODO create an evbuffer from stdin, so shell commands are not exposed
-			shell.prompt.clear();
-			err = shell.interpret(std::cin);
-		} else if (s.substr(0, TAGL_OPT.size()) == TAGL_OPT) {
-			err = f_tagl_statement( s.substr(TAGL_OPT.size()) );
-		} else {
-			err = shell.interpret_fname(s);
-		}
+	if (this->opt_dump) {
+		shell.dump();
+	}
 
-		if ( err ) {
-			// err already printed
-			return err;
-		}
+	shell.echo_result_code = true;
+
+	if (!this->opt_noshell) {
+		std::cout << "use .show to list commands" << std::endl;
+		shell.prompt = tagsh::DEFAULT_PROMPT;
+		return shell.interpret_readline();
 	}
 
 	return 0;

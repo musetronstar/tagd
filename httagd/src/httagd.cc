@@ -326,7 +326,7 @@ void callback::default_cmd_error() {
 }
 
 void callback::default_empty() {
-	_tx->res->add("This is tagd");
+	_tx->res->add("This is tagd\n");
 }
 
 void callback::finish() {

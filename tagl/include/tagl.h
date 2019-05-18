@@ -156,7 +156,7 @@ class driver : public tagd::errorable {
 		// adds end of input to parser and frees scanner and parser
 		void finish();
 
-		static void trace_on(char * = nullptr);
+		static void trace_on(const char * = nullptr);
 		static void trace_off();
 };
 

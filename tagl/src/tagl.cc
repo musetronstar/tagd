@@ -155,9 +155,9 @@ void driver::finish() {
 		_callback->finish();
 }
 
-void driver::trace_on(char* prefix) {
+void driver::trace_on(const char* prefix) {
 	_trace_on = true;
-	ParseTrace(stderr, prefix);
+	ParseTrace(stderr, (char *)prefix);
 }
 
 void driver::trace_off() {

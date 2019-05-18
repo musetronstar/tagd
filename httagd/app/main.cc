@@ -533,6 +533,10 @@ int main(int argc, char ** argv) {
 		return vws.code();
 	}
 
+	tagsh shell(&tdb);
+	args.opt_noshell = true; // no REPL shell
+	args.interpret(shell);
+
 	server svr(&tdb, &vws, &args);
 	svr.start();
 

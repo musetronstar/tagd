@@ -2,8 +2,7 @@
 
 # exp_internal 1   ;# diagnostics
 
-set spawn_httagd "spawn ../bin/httagd --db -"
-set bootstrap ../../tagsh/bootstrap.tagl
+set spawn_httagd "spawn ../bin/httagd --file ../../tagsh/bootstrap.tagl"
 
 set MAX_ERRORS 3
 set ERRORS 0
@@ -84,14 +83,6 @@ eval $spawn_httagd
 
 # there must be a better way to wait for the server to start up
 sleep 1
-
-test "get_dog_not_exists" \
-	 "GET" "/dog" "" \
-	 "404 Not Found"
-
-test_file "bootstrap" \
-	      "POST" "/" $bootstrap \
-	      "200 OK"
 
 test "get_dog" \
 	 "GET" "/dog" "" \
