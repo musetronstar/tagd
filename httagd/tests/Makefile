@@ -8,7 +8,7 @@ INC = -I../include -I$(TAGD_DIR)/include -I$(TAGSPACE_DIR)/include -I$(TAGSPACE_
 LIBHTTAGD = $(HTTAGD_DIR)/lib/libhttagd.a
 
 CXXTEST = cxxtestgen --error-printer
-CXX = g++ -std=c++0x 
+CXX = g++ -std=c++14 
 CXXFLAGS = -O3 -Wno-write-strings
 LFLAGS  =
 LFLAGS += -L$(HTTAGD_DIR)/lib -lhttagd

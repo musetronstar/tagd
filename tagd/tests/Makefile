@@ -1,6 +1,6 @@
 INCLUDE = ../include
 
-CXX = g++ -std=c++0x -Wall -Wextra
+CXX = g++ -std=c++14 -Wall -Wextra
 CXXFLAGS = -O3
 INC = -I$(INCLUDE)
 LFLAGS = -L../lib -ltagd

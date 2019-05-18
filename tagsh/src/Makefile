@@ -1,4 +1,4 @@
-CXX = g++ -std=c++0x -Wall -Wextra -pedantic
+CXX = g++ -std=c++14 -Wall -Wextra -pedantic
 # -Wno-write-strings suppress const char * to char * warnings
 CXXFLAGS = -O3
 BUILD_DIR = ../bin
