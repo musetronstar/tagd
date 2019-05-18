@@ -91,7 +91,9 @@ statement_list ::= statement .
 statement ::= set_statement TERMINATOR .
 {
 	tagl->_cmd = TOK_CMD_SET;
-	if (!tagl->has_errors()) {
+	if (tagl->has_errors()) {
+		tagl->do_callback(); // callback::cmd_error() will be called
+	} else {
 		tagl->code(tagd::TAGD_OK);
 	}
 }
