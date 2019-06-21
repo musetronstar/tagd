@@ -42,14 +42,11 @@ class sqlite: public tagdb {
         sqlite3_stmt *_max_child_rank_stmt = nullptr;
         sqlite3_stmt *_insert_relations_stmt = nullptr;
         sqlite3_stmt *_insert_referents_stmt = nullptr;
-        sqlite3_stmt *_insert_context_stmt = nullptr;
-        sqlite3_stmt *_delete_context_stmt = nullptr;
         sqlite3_stmt *_delete_tag_stmt = nullptr;
         sqlite3_stmt *_delete_subject_relations_stmt = nullptr;
         sqlite3_stmt *_delete_relation_stmt = nullptr;
         sqlite3_stmt *_delete_refers_to_stmt = nullptr;
         sqlite3_stmt *_term_pos_occurence_stmt = nullptr;
-        sqlite3_stmt *_truncate_context_stmt = nullptr;
         sqlite3_stmt *_get_relations_stmt = nullptr;
         sqlite3_stmt *_related_stmt = nullptr;
         sqlite3_stmt *_related_modifier_stmt = nullptr;
@@ -89,15 +86,11 @@ class sqlite: public tagdb {
         // wont fail if already closed
         void close();
 
-		tagd::code push_context(const tagd::id_type& id);
-		tagd::code pop_context();
-		tagd::code clear_context();
-
         // get into tag given id
         tagd::code get(tagd::abstract_tag&, const tagd::id_type&, flags_t = 0);
         tagd::code get(tagd::url&, const tagd::id_type&, flags_t = 0);
 
-        tagd::code exists(const tagd::id_type& id); 
+        bool exists(const tagd::id_type& id, flags_t = 0); 
 
         // put tag, will overrite existing (move + update)
         tagd::code put(const tagd::abstract_tag&, flags_t = 0);
@@ -108,6 +101,11 @@ class sqlite: public tagdb {
         tagd::code del(const tagd::abstract_tag&, flags_t = 0);
         tagd::code del(const tagd::url&, flags_t = 0);
         tagd::code del(const tagd::referent&, flags_t = 0);
+
+// ### TODO ####
+// all public members not defined as public in tagdb::tagdb
+// base class should be made private or protected
+// we don't want to make the tagd system soely dependent on tagd::sqlite
 
 		tagd::part_of_speech term_pos(const tagd::id_type& t) {
 			return this->term_pos(t, NULL);

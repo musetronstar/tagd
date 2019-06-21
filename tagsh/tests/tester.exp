@@ -100,19 +100,7 @@ test_neg "bootstrap" \
 
 test "get_dog" \
 	 "<< dog;" \
-	 "dog is_a mammal"
-
-test "get_doggy_not_exists" \
-	 "<< doggy;" \
-	 "TS_NOT_FOUND"
-
-test "refer_doggy" \
-	 ">> doggy refers_to dog;" \
-	 "TAGD_OK"
-
-test "get_doggy" \
-	 "<< doggy;" \
-	 "doggy is_a mammal(.*)refers_to dog"
+	 "dog _is_a mammal"
 
 test "put_duplicate" \
      ">> cat _is_a mammal;" \
@@ -126,12 +114,28 @@ test "put_unignore_duplicate" \
      "%% _ignore_duplicates 0;\n>> cat _is_a mammal;" \
 	 "TS_DUPLICATE"
 
+test "get_doggy_not_exists" \
+	 "<< doggy;" \
+	 "TS_NOT_FOUND"
+
+test_neg "set_context_simple_english" \
+         "%% _context simple_english" \
+	     "TAGL_ERR"
+
+test "refer_doggy" \
+	 ">> doggy refers_to dog context simple_english;" \
+	 "TAGD_OK"
+
+test "get_doggy" \
+	 "<< doggy;" \
+	 "doggy is_a mammal(.*)refers_to dog"
+
 test "delete_refers_tag_err" \
      "!! doggy;" \
 	 "TS_MISUSE"
 
 test "delete_refer_doggy" \
-	 "!! doggy refers_to dog;" \
+	 "!! doggy refers_to dog context simple_english;" \
 	 "TAGD_OK"
 
 test "get_doggy_deleted_not_exists" \
@@ -172,16 +176,16 @@ test "get_japanese_dog_ambiguious" \
 	 "<< イヌ;" \
 	 "TS_AMBIGUOUS"
 
-test_neg "set_context_japanese" \
-         "%% _context japanese" \
+test_neg "set_context_simple_english_japanese" \
+         "%% _context simple_english, japanese" \
 	     "TAGL_ERR"
 
 test "get_japanese_dog" \
 	 "<< イヌ;" \
 	 "イヌ is_a mammal(.*)refers_to dog"
 
-test_neg "set_context_blank" \
-         "%% _context \"\"" \
+test_neg "set_context_simple_english2" \
+         "%% _context simple_english" \
 	     "TAGL_ERR"
 
 test "put_url_dog" \

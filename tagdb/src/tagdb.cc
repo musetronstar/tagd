@@ -9,10 +9,15 @@
 namespace tagdb {
 
 tagd::code tagdb::push_context(const tagd::id_type& id) {
+	if (id.empty())
+		return this->error(tagd::TS_MISUSE, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_CONTEXT, HARD_TAG_EMPTY));
+	else if (id == HARD_TAG_ENTITY)
+		return this->error(tagd::TS_MISUSE, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_CONTEXT, HARD_TAG_ENTITY));
+
 	tagd::abstract_tag t;
-	if (this->exists(id) == tagd::TAGD_OK) {
+	if (this->exists(id)) {
 		_context.push_back(id);
-		return _code;
+		return tagd::TAGD_OK;
 	}
 
 	return this->ferror(tagd::TS_INTERNAL_ERR, "push_context failed: %s", id.c_str());

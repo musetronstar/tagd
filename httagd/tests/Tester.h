@@ -153,11 +153,8 @@ class tagdb_tester : public tagdb::tagdb {
 			return this->error(tagd::TS_INTERNAL_ERR, "fix del() method");
 		}
 
-		tagd::code exists(const tagd::id_type& id) {
-			tag_map::iterator it = db.find(id);
-			if (it == db.end()) return tagd::TS_NOT_FOUND;
-
-			return tagd::TAGD_OK;
+		bool exists(const tagd::id_type& id, ts_flags_t flags = ts_flags_t()) {
+			return (db.find(id) != db.end());
 		}
 
 		tagd::code query(tagd::tag_set& T, const tagd::interrogator& q, ts_flags_t flags = ts_flags_t()) {

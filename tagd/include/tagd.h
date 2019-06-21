@@ -12,34 +12,13 @@
 #include <iostream>
 #include <sstream>
 #include <cstdarg>  // for va_list
+#include <cassert>
 
 namespace tagd {
 
 const size_t MAX_TAG_LEN = 2112;  // We are the Priests of the Temples of Syrinx
 typedef std::string id_type;
-
-typedef enum {
-	OP_EQ,		// =
-	OP_GT,  	// >
-	OP_GT_EQ,	// >=
-	OP_LT,		// <
-	OP_LT_EQ	// <=
-} operator_t;
-
-typedef enum {
-	TYPE_TEXT,
-	TYPE_INTEGER,
-	TYPE_FLOAT
-} data_t;
-
-/* TODO
-typedef enum {
-	PRINT_PRETTY,		// use whitespace for maximum readability
-	PRINT_DELIM_NL,		// use newlines when delimitting lists
-	PRINT_ID_ONLY,		// only print the tag id
-	PRINT_ID_SUB_ONLY	// only print the tag id and the sub relation
-} print_options_t;
-*/
+const static id_type EMPTY_ID;  // for returning empty `const id_type&`
 
 struct predicate {
 	id_type relator;
@@ -65,12 +44,15 @@ struct predicate {
 			case OP_GT_EQ:	return ">=";
 			case OP_LT:		return "<";
 			case OP_LT_EQ:	return "<=";
-			default:		return "=";
+			default:
+				assert(false);
+				return "=";
 		}
 	}
 
-	// modifier not used in comparisions
-    // relator and object make a predicate unique - modifier is incendental
+    // TODO compare opr8r and modifier
+	// arrange data_t and operator_t in order of operations
+	// compare modifier strings numerically using GMP <https://gmplib.org>, etc.
     bool operator<(const predicate& p) const {
         return ( relator < p.relator
                 || ( relator == p.relator
@@ -140,113 +122,6 @@ size_t merge_containing_tags(tag_set& A, const tag_set& B);
 bool tag_set_equal(const tag_set A, const tag_set B);
 /************** end tag_set defs ************/
 
-// TAGL part of speech
-typedef enum {
-    POS_UNKNOWN       = 0,
-    POS_TAG           = 1 << 0,
-    POS_SUB_RELATOR   = 1 << 1,
-    POS_SUB_OBJECT    = 1 << 2,
-// relator is used as a "Copula" to link subjects to predicates
-// (even more general than a "linking verb")
-    POS_RELATOR       = 1 << 3,
-    POS_INTERROGATOR  = 1 << 4,
-    POS_URL           = 1 << 5,
-    // POS_URI // TODO
-    POS_ERROR         = 1 << 6,
-	POS_SUBJECT       = 1 << 7,
-	// a relator at use in a relation
-	POS_RELATED       = 1 << 8,
-	POS_OBJECT        = 1 << 9,
-	POS_MODIFIER      = 1 << 10,
-    POS_REFERENT      = 1 << 11,
-    POS_REFERS        = 1 << 12,
-    POS_REFERS_TO     = 1 << 13,
-    POS_CONTEXT       = 1 << 14,
-    POS_FLAG          = 1 << 15,
-    POS_INCLUDE       = 1 << 16
-} part_of_speech;
-const int POS_END     = 1 << 17;
-
-/*\
-|*| tagd_pos rank tree
-|*| ------------------
-|*| Each tagd_pos is a tagd::rank type
-|*| that holds the HARD_TAG_POS rank + tadg_pos_ subtree rank 
-|*|
-|*| Encoding the tad_pos into the tagspace rank tree help us
-|*|   * eliminate t_id <=> id_t conversion in tagddb
-|*|     The rank now fills the role of:
-|*|     * each rank uniquely identifies rank == old t_id 
-|*|     * rank == t_id 
-|*|       relation    tad rank     offset
-|*|       --------    --------     ------
-|*|       id          == tagd::rank + POS_ID (0)
-|*|       sub_relator == tagd::rank + POS_SUB
-|*|       sub_relator == tagd::rank + POS_SUB
-|*|               pos == tagd::rank + POS_POS
-|*|     * rank == (rank + pos) to deduce value of other each pos in a tag
-|*|     * makes a tagd rank an iterable set over a buffer of data
-|*|       from start == rank == id to end
-|*|     * allow to deduce the end of a tag in a buffer of data given any rank,
-|*|		* allows us to copy an entire tagdb/tagspace (by value)
-|*|		  using only a buffer of utf8 and list of ranks
-|*|       VERY PORTABLE!
-|*| So that each tagd_id utf8 string value 
-|*| tagdb indexes will optimize reads of
-|*| an entire tag as all the data will be
-
-|*| Also this allows us to make tagd_pos searchable and extensible in TAGL
-|*| And allow to seek directly within a rank index
-\*/
-
-// wrap in struct so we can define here
-struct tag_util {
-    static std::string pos_str(part_of_speech p) {
-        switch (p) {
-            case POS_UNKNOWN: return "POS_UNKNOWN";
-            case POS_TAG:    return "POS_TAG";
-            case POS_SUB_RELATOR:    return "POS_SUB_RELATOR";
-            case POS_SUB_OBJECT:    return "POS_SUB_OBJECT";
-            case POS_RELATOR:    return "POS_RELATOR";
-            case POS_INTERROGATOR: return "POS_INTERROGATOR";
-            case POS_URL:    return "POS_URL";
-            case POS_ERROR:    return "POS_ERROR";
-            case POS_SUBJECT:    return "POS_SUBJECT";
-            case POS_RELATED:    return "POS_RELATED";
-            case POS_OBJECT:    return "POS_OBJECT";
-            case POS_MODIFIER:    return "POS_MODIFIER";
-            case POS_REFERENT:    return "POS_REFERENT";
-            case POS_REFERS:    return "POS_REFERS";
-            case POS_REFERS_TO:    return "POS_REFERS_TO";
-            case POS_CONTEXT:    return "POS_CONTEXT";
-            default:          return "POS_STR_DEFAULT";
-        }
-    }
-
-	static std::string pos_list_str(part_of_speech p) {
-		if (p == POS_UNKNOWN)
-			return "POS_UNKNOWN";
-
-		std::string s;
-		int i = 0;
-		part_of_speech pos = (part_of_speech)(1 << i);
-		if ((p & pos) == pos)
-			s.append( pos_str(pos) );
-		while ((pos=(part_of_speech)(1<<(++i))) < POS_END) {
-			if ((p & pos) == pos) {
-				if (s.size() > 0)
-					s.append(",");
-				s.append(pos_str(pos));
-			}
-		}
-
-		return s;
-	}
-};
-
-#define pos_str(c) tagd::tag_util::pos_str(c)
-#define pos_list_str(c) tagd::tag_util::pos_list_str(c)
-
 class abstract_tag {
     protected:
         id_type _id;
@@ -261,6 +136,7 @@ class abstract_tag {
     public:
         // empty tag
         abstract_tag() :
+			                   // TODO why assign sup_relator, can't it be empty by default?  Wasteful
 			_id(), _sub_relator(HARD_TAG_SUB), _super_object(),
 			_pos(POS_UNKNOWN), _rank(), _code(TAGD_OK) {};
         virtual ~abstract_tag() {};
@@ -313,7 +189,7 @@ class abstract_tag {
         const id_type& super_object() const { return _super_object; }
         void super_object(const id_type& s) { _super_object = s; }
 
-        const part_of_speech& pos() const { return _pos; }
+        part_of_speech pos() const { return _pos; }
         void pos(const part_of_speech& p) { _pos = p; }
 
         const tagd::rank& rank() const { return _rank; }
@@ -447,10 +323,22 @@ class interrogator : public abstract_tag {
 };
 
 class referent : public abstract_tag {
+	protected:
+		tagd::code validate() {
+			const id_type& c = this->context();
+			if ( _id.empty() || _id == HARD_TAG_ENTITY  // _refers
+			  || _super_object.empty() // `_refers_to _entity` -- OK
+			  || c.empty() || c == HARD_TAG_ENTITY )
+			{
+				return this->code(tagd::TS_MISUSE);
+			} else {
+				return this->code(tagd::TAGD_OK);
+			}
+		}
+
+    public:
 		// _id is the thing that refers
 		// _super_object is the thing refered to
-    public:
-
         referent() :
 			abstract_tag(POS_REFERENT)
 		{
@@ -461,13 +349,12 @@ class referent : public abstract_tag {
 			abstract_tag(t.id(), t.sub_relator(), t.super_object(), POS_REFERENT)
 		{ relations = t.relations; }
 
-        referent(const id_type& refers, const id_type& refers_to) :
-			abstract_tag(refers, HARD_TAG_REFERS_TO, refers_to, POS_REFERENT)
-		{}
-
         referent(const id_type& refers, const id_type& refers_to, const id_type& c) :
 			abstract_tag(refers, HARD_TAG_REFERS_TO, refers_to, POS_REFERENT)
-		{ context(c); }
+		{
+			context(c);
+			this->validate();
+		}
 
 		// TODO don't allow overridding HARD_TAG_REFERS_TO
 		// the problem, though, is that the getter method also gets deleted
@@ -475,9 +362,13 @@ class referent : public abstract_tag {
 
         const id_type& refers() const { return _id; }
         const id_type& refers_to() const { return _super_object; }
-        id_type context() const;
-        void context(const id_type& c) {
-			this->relation( HARD_TAG_CONTEXT, c);
+        const id_type& context() const;
+		tagd::code context(const id_type& c) {
+			auto tc = this->relation(HARD_TAG_CONTEXT, c);
+			if (tc != tagd::TAGD_OK)
+				return tc;
+			else
+				return this->validate();
 		}
 
         bool operator==(const referent& rhs) const {
@@ -537,7 +428,7 @@ class error : public abstract_tag {
 			this->relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, msg);
 		}
 
-        id_type message() const;
+        const id_type& message() const;
 };
 
 typedef std::vector<tagd::error> errors_t;
@@ -574,7 +465,7 @@ class errorable {
 		bool has_errors() const { return (_code >= TAGD_ERR || this->size() > 0); }
 		tagd::code code() const { return _code; }
 
-		tagd::error last_error() const;
+		const tagd::error& last_error() const;
 		tagd::code last_error_relation(predicate);
 
 		// set and return

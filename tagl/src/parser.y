@@ -21,10 +21,7 @@
 	if (tagl->_constrain_tag_id.empty() || (tagl->_constrain_tag_id == REFERS)) {	\
 		if (tagl->_tag != nullptr)	\
 			delete tagl->_tag;	\
-		if (CONTEXT.empty()) \
-			tagl->_tag = new tagd::referent(REFERS, REFERS_TO);	\
-		else	\
-			tagl->_tag = new tagd::referent(REFERS, REFERS_TO, CONTEXT);	\
+		tagl->_tag = new tagd::referent(REFERS, REFERS_TO, CONTEXT);	\
 	} else {	\
 		tagl->ferror(tagd::TAGL_ERR, "tag id constrained as: %s", tagl->_constrain_tag_id.c_str());	\
 	}
@@ -346,13 +343,6 @@ unknown ::= UNKNOWN(U) .
 }
 
 
-referent_relation ::= refers(r) REFERS_TO(RT) refers_to(rt) .
-{
-	NEW_REFERENT(*r, *rt, std::string());
-	DELETE(r)
-	DELETE(RT)
-	DELETE(rt)
-}
 referent_relation ::= refers(r) REFERS_TO(RT) refers_to(rt) CONTEXT(C) context(c) .
 {
 	// WTF not sure why gcc freaks calling *c a pointer type and not the others

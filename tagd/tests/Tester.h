@@ -973,12 +973,12 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_referent(void) {
-		tagd::referent a("is_a", "_is_a");
+		tagd::referent a("is_a", "_is_a", "simple_english");
 		TS_ASSERT_EQUALS( a.refers() , "is_a" )
 		TS_ASSERT_EQUALS( a.sub_relator() , HARD_TAG_REFERS_TO )
 		TS_ASSERT_EQUALS( a.refers_to() , "_is_a" )
 		TS_ASSERT( a.pos() == tagd::POS_REFERENT )
-		TS_ASSERT( a.context().empty() )
+		TS_ASSERT_EQUALS( a.context(), "simple_english" )
 
 		tagd::referent b("perro", "dog", "spanish");
 		TS_ASSERT_EQUALS( b.refers() , "perro" )
@@ -989,7 +989,7 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_referent_set(void) {
-		tagd::referent a("thing", HARD_TAG_ENTITY);
+		tagd::referent a("thing", HARD_TAG_ENTITY, "simple_english");
 		tagd::referent b("thing", "monster", "movies");
 		tagd::referent c("thing", "physical_object", "substance");
 
@@ -1016,6 +1016,8 @@ class Tester : public CxxTest::TestSuite {
 
     void test_errorable(void) {
 		tagd::errorable R;
+		size_t num_relations = 0;
+
 		TS_ASSERT( R.report_errors )
 		TS_ASSERT( R.ok() )
 		TS_ASSERT( !R.has_errors() )
@@ -1029,6 +1031,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( R.has_errors() )  // TS_NOT_FOUND considered an error
 
 		TS_ASSERT_EQUALS( R.ferror(tagd::TAGD_ERR, "bad tag: %s", "oops") , tagd::TAGD_ERR );
+		num_relations++;
 		TS_ASSERT_EQUALS( R.size() , 1 );
 		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
 		TS_ASSERT( !R.ok() )
@@ -1040,33 +1043,51 @@ class Tester : public CxxTest::TestSuite {
 		R.report_errors = false;
 		TS_ASSERT_EQUALS( R.error(tagd::error(tagd::TAGL_ERR)) , tagd::TAGL_ERR );
 		// same error as  last reported
+		TS_ASSERT_EQUALS( R.size() , 1 );
 		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
 		TS_ASSERT_EQUALS( R.last_error().id(), "TAGD_ERR" )
 		R.report_errors = true;
 
         tagd::error err(tagd::TS_MISUSE);
 		err.relation(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah");
+		num_relations++;
 		R.error(err);
 		TS_ASSERT_EQUALS( R.size() , 2 );
 		TS_ASSERT_EQUALS( R.code() , tagd::TS_MISUSE )
 		TS_ASSERT( !R.ok() )
 		TS_ASSERT( R.has_errors() )
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(R.code()) , "TS_MISUSE");
 		TS_ASSERT_EQUALS( R.last_error().id(), "TS_MISUSE" )
 		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR )
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah") )
 
 		R.error( tagd::TAGD_ERR,
 			tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") );
+		num_relations++;
 		TS_ASSERT_EQUALS( R.size() , 3 );
 		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
 		TS_ASSERT( !R.ok() )
 		TS_ASSERT( R.has_errors() )
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(R.code()) , "TAGD_ERR");
 		TS_ASSERT_EQUALS( R.last_error().id() , "TAGD_ERR" )
 		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR )
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") )
 
 		R.last_error_relation(tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23"));
+		num_relations++;
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23") )
+		TS_ASSERT_EQUALS( R.last_error().id() , "TAGD_ERR" )
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(R.code()) , "TAGD_ERR");
+
+		R.ferror( tagd::TS_NOT_FOUND, "no such tag: %s", "blah");
+		num_relations++;
+		TS_ASSERT_EQUALS( R.size() , 4 );
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(R.code()) , "TS_NOT_FOUND");
+		R.last_error_relation(tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah"));
+		num_relations++;
+		TS_ASSERT_EQUALS( R.last_error().id() , "TS_NOT_FOUND" )
+		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah") )
+        TS_ASSERT_EQUALS (TAGD_CODE_STRING(R.code()) , "TS_NOT_FOUND");
 
 		TS_ASSERT_EQUALS( R.most_severe() , tagd::TS_MISUSE )
 		TS_ASSERT_EQUALS( R.most_severe(tagd::TAGL_ERR) , tagd::TAGL_ERR )
@@ -1075,14 +1096,10 @@ class Tester : public CxxTest::TestSuite {
 		R1.copy_errors(R);
 
 		// test iterating errors_t
-		size_t num_rel = 0;
-		const tagd::errors_t E1	= R1.errors();
-		for (auto e : E1) {
-			for (auto p : e.relations) {
-				num_rel++;
-			}
-		}
-		TS_ASSERT_EQUALS( num_rel, 4 )
+		size_t n = 0;
+		for (auto e : R1.errors())
+			n += e.relations.size();
+		TS_ASSERT_EQUALS( n, num_relations )
 
 		auto it = R1.errors().begin();
 		TS_ASSERT( it != R1.errors().end() );
@@ -1095,6 +1112,9 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( it->id() , "TAGD_ERR" );
 		TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") );
 		TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23") );
+		it++;
+		TS_ASSERT_EQUALS( it->id() , "TS_NOT_FOUND" )
+		TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah") )
 		it++;
 		TS_ASSERT( it == R1.errors().end() );
 
@@ -1130,17 +1150,17 @@ class Tester : public CxxTest::TestSuite {
 
 		R.share_errors(R3).share_errors(R4);
 
-		TS_ASSERT_EQUALS( R.size() , 4 );
-		TS_ASSERT_EQUALS( R3.size() , 4 );
-		TS_ASSERT_EQUALS( R4.size() , 4 );
+		TS_ASSERT_EQUALS( R.size() , 5 );
+		TS_ASSERT_EQUALS( R3.size() , 5 );
+		TS_ASSERT_EQUALS( R4.size() , 5 );
 
 		TS_ASSERT_EQUALS( R.ferror(tagd::TAGD_ERR, "another bad tag: %s", "oops_again") , tagd::TAGD_ERR );
 
-		TS_ASSERT_EQUALS( R.size() , 5 );
+		TS_ASSERT_EQUALS( R.size() , 6 );
 		TS_ASSERT_EQUALS( R.last_error().id(), "TAGD_ERR" )
-		TS_ASSERT_EQUALS( R3.size() , 5 );
+		TS_ASSERT_EQUALS( R3.size() , 6 );
 		TS_ASSERT_EQUALS( R3.last_error().id(), "TAGD_ERR" )
-		TS_ASSERT_EQUALS( R4.size() , 5 );
+		TS_ASSERT_EQUALS( R4.size() , 6 );
 		TS_ASSERT_EQUALS( R4.last_error().id(), "TAGD_ERR" )
     }
 

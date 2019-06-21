@@ -56,10 +56,13 @@
 
 /***** errors *****/
 #define HARD_TAG_ERROR			"_error"		//gperf HARD_TAG_ENTITY, tagd::POS_TAG
+#define HARD_TAG_BAD_TOKEN		"_bad_token"	//gperf HARD_TAG_ERROR, tagd::POS_TAG
+#define HARD_TAG_UNKNOWN_TAG	"_unknown_tag"	//gperf HARD_TAG_ERROR, tagd::POS_TAG
+
+/***** used in errors, but not necessarily (could be used in other contexts) *****/
 #define HARD_TAG_CAUSED_BY		"_caused_by"	//gperf HARD_TAG_RELATOR, tagd::POS_RELATOR
-#define HARD_TAG_UNKNOWN_TAG	"_unknown_tag"	//gperf HARD_TAG_ENTITY, tagd::POS_TAG
-#define HARD_TAG_BAD_TOKEN		"_bad_token"	//gperf HARD_TAG_ENTITY, tagd::POS_TAG
 #define HARD_TAG_LINE_NUMBER	"_line_number"	//gperf HARD_TAG_ENTITY, tagd::POS_TAG
+#define HARD_TAG_EMPTY			"_empty"		//gperf HARD_TAG_ENTITY, tagd::POS_TAG
 
 /***** URIs *****/
 // TODO #define HARD_TAG_URI "_uri"   // resources located by URIs

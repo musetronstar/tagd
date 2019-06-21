@@ -41,6 +41,8 @@ class tagdb_tester : public tagdb::tagdb {
 			put_test_tag("bite", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("swim", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("information", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("language", "information", tagd::POS_TAG);
+			put_test_tag("simple_english", "language", tagd::POS_TAG);
 			put_test_tag("internet_security", "information", tagd::POS_TAG);
 			put_test_tag("child", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
@@ -77,6 +79,8 @@ class tagdb_tester : public tagdb::tagdb {
 			_cat = cat;
 
 			put_test_tag("breed", "dog", tagd::POS_TAG);
+
+			this->code(tagd::TAGD_OK);
 		}
 
 		tagd::part_of_speech pos(const tagd::id_type& id, ts_flags_t flags = ts_flags_t()) {
@@ -168,11 +172,8 @@ class tagdb_tester : public tagdb::tagdb {
 			return this->error(tagd::TS_INTERNAL_ERR, "fix del() method");
 		}
 
-		tagd::code exists(const tagd::id_type& id) {
-			tag_map::iterator it = db.find(id);
-			if (it == db.end()) return tagd::TS_NOT_FOUND;
-
-			return tagd::TAGD_OK;
+		bool exists(const tagd::id_type& id, ts_flags_t=ts_flags_t()) {
+			return (db.find(id) != db.end());
 		}
 
 		tagd::code query(tagd::tag_set& T, const tagd::interrogator& q, ts_flags_t flags = ts_flags_t()) {
@@ -307,34 +308,34 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		{
 			TAGL::driver tagl(&tdb);
-			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_INIT" )
+			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		}
 
 		{
 			// for test puposes only, we would never pass a nullptr TAGL::driver
 			TAGL::scanner scnr(nullptr);
 			TAGL::driver tagl(&tdb, &scnr);
-			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_INIT" )
+			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		}
 
 		{
 			// for test puposes only, we would never pass a nullptr as TAGL::driver*
 			TAGL::scanner scnr(nullptr);
 			TAGL::driver tagl(&tdb, &scnr);  // _own_scanner will be false, so _scanner not deleted
-			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_INIT" )
+			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		}
 
 		{
 			TAGL::scanner scnr(nullptr);
 			callback_tester clbk(&tdb);
 			TAGL::driver tagl(&tdb, &scnr, &clbk);
-			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_INIT" )
+			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		}
 
 		{
 			callback_tester clbk(&tdb);
 			TAGL::driver tagl(&tdb, &clbk);
-			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_INIT" )
+			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		}
 	}
 
@@ -623,7 +624,7 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
 		tagd::code tc = tagl.execute("");
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_INIT" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT( tc == tagl.code() )
 		TS_ASSERT( tagl.tag().empty() )
 	}
@@ -934,9 +935,8 @@ class Tester : public CxxTest::TestSuite {
 		tagl.parseln(HARD_TAG_HAS " legs, tail, fur");
 		tagl.parseln(HARD_TAG_CAN " bark, bite");
 		// statement not terminated yet
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_INIT" )
-		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
+		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
@@ -951,7 +951,7 @@ class Tester : public CxxTest::TestSuite {
 		tagl.parseln(HARD_TAG_HAS " legs, tail, fur");
 		tagl.parseln(HARD_TAG_CAN " meow, bite");
 		// statement not terminated yet
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_INIT" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		tagl.parseln();  // end of input
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
@@ -1148,11 +1148,12 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( t.related(HARD_TAG_CAN, "bite") )
 	}
 
-	void test_put_referent(void) {
+	void test_put_referent_no_context(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
+		// no context
 		tagd::code tc = tagl.execute(">> doggy " HARD_TAG_REFERS_TO " dog");
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 	}
 
 	// tagdb_tester won't allow this, but tagl parser will
@@ -1173,14 +1174,33 @@ class Tester : public CxxTest::TestSuite {
 	void test_put_referent_referent(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		tagd::code tc = tagl.execute(">> refers_to " HARD_TAG_REFERS_TO " " HARD_TAG_REFERS_TO "");
+		tagd::code tc = tagl.execute(
+			">> refers_to " HARD_TAG_REFERS_TO " " HARD_TAG_REFERS_TO
+			" " HARD_TAG_CONTEXT " simple_english" );
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 	}
 
 	void test_set_context(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		tagd::code tc = tagl.execute("%% " HARD_TAG_CONTEXT " child");
+		tagd::code tc;
+
+		// test tagdb_tester
+		TS_ASSERT( tdb.exists("child") )
+		TS_ASSERT_EQUALS( tdb.context().size() , 0 )
+		tc = tdb.push_context("child");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tdb.context().size() , 1 )
+		if ( tdb.context().size() > 0 )
+			TS_ASSERT_EQUALS( tdb.context()[0] , "child" )
+		tdb.clear_context();
+		TS_ASSERT_EQUALS( tdb.context().size() , 0 )
+
+		tc = tagl.execute("%% " HARD_TAG_CONTEXT " blah");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
+		tagl.clear_errors();
+
+		tc = tagl.execute("%% " HARD_TAG_CONTEXT " child");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tdb.context().size() , 1 )
 		if ( tdb.context().size() > 0 )

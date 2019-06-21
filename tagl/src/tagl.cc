@@ -40,21 +40,18 @@ const char* token_str(int tok) {
 bool driver::_trace_on = false;
 
 driver::driver(tagdb::tagdb *tdb) :
-		tagd::errorable(tagd::TAGL_INIT),
 		_scanner{new scanner(this)}, _tdb{tdb}
 {
 	this->init();
 }
 
 driver::driver(tagdb::tagdb *tdb, scanner *s) :
-		tagd::errorable(tagd::TAGL_INIT),
 		_own_scanner{false}, _scanner{s}, _tdb{tdb}
 {
 	this->init();
 }
 
 driver::driver(tagdb::tagdb *tdb, scanner *s, callback *cb) :
-		tagd::errorable(tagd::TAGL_INIT),
 		_own_scanner{false}, _scanner{s}, _tdb{tdb}, _callback{cb}
 {
 	// TODO this can produce nasty side effects.  There must be a better way...
@@ -63,7 +60,6 @@ driver::driver(tagdb::tagdb *tdb, scanner *s, callback *cb) :
 }
 
 driver::driver(tagdb::tagdb *tdb, callback *cb) :
-		tagd::errorable(tagd::TAGL_INIT),
 		_scanner{new scanner(this)}, _tdb{tdb}, _callback{cb}
 {
 	// TODO this can produce nasty side effects.  There must be a better way...
@@ -123,15 +119,15 @@ void driver::do_callback() {
 
 // sets up scanner and parser, wont init if already setup
 void driver::init() {
+	// set _code for new parse, _errors will still contain prev errors
+	if (_code != tagd::TAGD_OK)
+		_code = tagd::TAGD_OK;
+
 	if (_parser != nullptr)
 		return;
 
     // set up parser
     _parser = ParseAlloc(malloc);
-
-	_code = tagd::TAGL_INIT;
-	// TODO error clear
-	// _msg.clear(); 
 }
 
 void driver::free_parser() {
@@ -251,11 +247,14 @@ tagd::code driver::parseln(const std::string& line) {
 }
 
 tagd::code driver::execute(const std::string& statement) {
+	if (statement.empty())
+		return _code;
+
 	this->init();
 
 	_scanner->scan(statement.c_str());
 	this->finish();
-	return this->code();
+	return _code;
 }
 
 tagd::code driver::execute(struct evbuffer *input) {

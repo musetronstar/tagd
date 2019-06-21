@@ -60,10 +60,6 @@
 
 >> tv_show _is_a visual_art
 
->> communication _is_a _entity
-
->> language _is_a communication
-
 >> japanese _is_a language
 
 >> information _is_a communication
@@ -118,3 +114,4 @@ _has feathers, wings
 can fly
 
 >> spider _has fangs
+

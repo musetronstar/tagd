@@ -2,15 +2,15 @@
 
 >> about _type_of _rel
 
->> what _is_a _interrogator
+>> what _type_of _interrogator
 
->> physical_object _is_a _entity
+>> substance _type_of _entity
 
->> living_thing _is_a physical_object
+>> physical_object _type_of substance
 
->> body_part _is_a physical_object
+>> living_thing _type_of physical_object
 
->> substance _is_a _entity
+>> body_part _type_of physical_object
 
 >> mind _is_a _entity
 
@@ -22,8 +22,16 @@
 
 >> creativity _sub mind
 
->> refers_to _refers_to _refers_to
+>> communication _is_a _entity
 
->> is_a _refers_to _is_a
+>> language _is_a communication
 
->> has _refers_to _has
+>> simple_english _is_a language
+
+>> refers_to _refers_to _refers_to _context simple_english
+
+>> context _refers_to _context _context simple_english
+
+>> is_a _refers_to _is_a _context simple_english
+
+>> has _refers_to _has _context simple_english

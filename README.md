@@ -376,17 +376,38 @@ are inserted according to the following hard tags:
 
 #### Referents and Contexts
 
-TAGL uses referents as a way of dealing with different names that refer to the
-same thing (synonyms), and different things referred by the same name
-(ambiguity).  The use of contexts is crucial in this regard.
+TAGL uses referents and contexts as a way of dealing with different names that refer to the
+same thing (i.e. synonyms), and different things referred by the same name (i.e. ambiguity).
+A *NULL* context is known as the **Universal Context**.
 
 #### Referent Statement:
 
-If you would like to alias hard tags, you can do so:
+A context is required in a referent statement. However, a referent alias in the
+**Universal Context** is illegal:
 
 	>> is_a _refers_to _is_a;
-	>> has _refers_to _has;
+	TAGL_ERR _type_of _error
+	_caused_by _context = NULL
+
+First, let's create a relevant context `simple_english`:
+
+	>> communication _is_a _entity;
+	>> language _type_of communication;
+	>> simple_english _type_of language;
+
+If you would like to alias hard tags, you can do so:
+
+	>> is_a _refers_to _is_a _context simple_english;
+	>> has _refers_to _has _context simple_english;
+
+To use a context in statments globally, we must first `SET` it:
+
+	%% _context simple_english;
+
+	-- _context simple_english appended
 	>> context _refers_to _context;
+	-- same as
+	-- context _refers_to _context _context simple_english;
 	>> refers _refers_to _refers;
 
 We can even alias `_refers_to`:
@@ -395,21 +416,20 @@ We can even alias `_refers_to`:
 
 Here is a synonym for animal:
 
+	-- refers_to (in the simple_english context) will be decoded as _refers_to
 	>> creature refers_to animal;
 
 Now, we can `<< animal` by refering to creature:
 
+	-- refers_to (in the simple_english context) will be decoded as _refers_to
 	<< creature;
 
 Results:
 
-	creature _is_a living_thing
+	creature is_a living_thing
 	refers_to animal
 
-Since no context was specified, creature refers to animal in the *universal
-context* (same as *null* context).
-
-Here are some referents within a context:
+Here are some more referents within the `simple_english` context:
 
 	>> plant is_a living_thing;
 	>> fruit is_a plant;
@@ -424,18 +444,18 @@ Here are some referents within a context:
 	>> automobile is_a machine;
 	>> used_car is_a automobile;
 
-	>> lemon refers_to yellow context color;
+	>> lemon refers_to yellow context color; -- overrides context simple_english
 	>> lemon refers_to used_car context automobile;
 
-Now, let's get lemon in the universal context:
+Now, let's get lemon in the `simple_english` context:
 
 	<< lemon;
 
 Results:
 
-	lemon _is_a citrus;
+	lemon is_a citrus;
 
-No surprises - now let's set a context...
+No surprises - now let's set a different context...
 
 #### SET Statement:
 
@@ -444,24 +464,23 @@ No surprises - now let's set a context...
 
 Results:
 
-	lemon _is_a automobile
+	lemon is_a automobile
 	refers_to used_car
 
-Context heirarchies can also be set, where the closest (from right to left)
-context is tested for a match before moving up the context list:
+Context heirarchies can also be set, where the closest context (from right to left)
+is tested for a match before moving up the context list:
 
 	%% context automobile, color;
 	<< lemon;
 
 Results:
 
-	lemon _is_a color
+	lemon is_a color
 	refers_to yellow
 
 Example of a Japanese referent:
 
-	>> communication is_a _entity;
-	>> language is_a communication;
+	%% _context simple_english;
 	>> japanese is_a language;
 	>> イヌ refers_to dog context japanese;
 
@@ -486,6 +505,18 @@ If a referent is defined in a context, that context must be set to resolve it:
 Results:
 
 	イヌ _is_a mammal
+	_can bark
+	_has legs = 4, tail
+	_refers_to dog
+
+A nested context stack will resolve heirachically:
+
+	%% context simple_english, japanese;
+	<< イヌ;
+
+Results:
+
+	イヌ is_a mammal
 	can bark
 	has legs = 4, tail
 	refers_to dog
@@ -498,7 +529,7 @@ The context can be cleared by setting it to an empty string:
 
 You can see what a label *refers* by using a query:
 
-	?? what _refers lemon;
+	?? _what _refers lemon;
 
 Results:
 
@@ -512,7 +543,7 @@ And with a context:
 
 You can see what a label *refers* by using a query:
 
-	?? what _refers lemon _context machine;
+	?? _what _refers lemon _context machine;
 
 Results:
 
@@ -521,7 +552,7 @@ Results:
 
 Likewise, you can query what *refers to* a tag:
 
-	?? what _refers_to dog;
+	?? _what _refers_to dog;
 
 Results:
 
@@ -532,7 +563,13 @@ Or, you can query all referents given a context:
 
 	>> クジラ _refers_to whale _context japanese;
 
-	?? what _context japanese;
+-*
+-- TODO use a wildcard that would return the same results for _refers or _refers_to
+	?? _what _refers * _context japanese
+-- or
+	?? _what _refers_to * _context japanese
+*-
+	?? _what _context japanese;
 
 Results:
 
@@ -544,7 +581,7 @@ Results:
 
 Finally, you can query all referents:
 
-	?? what is_a _referent;
+	?? _what is_a _referent;
 
 Results:
 
@@ -567,30 +604,45 @@ have those predicates immediately available in the context they refer to.
 
 ###### Spanish Language Example:
 
+As explained earlier, refereents will be resolved according to a contex stack in
+heirarchical order (from right to left), the right most context being the top of the stack.
+When a context stack is `SET`, `PUT` statements that omit a `_context` predicate will have
+a `_context` predicate appended to the statement using the top of the stack.
+
 Let's set up referents that will allow us to express the definition of dog in
 Spanish:
 
-	>> spanish is_a language;
-	>> perro refers_to dog context spanish;
-	>> es_un refers_to is_a context spanish;
-	>> mamífero refers_to mammal context spanish;
-	>> puede refers_to can context spanish;
-	>> ladrar refers_to bark context spanish;
-	>> tiene refers_to has context spanish;
-	>> patas refers_to legs context spanish;
-	>> cola refers_to tail context spanish;
+	>> spanish _is_a language;
+	%% _context simple_english, spanish;
 
-	>> fur is_a body_part;
-	>> pelo refers_to fur context spanish;
+	-- perro inserted context spanish
+	>> perro _refers_to dog;
+	-- equivalent to
+	-- >> perro _refers_to dog _context spanish;
+
+	-*
+	 * Below, es_un is inserted in context spanish.
+	 * When resolving refers_to and is_a, first spanish is checked
+	 * (context stack right to left), then simple_english.
+	 *-
+	>> es_un refers_to is_a;
+	>> mamífero refers_to mammal;
+	>> puede refers_to can;
+	>> ladrar refers_to bark;
+	>> tiene refers_to has;
+	>> patas refers_to legs;
+	>> cola refers_to tail;
+
+	>> fur is_a body_part _context simple_english; -- overrides context spanish
+	>> pelo refers_to fur; -- back to global context spanish
 
 Now let's add a predicate in Spanish:
 
-	%% context spanish;
 	>> perro tiene pelo;
 
 Now we can see the predicate that was stated in Spanish:
 
-	%% context "";
+	%% context simple_english;
 	<< dog;
 
 Results:
@@ -599,7 +651,7 @@ Results:
 	can bark
 	has fur, legs = 4, tail
 
-We can see the Spanish predicate `tiene pelo` is available in English as
+We can see the `spanish` predicate `tiene pelo` is available in `simple_english` as
 `has fur`.
 
 Let's dump all the data we have entered so far to file so we can reuse it:
@@ -633,16 +685,16 @@ prevents curl from messing with the new line characters.
 
 Let's put some data:
 
-	curl -XPUT http://localhost:2112/meow --data 'is_a utterance'
-	curl -XPUT http://localhost:2112/cat --data 'is_a mammal can meow has legs = 4, tail'
+	curl -XPUT http://localhost:2112/meow --data '_is_a utterance'
+	curl -XPUT http://localhost:2112/cat --data '_is_a mammal _can meow _has legs = 4, tail'
 
 Which executes the TAGL statements:
 
-	>> meow is_a utterance
+	>> meow _is_a utterance
 
-	>> cat is_a mammal
-	can meow
-	has legs = 4, tail
+	>> cat _is_a mammal
+	_can meow
+	_has legs = 4, tail
 
 Note, the subject is in the tagdurl, while the relations are in the data body.
 
@@ -652,16 +704,31 @@ Now, let's get it:
 
 Results:
 
-	cat is_a mammal
-	can meow
-	has legs = 4, tail
+	cat _is_a mammal
+	_can meow
+	_has legs = 4, tail
 
 Likewise the following TAGL statement was generated:
 
 	<< cat
 
-Note, there is no trailing '/' after cat in the tagdurl.  A slash after the
-subject indicates a query.  For example, see the difference between:
+We can also provide a context
+
+	curl -XGET http://localhost:2112/cat?c=simple_english
+
+Results:
+
+	cat is_a mammal
+	can meow
+	has legs = 4, tail
+
+The TAGL generated:
+
+	<< cat _context simple_english
+
+Note, there was no trailing '/' after cat in the previous tagdurls representing `GET`
+statements.
+A slash after the subject indicates a query.  For example, see the difference between:
 
 	curl -XGET http://localhost:2112/mammal
 
@@ -722,7 +789,8 @@ The TAGL query generated was:
 	?? _interrogator _sub mammal
 	_has _terms = "can bark"
 
-To browse your tagspace, fire up your favorite browser and go to `http://localhost:2112/mammal?t=html`
+To browse your tagspace, fire up your favorite browser and go to
+`http://localhost:2112/mammal?t=html`
 
 So far, that is all that httagd can do.  More features will be coming soon...
 
