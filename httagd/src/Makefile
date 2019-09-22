@@ -1,4 +1,4 @@
-CXX = g++ -std=c++14 -Wall -Wextra
+CXX = g++ -std=c++14 -Wall -Wextra -fpermissive
 CXXFLAGS = -O3
 
 PRG_DIR = ../..
@@ -44,7 +44,9 @@ build : httagd.o
 evhtp-results.inc: $(EVHTP_H)
 	grep '#define EVHTP_RES_[A-Z]' $? | awk '{printf "case %s: return \"%s\";\n", $$2, $$2;}' > $@
 
-httagd.o : evhtp-results.inc httagd.cc
+httagd.cc: evhtp-results.inc
+
+httagd.o : httagd.cc
 	$(CXX) $(CXXFLAGS) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
 
 clean :

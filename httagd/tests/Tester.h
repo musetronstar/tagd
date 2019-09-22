@@ -7,7 +7,8 @@
 #include <event2/buffer.h>
 
 typedef std::map<tagd::id_type, tagd::abstract_tag> tag_map;
-typedef tagdb::flags_t ts_flags_t;
+typedef tagdb::flags_t tdb_flags_t;
+typedef tagdb::session tdb_sess_t;
 
 // pure virtual interface
 class tagdb_tester : public tagdb::tagdb {
@@ -26,151 +27,15 @@ class tagdb_tester : public tagdb::tagdb {
 		// animals
 		tagd::abstract_tag _dog;
 		tagd::abstract_tag _cat;
+
 	public:
-
-		tagdb_tester() {
-			put_test_tag(HARD_TAG_ENTITY, HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("living_thing", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("animal", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("legs", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("tail", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("fur", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("bark", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("meow", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("bite", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("swim", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("information", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("internet_security", "information", tagd::POS_TAG);
-			put_test_tag("child", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
-			put_test_tag("fun", "action", tagd::POS_TAG);
-			put_test_tag("_is_a", HARD_TAG_ENTITY, tagd::POS_SUB_RELATOR);
-			put_test_tag("about", HARD_TAG_ENTITY, tagd::POS_RELATOR);
-			put_test_tag("_has", HARD_TAG_ENTITY, tagd::POS_RELATOR);
-			put_test_tag("_can", HARD_TAG_ENTITY, tagd::POS_RELATOR);
-			put_test_tag("_what", HARD_TAG_ENTITY, tagd::POS_INTERROGATOR);
-			put_test_tag("_referent", "_sub", tagd::POS_REFERENT);
-			put_test_tag("_refers", HARD_TAG_ENTITY, tagd::POS_REFERS);
-			put_test_tag("_refers_to", HARD_TAG_ENTITY, tagd::POS_REFERS_TO);
-			put_test_tag("_context", HARD_TAG_ENTITY, tagd::POS_CONTEXT);
-			put_test_tag(HARD_TAG_FLAG, HARD_TAG_ENTITY, tagd::POS_FLAG);
-			put_test_tag("_ignore_duplicates", HARD_TAG_FLAG, tagd::POS_FLAG);
-
-			tagd::abstract_tag dog("dog", "animal", tagd::POS_TAG);
-			dog.relation("_has", "legs");
-			dog.relation("_has", "tail");
-			dog.relation("_has", "fur");
-			dog.relation("_can", "bark");
-			dog.relation("_can", "bite");
-			db[dog.id()] = dog;
-			_dog = dog;
-
-			tagd::abstract_tag cat("cat", "animal", tagd::POS_TAG);
-			cat.relation("_has", "legs");
-			cat.relation("_has", "tail");
-			cat.relation("_has", "fur");
-			cat.relation("_can", "meow");
-			cat.relation("_can", "bite");
-			db[cat.id()] = cat;
-			_cat = cat;
-
-			put_test_tag("breed", "dog", tagd::POS_TAG);
-		}
-
-		tagd::part_of_speech pos(const tagd::id_type& id, ts_flags_t flags = ts_flags_t()) {
-			assert (flags != 999999);  // used param warning
-			tag_map::iterator it = db.find(id);
-			if (it == db.end()) return tagd::POS_UNKNOWN;
-
-			return it->second.pos();
-		}
-
-		tagd::code get(tagd::abstract_tag& t, const tagd::id_type& id, ts_flags_t flags = ts_flags_t()) {
-			assert (flags != 999999);  // used param warning
-			tag_map::iterator it = db.find(id);
-			if (it == db.end()) return this->ferror(tagd::TS_NOT_FOUND, "unknown tag: %s", id.c_str());
-
-			t = it->second;
-			return this->code(tagd::TAGD_OK);
-		}
-
-		tagd::code put(const tagd::abstract_tag& t, ts_flags_t flags = ts_flags_t()) {
-			assert (flags != 999999);  // used param warning
-			if (t.id() == t.super_object())
-				return this->error(tagd::TS_MISUSE, "_id == _sub not allowed!");
-
-			if (t.pos() == tagd::POS_UNKNOWN) {
-				tagd::abstract_tag parent;
-				if (this->get(parent, t.super_object()) == tagd::TAGD_OK) {
-					tagd::abstract_tag cpy = t;
-					cpy.pos(parent.pos());
-					db[cpy.id()] = cpy;
-				} else {
-					return this->code();
-				}
-			} else {
-				db[t.id()] = t;
-			}
-
-			return this->code(tagd::TAGD_OK);
-		}
-
-		tagd::code del(const tagd::abstract_tag& t, ts_flags_t flags = ts_flags_t()) {
-			if (t.pos() != tagd::POS_URL && !t.super_object().empty()) {
-				return this->ferror(tagd::TS_MISUSE,
-					"sub must not be specified when deleting tag: %s", t.id().c_str());
-			}
-
-			tagd::abstract_tag existing;
-			this->get(existing, t.id(), flags);
-			if (this->code() != tagd::TAGD_OK)
-				return this->code();
-
-			if (t.relations.empty()) {
-				if ( !db.erase(t.id()) )
-					return this->ferror(tagd::TS_ERR, "del failed: %s", t.id().c_str());
-				else
-					return this->code(tagd::TAGD_OK);
-			} else {
-				for( auto p : t.relations ) {
-					if (existing.not_relation(p) == tagd::TAG_UNKNOWN) {
-						if (p.modifier.empty()) {
-							this->ferror(tagd::TS_NOT_FOUND,
-								"cannot delete non-existent relation: %s %s %s",
-									t.id().c_str(), p.relator.c_str(), p.object.c_str());
-						} else {
-							this->ferror(tagd::TS_NOT_FOUND,
-								"cannot delete non-existent relation: %s %s %s = %s",
-									t.id().c_str(), p.relator.c_str(), p.object.c_str(), p.modifier.c_str());
-						}
-					}
-				}
-
-				return this->put(existing, flags);
-			}
-
-			assert(false);  // shouldn't get here
-			return this->error(tagd::TS_INTERNAL_ERR, "fix del() method");
-		}
-
-		bool exists(const tagd::id_type& id, ts_flags_t flags = ts_flags_t()) {
-			return (db.find(id) != db.end());
-		}
-
-		tagd::code query(tagd::tag_set& T, const tagd::interrogator& q, ts_flags_t flags = ts_flags_t()) {
-			assert (flags != 999999);  // used param warning
-			if (q.super_object().empty() &&
-					q.related("legs") &&
-					q.related("tail") ) {
-				T.insert(_cat);
-				T.insert(_dog);
-			} else if (q.super_object() == "animal") {
-				T.insert(_cat);
-				T.insert(_dog);
-			}
-
-			return tagd::TS_NOT_FOUND;
-		}
+		tagdb_tester();
+		tagd::part_of_speech pos(const tagd::id_type&, tdb_sess_t*, tdb_flags_t=tdb_flags_t());
+		tagd::code get(tagd::abstract_tag&, const tagd::id_type&, tdb_sess_t*, tdb_flags_t=tdb_flags_t());
+		tagd::code put(const tagd::abstract_tag&, tdb_sess_t*, tdb_flags_t=tdb_flags_t());
+		tagd::code del(const tagd::abstract_tag&, tdb_sess_t*, tdb_flags_t=tdb_flags_t());
+		bool exists(const tagd::id_type&, tdb_flags_t=tdb_flags_t());
+		tagd::code query(tagd::tag_set&, const tagd::interrogator&, tdb_sess_t*, tdb_flags_t=tdb_flags_t());
 
 		tagd::code dump(std::ostream& os = std::cout) {
 			os << "not implemented!" << std::endl;
@@ -187,6 +52,146 @@ class tagdb_tester : public tagdb::tagdb {
 			return tagd::TS_ERR;
 		}
 };
+
+tagdb_tester::tagdb_tester() {
+	put_test_tag(HARD_TAG_ENTITY, HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("living_thing", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("animal", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("legs", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("tail", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("fur", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("bark", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("meow", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("bite", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("swim", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("information", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("internet_security", "information", tagd::POS_TAG);
+	put_test_tag("child", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("fun", "action", tagd::POS_TAG);
+	put_test_tag("_is_a", HARD_TAG_ENTITY, tagd::POS_SUB_RELATOR);
+	put_test_tag("about", HARD_TAG_ENTITY, tagd::POS_RELATOR);
+	put_test_tag("_has", HARD_TAG_ENTITY, tagd::POS_RELATOR);
+	put_test_tag("_can", HARD_TAG_ENTITY, tagd::POS_RELATOR);
+	put_test_tag("_what", HARD_TAG_ENTITY, tagd::POS_INTERROGATOR);
+	put_test_tag("_referent", "_sub", tagd::POS_REFERENT);
+	put_test_tag("_refers", HARD_TAG_ENTITY, tagd::POS_REFERS);
+	put_test_tag("_refers_to", HARD_TAG_ENTITY, tagd::POS_REFERS_TO);
+	put_test_tag("_context", HARD_TAG_ENTITY, tagd::POS_CONTEXT);
+	put_test_tag(HARD_TAG_FLAG, HARD_TAG_ENTITY, tagd::POS_FLAG);
+	put_test_tag("_ignore_duplicates", HARD_TAG_FLAG, tagd::POS_FLAG);
+
+	tagd::abstract_tag dog("dog", "animal", tagd::POS_TAG);
+	dog.relation("_has", "legs");
+	dog.relation("_has", "tail");
+	dog.relation("_has", "fur");
+	dog.relation("_can", "bark");
+	dog.relation("_can", "bite");
+	db[dog.id()] = dog;
+	_dog = dog;
+
+	tagd::abstract_tag cat("cat", "animal", tagd::POS_TAG);
+	cat.relation("_has", "legs");
+	cat.relation("_has", "tail");
+	cat.relation("_has", "fur");
+	cat.relation("_can", "meow");
+	cat.relation("_can", "bite");
+	db[cat.id()] = cat;
+	_cat = cat;
+
+	put_test_tag("breed", "dog", tagd::POS_TAG);
+}
+
+tagd::part_of_speech tagdb_tester::pos(const tagd::id_type& id, tdb_sess_t*, tdb_flags_t) {
+	tag_map::iterator it = db.find(id);
+	if (it == db.end()) return tagd::POS_UNKNOWN;
+
+	return it->second.pos();
+}
+
+tagd::code tagdb_tester::get(tagd::abstract_tag& t, const tagd::id_type& id, tdb_sess_t*, tdb_flags_t) {
+	tag_map::iterator it = db.find(id);
+	if (it == db.end()) return this->ferror(tagd::TS_NOT_FOUND, "unknown tag: %s", id.c_str());
+
+	t = it->second;
+	return this->code(tagd::TAGD_OK);
+}
+
+tagd::code tagdb_tester::put(const tagd::abstract_tag& t, tdb_sess_t*, tdb_flags_t) {
+	if (t.id() == t.super_object())
+		return this->error(tagd::TS_MISUSE, "_id == _sub not allowed!");
+
+	if (t.pos() == tagd::POS_UNKNOWN) {
+		tagd::abstract_tag parent;
+		if (this->get(parent, t.super_object(), nullptr) == tagd::TAGD_OK) {
+			tagd::abstract_tag cpy = t;
+			cpy.pos(parent.pos());
+			db[cpy.id()] = cpy;
+		} else {
+			return this->code();
+		}
+	} else {
+		db[t.id()] = t;
+	}
+
+	return this->code(tagd::TAGD_OK);
+}
+
+tagd::code tagdb_tester::del(const tagd::abstract_tag& t, tdb_sess_t*, tdb_flags_t) {
+	if (t.pos() != tagd::POS_URL && !t.super_object().empty()) {
+		return this->ferror(tagd::TS_MISUSE,
+			"sub must not be specified when deleting tag: %s", t.id().c_str());
+	}
+
+	tagd::abstract_tag existing;
+	this->get(existing, t.id(), nullptr);
+	if (this->code() != tagd::TAGD_OK)
+		return this->code();
+
+	if (t.relations.empty()) {
+		if ( !db.erase(t.id()) )
+			return this->ferror(tagd::TS_ERR, "del failed: %s", t.id().c_str());
+		else
+			return this->code(tagd::TAGD_OK);
+	} else {
+		for( auto p : t.relations ) {
+			if (existing.not_relation(p) == tagd::TAG_UNKNOWN) {
+				if (p.modifier.empty()) {
+					this->ferror(tagd::TS_NOT_FOUND,
+						"cannot delete non-existent relation: %s %s %s",
+							t.id().c_str(), p.relator.c_str(), p.object.c_str());
+				} else {
+					this->ferror(tagd::TS_NOT_FOUND,
+						"cannot delete non-existent relation: %s %s %s = %s",
+							t.id().c_str(), p.relator.c_str(), p.object.c_str(), p.modifier.c_str());
+				}
+			}
+		}
+
+		return this->put(existing, nullptr);
+	}
+
+	assert(false);  // shouldn't get here
+	return this->error(tagd::TS_INTERNAL_ERR, "fix del() method");
+}
+
+bool tagdb_tester::exists(const tagd::id_type& id, tdb_flags_t) {
+	return (db.find(id) != db.end());
+}
+
+tagd::code tagdb_tester::query(tagd::tag_set& T, const tagd::interrogator& q, tdb_sess_t*, tdb_flags_t) {
+	if (q.super_object().empty() &&
+			q.related("legs") &&
+			q.related("tail") ) {
+		T.insert(_cat);
+		T.insert(_dog);
+	} else if (q.super_object() == "animal") {
+		T.insert(_cat);
+		T.insert(_dog);
+	}
+
+	return tagd::TS_NOT_FOUND;
+}
 
 class callback_tester : public TAGL::callback {
 		tagdb::tagdb *_tdb;
@@ -216,7 +221,7 @@ class callback_tester : public TAGL::callback {
 		void cmd_get(const tagd::abstract_tag& t) {
 			cmd = TOK_CMD_GET;
 			renew_last_tag(t.pos());
-			last_code = _tdb->get(*last_tag, t.id());
+			last_code = _tdb->get(*last_tag, t.id(), nullptr);
 			if(t.pos() == tagd::POS_URL)
 				((tagd::url*)last_tag)->init(t.id());
 		}
@@ -231,7 +236,7 @@ class callback_tester : public TAGL::callback {
 			*last_tag = t;
 			if (t.pos() == tagd::POS_URL)
 				((tagd::url*)last_tag)->init(t.id());
-			last_code = _tdb->put(*last_tag);
+			last_code = _tdb->put(*last_tag, nullptr);
 		}
 
 		void cmd_del(const tagd::abstract_tag& t) {
@@ -244,7 +249,7 @@ class callback_tester : public TAGL::callback {
 			*last_tag = t;
 			if (t.pos() == tagd::POS_URL)
 				((tagd::url*)last_tag)->init(t.id());
-			last_code = _tdb->del(*last_tag);
+			last_code = _tdb->del(*last_tag, nullptr);
 		}
 
 		void cmd_query(const tagd::interrogator& q) {
@@ -255,7 +260,7 @@ class callback_tester : public TAGL::callback {
 
 			*last_tag = q;
 			last_tag_set.clear();
-			last_code = _tdb->query(last_tag_set, q);
+			last_code = _tdb->query(last_tag_set, q, nullptr);
 		}
 
 		void cmd_error() {
@@ -267,14 +272,18 @@ class callback_tester : public TAGL::callback {
 		}
 };
 
-#define TAGD_CODE_STRING(c)	std::string(tagd_code_str(c))
+#define TAGD_CODE_STRING(c)	std::string(tagd::code_str(c))
+#define INIT_TDB_TAGL() \
+	tagdb_tester tdb; \
+	auto ssn = tdb.get_session(); \
+	httagd::httagl tagl(&tdb, &ssn);
+
 
 class Tester : public CxxTest::TestSuite {
 	public:
 
     void test_get_tagdurl(void) {
-		tagdb_tester tdb;
-		httagd::httagl tagl(&tdb);
+		INIT_TDB_TAGL();
 		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/dog"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
@@ -283,8 +292,7 @@ class Tester : public CxxTest::TestSuite {
 	}
 
     void test_get_tagdurl_trailing_path(void) {
-		tagdb_tester tdb;
-		httagd::httagl tagl(&tdb);
+		INIT_TDB_TAGL();
 		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/dog/"));
 		tagl.finish();
 		// two path separators indicate a query
@@ -295,8 +303,7 @@ class Tester : public CxxTest::TestSuite {
 	}
 
     void test_post_tagdurl(void) {
-		tagdb_tester tdb;
-		httagd::httagl tagl(&tdb);
+		INIT_TDB_TAGL();
 		tagl.tagdurl_put(httagd::request(httagd::HTTP_POST, "/dog"));
 		tagl.execute("_is_a animal _has legs _can bark");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
@@ -308,8 +315,7 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_del_tagdurl(void) {
-		tagdb_tester tdb;
-		httagd::httagl tagl(&tdb);
+		INIT_TDB_TAGL();
 
 		tagl.tagdurl_del(httagd::request(httagd::HTTP_DELETE, "/dog"));
 		tagl.execute("_is_a animal _has legs _can bark");
@@ -326,8 +332,7 @@ class Tester : public CxxTest::TestSuite {
 	}
 
     void test_post_tagdurl_evbuffer_body(void) {
-		tagdb_tester tdb;
-		httagd::httagl tagl(&tdb);
+		INIT_TDB_TAGL();
 		tagl.tagdurl_put(httagd::request(httagd::HTTP_POST, "/dog"));
 
 		struct evbuffer *input = evbuffer_new();
@@ -346,8 +351,7 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_post_tagdurl_evbuffer_body_constrained_tag_id_error(void) {
-		tagdb_tester tdb;
-		httagd::httagl tagl(&tdb);
+		INIT_TDB_TAGL();
 		tagl.tagdurl_put(httagd::request(httagd::HTTP_POST, "/dog"));
 
 		struct evbuffer *input = evbuffer_new();
@@ -367,8 +371,9 @@ class Tester : public CxxTest::TestSuite {
 
     void test_tagdurl_query(void) {
 		tagdb_tester tdb;
+		auto ssn = tdb.get_session();
 		callback_tester cb(&tdb);
-		httagd::httagl tagl(&tdb, &cb);
+		httagd::httagl tagl(&tdb, &cb, &ssn);
 		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/animal/legs,tail"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
@@ -399,8 +404,9 @@ class Tester : public CxxTest::TestSuite {
 
     void test_tagdurl_sub_placeholder_query(void) {
 		tagdb_tester tdb;
+		auto ssn = tdb.get_session();
 		callback_tester cb(&tdb);
-		httagd::httagl tagl(&tdb, &cb);
+		httagd::httagl tagl(&tdb, &cb, &ssn);
 		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/*/legs,tail"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )

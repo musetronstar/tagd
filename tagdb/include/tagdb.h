@@ -55,6 +55,28 @@ struct flag_util {
 	}
 };
 
+class tagdb;	// forward declare
+
+class session : public tagd::errorable {
+	// no pub cons, only tagdb can access
+	friend tagdb;
+
+	private:
+		// stack of tags ids as context
+		tagd::id_vec _context;
+		tagdb *_tdb;
+
+		session() = delete;  // *tagdb reqd
+		session(tagdb *tdb) : _tdb{tdb} {}
+
+	public:
+		tagd::code push_context(const tagd::id_type&);
+		tagd::code pop_context();
+		tagd::code clear_context();
+		void print_context();
+		const tagd::id_vec& context() const;
+};
+
 // matches sqlite_int64 type defined in sqlite.h
 typedef long long int rowid_t;
 
@@ -69,15 +91,14 @@ class hard_tag {
 		static size_t rows_end();
 };
 
-typedef std::vector<tagd::id_type> context_stack;
-
 // pure virtual interface
 class tagdb : public tagd::errorable {
 	protected:
-		// stack of tags ids as context
-		tagd::id_vec _context;
 		bool _trace_on;
-		void reset() { _code = tagd::TAGD_OK; }
+		void reset(session *ssn) {
+			_code = tagd::TAGD_OK;
+			if (ssn) ssn->code(tagd::TAGD_OK);
+		}
 
 	public:
 		tagdb() : tagd::errorable(tagd::TS_INIT), _trace_on{false} {}
@@ -86,24 +107,29 @@ class tagdb : public tagd::errorable {
 		virtual void trace_on() { _trace_on = true; }
 		virtual void trace_off() { _trace_on = false; }
 
-		virtual tagd::code push_context(const tagd::id_type&);
-		virtual const tagd::id_vec& context() const;
-		virtual tagd::code pop_context();
-		virtual tagd::code clear_context();
+		// session factory
+		session get_session() {
+			return session(this);
+		}
+
+		// session factory, user must delete
+		session* new_session() {
+			return new session(this);
+		}
 
 		/*
 		 * when implemented, the follow methods should begin with a
 		 * call to this->reset() that respect the F_NO_RESET flag
 		 * such as:  if (!(flags & F_NO_RESET)) this->reset();
 		 */
-		virtual tagd::code get(tagd::abstract_tag&, const tagd::id_type&, flags_t = 0) = 0; // get into tag, given id
-		virtual tagd::code put(const tagd::abstract_tag&, flags_t = 0) = 0;
-		virtual tagd::code del(const tagd::abstract_tag&, flags_t = 0) = 0;
-		virtual tagd::code query(tagd::tag_set&, const tagd::interrogator&, flags_t = 0) = 0;
-		virtual tagd::part_of_speech pos(const tagd::id_type&, flags_t = 0) = 0; 
+		virtual tagd::code get(tagd::abstract_tag&, const tagd::id_type&, session*, flags_t = 0) = 0; // get into tag, given id
+		virtual tagd::code put(const tagd::abstract_tag&, session*, flags_t = 0) = 0;
+		virtual tagd::code del(const tagd::abstract_tag&, session*, flags_t = 0) = 0;
+		virtual tagd::code query(tagd::tag_set&, const tagd::interrogator&, session*, flags_t = 0) = 0;
+		virtual tagd::part_of_speech pos(const tagd::id_type&, session*, flags_t = 0) = 0; 
 		virtual bool exists(const tagd::id_type&, flags_t = 0) = 0;
-		virtual tagd::code dump(std::ostream& os = std::cout) = 0;
 
+		virtual tagd::code dump(std::ostream& os = std::cout) = 0;
 		virtual tagd::code dump_grid(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }
 		virtual tagd::code dump_terms(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }
         virtual tagd::code dump_search(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }

@@ -6,7 +6,7 @@
 #include "tagd.h"
 #include "tagd/utf8.h"
 
-#define TAGD_CODE_STRING(c)	std::string(tagd_code_str(c))
+#define TAGD_CODE_STRING(c)	std::string(tagd::code_str(c))
 
 class Tester : public CxxTest::TestSuite {
 	public:
@@ -818,6 +818,18 @@ class Tester : public CxxTest::TestSuite {
 
         a.relation("has", "legs");
 		TS_ASSERT( a == b );
+
+		tagd::abstract_tag c("dog", "is_a", "mammal", tagd::POS_UNKNOWN);
+        c.relation("has", "legs");
+
+		TS_ASSERT( b != c );
+		c.pos(tagd::POS_TAG);
+		TS_ASSERT( b == c );
+
+		b.rank(1);
+		TS_ASSERT( b != c );
+		c.rank(1);
+		TS_ASSERT( b == c );
 	}
 
     void test_relation(void) {
@@ -951,6 +963,56 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( u.related("about", "computer_security") )
 	}
 
+	void test_predicate_compare(void) {
+		// TYPE_TEXT
+		tagd::predicate p_empty;
+		tagd::predicate pt_can_fly("can", "fly");
+		tagd::predicate pt_can_fly_far("can", "fly", "far");
+		TS_ASSERT( pt_can_fly != pt_can_fly_far )
+		TS_ASSERT( pt_can_fly < pt_can_fly_far ) // "" < "far"
+
+		tagd::predicate pt_has_legs_eq_4_cons_no_type("has", "legs", "4");
+		TS_ASSERT( pt_can_fly_far < pt_has_legs_eq_4_cons_no_type )
+
+
+		tagd::predicate pt_has_legs_eq_4{"has", "legs", "4", tagd::OP_EQ, tagd::TYPE_TEXT}; // init list style
+		TS_ASSERT( pt_has_legs_eq_4_cons_no_type == pt_has_legs_eq_4 )
+		TS_ASSERT( !(pt_has_legs_eq_4_cons_no_type < pt_has_legs_eq_4) )
+		TS_ASSERT( !(pt_has_legs_eq_4 < pt_has_legs_eq_4_cons_no_type) )
+
+		tagd::predicate pt_has_legs_eq_44("has", "legs", "44", tagd::OP_EQ, tagd::TYPE_TEXT);
+		TS_ASSERT( pt_has_legs_eq_4 < pt_has_legs_eq_44 ) // "4" < "44"
+
+		tagd::predicate pt_has_legs_eq_6("has", "legs", "6", tagd::OP_EQ, tagd::TYPE_TEXT);
+		TS_ASSERT( pt_has_legs_eq_4 != pt_has_legs_eq_6 ) // "4" != "6"
+		TS_ASSERT( pt_has_legs_eq_4 < pt_has_legs_eq_6 )  // "4" < "6"
+		TS_ASSERT( pt_has_legs_eq_44 < pt_has_legs_eq_6 ) // "44" < "6"
+
+		// copy
+		auto p_tmp = pt_has_legs_eq_4;
+		TS_ASSERT( p_tmp == pt_has_legs_eq_4 )
+		TS_ASSERT( !(p_tmp < pt_has_legs_eq_4) )
+		p_tmp = pt_has_legs_eq_6;
+		TS_ASSERT( p_tmp == pt_has_legs_eq_6 )
+
+		// TYPE_INTEGER
+		tagd::predicate pi_has_legs_eq_4("has", "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER);
+		tagd::predicate pi_has_legs_eq_44("has", "legs", "44", tagd::OP_EQ, tagd::TYPE_INTEGER);
+		tagd::predicate pi_has_legs_eq_6("has", "legs", "6", tagd::OP_EQ, tagd::TYPE_INTEGER);
+		TS_ASSERT( pi_has_legs_eq_4 != pi_has_legs_eq_6 )    // 4 != 6
+		TS_ASSERT( pi_has_legs_eq_4 < pi_has_legs_eq_6 )     // 4 < 6
+		TS_ASSERT( !(pi_has_legs_eq_6 < pi_has_legs_eq_4) )  // 6 > 4
+		TS_ASSERT( pi_has_legs_eq_44 < pt_has_legs_eq_44 )   // 44 < "44"
+
+		TS_ASSERT( pt_has_legs_eq_4 != pi_has_legs_eq_4 ) // "4" != 6
+		TS_ASSERT( pi_has_legs_eq_6 < pt_has_legs_eq_4 )  //  6 < "4"
+
+		tagd::predicate pt_has_legs_gt_2("has", "legs", "2", tagd::OP_GT);
+		tagd::predicate pt_has_legs_lt_8("has", "legs", "8", tagd::OP_LT);
+		TS_ASSERT( pt_has_legs_lt_8 < pt_has_legs_gt_2 )  //  "<8" < ">2"
+		TS_ASSERT( !(pt_has_legs_lt_8 < pt_has_legs_gt_2) )  //  !(">2" < "<8")
+	}
+
     void test_interrogator(void) {
 		tagd::interrogator a("what");
 		TS_ASSERT_EQUALS( a.id() , "what" )
@@ -1009,6 +1071,13 @@ class Tester : public CxxTest::TestSuite {
 
     void test_error_msg(void) {
         tagd::error err(tagd::TAGD_ERR, "bad tag: oops");
+		TS_ASSERT_EQUALS( err.id(), "TAGD_ERR" ) 
+		TS_ASSERT_EQUALS( err.super_object(), HARD_TAG_ERROR ) 
+		TS_ASSERT_EQUALS( err.message(), "bad tag: oops" ) 
+    }
+
+    void test_ferror_msg(void) {
+        tagd::error err = tagd::error::ferror(tagd::TAGD_ERR, "bad tag: %s", "oops");
 		TS_ASSERT_EQUALS( err.id(), "TAGD_ERR" ) 
 		TS_ASSERT_EQUALS( err.super_object(), HARD_TAG_ERROR ) 
 		TS_ASSERT_EQUALS( err.message(), "bad tag: oops" ) 

@@ -9,7 +9,6 @@ CXXFLAGS = -O3
 LFLAGS = -L../lib -ltagdb-sqlite -L$(TAGD_DIR)/lib -ltagd -lsqlite3 
 
 SRC = tester.cc
-OBJ = tester.o
 BIN = ./tester
 
 all: build
@@ -21,8 +20,7 @@ debug: build
 
 build: $(LIBTAGD)
 	$(CXXTEST) Tester.h -o $(SRC)
-	$(CXX) $(CXXFLAGS) -c -o $(OBJ) $(SRC) $(INC)
-	$(CXX) $(CXXFLAGS) $(OBJ) -o $(BIN) $(LFLAGS)
+	$(CXX) $(CXXFLAGS) -o $(BIN) $(SRC) $(INC) $(LFLAGS)
 	rm -f *.sqlite
 	$(BIN)
 
@@ -30,4 +28,4 @@ $(LIBTAGD):
 	make -C $(TAGD_DIR)
 
 clean:
-	rm -f $(SRC) $(OBJ) $(BIN) *.sqlite
+	rm -f $(SRC) $(BIN) *.sqlite

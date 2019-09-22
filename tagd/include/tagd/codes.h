@@ -54,19 +54,24 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
 	HTTP_ERR
 } code;  // TAGD_CODES_END
 
+/*\
+|*| order of operations for tagd::predicates
+|*| for operators and data types
+\*/
 typedef enum {
-	OP_EQ,		// =
-	OP_GT,  	// >
-	OP_GT_EQ,	// >=
-	OP_LT,		// <
-	OP_LT_EQ	// <=
-} operator_t;
-
-typedef enum {
-	TYPE_TEXT,
 	TYPE_INTEGER,
-	TYPE_FLOAT
+	TYPE_FLOAT,
+	TYPE_TEXT
 } data_t;
+
+// when comparing two values L and R
+typedef enum {
+	OP_LT,     // L < R
+	OP_LT_EQ,  // L <= R
+	OP_EQ,     // L == R
+	OP_GT_EQ,  // L >= R
+	OP_GT      // L > R
+} operator_t;
 
 /* TODO
 typedef enum {
@@ -76,7 +81,6 @@ typedef enum {
 	PRINT_ID_SUB_ONLY	// only print the tag id and the sub relation
 } print_options_t;
 */
-
 
 
 // TAGL part of speech
@@ -139,13 +143,14 @@ const int POS_END     = 1 << 17;
 |*| Also this allows us to make tagd_pos searchable and extensible in TAGL
 |*| And allow to seek directly within a rank index
 \*/
-} // namespace tagd
 
 // string literal of each tagd::code
-const char* tagd_code_str(tagd::code);
+const char* code_str(tagd::code);
 
 // string literal of each part_of_speech
 const char* pos_str(tagd::part_of_speech);
 
 // string list corresponding to each bit set in part_of_speech value
 std::string pos_list_str(tagd::part_of_speech);
+
+} // namespace tagd

@@ -8,7 +8,8 @@
 #include <event2/buffer.h>
 
 typedef std::map<tagd::id_type, tagd::abstract_tag> tag_map;
-typedef tagdb::flags_t ts_flags_t;
+typedef tagdb::flags_t tdb_flags_t;
+typedef tagdb::session tdb_session_t;
 
 // pure virtual interface
 class tagdb_tester : public tagdb::tagdb {
@@ -83,14 +84,14 @@ class tagdb_tester : public tagdb::tagdb {
 			this->code(tagd::TAGD_OK);
 		}
 
-		tagd::part_of_speech pos(const tagd::id_type& id, ts_flags_t flags = ts_flags_t()) {
+		tagd::part_of_speech pos(const tagd::id_type& id, tdb_session_t * = nullptr, tdb_flags_t flags = tdb_flags_t()) {
 			tag_map::iterator it = db.find(id);
 			if (it == db.end()) return tagd::POS_UNKNOWN;
 
 			return it->second.pos();
 		}
 
-		tagd::code get(tagd::abstract_tag& t, const tagd::id_type& id, ts_flags_t flags = ts_flags_t()) {
+		tagd::code get(tagd::abstract_tag& t, const tagd::id_type& id, tdb_session_t * = nullptr, tdb_flags_t flags = tdb_flags_t()) {
 			tag_map::iterator it = db.find(id);
 			if (it == db.end())
 				return this->ferror(tagd::TS_NOT_FOUND, "unknown tag: %s", id.c_str());
@@ -99,7 +100,7 @@ class tagdb_tester : public tagdb::tagdb {
 			return this->code(tagd::TAGD_OK);
 		}
 
-		tagd::code put(const tagd::abstract_tag& t, ts_flags_t flags = ts_flags_t()) {
+		tagd::code put(const tagd::abstract_tag& t, tdb_session_t *ssn = nullptr, tdb_flags_t flags = tdb_flags_t()) {
 			if (t.id()[0] == '_')
 				return this->ferror(tagd::TS_MISUSE, "inserting hard tags not allowed: %s", t.id().c_str());
 
@@ -108,7 +109,7 @@ class tagdb_tester : public tagdb::tagdb {
 
 			if (t.pos() == tagd::POS_UNKNOWN) {
 				tagd::abstract_tag parent;
-				if (this->get(parent, t.super_object()) == tagd::TAGD_OK) {
+				if (this->get(parent, t.super_object(), ssn) == tagd::TAGD_OK) {
 					tagd::abstract_tag cpy = t;
 					cpy.pos(parent.pos());
 					db[cpy.id()] = cpy;
@@ -129,7 +130,7 @@ class tagdb_tester : public tagdb::tagdb {
 			return this->code(tagd::TAGD_OK);
 		}
 
-		tagd::code del(const tagd::abstract_tag& t, ts_flags_t flags = ts_flags_t()) {
+		tagd::code del(const tagd::abstract_tag& t, tdb_session_t *ssn, tdb_flags_t flags = tdb_flags_t()) {
 			if (!t.super_object().empty() && t.pos() != tagd::POS_URL) {
 				return this->ferror(tagd::TS_MISUSE,
 					"sub must not be specified when deleting tag: %s", t.id().c_str());
@@ -141,7 +142,7 @@ class tagdb_tester : public tagdb::tagdb {
 				? static_cast<tagd::url const *>(&t)->hduri()
 				: t.id() );
 
-			this->get(existing, id, flags);
+			this->get(existing, id, ssn, flags);
 			if (this->code() != tagd::TAGD_OK)
 				return this->code();
 
@@ -165,18 +166,14 @@ class tagdb_tester : public tagdb::tagdb {
 					}
 				}
 
-				return this->put(existing, flags);
+				return this->put(existing, ssn, flags);
 			}
 
 			assert(false);  // shouldn't get here
 			return this->error(tagd::TS_INTERNAL_ERR, "fix del() method");
 		}
 
-		bool exists(const tagd::id_type& id, ts_flags_t=ts_flags_t()) {
-			return (db.find(id) != db.end());
-		}
-
-		tagd::code query(tagd::tag_set& T, const tagd::interrogator& q, ts_flags_t flags = ts_flags_t()) {
+		tagd::code query(tagd::tag_set& T, const tagd::interrogator& q, tdb_session_t * = nullptr, tdb_flags_t flags = tdb_flags_t()) {
 			if (q.super_object().empty() &&
 					q.related("legs") &&
 					q.related("tail") ) {
@@ -188,6 +185,10 @@ class tagdb_tester : public tagdb::tagdb {
 			}
 
 			return tagd::TS_NOT_FOUND;
+		}
+
+		bool exists(const tagd::id_type& id, tdb_flags_t=tdb_flags_t()) {
+			return (db.find(id) != db.end());
 		}
 
 		tagd::code dump(std::ostream& os = std::cout) {
@@ -245,9 +246,9 @@ class callback_tester : public TAGL::callback {
 			renew_last_tag(t.pos());
 			if(t.pos() == tagd::POS_URL) {
 				((tagd::url*)last_tag)->init(t.id());
-				last_code = _tdb->get(*last_tag, ((tagd::url*)last_tag)->hduri());
+				last_code = _tdb->get(*last_tag, ((tagd::url*)last_tag)->hduri(), _driver->session_ptr());
 			} else {
-				last_code = _tdb->get(*last_tag, t.id());
+				last_code = _tdb->get(*last_tag, t.id(), _driver->session_ptr());
 			}
 		}
 
@@ -261,7 +262,7 @@ class callback_tester : public TAGL::callback {
 			*last_tag = t;
 			if (t.pos() == tagd::POS_URL)
 				((tagd::url*)last_tag)->init(t.id());
-			last_code = _tdb->put(*last_tag);
+			last_code = _tdb->put(*last_tag, _driver->session_ptr());
 		}
 
 		void cmd_del(const tagd::abstract_tag& t) {
@@ -276,7 +277,7 @@ class callback_tester : public TAGL::callback {
 				((tagd::url*)last_tag)->init(t.id());
 			}
 
-			last_code = _tdb->del(*last_tag);
+			last_code = _tdb->del(*last_tag, _driver->session_ptr());
 		}
 
 		void cmd_query(const tagd::interrogator& q) {
@@ -287,7 +288,7 @@ class callback_tester : public TAGL::callback {
 
 			*last_tag = q;
 			last_tag_set.clear();
-			last_code = _tdb->query(last_tag_set, q);
+			last_code = _tdb->query(last_tag_set, q, _driver->session_ptr());
 		}
 
 		void cmd_error() {
@@ -299,7 +300,7 @@ class callback_tester : public TAGL::callback {
 		}
 };
 
-#define TAGD_CODE_STRING(c)	std::string(tagd_code_str(c))
+#define TAGD_CODE_STRING(c)	std::string(tagd::code_str(c))
 
 class Tester : public CxxTest::TestSuite {
 	public:
@@ -1182,39 +1183,53 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_set_context(void) {
 		tagdb_tester tdb;
-		TAGL::driver tagl(&tdb);
+		auto ssn = tdb.get_session();
+		TAGL::driver tagl(&tdb, &ssn);
 		tagd::code tc;
 
 		// test tagdb_tester
 		TS_ASSERT( tdb.exists("child") )
-		TS_ASSERT_EQUALS( tdb.context().size() , 0 )
-		tc = tdb.push_context("child");
+		TS_ASSERT_EQUALS( ssn.context().size() , 0 )
+		tc = ssn.push_context("child");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tdb.context().size() , 1 )
-		if ( tdb.context().size() > 0 )
-			TS_ASSERT_EQUALS( tdb.context()[0] , "child" )
-		tdb.clear_context();
-		TS_ASSERT_EQUALS( tdb.context().size() , 0 )
+		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
+		if ( ssn.context().size() > 0 )
+			TS_ASSERT_EQUALS( ssn.context()[0] , "child" )
+		ssn.clear_context();
+		TS_ASSERT_EQUALS( ssn.context().size() , 0 )
 
 		tc = tagl.execute("%% " HARD_TAG_CONTEXT " blah");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
 		tagl.clear_errors();
+		TS_ASSERT_EQUALS( ssn.context().size() , 0 )
 
-		tc = tagl.execute("%% " HARD_TAG_CONTEXT " child");
+		tc = ssn.push_context("child");
+		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tdb.context().size() , 1 )
-		if ( tdb.context().size() > 0 )
-			TS_ASSERT_EQUALS( tdb.context()[0] , "child" )
+		tc = tagl.execute("%% " HARD_TAG_CONTEXT " animal, action");
+		// tagl::finish() should have popped {animal, action} and left child intact
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
+		if ( ssn.context().size() > 0 )
+			TS_ASSERT_EQUALS( ssn.context()[0] , "child" )
 	}
 
 	void test_set_blank_context(void) {
 		tagdb_tester tdb;
-		TAGL::driver tagl(&tdb);
+		auto ssn = tdb.get_session();
+		TAGL::driver tagl(&tdb, &ssn);
+		ssn.push_context("animal");
+
 		tagd::code tc = tagl.execute("%% " HARD_TAG_CONTEXT " child");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tdb.context().size() , 1 )
+		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
+		if ( ssn.context().size() > 0 )
+			TS_ASSERT_EQUALS( ssn.context()[0] , "animal" )
+
 		tc = tagl.execute("%% " HARD_TAG_CONTEXT " \"\"");
-		TS_ASSERT_EQUALS( tdb.context().size() , 0 )
+		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
+		if ( ssn.context().size() > 0 )
+			TS_ASSERT_EQUALS( ssn.context()[0] , "animal" )
 	}
 
 	void test_set_ignore_duplicates(void) {
@@ -1237,25 +1252,34 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_set_context_list(void) {
 		tagdb_tester tdb;
-		TAGL::driver tagl(&tdb);
-		tagd::code tc = tagl.execute("%% " HARD_TAG_CONTEXT " child, animal");
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tdb.context().size() , 2 )
-		if ( tdb.context().size() == 2 )
-			TS_ASSERT_EQUALS( tdb.context()[0] , "child" )
-			TS_ASSERT_EQUALS( tdb.context()[1] , "animal" )
-	}
+		auto ssn = tdb.get_session();
+		TAGL::driver tagl(&tdb, &ssn);
 
-	void test_set_context_list_3(void) {
-		tagdb_tester tdb;
-		TAGL::driver tagl(&tdb);
-		tagd::code tc = tagl.execute("%% " HARD_TAG_CONTEXT " child, animal, fun");
+		ssn.push_context("living_thing");
+		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
+		if ( ssn.context().size() == 1 )
+			TS_ASSERT_EQUALS( ssn.context()[0] , "living_thing" )
+
+		tagd::code tc = tagl.parseln("%% " HARD_TAG_CONTEXT " child, animal, fun;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tdb.context().size() , 3 )
-		if ( tdb.context().size() == 3 )
-			TS_ASSERT_EQUALS( tdb.context()[0] , "child" )
-			TS_ASSERT_EQUALS( tdb.context()[1] , "animal" )
-			TS_ASSERT_EQUALS( tdb.context()[2] , "fun" )
+		TS_ASSERT_EQUALS( ssn.context().size() , 4 )
+		if ( ssn.context().size() == 4 ) {
+			TS_ASSERT_EQUALS( ssn.context()[0] , "living_thing" )
+			TS_ASSERT_EQUALS( ssn.context()[1] , "child" )
+			TS_ASSERT_EQUALS( ssn.context()[2] , "animal" )
+			TS_ASSERT_EQUALS( ssn.context()[3] , "fun" )
+		}
+
+		tc = tagl.parseln("%% " HARD_TAG_CONTEXT " \"\";");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
+		if ( ssn.context().size() == 1 )
+			TS_ASSERT_EQUALS( ssn.context()[0] , "living_thing" )
+
+		tagl.finish();
+		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
+		if ( ssn.context().size() == 1 )
+			TS_ASSERT_EQUALS( ssn.context()[0] , "living_thing" )
 	}
 
     void test_query(void) {
@@ -1360,7 +1384,11 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_query_referents(void) {
 		tagdb_tester tdb;
+
+		// a new tagdb::session will be created internally in parser.y upon pushing a context
 		TAGL::driver tagl(&tdb);
+
+		TS_ASSERT( tagl.session_ptr() == nullptr )
 
 		// refers.empty() && refers_to.empty() && context.empty()
 		tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_IS_A " " HARD_TAG_REFERENT);
@@ -1573,8 +1601,8 @@ class Tester : public CxxTest::TestSuite {
 
     void test_evbuffer_scan(void) {
 		struct evbuffer *input = evbuffer_new();
-		std::string s(">> dog " HARD_TAG_IS_A " animal " HARD_TAG_HAS " legs, fur " HARD_TAG_CAN " bark");
-		evbuffer_add(input, s.c_str(), s.size());
+		const char *s = ">> dog " HARD_TAG_IS_A " animal " HARD_TAG_HAS " legs, fur " HARD_TAG_CAN " bark";
+		evbuffer_add(input, s, strlen(s));
 
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);

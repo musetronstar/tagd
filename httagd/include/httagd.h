@@ -71,11 +71,14 @@ class server : public tagsh, public tagd::errorable {
 			_htp = evhtp_new(_evbase, NULL);
 		}
 	public:
+		bool trace_on = false;
+
 		server(tagdb::sqlite *tdb, viewspace *vs, httagd_args *args)
 			: tagsh(tdb), _vws{vs}, _args{args}
 		{
 			_bind_addr = (!args->bind_addr.empty() ? args->bind_addr : "localhost");
 			_bind_port = (args->bind_port ? args->bind_port : 2112);
+			trace_on = _args->opt_trace;
 			this->init();
 		}
 
@@ -123,19 +126,7 @@ class response {
 			// default content type, it is up to view handlers to overwrite
 			content_type{"text/plain; charset=utf-8"} {}
 
-		static evhtp_res tagd_code_evhtp_res(tagd::code tc) {
-			switch (tc) {
-				case tagd::TAGD_OK:
-					return EVHTP_RES_OK;
-				case tagd::TS_NOT_FOUND:
-					return EVHTP_RES_NOTFOUND;
-				case tagd::TS_DUPLICATE:
-					// using 409 - Conflict, 422 - Unprocessable Entity might also be exceptable
-					return EVHTP_RES_CONFLICT;
-				default:
-					return EVHTP_RES_SERVERR;
-			}
-		}
+		static evhtp_res tagd_code_evhtp_res(tagd::code tc);
 
 		bool reply_sent() const {
 			return _reply_sent;
@@ -162,10 +153,7 @@ class response {
 			return _ev_req->buffer_out;
 		}
 
-		void send_reply(tagd::code tc) {
-			this->send_reply(_res_code >= 0 ? _res_code : tagd_code_evhtp_res(tc));
-		}
-
+		void send_reply(tagd::code);
 		void send_reply(evhtp_res);
 
 		void add_header(const std::string &key, const std::string &val);
@@ -277,11 +265,14 @@ class htscanner : public TAGL::scanner {
 
 class httagl : public TAGL::driver {
 	public:
-		httagl(tagdb::tagdb *tdb)
-			: TAGL::driver(tdb, new htscanner(this)) {}
-		httagl(tagdb::tagdb *tdb, TAGL::callback *cb)
-			: TAGL::driver(tdb, new htscanner(this), cb) {}
-		virtual ~httagl() { delete _scanner; }
+		httagl(tagdb::tagdb *tdb, tagdb::session *ssn)
+			: TAGL::driver(tdb, new htscanner(this), ssn) {
+				_own_scanner = true;
+			}
+		httagl(tagdb::tagdb *tdb, TAGL::callback *cb, tagdb::session *ssn)
+			: TAGL::driver(tdb, new htscanner(this), cb, ssn) {
+				_own_scanner = true;
+			}
 
 		// undo name hiding so we can use overridden methods across scope
 		using TAGL::driver::execute;
@@ -294,9 +285,12 @@ class httagl : public TAGL::driver {
 
 // holds members passed to every callback
 class transaction : public tagd::errorable {
+	transaction() = delete;
+
 	public:
 		server *svr;
 		tagdb::tagdb *tdb;
+		httagl *drvr;
 		httagd::viewspace *vws;
 		request *req;
 		response *res;
@@ -304,11 +298,12 @@ class transaction : public tagd::errorable {
 
 		transaction(
 			server *sv,
-			tagdb::tagdb* td,
+			tagdb::tagdb *td,
+			httagl *dr,
 			httagd::viewspace *vs,
-			request* rq,
-			response* rs
-		) : svr{sv}, tdb{td}, vws{vs}, req{rq}, res{rs},
+			request *rq,
+			response *rs
+		) : svr{sv}, tdb{td}, drvr{dr}, vws{vs}, req{rq}, res{rs},
 			trace_on{sv->args()->opt_trace}
 		{}
 
@@ -336,6 +331,7 @@ typedef std::function<tagd::code(transaction&, const view&, const tagd::errorabl
 |*| is called. The handler then populates a response from the results.
 \*/
 enum struct view_action {
+	UNDEF,  // view unitialized
 	EMPTY,
 	GET,
 	PUT,
@@ -352,6 +348,8 @@ static const char* view_action_str(view_action a) {
 		case view_action::DEL: return "DEL";
 		case view_action::QUERY: return "QUERY";
 		case view_action::ERROR: return "ERROR";
+		case view_action::UNDEF: return "UNDEF";
+		default: assert(0);
 	}
 
 	return "";
@@ -413,7 +411,7 @@ class view_id {
 		view_action _action;
 
 	public:
-		view_id() {}
+		view_id() : _action{view_action::UNDEF} {}
 
 		view_id(const std::string& n, view_action a)
 			: _name{n}, _action{a} {}
@@ -505,6 +503,9 @@ class view : public view_id {
 				case view_action::ERROR:
 					new(&_error_handler) error_handler_t();
 					break;
+				case view_action::UNDEF:
+					break;  // NOOP
+				default: assert(0);
 			}
 		}
 
@@ -528,6 +529,9 @@ class view : public view_id {
 				case view_action::ERROR:
 					_error_handler.~error_handler_t();
 					break;
+				case view_action::UNDEF:
+					break; // NOOP
+				default: assert(0);
 			}
 		}
 
@@ -553,6 +557,9 @@ class view : public view_id {
 				case view_action::ERROR:
 					_error_handler = v._error_handler;
 					break;
+				case view_action::UNDEF:
+					break; // NOOP
+				default: assert(0);
 			}
 		}
 
@@ -577,7 +584,9 @@ class view : public view_id {
 					break;
 				case view_action::ERROR:
 					_error_handler = std::move(v._error_handler);
-					break;
+				case view_action::UNDEF:
+					break; // NOOP
+				default: assert(0);
 			}
 		}
 

@@ -45,6 +45,7 @@
 /***** messages *****/
 #define HARD_TAG_MESSAGE	"_message"	//gperf HARD_TAG_ENTITY, tagd::POS_TAG
 #define HARD_TAG_TERMS		"_terms"	//gperf HARD_TAG_MESSAGE, tagd::POS_TAG
+#define HARD_TAG_ACTION	"_action"		//gperf HARD_TAG_ENTITY, tagd::POS_TAG
 
 /***** flags *****/
 #define HARD_TAG_FLAG		"_flag"		//gperf HARD_TAG_ENTITY, tagd::POS_FLAG

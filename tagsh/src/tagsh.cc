@@ -47,24 +47,39 @@ void add_history_lines_clear(cmdlines_t& lines) {
 		add_history(hst.c_str());
 }
 
-void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
-	tagd::abstract_tag *T;
-	if (t.pos() == tagd::POS_URL) {
-		T = new tagd::url();
-		_tdb->get((tagd::url&)*T, t.id(), _driver->flags());
+void tagsh_callback::handle_cmd_error() {
+	auto ssn = _driver->session_ptr();
+	if (ssn && !ssn->ok()) {
+		_driver->code(ssn->code()); // stops the scanner
+		ssn->print_errors();
+		ssn->clear_errors();
 	}
-	else {
-		T = new tagd::abstract_tag();
-		_tdb->get(*T, t.id(), _driver->flags());
-	}
-
-	if(_tdb->ok()) {
-		std::cout << *T << std::endl;
-	} else {	
+	
+	if (!_tdb->ok()) {
 		_driver->code(_tdb->code()); // stops the scanner
 		_tdb->print_errors();
 		_tdb->clear_errors();
 	}
+}
+
+#define CMD_OK() (_tdb->ok() && (!ssn || (ssn && ssn->ok())))
+
+void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
+	tagd::abstract_tag *T;
+	auto ssn = _driver->session_ptr();
+
+	if (t.pos() == tagd::POS_URL) {
+		T = new tagd::url();
+		_tdb->get((tagd::url&)*T, t.id(), ssn, _driver->flags());
+	} else {
+		T = new tagd::abstract_tag();
+		_tdb->get(*T, t.id(), ssn, _driver->flags());
+	}
+
+	if(CMD_OK())
+		std::cout << *T << std::endl;
+	else
+		this->handle_cmd_error();
 
 	delete T;
 
@@ -72,38 +87,48 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 }
 
 void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
-	tagd::code tc = _tdb->put(t, _driver->flags());
-	if (_tdb->ok()) {
+	auto ssn = _driver->session_ptr();
+	tagd::code tc = _tdb->put(t, ssn, _driver->flags());
+
+	if (CMD_OK()) {
 		if (_tsh->echo_result_code)
-			std::cout << "-- " << tagd_code_str(tc) << std::endl;
+			std::cout << "-- " << tagd::code_str(tc) << std::endl;
 	} else {
-		_driver->code(_tdb->code()); // stops the scanner
-		_tdb->print_errors();
-		_tdb->clear_errors();
+		this->handle_cmd_error();
 	}
+
 	add_history_lines_clear(_lines);
 }
 
 void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
-	tagd::code tc = _tdb->del(t, _driver->flags());
-	if (_tdb->ok()) {
+	auto ssn = _driver->session_ptr();
+	tagd::code tc = _tdb->del(t, ssn, _driver->flags());
+
+	if (CMD_OK()) {
 		if (_tsh->echo_result_code)
-			std::cout << "-- " << tagd_code_str(tc) << std::endl;
+			std::cout << "-- " << tagd::code_str(tc) << std::endl;
 	} else if (_tdb->code() == tagd::TS_NOT_FOUND ) {
 		if (_tsh->echo_result_code)
-			std::cout << "-- " << tagd_code_str(tc) << std::endl;
+			std::cout << "-- " << tagd::code_str(tc) << std::endl;
 	} else {
-		_driver->code(_tdb->code()); // stops the scanner
-		_tdb->print_errors();
-		_tdb->clear_errors();
+		this->handle_cmd_error();
 	}
+
 	add_history_lines_clear(_lines);
 }
 
 void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 	tagd::tag_set T;
-	_tdb->query(T, q, _driver->flags());
-	switch(_tdb->code()) {
+	auto ssn = _driver->session_ptr();
+
+	auto tc = _tdb->query(T, q, ssn, _driver->flags()|tagdb::F_NO_NOT_FOUND_ERROR);
+	if (!CMD_OK()) {
+		this->handle_cmd_error();
+		add_history_lines_clear(_lines);
+		return;
+	}
+
+	switch(tc) {
 		case tagd::TAGD_OK:
 			if (q.super_object() == HARD_TAG_REFERENT)
 				tagd::print_tags(T);
@@ -112,13 +137,12 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 			break;
 		case tagd::TS_NOT_FOUND:  // TS_NOT_FOUND not an error for queries
 			if (_tsh->echo_result_code)
-				std::cout << "-- " << tagd_code_str(_tdb->code()) << std::endl;
+				std::cout << "-- " << tagd::code_str(_tdb->code()) << std::endl;
 			break;
 		default:	
-			_driver->code(_tdb->code()); // stops the scanner
-			_tdb->print_errors();
-			_tdb->clear_errors();
+			this->handle_cmd_error();
 	}
+
 	add_history_lines_clear(_lines);
 }
 
@@ -233,6 +257,13 @@ void tagsh::command(const std::string& cmdline) {
 		return;
 	}
 
+	if ( cmd == ".print_context" ) {
+		auto ssn = _driver.session_ptr();
+		if (!ssn) return;
+		ssn->print_context();
+		return;
+	}
+
 	if ( cmd == ".trace_on" ) {
 		this->trace_on();
 		return;
@@ -261,7 +292,7 @@ int tagsh::interpret_readline() {
 
 	char* input;
     while( (input = readline(prompt.c_str())) != NULL ) {
-        _CB->_lines.push_back(input);
+        _callback->_lines.push_back(input);
 		this->interpret(input);
     }
 
@@ -271,7 +302,7 @@ int tagsh::interpret_readline() {
 int tagsh::interpret(const std::string &line) {
 	if (line[0] == '.') {
 		command(line);
-		add_history_lines_clear(_CB->_lines);
+		add_history_lines_clear(_callback->_lines);
 		return 0;
 	} else {
 		_driver.parseln(line);
@@ -398,26 +429,25 @@ cmd_args::cmd_args()
 }
 
 void cmd_args::parse(int argc, char **argv) {
-	for (int i=1; i<argc; i++) {
+	for (int i=1; i<argc; ++i) {
 		auto it = _cmds.find(std::string(argv[i]));
-		if (it != _cmds.end()) {
-			auto h = it->second;
-			if (h.has_arg) {
-				if (++i < argc) {
-					h.handler(argv[i]);
-				} else {
-					this->ferror(tagd::TAGD_ERR, "value required: %s <val>", argv[i-1]);
-					return;
-				}
-			} else {
-				h.handler( nullptr );
-			}
-			if (this->has_errors()) return;
-			continue;
-		} else {
+		if (it == _cmds.end()) {
 			this->ferror(tagd::TAGD_ERR, "invalid option: %s", argv[i]);
 			return;
 		}
+		auto h = it->second;
+		if (h.has_arg) {
+			if (++i < argc) {
+				h.handler(argv[i]);
+			} else {
+				this->ferror(tagd::TAGD_ERR, "value required: %s <val>", argv[i-1]);
+				return;
+			}
+		} else {
+			h.handler(nullptr);
+		}
+		if (this->has_errors())
+			return;
 	}
 
 	if (db_fname.empty()) {
@@ -450,6 +480,9 @@ int cmd_args::interpret(tagsh& shell) {
 	//   "t:"  tagl statment
 	//   "f:"  filename
 	for(auto s : this->tagl_statements) {
+		if (s.size() <= 2)
+			return this->error(tagd::TAGL_ERR, "cmd_args: missing value for TAGL statment");
+
 		auto k = s.substr(0, 2);
 		auto v = s.substr(2, std::string::npos);
 		if (k == "t:") {
@@ -470,9 +503,8 @@ int cmd_args::interpret(tagsh& shell) {
 		if (err) return err;
 	}
 
-	if (this->opt_dump) {
+	if (this->opt_dump)
 		shell.dump();
-	}
 
 	shell.echo_result_code = true;
 

@@ -35,6 +35,99 @@ const char* evhtp_method_str(int method) {
 	return "UNKNOWN_METHOD";
 }
 
+/*
+void print_evbuf(struct evbuffer *input, std::ostream &os=std::cout) {
+	const size_t BUF_SZ = 512;
+	char buf[BUF_SZ];
+	size_t sz = 0, read_sz = BUF_SZ - 1;
+
+	os << "-*** input buffer ***-" << std::endl;
+	do {
+		sz = evbuffer_copyout(input, buf, read_sz); 
+		if (sz <= 0) break;
+		os << std::string(buf, sz);
+		if (sz < read_sz) break;  // EOF
+	} while (true);
+	os << std::endl
+	   << "-********************-" << std::endl;
+}
+
+int output_header(evhtp_header_t * header, void* arg) {
+    // evbuf_t * buf = (evbuf_t *)arg;
+    // evbuffer_add_printf(buf, "print_kvs() key = '%s', val = '%s'\n",
+      //                   header->key, header->val);
+    printf("%s: %s\n", header->key, header->val);
+    return 0;
+}
+
+evhtp_res print_kvs(evhtp_request_t * req, evhtp_headers_t * hdrs, void *) {
+	printf("-*** headers ***-\n");
+    evhtp_headers_for_each(hdrs, output_header, req->buffer_out);
+	printf("-************-\n");
+    return EVHTP_RES_OK;
+}
+
+evhtp_res print_path(evhtp_request_t * req, evhtp_path_t * path, void * arg) {
+    // if (ext_body) {
+    //     evbuffer_add_printf(req->buffer_out, "ext_body: '%s'\n", ext_body);
+    // }
+
+    // evbuffer_add_printf(req->buffer_out,
+    //                     "print_path() full        = '%s'\n"
+    //                     "             path        = '%s'\n"
+    //                     "             file        = '%s'\n"
+    //                     "             match start = '%s'\n"
+    //                     "             match_end   = '%s'\n"
+    //                     "             methno      = '%d'\n",
+    //                     path->full, path->path, path->file,
+    //                     path->match_start, path->match_end,
+    //                     evhtp_request_get_method(req));
+
+	printf(
+                        "-*** path ***-\n"
+                        "full        = '%s'\n"
+                        "path        = '%s'\n"
+                        "file        = '%s'\n"
+                        "match start = '%s'\n"
+                        "match_end   = '%s'\n"
+                        "methno      = '%s'\n"
+                        "-************-\n",
+                        path->full, path->path, path->file,
+                        path->match_start, path->match_end,
+                        evhtp_method_str(evhtp_request_get_method(req)));
+
+    return EVHTP_RES_OK;
+}
+
+evhtp_res set_my_connection_handlers(evhtp_connection_t * conn, void * arg) {
+    //struct timeval               tick;
+    //struct ev_token_bucket_cfg * tcfg = NULL;
+
+    // evhtp_connection_set_hook(conn, evhtp_hook_on_header, print_kv, "foo");
+    // evhtp_connection_set_hook(conn, evhtp_hook_on_headers, print_kvs, "bar");
+	evhtp_connection_set_hook(conn, evhtp_hook_on_headers, print_kvs, "baz");
+    evhtp_connection_set_hook(conn, evhtp_hook_on_path, print_path, "baz");
+    // evhtp_connection_set_hook(conn, evhtp_hook_on_read, print_data, "derp");
+    // evhtp_connection_set_hook(conn, evhtp_hook_on_new_chunk, print_new_chunk_len, NULL);
+    // evhtp_connection_set_hook(conn, evhtp_hook_on_chunk_complete, print_chunk_complete, NULL);
+    // evhtp_connection_set_hook(conn, evhtp_hook_on_chunks_complete, print_chunks_complete, NULL);
+
+    // if (bw_limit > 0) {
+    //     tick.tv_sec  = 0;
+    //     tick.tv_usec = 500 * 100;
+
+    //     tcfg         = ev_token_bucket_cfg_new(bw_limit, bw_limit, bw_limit, bw_limit, &tick);
+
+    //     bufferevent_set_rate_limit(conn->bev, tcfg);
+    // }
+
+    //evhtp_connection_set_hook(conn, evhtp_hook_on_request_fini, test_fini, tcfg);
+
+    return EVHTP_RES_OK;
+}
+*/
+
+
 namespace httagd {
 
 void htscanner::scan_tagdurl_path(int cmd, const request& req) {
@@ -48,7 +141,7 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 		this->_driver->parse_tok(TOK_RELATOR, new std::string(HARD_TAG_HAS));
 		this->_driver->parse_tok(TOK_TAG, new std::string(HARD_TAG_TERMS));
 		this->_driver->parse_tok(TOK_EQ, NULL);
-		this->_driver->parse_tok(TOK_QUOTED_STR, new std::string(opt_search.c_str()));
+		this->_driver->parse_tok(TOK_QUOTED_STR, new std::string(opt_search));
 	};
 
 	if ((path == "" || path == "/") && cmd == TOK_CMD_GET) {
@@ -58,7 +151,7 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 		}
 		else {	// FTS query
 			_driver->parse_tok(TOK_CMD_QUERY, NULL);
-			_driver->parse_tok(TOK_QUOTED_STR, new std::string(opt_search.c_str()));
+			_driver->parse_tok(TOK_QUOTED_STR, new std::string(opt_search));
 		}
 		return;
 	}
@@ -113,7 +206,7 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 			// first segment of "*" is a placeholder for sub relation, so ignore it
 			if (segment != "*") {  // how is it related
 				_driver->parse_tok(TOK_SUB_RELATOR, (new std::string(HARD_TAG_SUB)));
-				this->scan(tagd::uri_decode(segment).c_str());
+				this->scan(tagd::uri_decode(segment));
 			}
 		} else {
 			if (!opt_search.empty()) {  // turn into query (like adding a '/' to the end)
@@ -122,7 +215,7 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 				return;
 			} else {
 				_driver->parse_tok(cmd, NULL);
-				this->scan(tagd::uri_decode(segment).c_str());
+				this->scan(tagd::uri_decode(segment));
 			}
 		}
 	} else {
@@ -156,7 +249,7 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 
 		if (req.method != HTTP_PUT) {
 			_driver->parse_tok(cmd, NULL);
-			this->scan(tag_id.c_str());
+			this->scan(tag_id);
 		}
 	}
 
@@ -168,7 +261,7 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 
 	if (!segment.empty()) {
 		_driver->parse_tok(TOK_WILDCARD, NULL);
-		this->scan(tagd::uri_decode(segment).c_str());
+		this->scan(tagd::uri_decode(segment));
 	}
 
 	if (cmd == TOK_CMD_QUERY && !opt_search.empty())
@@ -263,7 +356,8 @@ tagd::code httagl::tagdurl_del(const request& req) {
 
 void callback::default_cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag T;
-	tagd::code tc = _tx->tdb->get(T, t.id(), _driver->flags());
+	auto ssn = _tx->drvr->session_ptr();
+	tagd::code tc = _tx->tdb->get(T, t.id(), ssn, _driver->flags());
 
 	// TODO, if outputting to an iostream is still desirable,
 	// but more efficient to ouput to an evbuffer directly,
@@ -287,7 +381,8 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 }
 
 void callback::default_cmd_put(const tagd::abstract_tag& t) {
-	_tx->tdb->put(t, _driver->flags());
+	auto ssn = _tx->drvr->session_ptr();
+	_tx->tdb->put(t, ssn, _driver->flags());
 	std::stringstream ss;
 	if (_tx->tdb->has_errors()) {
 		_tx->tdb->print_errors(ss);
@@ -296,7 +391,8 @@ void callback::default_cmd_put(const tagd::abstract_tag& t) {
 }
 
 void callback::default_cmd_del(const tagd::abstract_tag& t) {
-	_tx->tdb->del(t, _driver->flags());
+	auto ssn = _tx->drvr->session_ptr();
+	_tx->tdb->del(t, ssn, _driver->flags());
 	std::stringstream ss;
 	if (_tx->tdb->has_errors()) {
 		_tx->tdb->print_errors(ss);
@@ -306,7 +402,8 @@ void callback::default_cmd_del(const tagd::abstract_tag& t) {
 
 void callback::default_cmd_query(const tagd::interrogator& q) {
 	tagd::tag_set T;
-	tagd::code tc = _tx->tdb->query(T, q, _driver->flags());
+	auto ssn = _tx->drvr->session_ptr();
+	tagd::code tc = _tx->tdb->query(T, q, ssn, _driver->flags());
 
 	std::stringstream ss;
 	if (tc == tagd::TAGD_OK) {
@@ -338,6 +435,30 @@ void callback::finish() {
 	_tx->res->send_reply(
 		_tx->most_severe(tagd::TAGD_OK)
 	);
+}
+
+evhtp_res response::tagd_code_evhtp_res(tagd::code tc) {
+	switch (tc) {
+		case tagd::TAGD_OK:
+			return EVHTP_RES_OK;	// 200
+		case tagd::TAGL_ERR:
+		case tagd::TS_AMBIGUOUS:
+		case tagd::HTTP_ERR:
+			return EVHTP_RES_BADREQ;  // 401
+		case tagd::TS_NOT_FOUND:
+			return EVHTP_RES_NOTFOUND;	// 404
+		case tagd::TS_DUPLICATE:
+			// using 409 - Conflict, 422 - Unprocessable Entity might also be exceptable
+			return EVHTP_RES_CONFLICT;
+		default:
+			return EVHTP_RES_SERVERR;	// 500
+	}
+}
+
+void response::send_reply(tagd::code tc) {
+	if (_tx->svr->args()->opt_trace)
+		std::cerr << "send_reply => " << tagd::code_str(tc) << std::endl;
+	this->send_reply(_res_code >= 0 ? _res_code : tagd_code_evhtp_res(tc));
 }
 
 void response::send_reply(evhtp_res res) {
@@ -483,7 +604,7 @@ std::string request::effective_opt_view() const {
 
 void callback::output_errors(tagd::code ret_tc) {
 	if (!_tx->size())
-		_tx->ferror(tagd::TS_INTERNAL_ERR, "no errors to output, returned: %s", tagd_code_str(ret_tc));
+		_tx->ferror(tagd::TS_INTERNAL_ERR, "no errors to output, returned: %s", tagd::code_str(ret_tc));
 
 	if (_tx->trace_on) _tx->print_errors();
 
@@ -522,12 +643,13 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 
 	tagd::abstract_tag *T;
 	tagd::code tc;
+	auto ssn = _tx->drvr->session_ptr();
 	if (t.pos() == tagd::POS_URL) {
 		T = new tagd::url(t.id());
-		tc = _tx->tdb->get(*T, static_cast<tagd::url *>(T)->hduri());
+		tc = _tx->tdb->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn);
 	} else {
 		T = new tagd::abstract_tag();
-		tc = _tx->tdb->get(*T, t.id());
+		tc = _tx->tdb->get(*T, t.id(), ssn);
 	}
 
 	if (tc != tagd::TAGD_OK) {
@@ -540,7 +662,7 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 		output_errors(tc);     \
 		delete T;              \
 		return;                \
-	} \
+	}
 
 	view vw;
 	tc = _tx->vws->get(vw, get_view_id(view_name));
@@ -574,7 +696,8 @@ void callback::cmd_query(const tagd::interrogator& q) {
 		return this->default_cmd_query(q);
 
 	tagd::tag_set R;
-	tagd::code tc = _tx->tdb->query(R, q);
+	auto ssn = _tx->drvr->session_ptr();
+	tagd::code tc = _tx->tdb->query(R, q, ssn);
 
 	if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND) {
 		output_errors(tc);
@@ -721,30 +844,33 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagd::server *svr = (httagd::server*)arg;
 
+	// if (svr->trace_on) print_evbuf(ev_req->buffer_in);
+
 	// for now, this request uses the servers tagdb reference
 	// TODO allow requests to use other tagdbs (given the request)
-	auto *tdb = svr->tdb();
-	auto *vws = svr->vws();
+	auto tdb = svr->tdb();
+	auto vws = svr->vws();
 
 	// circular dependencies between transaction and request/response pointers
-	transaction tx(svr, tdb, vws, nullptr, nullptr);
+	transaction tx(svr, tdb, nullptr, vws, nullptr, nullptr);
 	request req(&tx, ev_req);
 	response res(&tx, ev_req);
 	tx.req = &req;
 	tx.res = &res;
 
-	// TODO context is part of the request, not global
-	// we may need some kind of session id or something to push_context()
+	auto ssn = tdb->get_session();
 	if (!req.query_opt_context().empty())
-		tdb->push_context(req.query_opt_context());
+		ssn.push_context(req.query_opt_context());
 
 	callback CB(&tx);
-	httagl tagl(tdb, &CB);
+	httagl tagl(tdb, &CB, &ssn);
+	tx.drvr = &tagl;
 
 	// all sharing the internal errors pointer of tx
 	tx.share_errors(tagl)
 	  .share_errors(*tdb)
-	  .share_errors(*vws);
+	  .share_errors(*vws)
+	  .share_errors(ssn);
 
 	// route request, parse, call callback method, and write response
 	tagl.execute(tx);
@@ -753,27 +879,32 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	if (!res.reply_sent())
 		tagl.finish();
 
-	if (!req.query_opt_context().empty())
-		tdb->pop_context();
-
-	if (tx.trace_on && tx.has_errors())
+	if (tx.trace_on && tx.has_errors()) {
+		// TODO write to log
 		tx.print_errors();
+	}
 
 	// tdb will accumulate errors between requests
-	// TODO don't allow this
-	tdb->clear_errors();
+	if (tdb->has_errors()) {
+		// TODO write to log
+		tdb->print_errors();
+		tdb->clear_errors();
+	}
 }
 
 tagd::code server::start() {
+
 	if (_args->opt_trace) {
 		_tdb->trace_on();
 		TAGL::driver::trace_on((char *)"trace: ");
 	}
 
-    evhtp_set_gencb(_htp, httagd::main_cb, this);
+	// for debug printing request data
+	// evhtp_set_post_accept_cb(_htp, set_my_connection_handlers, nullptr);
+    
+	evhtp_set_gencb(_htp, httagd::main_cb, this);
 
 	const char *bind_addr = ( _bind_addr == "localhost" ? "0.0.0.0" : _bind_addr.c_str() );
-
     if (evhtp_bind_socket(_htp, bind_addr, _bind_port, 128) < 0) {
 		return this->ferror( tagd::TAGD_ERR,
 				"failed to bind socket(%s): %s:%d", strerror(errno), bind_addr, _bind_port );

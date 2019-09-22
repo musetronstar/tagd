@@ -84,7 +84,7 @@ empty_handler_t home_handler(
 
 tagd::code fill_query(transaction&, const view&, tagd_template&, const tagd::interrogator&, const tagd::tag_set&);
 
-tagd::code fill_tag(transaction& tx, const view& vw, tagd_template& tpl, const tagd::abstract_tag& t) {
+tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd::abstract_tag& t) {
 	tpl.set_value("REQUEST_URL_VIEW_TAGL", tx.req->abs_url_view(DEFAULT_VIEW));
 	tpl.set_value("REQUEST_URL_VIEW_TAG_HTML", tx.req->abs_url_view(TAG_VIEW_ID.name()));
 
@@ -214,7 +214,7 @@ get_handler_t tag_handler(
 	}
 );
 
-tagd::code fill_tree(transaction& tx, const view& vw, tagd_template& tpl, const tagd::abstract_tag& t) {
+tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tagd::abstract_tag& t) {
 	const std::string context = tx.req->query_opt_context();
 	if (t.pos() == tagd::POS_URL) {
 		tagd::url u;
@@ -227,8 +227,9 @@ tagd::code fill_tree(transaction& tx, const view& vw, tagd_template& tpl, const 
 	tpl.set_tag_link(tx, "super_object", t.super_object());
 
 	tagd::tag_set S;
+	auto ssn = tx.drvr->session_ptr();
 	tagd::code tc = tx.tdb->query(S,
-			tagd::interrogator(HARD_TAG_INTERROGATOR, t.super_object()));
+			tagd::interrogator(HARD_TAG_INTERROGATOR, t.super_object()), ssn);
 
 	if (tc == tagd::TAGD_OK) {
 		for (auto it=S.begin(); it != S.end(); ++it) {
@@ -252,7 +253,7 @@ tagd::code fill_tree(transaction& tx, const view& vw, tagd_template& tpl, const 
 	// query children
 	S.clear();
 	tc = tx.tdb->query(S,
-			tagd::interrogator(HARD_TAG_INTERROGATOR, t.id()));
+			tagd::interrogator(HARD_TAG_INTERROGATOR, t.id()), ssn);
 
 	if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
 		return tx.tdb->code();
@@ -285,7 +286,7 @@ get_handler_t tree_handler(
 	}
 );
 
-tagd::code fill_query(transaction& tx, const view& vw, tagd_template& tpl, const tagd::interrogator& q, const tagd::tag_set& R) {
+tagd::code fill_query(transaction& tx, const view&, tagd_template& tpl, const tagd::interrogator& q, const tagd::tag_set& R) {
 	const std::string context = tx.req->query_opt_context();
 	tpl.set_value("interrogator", q.id());
 	if (!q.super_object().empty()) {
@@ -397,7 +398,7 @@ get_handler_t browse_handler(
 			q_related.relation(t.id(), "");
 		else
 			q_related.relation("", t.id());
-		tc = tx.tdb->query(S, q_related);
+		tc = tx.tdb->query(S, q_related, tx.drvr->session_ptr());
 
 		if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
 			return tc;

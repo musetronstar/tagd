@@ -37,11 +37,132 @@ struct predicate {
 	predicate(const id_type &r, const id_type &o, const id_type &m, operator_t op, data_t d) :
 		relator(r), object(o), modifier(m), opr8r{op}, modifier_type{d} {}
 
+	// returns whether lhs < rhs
+	static bool cmp_modifier_lt(const predicate& lhs, const predicate& rhs) {
+		if(lhs.modifier.empty())
+			return !rhs.modifier.empty();
+
+		if(rhs.modifier.empty())
+			return false;
+
+		// returned when modifier is not compared
+		bool lt_type_opr8r = (
+			   (lhs.modifier_type < rhs.modifier_type)
+			|| (lhs.modifier_type == rhs.modifier_type && lhs.opr8r < rhs.opr8r)
+		);
+
+		switch(lhs.modifier_type) {
+			case TYPE_INTEGER:
+				switch (rhs.modifier_type) {
+					case TYPE_INTEGER:
+						return lhs.opr8r <= rhs.opr8r && (
+							  std::strtoll(lhs.modifier.c_str(), nullptr, 10)
+							< std::strtoll(rhs.modifier.c_str(), nullptr, 10)
+							// TODO check format, limits, set err code when adding tag predicates
+						);
+					case TYPE_FLOAT: // upgrade cmp to double
+						return lhs.opr8r <= rhs.opr8r && (
+							  std::strtold(lhs.modifier.c_str(), nullptr)
+							< std::strtold(rhs.modifier.c_str(), nullptr)
+						);
+					case TYPE_TEXT:
+						return lt_type_opr8r;
+					default:
+						assert(0);
+						return lt_type_opr8r;
+				} break;
+
+			case TYPE_FLOAT:
+				switch (rhs.modifier_type) {
+					case TYPE_INTEGER:
+					case TYPE_FLOAT: // cmp both as double
+						return lhs.opr8r < rhs.opr8r && (
+							  std::strtold(lhs.modifier.c_str(), nullptr)
+							< std::strtold(rhs.modifier.c_str(), nullptr)
+						);
+					case TYPE_TEXT:
+						return lt_type_opr8r;
+					default:
+						assert(0);
+						return lt_type_opr8r;
+				} break;
+
+			case TYPE_TEXT:
+				return (
+						   lhs.modifier_type <= rhs.modifier_type
+						&& lhs.opr8r <= rhs.opr8r
+						&& lhs.modifier < rhs.modifier
+				);
+
+			default:
+				assert(0); // modifier_type not implemented
+				return lt_type_opr8r;
+		}
+
+		assert(0);
+		return false;
+	}
+
+	// returns whether rhs == lhs
+	static bool cmp_modifier_eq(const predicate& rhs, const predicate& lhs) {
+		switch(lhs.modifier_type) {
+			case TYPE_TEXT:
+				return (
+					   lhs.modifier_type == rhs.modifier_type
+					&& lhs.opr8r == rhs.opr8r
+					&& lhs.modifier == rhs.modifier
+				);
+
+			case TYPE_INTEGER:
+				switch (rhs.modifier_type) {
+					case TYPE_TEXT:
+						return false;
+					case TYPE_INTEGER:
+						return lhs.opr8r == rhs.opr8r && (
+							   std::strtoll(lhs.modifier.c_str(), nullptr, 10) 
+							== std::strtoll(rhs.modifier.c_str(), nullptr, 10)
+							// TODO check format, limits, set err code when adding tag predicates
+						);
+					case TYPE_FLOAT:
+						return lhs.opr8r == rhs.opr8r && (
+							   std::strtold(lhs.modifier.c_str(), nullptr)
+							== std::strtold(rhs.modifier.c_str(), nullptr)
+						);
+					default:
+						assert(0);
+						return false;
+				} break;
+
+			case TYPE_FLOAT:
+				switch (rhs.modifier_type) {
+					case TYPE_TEXT:
+						return false;
+					case TYPE_INTEGER:
+					case TYPE_FLOAT:
+						return lhs.opr8r == rhs.opr8r && (
+							   std::strtold(lhs.modifier.c_str(), nullptr)
+							== std::strtold(rhs.modifier.c_str(), nullptr)
+						);
+					default:
+						assert(0);
+						return false;
+				} break;
+
+
+			default:
+				assert(0); // modifier_type not implemented
+				return false;
+		}
+
+		return false;
+	}
+
+
 	const char* op_c_str() const {
 		switch (opr8r) {
-			case OP_EQ:		return "=";
 			case OP_GT:		return ">";
 			case OP_GT_EQ:	return ">=";
+			case OP_EQ:		return "=";
 			case OP_LT:		return "<";
 			case OP_LT_EQ:	return "<=";
 			default:
@@ -54,20 +175,23 @@ struct predicate {
 	// arrange data_t and operator_t in order of operations
 	// compare modifier strings numerically using GMP <https://gmplib.org>, etc.
     bool operator<(const predicate& p) const {
-        return ( relator < p.relator
-                || ( relator == p.relator
-                     && object < p.object )
-                || ( relator == p.relator
-                     && object == p.object
-                     && modifier < p.modifier )
-        );
+        return (
+			relator < p.relator
+			|| (
+				(relator == p.relator && object < p.object)
+				|| (
+					object == p.object
+					&& cmp_modifier_lt(*this, p)
+					)
+				)
+			);
     }
 
     bool operator==(const predicate& p) const {
         return (
           relator == p.relator
           && object == p.object
-          && modifier == p.modifier
+          && cmp_modifier_eq(*this, p)
         );
     }
 
@@ -81,6 +205,7 @@ struct predicate {
 			&& object.empty()
 			&& modifier.empty()
 			&& opr8r == OP_EQ
+			&& modifier_type == TYPE_TEXT
 		);
 	}
 };
@@ -312,6 +437,9 @@ class relator : public abstract_tag {
 //    ex. what _is_a mammal has tail can bark
 class interrogator : public abstract_tag {
     public:
+        interrogator() :
+			abstract_tag(POS_INTERROGATOR) {};
+
         interrogator(const id_type& id) :
 			abstract_tag(id, POS_INTERROGATOR) {};
 
@@ -416,19 +544,22 @@ class error : public abstract_tag {
 		{}
 
         error(const tagd::code c) :
-			abstract_tag(tagd_code_str(c), HARD_TAG_TYPE_OF, HARD_TAG_ERROR, POS_ERROR)
+			abstract_tag(code_str(c), HARD_TAG_TYPE_OF, HARD_TAG_ERROR, POS_ERROR)
 		{
 			_code = c;
 		}
 
         error(const tagd::code c, const std::string& msg) :
-			abstract_tag(tagd_code_str(c), HARD_TAG_TYPE_OF, HARD_TAG_ERROR, POS_ERROR)
+			abstract_tag(code_str(c), HARD_TAG_TYPE_OF, HARD_TAG_ERROR, POS_ERROR)
 		{
 			_code = c;
 			this->relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, msg);
 		}
 
         const id_type& message() const;
+
+		// returns error object given printf style formatted list
+		static error ferror(tagd::code, const char *, ...);
 };
 
 typedef std::vector<tagd::error> errors_t;

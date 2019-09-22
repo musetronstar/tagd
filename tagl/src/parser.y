@@ -69,7 +69,7 @@
 		if( yypParser->yytos > yypParser->yystack ) {
 			// loop from start of stack to top of stack
 			auto p = yypParser->yystack;
-			while(p <= yypParser->yytos)
+			while(p++ <= yypParser->yytos)
 				fprintf(stderr," %s",yyTokenName[p->major]);
 			fprintf(stderr,"\n");
 		}
@@ -152,18 +152,33 @@ boolean_value(b) ::= QUANTIFIER(Q) .
 }
 
 set_context ::= set_context context_list .
-set_context ::= set_context EMPTY_STR .
+set_context ::= set_context empty_context_list .
 set_context ::= CONTEXT(C) .
 {
-	// clear context before pushing, or errors occur if not empty
-	tagl->_tdb->clear_context();
+	/* ever context operation is a `set operation`
+	 * so that previous contexts are overwritten
+	 * TODO: determent whether set operations
+	 * should be more like variable assignments
+	 * and and contexts can be:
+	 * - emptied
+	 * - overwritten
+	 * - appended
+	 */
+	tagl->clear_context_levels();
 	DELETE(C)
+}
+empty_context_list ::= EMPTY_STR .
+{
+	// NOOP already clear by previous production
 }
 context_list ::= context_list COMMA push_context .
 context_list ::= push_context .
 push_context ::= context(c) .
 {
-	tagl->_tdb->push_context(*c);
+	if (tagl->_session == nullptr)
+		tagl->own_session(tagl->_tdb->new_session());
+	tagl->_session->push_context(*c);
+	tagl->_context_level++;
 	DELETE(c)
 }
 

@@ -24,7 +24,7 @@ proc test {n m u d e} {
 	if { [string length $d] == 0 } {
 		spawn curl -D - -X$m "http://localhost:2112$u"
 	} else {
-		spawn curl -D - -X$m "http://localhost:2112$u" --data $d
+		spawn curl -D - -X$m "http://localhost:2112$u" --data "$d"
 	}
 
 	expect {
@@ -78,7 +78,6 @@ proc test_file {n m u f e} {
 	}
 }
 
-
 eval $spawn_httagd
 
 # there must be a better way to wait for the server to start up
@@ -86,42 +85,54 @@ sleep 1
 
 test "get_dog" \
 	 "GET" "/dog" "" \
-	 "dog is_a mammal"
+	 "dog _is_a mammal"
+
+test "put_dolphin" \
+	 "PUT" "/dolphin" ">> dolphin _is_a whale" \
+	 "200 OK"
+
+test "put_empty_tagdurl" \
+	 "PUT" "" "narwhal _is_a whale" \
+	 "400 Bad Request"
+
+test "put_slash_empty_tagdurl" \
+	 "PUT" "/" "narwhal _is_a whale" \
+	 "400 Bad Request"
+
+test "put_illegal_search" \
+     "PUT" "/pigeon?q=oops" "_is_a bird" \
+	 "500 Internal Server Error"
 
 test "get_doggy_not_exists" \
 	 "GET" "/doggy" "" \
 	 "404 Not Found"
 
-test "refer_doggy" \
-	 "POST" "/doggy" "refers_to dog" \
+test "put_refer_doggy_no_context" \
+	 "POST" "/doggy" "_refers_to dog" \
+	 "400 Bad Request"
+
+test "put_refer_doggy" \
+	 "POST" "/doggy" "_refers_to dog _context simple_english" \
 	 "200 OK"
 
-test "put_dolphin" \
-	 "PUT" "/dolphin" ">> dolphin is_a whale" \
-	 "200 OK"
-
-test "put_empty_tagdurl" \
-	 "PUT" "" "narwhal is_a whale" \
-	 "500 Internal Server Error"
-
-test "put_slash_empty_tagdurl" \
-	 "PUT" "/" "narwhal is_a whale" \
-	 "500 Internal Server Error"
-
-test "put_illegal_search" \
-     "PUT" "/pigeon?q=oops" "is_a bird" \
-	 "500 Internal Server Error"
+test "get_doggy_no_context" \
+	 "GET" "/doggy" "" \
+	 "400 Bad Request"
 
 test "get_doggy" \
-	 "GET" "/doggy" "" \
-	 "doggy is_a mammal(.*)refers_to dog"
+	 "GET" "/doggy?c=simple_english" "" \
+	 "doggy is_a mammal(.*)_refers_to dog"
 
-test "delete_refers_tag_err" \
+test "delete_refers_no_context" \
      "DELETE" "/doggy" "" \
-	 "TS_MISUSE"
+	 "404 Not Found"
 
-test "delete_refer_doggy" \
-	 "DELETE" "/doggy" "refers_to dog" \
+test "delete_refers_to_doggy_no_context" \
+	 "DELETE" "/doggy" "_refers_to dog" \
+	 "400 Bad Request"
+
+test "delete_refers_to_doggy" \
+	 "DELETE" "/doggy" "_refers_to dog _context simple_english" \
 	 "200 OK"
 
 test "get_doggy_deleted_not_exists" \
@@ -147,7 +158,7 @@ test "query_parent_relator" \
 # this works, but it shouldn't
 # TODO encode utf8 urls
 test "refer_japanese_dog" \
-     "POST" "/イヌ" "refers_to dog _context japanese" \
+     "POST" "/イヌ" "_refers_to dog _context japanese" \
 	 "200 OK"
 
 test "get_japanese_dog_ambiguous" \
@@ -157,7 +168,7 @@ test "get_japanese_dog_ambiguous" \
 # contextual get
 test "get_japanese_dog" \
 	 "GET" "/イヌ?c=japanese" "" \
-	 "イヌ is_a mammal(.*)refers_to dog"
+	 "イヌ _is_a mammal(.*)_refers_to dog"
 
 close
 wait

@@ -26,12 +26,14 @@ class tagsh_callback : public TAGL::callback {
 		void cmd_del(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&); 
         void cmd_error();
+
+		void handle_cmd_error();
 };
 
 class tagsh {
 	protected:
 		tagdb_type *_tdb;
-		tagsh_callback *_CB;
+		tagsh_callback *_callback;
 		bool _own_callback = false;  // true if this alloced the callback pointer
 		TAGL::driver _driver;
 
@@ -41,17 +43,21 @@ class tagsh {
 		bool echo_result_code = true;
 
 		tagsh(tagdb_type *tdb, tagsh_callback *cb) :
-			_tdb{tdb}, _CB{cb}, _driver(tdb, cb)
-		{}
+			_tdb{tdb}, _callback{cb}, _driver(tdb, cb)
+		{
+			_driver.own_session(tdb->new_session());
+		}
 
 		tagsh(tagdb_type *tdb) :
-			_tdb{tdb}, _CB{new tagsh_callback(_tdb, this)}, _own_callback{true},
-			_driver(_tdb, _CB)
-		{}
+			_tdb{tdb}, _callback{new tagsh_callback(_tdb, this)}, _own_callback{true},
+			_driver(_tdb, _callback)
+		{
+			_driver.own_session(tdb->new_session());
+		}
 
 		~tagsh() {
 			if (_own_callback)
-				delete _CB;
+				delete _callback;
 		}
 	
 		void trace_on() {
@@ -95,5 +101,3 @@ class cmd_args : public tagd::errorable {
 
 		int interpret(tagsh&);
 };
-
-

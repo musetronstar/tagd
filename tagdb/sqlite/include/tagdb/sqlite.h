@@ -13,12 +13,12 @@ typedef std::function<tagd::id_type(const tagd::id_type&)> id_transform_func_t;
 
 class sqlite: public tagdb {
     protected:
-        sqlite3 *_db;   // sqlite connection
+        sqlite3 *_db = nullptr;   // sqlite connection
         std::string _db_fname;
 
     private:
 		// performing init() operations
-		bool _doing_init;
+		bool _doing_init = false;
 
         // prepared statement handles, must be sqlite3_finalized in the destructor
         sqlite3_stmt *_get_stmt = nullptr;
@@ -55,26 +55,19 @@ class sqlite: public tagdb {
 		// wrapped by init(), sets _doing_init
         tagd::code _init(const std::string&);
 
-		id_transform_func_t  _f_encode_referent;
-
-    public:
-        sqlite() :
-			tagdb(),
-            _db(NULL),
-            _db_fname(),
-			_doing_init(false)
-        {
-			_f_encode_referent = [this](const tagd::id_type &from) -> tagd::id_type {
+		id_transform_func_t  f_encode_referent(session *ssn) {
+			return [this, ssn](const tagd::id_type &from) -> tagd::id_type {
 				tagd::id_type to;
 
 				if (!from.empty())
-					this->refers(to, from); // to set on success
+					this->refers(to, from, ssn); // to set on success
 
 				// refers will not populate 'to' unless there is a referent
 				return (to.empty() ? from : to);
 			};
 		}
 
+    public:
         virtual ~sqlite();
 
         // init db file
@@ -87,43 +80,43 @@ class sqlite: public tagdb {
         void close();
 
         // get into tag given id
-        tagd::code get(tagd::abstract_tag&, const tagd::id_type&, flags_t = 0);
-        tagd::code get(tagd::url&, const tagd::id_type&, flags_t = 0);
-
-        bool exists(const tagd::id_type& id, flags_t = 0); 
+        tagd::code get(tagd::abstract_tag&, const tagd::id_type&, session*, flags_t = 0);
+        tagd::code get(tagd::url&, const tagd::id_type&, session*, flags_t = 0);
 
         // put tag, will overrite existing (move + update)
-        tagd::code put(const tagd::abstract_tag&, flags_t = 0);
-        tagd::code put(const tagd::url&, flags_t = 0);
-        tagd::code put(const tagd::referent&, flags_t = 0);
+        tagd::code put(const tagd::abstract_tag&, session *, flags_t = 0);
+        tagd::code put(const tagd::url&, session *, flags_t = 0);
+        tagd::code put(const tagd::referent&, session *, flags_t = 0);
 
 		// delete tag and/or relations
-        tagd::code del(const tagd::abstract_tag&, flags_t = 0);
-        tagd::code del(const tagd::url&, flags_t = 0);
-        tagd::code del(const tagd::referent&, flags_t = 0);
+        tagd::code del(const tagd::abstract_tag&, session *, flags_t = 0);
+        tagd::code del(const tagd::url&, session *, flags_t = 0);
+        tagd::code del(const tagd::referent&, session *, flags_t = 0);
 
 // ### TODO ####
 // all public members not defined as public in tagdb::tagdb
 // base class should be made private or protected
-// we don't want to make the tagd system soely dependent on tagd::sqlite
+// we don't want to make the tagd system solely dependent on tagd::sqlite
 
 		tagd::part_of_speech term_pos(const tagd::id_type& t) {
 			return this->term_pos(t, NULL);
 		}
-		tagd::part_of_speech pos(const tagd::id_type&, flags_t = 0);
+		tagd::part_of_speech pos(const tagd::id_type&, session*, flags_t = 0);
+        bool exists(const tagd::id_type& id, flags_t = 0); 
 
 		// get refers_to given refers
-		tagd::code refers_to(tagd::id_type&, const tagd::id_type&);
+		tagd::code refers_to(tagd::id_type&, const tagd::id_type&, session*);
 		// get refers given refers_to
-		tagd::code refers(tagd::id_type&, const tagd::id_type&);
+		tagd::code refers(tagd::id_type&, const tagd::id_type&, session*);
 
-        tagd::code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type&, flags_t = 0);
-        tagd::code related(tagd::tag_set &T, const tagd::predicate &p, flags_t f = 0) {
-			return this->related(T, p, tagd::id_type(), f);
+        tagd::code related(tagd::tag_set&, const tagd::predicate&, const tagd::id_type&, session *, flags_t = 0);
+        tagd::code related(tagd::tag_set &T, const tagd::predicate &p, session *ssn, flags_t f = 0) {
+			return this->related(T, p, tagd::id_type(), ssn, f);
 		}
-        tagd::code query(tagd::tag_set&, const tagd::interrogator&, flags_t = 0);
+        tagd::code query(tagd::tag_set&, const tagd::interrogator&, session *, flags_t = 0);
+
         tagd::code search(tagd::tag_set&, const std::string&, flags_t = 0);
-        tagd::code get_children(tagd::tag_set&, const tagd::id_type&, flags_t = 0);
+        tagd::code get_children(tagd::tag_set&, const tagd::id_type&, session *, flags_t = 0);
         tagd::code query_referents(tagd::tag_set&, const tagd::interrogator&);
 
         tagd::code dump(std::ostream& = std::cout);
@@ -157,30 +150,28 @@ class sqlite: public tagdb {
         tagd::code update(const tagd::abstract_tag&, const tagd::abstract_tag&);
 
         tagd::code insert_relations(const tagd::abstract_tag&, flags_t = 0);
-		tagd::code insert_referent(const tagd::referent&, flags_t = 0);
+		tagd::code insert_referent(const tagd::referent&, session *, flags_t = 0);
 
-		void encode_referent(tagd::id_type&, const tagd::id_type&);
-		void encode_referents(tagd::predicate_set&, const tagd::predicate_set&);
-		void encode_referents(tagd::abstract_tag&, const tagd::abstract_tag&);
+		void encode_referent(tagd::id_type&, const tagd::id_type&, session*);
+		void encode_referents(tagd::predicate_set&, const tagd::predicate_set&, session*);
+		void encode_referents(tagd::abstract_tag&, const tagd::abstract_tag&, session*);
 
-		void decode_referent(tagd::id_type&, const tagd::id_type&);
-		void decode_referents(tagd::predicate_set&, const tagd::predicate_set&);
-		void decode_referents(tagd::abstract_tag&, const tagd::abstract_tag&);
+		void decode_referent(tagd::id_type&, const tagd::id_type&, session*);
+		void decode_referents(tagd::predicate_set&, const tagd::predicate_set&, session*);
+		void decode_referents(tagd::abstract_tag&, const tagd::abstract_tag&, session*);
 
-		tagd::code insert_context(const tagd::id_type&);
-		tagd::code delete_context(const tagd::id_type&);
-		tagd::code delete_tag(const tagd::id_type&);
+		tagd::code delete_tag(const tagd::id_type&, session*);
 
-		// deletes all relation for given subject
+		// deletes all relations for given subject
 		tagd::code delete_relations(const tagd::id_type&);
 
-		// deletes all relation for given subject and predicates
+		// deletes all relations for given subject and predicates
 		tagd::code delete_relations(const tagd::id_type&, const tagd::predicate_set&);
 
 		tagd::code delete_refers_to(const tagd::id_type&);
-		tagd::part_of_speech term_pos_occurence(const tagd::id_type&, bool = false);
+		tagd::part_of_speech term_pos_occurence(const tagd::id_type&, session*, bool);
 		tagd::code update_pos_occurence(const tagd::id_type&);
-        tagd::code get_relations(tagd::predicate_set&, const tagd::id_type&, flags_t = 0);
+        tagd::code get_relations(tagd::predicate_set&, const tagd::id_type&, session *, flags_t = 0);
 
         tagd::code next_rank(tagd::rank&, const tagd::abstract_tag&);
         tagd::code child_ranks(tagd::rank_set&, const tagd::id_type&);
@@ -196,16 +187,12 @@ class sqlite: public tagdb {
         tagd::code bind_null(sqlite3_stmt**, int, const char*label=NULL);
         virtual void finalize();
 
-		// overloaded errorable::ferror
-		tagd::code ferror(tagd::code, const char *, ...);
-
         // init db funcs
 		tagd::code create_terms_table();
         tagd::code create_tags_table();
         tagd::code create_relations_table();
         tagd::code create_referents_table();
         tagd::code create_fts_tags_table();
-		tagd::code create_context_stack_table();
 
     public:
         // statics

@@ -13,11 +13,12 @@ namespace TAGL {
 
 void scanner::print_buf() {
 	std::cerr << "print_buf:" << std::endl;
-	for(size_t i=0; i<BUF_SZ; ++i) {
-		std::cerr << (i % 10);
-	}
-	std::cerr << std::endl;
-	for(size_t i=0; i<BUF_SZ; ++i) {
+	//for(size_t i=0; i<BUF_SZ; ++i) {
+	//	std::cerr << (i % 10);
+	//}
+	//std::cerr << std::endl;
+	size_t sz = _lim - _buf;
+	for(size_t i=0; i<=sz; ++i) {
 		std::cerr << _buf[i];
 	}
 	std::cerr << std::endl;
@@ -54,7 +55,7 @@ const char* scanner::fill() {
 		// buffer is full, so overflow into a std::string _val (TODO perhaps an evbuffer)
 		// _cur is at the end of the buffer, so append everything up to _cur into _val
 		// and copy _cur to the beginning of the buffer for scanning
-		auto apnd_sz = BUF_SZ - 1;
+		size_t apnd_sz = BUF_SZ - 1;
 		_val.append(_buf, apnd_sz);
 		if (driver::_trace_on) {
 			std::cerr << "fill _val.append(" << apnd_sz << "): `" << std::string(_buf, apnd_sz) << "'" << std::endl;
@@ -107,6 +108,10 @@ const char* scanner::fill() {
 }
 
 void scanner::scan(const char *cur, size_t sz) {
+	if (sz >= BUF_SZ) {
+		_driver->ferror(tagd::TAGL_ERR, "scan size (%d) >= buffer(%d)", sz, BUF_SZ);
+		return;
+	}
 
 	_beg = _mark = _cur = cur;
 	//if (!_do_fill)

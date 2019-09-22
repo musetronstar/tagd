@@ -39,28 +39,30 @@ const char* token_str(int tok) {
 
 bool driver::_trace_on = false;
 
-driver::driver(tagdb::tagdb *tdb) :
-		_scanner{new scanner(this)}, _tdb{tdb}
+driver::driver(tagdb::tagdb *tdb, tagdb::session *ssn) :
+		_own_scanner{true}, _scanner{new scanner(this)},
+		_tdb{tdb}, _session{ssn}
 {
 	this->init();
 }
 
-driver::driver(tagdb::tagdb *tdb, scanner *s) :
-		_own_scanner{false}, _scanner{s}, _tdb{tdb}
+driver::driver(tagdb::tagdb *tdb, scanner *s, tagdb::session *ssn) :
+		_scanner{s}, _tdb{tdb}, _session{ssn}
 {
 	this->init();
 }
 
-driver::driver(tagdb::tagdb *tdb, scanner *s, callback *cb) :
-		_own_scanner{false}, _scanner{s}, _tdb{tdb}, _callback{cb}
+driver::driver(tagdb::tagdb *tdb, scanner *s, callback *cb, tagdb::session *ssn) :
+		_scanner{s}, _tdb{tdb}, _session{ssn}, _callback{cb}
 {
 	// TODO this can produce nasty side effects.  There must be a better way...
 	cb->_driver = this;
 	this->init();
 }
 
-driver::driver(tagdb::tagdb *tdb, callback *cb) :
-		_scanner{new scanner(this)}, _tdb{tdb}, _callback{cb}
+driver::driver(tagdb::tagdb *tdb, callback *cb, tagdb::session *ssn) :
+		_own_scanner{true}, _scanner{new scanner(this)},
+		_tdb{tdb}, _session{ssn}, _callback{cb}
 {
 	// TODO this can produce nasty side effects.  There must be a better way...
 	cb->_driver = this;
@@ -69,52 +71,20 @@ driver::driver(tagdb::tagdb *tdb, callback *cb) :
 
 driver::~driver() {
 	this->free_parser();
-	if (_own_scanner)
+	if (_own_scanner && _scanner != nullptr)
 		delete _scanner;
+	this->clear_context_levels();
+	if (_own_session && _session != nullptr)
+		delete _session;
 	if (_tag != nullptr)
 		delete _tag;
 }
 
-void driver::do_callback() {
-	if (_callback == nullptr)  return;
-
-	if (this->has_errors()) {
-		_callback->cmd_error();
-		return;
-	}
-
-	assert(_tag != nullptr);
-	if (_tag == nullptr) {
-		this->error(tagd::TAGL_ERR, "callback on NULL tag");
-		return;
-	}
-
-	switch (_cmd) {
-		case TOK_CMD_GET:
-			if (_trace_on)
-				std::cerr << "callback::cmd_get: " << *_tag << std::endl;
-			_callback->cmd_get(*_tag);
-			break;
-		case TOK_CMD_PUT:
-			if (_trace_on)
-				std::cerr << "callback::cmd_put: " << *_tag << std::endl;
-			_callback->cmd_put(*_tag);
-			break;
-		case TOK_CMD_DEL:
-			if (_trace_on)
-				std::cerr << "callback::cmd_del: " << *_tag << std::endl;
-			_callback->cmd_del(*_tag);
-			break;
-		case TOK_CMD_QUERY:
-			if (_trace_on)
-				std::cerr << "callback::cmd_query: " << *_tag << std::endl;
-			_callback->cmd_query((tagd::interrogator&) *_tag);
-			break;
-		default:
-			this->ferror(tagd::TAGL_ERR, "unknown command: %d", _cmd);
-			_callback->cmd_error();
-			assert(false);
-	}
+void driver::own_session(tagdb::session *ssn) {
+	if (_session != nullptr && _session != ssn)
+		delete _session;
+	_session = ssn;
+	_own_session = true;
 }
 
 // sets up scanner and parser, wont init if already setup
@@ -141,6 +111,15 @@ void driver::free_parser() {
 	}
 }
 
+void driver::clear_context_levels() {
+	// only pop the number of contexts pushed on the stack by this instance
+	if (_session != nullptr) {
+		for (size_t i=0; i<_context_level; ++i)
+			_session->pop_context();
+	}
+	_context_level = 0;
+}
+
 void driver::finish() {
 	this->free_parser();
 	_scanner->reset();
@@ -163,12 +142,12 @@ void driver::trace_off() {
 
 // looks up a pos type for a tag and returns
 // its equivalent token
-int driver::lookup_pos(const std::string& s) const {
-	if ( _token == TOK_EQ ) // '=' separates object and modifier
+int driver::lookup_pos(const std::string& s) {
+	if (_token == TOK_EQ) // '=' separates object and modifier
 		return TOK_MODIFIER;
 
 	int token;
-	tagd::part_of_speech pos = _tdb->pos(s);
+	tagd::part_of_speech pos = _tdb->pos(s, _session);
 
 	if (_trace_on) {
 		// TODO term_pos lookups
@@ -241,7 +220,7 @@ tagd::code driver::parseln(const std::string& line) {
 		return this->code();
 	}
 
-	_scanner->scan(line.c_str());
+	_scanner->scan(line);
 
 	return this->code();
 }
@@ -252,8 +231,10 @@ tagd::code driver::execute(const std::string& statement) {
 
 	this->init();
 
-	_scanner->scan(statement.c_str());
+	_scanner->scan(statement);
+
 	this->finish();
+	this->clear_context_levels();
 	return _code;
 }
 
@@ -263,18 +244,60 @@ tagd::code driver::execute(struct evbuffer *input) {
 	size_t read_sz = BUF_SZ - 1;
 	size_t sz = evbuffer_remove(input, _scanner->_buf, read_sz); 
 	if (sz > 0) {
-		if (_trace_on)
-			std::cout << "scanning: " << std::string(_scanner->_buf, sz) << std::endl;
 		if (sz < BUF_SZ)
 			_scanner->_buf[sz] = '\0';
+		if (_trace_on)
+			std::cout << "scanning: " << std::string(_scanner->_buf, sz) << std::endl;
 		_scanner->evbuf(input);
 		_scanner->scan(_scanner->_buf, sz);
 	}
 
 	this->finish();
+	this->clear_context_levels();
 	return this->code();
 }
 
+void driver::do_callback() {
+	if (_callback == nullptr)  return;
+
+	if (this->has_errors()) {
+		_callback->cmd_error();
+		return;
+	}
+
+	assert(_tag != nullptr);
+	if (_tag == nullptr) {
+		this->error(tagd::TAGL_ERR, "callback on NULL tag");
+		return;
+	}
+
+	switch (_cmd) {
+		case TOK_CMD_GET:
+			if (_trace_on)
+				std::cerr << "callback::cmd_get: " << *_tag << std::endl;
+			_callback->cmd_get(*_tag);
+			break;
+		case TOK_CMD_PUT:
+			if (_trace_on)
+				std::cerr << "callback::cmd_put: " << *_tag << std::endl;
+			_callback->cmd_put(*_tag);
+			break;
+		case TOK_CMD_DEL:
+			if (_trace_on)
+				std::cerr << "callback::cmd_del: " << *_tag << std::endl;
+			_callback->cmd_del(*_tag);
+			break;
+		case TOK_CMD_QUERY:
+			if (_trace_on)
+				std::cerr << "callback::cmd_query: " << *_tag << std::endl;
+			_callback->cmd_query((tagd::interrogator&) *_tag);
+			break;
+		default:
+			this->ferror(tagd::TAGL_ERR, "unknown command: %d", _cmd);
+			_callback->cmd_error();
+			assert(false);
+	}
+}
 
 class tagdio : public tagd::errorable {
     public:

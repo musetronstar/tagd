@@ -34,7 +34,7 @@ class callback {
         virtual void cmd_del(const tagd::abstract_tag&) = 0;
         virtual void cmd_query(const tagd::interrogator&) = 0;
         virtual void cmd_error() = 0;
-        virtual void finish() {} // optionally, can be overridden
+        virtual void finish() {} // optional, can be overridden
 };
 
 const size_t BUF_SZ = 16384;
@@ -68,6 +68,7 @@ class scanner {
 		const char* fill();
 		void scan(const std::string& s) { this->scan(s.c_str(), s.size()); }
 		void scan(const char*, size_t);
+		void scan(const char*) = delete; // don't allow implicit conversion to std::string
 		void evbuf(evbuffer *ev) { _evbuf = ev; _do_fill = true; }
 		void print_buf();
 
@@ -86,10 +87,15 @@ class driver : public tagd::errorable {
 	friend void ::yy_reduce(yyParser*, unsigned int, int, std::string*);
 	friend class TAGL::scanner;
 
-	private:
-		bool _own_scanner = true;
-
 	protected:
+		bool _own_scanner = false;
+		bool _own_session = false;
+
+		// number of items pushed on the stack by this parser
+		size_t _context_level = 0;
+		// pop off only what this instance pushed on (leaving previous items untouched)
+		void clear_context_levels();
+
 		scanner *_scanner = nullptr;
 		void *_parser = nullptr;	// lemon parser context
 		int _token = -1;		// last token scanned: 0 = <End of Input>, -1 = unitialized (ready for new parse tree)
@@ -97,6 +103,7 @@ class driver : public tagd::errorable {
 		tagdb::flags_t _flags = 0;
 
 		tagdb::tagdb *_tdb = nullptr;
+		tagdb::session *_session = nullptr;
 		callback *_callback = nullptr;
 		tagd::abstract_tag *_tag = nullptr;  // tag of the current statement
 		tagd::id_type _relator;    // current relator
@@ -111,11 +118,16 @@ class driver : public tagd::errorable {
 		int parse_tokens();
 
 	public:
-		driver(tagdb::tagdb *);
-		driver(tagdb::tagdb *, scanner *);
-		driver(tagdb::tagdb *, scanner *, callback *);
-		driver(tagdb::tagdb *, callback *);
+		driver(tagdb::tagdb*, tagdb::session* = nullptr);
+		driver(tagdb::tagdb*, scanner*, tagdb::session* = nullptr);
+		driver(tagdb::tagdb*, scanner*, callback*, tagdb::session* = nullptr);
+		driver(tagdb::tagdb*, callback*, tagdb::session* = nullptr);
 		virtual ~driver();
+
+		void session_ptr(tagdb::session *ssn) { _session = ssn; }
+		tagdb::session* session_ptr() { return _session; }
+		// sets _session and _own_session, delete old session (if set and not the same)
+		void own_session(tagdb::session *);
 
 		void callback_ptr(callback *c) {
 			_callback = c;
@@ -123,13 +135,14 @@ class driver : public tagd::errorable {
 			c->_driver = this;
 		}
 		callback *callback_ptr() { return _callback; }
+
 		tagd::code parseln(const std::string& = std::string());
 		tagd::code execute(const std::string&);
 		tagd::code execute(evbuffer*);
 		int token() const { return _token; }
 		bool is_trace_on() const { return _trace_on; }
 		tagdb::flags_t flags() const { return _flags; }
-		int lookup_pos(const std::string&) const;
+		int lookup_pos(const std::string&);
 		void parse_tok(int, std::string*);
 		tagd::code include_file(const std::string&);
 		int open_rel(const std::string& path, int flags);
