@@ -10,19 +10,23 @@ LFLAGS = -L../lib -ltagdb-sqlite -L$(TAGD_DIR)/lib -ltagd -lsqlite3
 
 SRC = tester.cc
 BIN = ./tester
-
-all: build
+TESTER = $(BIN)
 
 DEBUG=
-debug: DEBUG=debug
+debug: DEBUG = debug
 debug: CXXFLAGS = -g
-debug: build
+debug: all
+
+VALGRIND = valgrind --leak-check=full --error-exitcode=1
+valgrind: TESTER = $(VALGRIND) $(BIN)
+valgrind: debug
+
+all: build
 
 build: $(LIBTAGD)
 	$(CXXTEST) Tester.h -o $(SRC)
 	$(CXX) $(CXXFLAGS) -o $(BIN) $(SRC) $(INC) $(LFLAGS)
-	rm -f *.sqlite
-	$(BIN)
+	$(TESTER)
 
 $(LIBTAGD):
 	make -C $(TAGD_DIR)

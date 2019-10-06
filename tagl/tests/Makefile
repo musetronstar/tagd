@@ -8,19 +8,23 @@ CXX = g++ -std=c++14
 CXXFLAGS = -O3 -Wno-write-strings
 LFLAGS =  -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite -L../lib -ltagl -L$(TAGD_DIR)/lib -ltagd -levent
 
-all: build
+TESTER = ./tester
 
-DEBUG=
-debug: DEBUG=debug
 debug: CXXFLAGS = -g -Wno-write-strings
-debug: build
+debug: all
+
+VALGRIND = valgrind --leak-check=full --error-exitcode=1
+valgrind: TESTER = $(VALGRIND) ./tester
+valgrind: debug
+
+all: build
 
 build: tagl_tests
 
 tagl_tests: $(LIBTAGD)
 	$(CXXTEST) Tester.h -o tester.cpp
 	$(CXX) $(CXXFLAGS) -o tester tester.cpp $(INC) $(LFLAGS)
-	./tester Tester
+	$(TESTER)
 
 $(LIBTAGD):
 	make -C $(TAGD_DIR)

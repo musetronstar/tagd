@@ -5,29 +5,32 @@ LIB_DIR = ./lib
 TEST_DIR = ./tests
 
 LIB = $(LIB_DIR)/libhttagd.a
-
-all: build
-
-DEBUG=
-debug: DEBUG=debug
-debug: build
-
 # if defined, will propogate to subsequent make targets
 # otherwise,EVHTP should be installed globally, ie: /usr/include/evhtp
 #EVHTP_ARGS=EVHTP_SRC_DIR=$(HOME)/src/libevhtp
 
-build: src lib
+TARGET=
+
+debug: TARGET = debug
+debug: all
+
+valgrind: debug
+	make -C $(TEST_DIR) $(EVHTP_ARGS) valgrind
+
+all: build
+
+build: src lib app
 
 src: force_look
 	[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
-	make -C	$(SRC_DIR) $(DEBUG) $(EVHTP_ARGS)
+	make -C	$(SRC_DIR) $(EVHTP_ARGS) $(TARGET)
 
 app: force_look lib
 	[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
-	make -C	$(APP_DIR) $(DEBUG) $(EVHTP_ARGS)
+	make -C	$(APP_DIR) $(EVHTP_ARGS) $(TARGET)
 
 tests: force_look app
-	make -C $(TEST_DIR) $(DEBUG) $(EVHTP_ARGS)
+	make -C $(TEST_DIR) $(EVHTP_ARGS) $(TARGET)
 
 lib: src $(LIB)
 

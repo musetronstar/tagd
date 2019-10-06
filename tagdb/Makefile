@@ -4,24 +4,28 @@ BUILD_DIR = ./lib
 TEST_DIR = ./tests
 LIB = $(BUILD_DIR)/libtagdb-sqlite.a
 
-all: build
+TARGET=
 
-DEBUG=
-debug: DEBUG=debug
-debug: build
+debug: TARGET = debug
+debug: all
+
+valgrind: debug
+	make -C $(TEST_DIR) valgrind
+
+all: build
 
 build: tagdb $(LIB)
 
 tagdb: force_look
-	make -C $(SRC_DIR) $(DEBUG)
-	make -C $(PRG_DIR) $(DEBUG)
+	make -C $(SRC_DIR) $(TARGET)
+	make -C $(PRG_DIR) $(TARGET)
 
 $(LIB):
 	[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
 	ar rcs $(LIB) $(SRC_DIR)/*.o $(PRG_DIR)/src/*.o
 
 tests: tagdb $(LIB) force_look
-	make -C $(TEST_DIR) $(DEBUG)
+	make -C $(TEST_DIR) $(TARGET)
 
 # 'true' forces make to look (otherwise its always up to date)
 force_look:

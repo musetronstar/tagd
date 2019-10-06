@@ -1,27 +1,23 @@
+TARGET=
 MAKE_DIRS = tagd tagdb tagl tagsh httagd
 
-DEBUG=
+debug: TARGET=debug
+debug: build
 
-.PHONY: debug build all
+valgrind: TARGET=valgrind
+valgrind: build
+
+tests: TARGET=tests
+tests: build
+
+clean: TARGET=clean
+clean: build
 
 all: build
 
-debug: DEBUG = debug
-debug: build
-
 build: force_look
 	for dir in $(MAKE_DIRS) ; do \
-		make -C $$dir $(DEBUG) ; \
-	done
-
-tests: force_look
-	for dir in $(MAKE_DIRS) ; do \
-		make -C $$dir tests $(DEBUG) ; \
-	done
-
-clean: force_look
-	for dir in $(MAKE_DIRS) ; do \
-		make -C $$dir clean ; \
+		make -C $$dir $(TARGET) ; \
 	done
 
 # 'true' forces make to look (otherwise its always up to date)

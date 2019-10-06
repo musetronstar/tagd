@@ -29,12 +29,15 @@ endif
 
 LFLAGS += -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
 
-all: build
-
-DEBUG=
-debug: DEBUG=debug
 debug: CXXFLAGS = -g -Wno-write-strings
-debug: build
+debug: all
+
+TESTER = ./tester
+VALGRIND = valgrind --leak-check=full --error-exitcode=1
+valgrind: TESTER = $(VALGRIND) ./tester
+valgrind: debug
+
+all: build
 
 build: cxx_tests exp_tests
 
@@ -42,7 +45,7 @@ cxx_tests: $(LIBHTTAGD)
 	$(CXXTEST) Tester.h -o tester.cpp
 	$(CXX) $(CXXFLAGS) -c -o tester.o tester.cpp $(INC)
 	$(CXX) $(CXXFLAGS) -o tester tester.o $(LFLAGS)
-	./tester
+	$(TESTER)
 
 exp_tests:
 	./tester.exp

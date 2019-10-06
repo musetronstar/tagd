@@ -1,20 +1,23 @@
 SRC_DIR = ./src
 BUILD_DIR = ./lib
 TEST_DIR = ./tests
-
 LIB = $(BUILD_DIR)/libtagd.a
 
-all: build
+TARGET=
 
-DEBUG=
-debug: DEBUG="debug"
+debug: TARGET = debug
 debug: build
+
+valgrind: debug
+	make -C $(TEST_DIR) valgrind
+
+all: build
 
 build: tagd libtagd
 
 tagd: force_look
-	make -C	$(SRC_DIR) $(DEBUG)
-	make -C	$(SRC_DIR)/domain $(DEBUG)
+	make -C	$(SRC_DIR) $(TARGET)
+	make -C	$(SRC_DIR)/domain $(TARGET)
 
 libtagd: tagd $(LIB)
 
@@ -23,7 +26,7 @@ $(LIB):
 	ar rcs $(LIB) $(SRC_DIR)/*.o $(SRC_DIR)/domain/*.o 
 
 tests: force_look libtagd 
-	make -C $(TEST_DIR) $(DEBUG)
+	make -C $(TEST_DIR) $(TARGET)
 
 # 'true' forces make to look (otherwise its always up to date)
 force_look:
