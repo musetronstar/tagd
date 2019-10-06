@@ -108,6 +108,9 @@ const char* scanner::fill() {
 }
 
 void scanner::scan(const char *cur, size_t sz) {
+	if (driver::_trace_on)
+		std::cerr << "scan(" << &cur << "): " << std::string(cur, sz) << std::endl;
+
 	if (sz >= BUF_SZ) {
 		_driver->ferror(tagd::TAGL_ERR, "scan size (%d) >= buffer(%d)", sz, BUF_SZ);
 		return;
@@ -136,7 +139,7 @@ void scanner::scan(const char *cur, size_t sz) {
 #define YYSETSTATE(x)   { _state = (x);  }
 #define	YYFILL(n)	{ if(_do_fill && _evbuf && !_eof){ this->fill(); if(_driver->has_errors()) return; } }
 #define YYMARKER        _mark
-#define YYDEBUG(s,c) { if(driver::_trace_on) std::cerr << "scanner debug: s = " << s << ", c = " << c << ", _cur = " << *_cur <<", _beg = " << *_beg << std::endl; }
+#define YYDEBUG(s,c) { if(driver::_trace_on) std::cerr << "scanner debug: s = " << s << ", c = " << c << std::endl; }
 
 next:
 

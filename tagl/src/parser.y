@@ -6,7 +6,17 @@
 	#include "tagl.h"  // includes parser.h
 	#include "tagdb.h"
 
-#define DELETE(P) delete P;
+#define DELETE(p) \
+	if (tagl->is_trace_on()) { \
+		if (p != nullptr) \
+			std::cerr << "DELETE(" << p << "): " << *p << std::endl; \
+		else \
+			std::cerr << "DELETE(" << p << ")" << std::endl; \
+	} \
+	if (p != nullptr) { \
+		delete p; \
+		p = nullptr; \
+	}
 
 #define NEW_TAG(TAG_TYPE, TAG_ID)	\
 	if (tagl->_constrain_tag_id.empty() || (tagl->_constrain_tag_id == TAG_ID)) {	\
@@ -30,6 +40,7 @@
 
 %extra_argument { TAGL::driver *tagl }
 %token_type {std::string *}
+%default_destructor { DELETE($$) }
 %token_prefix	TOK_
 
 %parse_accept
@@ -43,13 +54,13 @@
 {
 	switch(yymajor) { // token that caused error
 		case TOK_UNKNOWN:
-			if (TOKEN != NULL)
+			if (TOKEN != nullptr)
 				tagl->error(tagd::TS_NOT_FOUND, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *TOKEN));
 			else
 				tagl->error(tagd::TAGL_ERR, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
 			break;
 		default:
-			if (TOKEN != NULL)
+			if (TOKEN != nullptr)
 				tagl->ferror(tagd::TAGL_ERR, "parse error near: %s", TOKEN->c_str());
 			else
 				tagl->error(tagd::TAGL_ERR, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
@@ -66,16 +77,35 @@
 	if (tagl->is_trace_on()) {
 		std::cerr << "syntax_error stack: " << std::endl;
 		fprintf(stderr,"yymajor: %s\n",yyTokenName[yymajor]);
-		if( yypParser->yytos > yypParser->yystack ) {
-			// loop from start of stack to top of stack
-			auto p = yypParser->yystack;
-			while(p++ <= yypParser->yytos)
-				fprintf(stderr," %s",yyTokenName[p->major]);
-			fprintf(stderr,"\n");
+		auto p = yypParser->yystack;
+		while(p++ < yypParser->yytos) {
+			fprintf(stderr,"\t%s: %s\n",
+				yyTokenName[p->major],
+				(p->minor.yy0 ? p->minor.yy0->c_str() : "NULL")
+			);
 		}
 	}
 
-	if (TOKEN != NULL)
+	/* TODO
+	 * we shouldn't have to manually delete the stack but
+	 * %default_destructor doesn't get called on "_refers_to" in this situation:
+		>> doggy _refers_to dog
+		syntax_error stack:
+		yymajor: TERMINATOR
+			CMD_PUT: NULL
+			refers: doggy
+			REFERS_TO: _refers_to
+			refers_to: dog
+		DELETE(0x55f590735dc0): dog
+		DELETE(0x55f590736660): doggy
+	 */
+	auto p = yypParser->yystack;
+	while(p++ < yypParser->yytos) {
+		if (p->minor.yy0 != nullptr)
+			DELETE(p->minor.yy0);
+	}
+
+	if (TOKEN != nullptr)
 		DELETE(TOKEN)
 	tagl->do_callback();
 }
@@ -130,6 +160,7 @@ set_statement ::= CMD_SET set_flag .
 set_statement ::= CMD_SET set_include .
 
 %type boolean_value { bool }
+%destructor boolean_value { /* NOOP */ }
 set_flag ::= FLAG(F) boolean_value(b) .
 {
 	// TODO hard tag flags will need to have a flag_value relation holding
@@ -519,6 +550,7 @@ object_list ::= object_list COMMA object .
 object_list ::= object .
 
 %type op { tagd::operator_t }
+%destructor op { /* NOOP */ }
 object ::= TAG(T) op(o) QUANTIFIER(Q) .
 {
 	tagl->_tag->relation(tagl->_relator, *T, *Q, o);

@@ -889,8 +889,6 @@ class Tester : public CxxTest::TestSuite {
 		tagd::code tc;
 
 		TAGL::driver d(&tdb);
-		// TODO random error sometimes raised by this statement
-		//TAGL::driver::trace_on();
 		tc = d.execute(
 			"-- this is a comment\n"
 			">> dog " HARD_TAG_IS_A " animal --so is this\n"
@@ -898,7 +896,6 @@ class Tester : public CxxTest::TestSuite {
 			HARD_TAG_HAS "-* i'm a block comment *-fur\n"
 			"--" HARD_TAG_CAN " bark, bite"
 		);
-		//TAGL::driver::trace_off();
 		if (d.has_errors())
 			d.print_errors();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
