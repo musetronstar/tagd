@@ -9,6 +9,184 @@
 
 namespace tagd {
 
+bool predicate::cmp_modifier_lt(const predicate& lhs, const predicate& rhs) {
+	if(lhs.modifier.empty())
+		return !rhs.modifier.empty();
+
+	if(rhs.modifier.empty())
+		return false;
+
+	// returned when modifier is not compared
+	bool lt_type_opr8r = (
+		   (lhs.modifier_type < rhs.modifier_type)
+		|| (lhs.modifier_type == rhs.modifier_type && lhs.opr8r < rhs.opr8r)
+	);
+
+	switch(lhs.modifier_type) {
+		case TYPE_INTEGER:
+			switch (rhs.modifier_type) {
+				case TYPE_INTEGER:
+					return lhs.opr8r < rhs.opr8r ||
+						( lhs.opr8r == rhs.opr8r && (
+							  std::strtoll(lhs.modifier.c_str(), nullptr, 10)
+							< std::strtoll(rhs.modifier.c_str(), nullptr, 10) )
+							// TODO check format, limits, set err code when adding tag predicates
+						);
+				case TYPE_FLOAT: // upgrade cmp to double
+					return lhs.opr8r < rhs.opr8r ||
+						( lhs.opr8r == rhs.opr8r && (
+							  std::strtold(lhs.modifier.c_str(), nullptr)
+							< std::strtold(rhs.modifier.c_str(), nullptr) )
+						);
+				case TYPE_TEXT:
+					return lt_type_opr8r;
+				default:
+					assert(0);
+					return lt_type_opr8r;
+			} break;
+
+		case TYPE_FLOAT:
+			switch (rhs.modifier_type) {
+				case TYPE_INTEGER:
+				case TYPE_FLOAT: // cmp both as double
+					return lhs.opr8r < rhs.opr8r ||
+						( lhs.opr8r == rhs.opr8r && (
+							  std::strtold(lhs.modifier.c_str(), nullptr)
+							< std::strtold(rhs.modifier.c_str(), nullptr) )
+						);
+				case TYPE_TEXT:
+					return lt_type_opr8r;
+				default:
+					assert(0);
+					return lt_type_opr8r;
+			} break;
+
+		case TYPE_TEXT:
+			return (
+			   lhs.modifier_type < rhs.modifier_type ||
+				(
+					lhs.modifier_type == rhs.modifier_type &&
+					(
+						lhs.opr8r < rhs.opr8r ||
+						( lhs.opr8r == rhs.opr8r
+						  && lhs.modifier < rhs.modifier )
+					)
+				)
+			);
+
+		default:
+			assert(0); // modifier_type not implemented
+			return lt_type_opr8r;
+	}
+
+	assert(0);
+	return false;
+}
+
+// returns whether rhs == lhs
+bool predicate::cmp_modifier_eq(const predicate& rhs, const predicate& lhs) {
+	switch(lhs.modifier_type) {
+		case TYPE_TEXT:
+			return (
+				   lhs.modifier_type == rhs.modifier_type
+				&& lhs.opr8r == rhs.opr8r
+				&& lhs.modifier == rhs.modifier
+			);
+
+		case TYPE_INTEGER:
+			switch (rhs.modifier_type) {
+				case TYPE_TEXT:
+					return false;
+				case TYPE_INTEGER:
+					return lhs.opr8r == rhs.opr8r && (
+						   std::strtoll(lhs.modifier.c_str(), nullptr, 10) 
+						== std::strtoll(rhs.modifier.c_str(), nullptr, 10)
+						// TODO check format, limits, set err code when adding tag predicates
+					);
+				case TYPE_FLOAT:
+					return lhs.opr8r == rhs.opr8r && (
+						   std::strtold(lhs.modifier.c_str(), nullptr)
+						== std::strtold(rhs.modifier.c_str(), nullptr)
+					);
+				default:
+					assert(0);
+					return false;
+			} break;
+
+		case TYPE_FLOAT:
+			switch (rhs.modifier_type) {
+				case TYPE_TEXT:
+					return false;
+				case TYPE_INTEGER:
+				case TYPE_FLOAT:
+					return lhs.opr8r == rhs.opr8r && (
+						   std::strtold(lhs.modifier.c_str(), nullptr)
+						== std::strtold(rhs.modifier.c_str(), nullptr)
+					);
+				default:
+					assert(0);
+					return false;
+			} break;
+
+
+		default:
+			assert(0); // modifier_type not implemented
+			return false;
+	}
+
+	return false;
+}
+
+
+const char* predicate::op_c_str() const {
+	switch (opr8r) {
+		case OP_GT:		return ">";
+		case OP_GT_EQ:	return ">=";
+		case OP_EQ:		return "=";
+		case OP_LT:		return "<";
+		case OP_LT_EQ:	return "<=";
+		default:
+			assert(false);
+			return "=";
+	}
+}
+
+// TODO consider comparing modifier strings numerically using GMP <https://gmplib.org>, etc.
+bool predicate::operator<(const predicate& p) const {
+	return (
+		relator < p.relator
+		|| (
+			(relator == p.relator && object < p.object)
+			|| (
+				object == p.object
+				&& cmp_modifier_lt(*this, p)
+				)
+			)
+		);
+}
+
+bool predicate::operator==(const predicate& p) const {
+	return (
+	  relator == p.relator
+	  && object == p.object
+	  && cmp_modifier_eq(*this, p)
+	);
+}
+
+bool predicate::operator!=(const predicate& p) const {
+	return (!(*this == p));
+}
+
+bool predicate::empty() const {
+	return (
+		relator.empty()
+		&& object.empty()
+		&& modifier.empty()
+		&& opr8r == OP_EQ
+		&& modifier_type == TYPE_TEXT
+	);
+}
+
 void insert_predicate(predicate_set& P,
 	const id_type &relator, const id_type &object, const id_type &modifier ) {
 	if (object.empty())

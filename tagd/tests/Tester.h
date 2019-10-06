@@ -1010,7 +1010,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd::predicate pt_has_legs_gt_2("has", "legs", "2", tagd::OP_GT);
 		tagd::predicate pt_has_legs_lt_8("has", "legs", "8", tagd::OP_LT);
 		TS_ASSERT( pt_has_legs_lt_8 < pt_has_legs_gt_2 )  //  "<8" < ">2"
-		TS_ASSERT( !(pt_has_legs_lt_8 < pt_has_legs_gt_2) )  //  !(">2" < "<8")
+		TS_ASSERT( !(pt_has_legs_gt_2 < pt_has_legs_lt_8) )  //  !(">2" < "<8")
 	}
 
     void test_interrogator(void) {
