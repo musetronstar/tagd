@@ -8,10 +8,10 @@ TAGSPACE_DIR = $(PRG_DIR)/tagdb
 TAGSH_DIR = $(PRG_DIR)/tagsh
 HTTAGD_DIR = $(PRG_DIR)/httagd
 
-BUILD_DIR = ../bin
-BIN = $(BUILD_DIR)/httagd
+BIN_DIR = ../bin
+BIN = $(BIN_DIR)/httagd
 
-INC = -I../include \
+INC = -I${HTTAGD_DIR}/include \
 	  -I$(TAGD_DIR)/include \
 	  -I$(TAGL_DIR)/include \
 	  -I$(TAGSPACE_DIR)/include \
@@ -47,6 +47,7 @@ main.o : main.cc
 	$(CXX) $(CXXFLAGS) -c -o $@ $? $(INC)
 
 $(BIN) : main.o
+	[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $? $(LFLAGS)
 
 clean :
