@@ -246,8 +246,6 @@ tagd::code driver::execute(struct evbuffer *input) {
 	if (sz > 0) {
 		if (sz < BUF_SZ)
 			_scanner->_buf[sz] = '\0';
-		if (_trace_on)
-			std::cout << "scanning: " << std::string(_scanner->_buf, sz) << std::endl;
 		_scanner->evbuf(input);
 		_scanner->scan(_scanner->_buf, sz);
 	}
@@ -334,25 +332,23 @@ bool tagdio::is_dir(const std::string& path) {
  * path reference passed in test to path opened
  */
 int driver::open_rel(const std::string& path, int flags) {
-	auto set_open_path_f = [&](const std::string& s) -> int {
+	auto open_path_f = [&](const std::string& s) -> int {
 		int fp = open(s.c_str(), flags);
 		if (fp < 0)
 			this->ferror(tagd::TAGL_ERR, "failed to open: %s", s.c_str());
-		else
-			_path = s;
 		return fp;
 	};
 
 	// no existing relative path
 	if (_path.empty())
-		return set_open_path_f(path);
+		return open_path_f(path);
 
 	// dir of current opened file _path
 	char *dirc = strdup(_path.c_str());
 	std::string dir{dirname(dirc)};
 	free(dirc);
 	if (dir.empty())
-		return set_open_path_f(path);
+		return open_path_f(path);
 	dir.push_back('/');
 
 	// new file name to open
@@ -368,7 +364,6 @@ int driver::open_rel(const std::string& path, int flags) {
 	}
 
 	int fd = openat(rel_fd, path.c_str(), flags);
-	_path = dir.append(base);
 	close(rel_fd);
 
 	return fd;
