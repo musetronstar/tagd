@@ -19,7 +19,7 @@ valgrind: URL_TESTER = $(VALGRIND) ./url-tester
 valgrind: DOMAIN_TESTER = $(VALGRIND) ./domain-tester
 valgrind: debug
 
-all: tag_tests url_tests domain_tests
+all: tag_tests domain_tests url_tests
 
 tag_tests:
 	$(CXXTEST) Tester.h -o tester.cpp

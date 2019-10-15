@@ -1063,4 +1063,27 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( url_test("http://lcweb2.loc.gov/cgi-bin/query/h?pp/horyd:@field(NUMBER+@band(thc+5a46634))", "http", "lcweb2.loc.gov", "", "/cgi-bin/query/h", "?pp/horyd:@field(NUMBER+@band(thc+5a46634))", "") );
 
     }
+
+    void test_file_uri(void) {
+        tagd::url a("file:///favicon.ico");
+        TS_ASSERT( !a.empty() );
+        TS_ASSERT( a.ok() )
+        TS_ASSERT_EQUALS( a.scheme(), "file" );
+        TS_ASSERT( a.host().empty() );
+        TS_ASSERT_EQUALS( a.path(), "/favicon.ico" );
+        TS_ASSERT_EQUALS( a.id(), "file:///favicon.ico" );
+//                            |----------optional---------|
+//  rpub:priv_label:rsub:path:query:fragment:port:user:pass:scheme
+        TS_ASSERT_EQUALS( a.hduri(), ":::/favicon.ico:file" );
+
+		tagd::url b;
+		b.init_hduri(a.hduri());
+        TS_ASSERT( !b.empty() );
+        TS_ASSERT( b.ok() )
+        TS_ASSERT_EQUALS( b.scheme(), "file" );
+        TS_ASSERT( b.host().empty() );
+        TS_ASSERT_EQUALS( b.path(), "/favicon.ico" );
+        TS_ASSERT_EQUALS( b.id(), "file:///favicon.ico" );
+        TS_ASSERT_EQUALS( b.hduri(), ":::/favicon.ico:file" );
+    }
 };

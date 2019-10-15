@@ -79,8 +79,9 @@ authority:
                 // empty user
                 _host_offset = _user_offset;
 				_user_offset = _user_len = 0;
-                if (i == _host_offset) return code(URL_ERR_HOST);
                 _host_len = i - _host_offset;
+                if (_host_len == 0 && this->scheme() != "file")
+					return code(URL_ERR_HOST);
                 goto path;
             case '?':
                 _host_offset = _user_offset;
@@ -425,18 +426,6 @@ tagd::code url::init_hduri(const std::string &hduri) {
     return code(TAGD_OK);
 }
 
-void print_hduri_elem(std::ostream& os, const std::string& elem, int *dropped, bool rev_labels=false) {
-	if (!elem.empty()) {
-		if (*dropped) {
-			os << std::string((*dropped), HDURI_DELIM);
-			*dropped = 0;
-		}
-
-		os << HDURI_DELIM << (rev_labels ? reverse_labels(elem) : elem);
-	} else
-		(*dropped)++;
-}
-
 // A Hierarchical URI Decomposition (HDURI) is composed of:
 //
 //  rpub:priv_label:rsub:path:query:fragment:port:user:pass:scheme
@@ -475,18 +464,28 @@ std::string url::hduri() const {
 	tagd::domain d(this->host());
 	int dropped = 0;  // the number of delims dropped
 
+	auto print_hduri_elem_f = [&ss, &dropped](const std::string& elem, bool rev_labels=false) -> void {
+		if (!elem.empty()) {
+			if (dropped) {
+				ss << std::string((dropped), HDURI_DELIM);
+				dropped = 0;
+			}
+
+			ss << HDURI_DELIM << (rev_labels ? reverse_labels(elem) : elem);
+		} else
+			dropped++;
+	};
+
 	if (!d.pub().empty())
 		ss << reverse_labels(d.pub());
-	else
-		dropped++;
 
-	print_hduri_elem(ss, d.priv_label(), &dropped);
-	print_hduri_elem(ss, d.sub(), &dropped, true);
-	print_hduri_elem(ss, this->path(), &dropped);
-	print_hduri_elem(ss, this->query(), &dropped);
-	print_hduri_elem(ss, this->fragment(), &dropped);
-	print_hduri_elem(ss, this->port(), &dropped);
-	print_hduri_elem(ss, this->user(), &dropped);
+	print_hduri_elem_f(d.priv_label());
+	print_hduri_elem_f(d.sub(), true);
+	print_hduri_elem_f(this->path());
+	print_hduri_elem_f(this->query());
+	print_hduri_elem_f(this->fragment());
+	print_hduri_elem_f(this->port());
+	print_hduri_elem_f(this->user());
 
 	// we have to distinguish between "no password"
 	// and "blank password"
@@ -497,7 +496,7 @@ std::string url::hduri() const {
 		}
 		ss << HDURI_DELIM;  // :<blank pass>
 	} else
-		print_hduri_elem(ss, this->pass(), &dropped);
+		print_hduri_elem_f(this->pass());
 
 	ss << HDURI_DELIM << this->scheme();
 
