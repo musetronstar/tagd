@@ -38,7 +38,7 @@ class tagsh {
 		TAGL::driver _driver;
 
 	public:
-		static constexpr const char* DEFAULT_PROMPT = "tagd> ";
+		static constexpr const char* DEFAULT_PROMPT = "|tagd| ";
 		std::string prompt = DEFAULT_PROMPT;
 		bool echo_result_code = true;
 

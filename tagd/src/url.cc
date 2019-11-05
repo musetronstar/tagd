@@ -302,20 +302,15 @@ tagd::code url::init_hduri(const std::string &hduri) {
 
 	// scheme is after the last delim
     std::stringstream ss_url;
-	ss_url << hduri.substr(i+1);
+	ss_url << decode_hduri_delim(hduri.substr(i+1));
 
 	_scheme_len = sz - (i+1);
 	sz = _scheme_len;  // reuse sz for url now
 
-	// *** don't leak by forgetting to delete any new strings before returning
-	std::string* elems[HDURI_NUM_ELEMS] = { NULL };
-
-	//std::cout << "ss_url(" << __LINE__ << "): " << ss_url.str() << std::endl;
-	//std::cout << "sz(" << __LINE__ << "): " << sz << std::endl;
-	//std::cout << "_scheme_len(" << __LINE__ << "): " << _scheme_len << std::endl;
+	std::string* elems[HDURI_NUM_ELEMS] = { nullptr };
 
 	{
-		// we will split on the hduri before :scheme
+		// we will split on the hduri before !scheme
 		std::string s(hduri.substr(0, i));
 
 		size_t idx, j;
@@ -344,13 +339,13 @@ tagd::code url::init_hduri(const std::string &hduri) {
 	sz += 3;
 
 	if (elems[HDURI_USER]) {
-		ss_url << *(elems[HDURI_USER]);
+		ss_url << decode_hduri_delim(*(elems[HDURI_USER]));
 		_user_offset = sz;
 		_user_len = elems[HDURI_USER]->size();
 		sz += _user_len;
 
 		if (elems[HDURI_PASS]) {
-			ss_url << ':' << *(elems[HDURI_PASS]);
+			ss_url << ':' << decode_hduri_delim(*(elems[HDURI_PASS]));
 			_pass_offset = sz + 1;
 			_pass_len = elems[HDURI_PASS]->size();
 			sz += _pass_len + 1;
@@ -361,7 +356,7 @@ tagd::code url::init_hduri(const std::string &hduri) {
 	}
 
 	if (elems[HDURI_RSUB]) {
-		ss_url << reverse_labels(*(elems[HDURI_RSUB]));
+		ss_url << reverse_labels(decode_hduri_delim(*(elems[HDURI_RSUB])));
 		_host_offset = sz;
 		_host_len = elems[HDURI_RSUB]->size();
 		sz += _host_len;
@@ -374,7 +369,7 @@ tagd::code url::init_hduri(const std::string &hduri) {
 			_host_len++;  sz++;
 		}
 
-		ss_url << *(elems[HDURI_PRIV]);
+		ss_url << decode_hduri_delim(*(elems[HDURI_PRIV]));
 		_host_len += elems[HDURI_PRIV]->size();
 		sz += elems[HDURI_PRIV]->size();
 	}
@@ -386,56 +381,74 @@ tagd::code url::init_hduri(const std::string &hduri) {
 			_host_len++;  sz++;
 		}
 
-		ss_url << reverse_labels(*(elems[HDURI_RPUB]));
+		ss_url << reverse_labels(decode_hduri_delim(*(elems[HDURI_RPUB])));
 		_host_len += elems[HDURI_RPUB]->size();
 		sz += elems[HDURI_RPUB]->size();
 	}
 
 	if (elems[HDURI_PORT]) {
-		ss_url << ':' << *(elems[HDURI_PORT]);
+		ss_url << ':' << decode_hduri_delim(*(elems[HDURI_PORT]));
 		_port_offset = sz + 1;
         _port_len = elems[HDURI_PORT]->size();
 		sz += elems[HDURI_PORT]->size() + 1;
 	}
 
 	if (elems[HDURI_PATH]) {
-		ss_url << *(elems[HDURI_PATH]);
+		ss_url << decode_hduri_delim(*(elems[HDURI_PATH]));
 		_path_offset = sz;
         _path_len = elems[HDURI_PATH]->size();
 		sz += elems[HDURI_PATH]->size();
 	}
 
 	if (elems[HDURI_QUERY]) {
-		ss_url << *(elems[HDURI_QUERY]);
+		ss_url << decode_hduri_delim(*(elems[HDURI_QUERY]));
 		_query_offset = sz;
         _query_len = elems[HDURI_QUERY]->size();
 		sz += elems[HDURI_QUERY]->size();
 	}
 
 	if (elems[HDURI_FRAGMENT]) {
-		ss_url << '#' << *(elems[HDURI_FRAGMENT]);
+		ss_url << '#' << decode_hduri_delim(*(elems[HDURI_FRAGMENT]));
 		_fragment_offset = sz + 1;
         _fragment_len = elems[HDURI_FRAGMENT]->size();
 		sz += elems[HDURI_FRAGMENT]->size() + 1;
 	}
 
 	for( i = 0; i < HDURI_NUM_ELEMS; i++ )
-		if (elems[i] != NULL) delete elems[i];
+		if (elems[i] != nullptr) delete elems[i];
 
 	_id = ss_url.str();
     return code(TAGD_OK);
 }
 
+std::string encode_hduri_delim(std::string elem) {
+	size_t pos = 0;
+	while ((pos = elem.find(HDURI_DELIM, pos)) != std::string::npos) {
+		elem.replace(pos, 1, HDURI_DELIM_ENCODED);
+		pos += HDURI_DELIM_ENCODED.length();
+	}
+	return elem;
+}
+
+std::string decode_hduri_delim(std::string elem) {
+	size_t pos = 0;
+	while ((pos = elem.find(HDURI_DELIM_ENCODED, pos)) != std::string::npos) {
+		elem.replace(pos, HDURI_DELIM_ENCODED.length(), 1, HDURI_DELIM);  // replace encoded str with 1 char delim
+		pos++;  // length of char
+	}
+	return elem;
+}
+
 // A Hierarchical URI Decomposition (HDURI) is composed of:
 //
-//  rpub:priv_label:rsub:path:query:fragment:port:user:pass:scheme
+//  rpub!priv_label!rsub!path!query!fragment!port!user!pass!scheme
 //
-//  ':' characters in any url parts must be encoded (%3a)
+//  '!' characters in any url parts must be encoded (%21)
 //
 //  http://sub2.sub1.example.co.uk/a/b/c?id=foo&x=123#summary
 //                     ||  ||
 //                     \/  \/
-//  uk.co:example:sub1.sub2:/a/b/c:?id=foo&x=123:summary:http
+//  uk.co!example!sub1.sub2!/a/b/c!?id=foo&x=123!summary!http
 //    |    |        |          |         |        |     ^  |
 //  rpub   |       rsub       path     query    anchor  ^  |
 //       private                                        ^ scheme
@@ -449,14 +462,11 @@ tagd::code url::init_hduri(const std::string &hduri) {
 //  http://example.com?hi=hey
 //  			|
 //              v
-//  com:example:::?hi=hey:http
+//  com!example!!!?hi=hey!http
 //
 //  rsub and path are blank, but must be represented
 //  fragment, port, user and pass can be dropped because
 //  a trailing scheme is required
-//
-//  TODO, you probably want to use '~' (ascii 127) as your delimiter
-//  because it will collate after all other printable chars
 std::string url::hduri() const {
 	assert(!this->scheme().empty());
 
@@ -464,28 +474,29 @@ std::string url::hduri() const {
 	tagd::domain d(this->host());
 	int dropped = 0;  // the number of delims dropped
 
-	auto print_hduri_elem_f = [&ss, &dropped](const std::string& elem, bool rev_labels=false) -> void {
+	auto hduri_elem_f = [&ss, &dropped](const std::string &elem, bool rev_labels=false) {
 		if (!elem.empty()) {
 			if (dropped) {
 				ss << std::string((dropped), HDURI_DELIM);
 				dropped = 0;
 			}
 
-			ss << HDURI_DELIM << (rev_labels ? reverse_labels(elem) : elem);
-		} else
+			ss << HDURI_DELIM << encode_hduri_delim(rev_labels ? reverse_labels(elem) : elem);
+		} else {
 			dropped++;
+		}
 	};
 
 	if (!d.pub().empty())
-		ss << reverse_labels(d.pub());
+		ss << encode_hduri_delim(reverse_labels(d.pub()));
 
-	print_hduri_elem_f(d.priv_label());
-	print_hduri_elem_f(d.sub(), true);
-	print_hduri_elem_f(this->path());
-	print_hduri_elem_f(this->query());
-	print_hduri_elem_f(this->fragment());
-	print_hduri_elem_f(this->port());
-	print_hduri_elem_f(this->user());
+	hduri_elem_f(d.priv_label());
+	hduri_elem_f(d.sub(), true);
+	hduri_elem_f(this->path());
+	hduri_elem_f(this->query());
+	hduri_elem_f(this->fragment());
+	hduri_elem_f(this->port());
+	hduri_elem_f(this->user());
 
 	// we have to distinguish between "no password"
 	// and "blank password"
@@ -495,10 +506,11 @@ std::string url::hduri() const {
 			dropped = 0;
 		}
 		ss << HDURI_DELIM;  // :<blank pass>
-	} else
-		print_hduri_elem_f(this->pass());
+	} else {
+		hduri_elem_f(this->pass());
+	}
 
-	ss << HDURI_DELIM << this->scheme();
+	ss << HDURI_DELIM << encode_hduri_delim(this->scheme());
 
     return ss.str();
 }
@@ -526,7 +538,6 @@ void insert_host_parts(tagd::predicate_set& P, const url& u) {
 size_t url::parse_query(url_query_map_t& M, const std::string& s) {
 	size_t n = M.size();
 
-	//std::cerr << "parse_query: " << s << std::endl;
 	for(size_t i=0; i<s.size(); ++i) {
 		if ((s[i] == '?' || i==0 || s[i] == '&') && ((i+1)<s.size())) {
 			std::string k, v;
@@ -539,10 +550,8 @@ size_t url::parse_query(url_query_map_t& M, const std::string& s) {
 			for(size_t j=i; j<s.size(); ++j) {
 				if (s[j] == '=' || s[j] == '&' || (j == (s.size()-1))) {
 					k = s.substr(i, (j-i));
-					//std::cerr << "k: " << k << std::endl;
 					if (s[j] == '&') {
 						v.clear();
-						//std::cerr << "v: " << v << std::endl;
 						goto key_val;
 					}
 					if (s[j] == '=') {
@@ -550,7 +559,6 @@ size_t url::parse_query(url_query_map_t& M, const std::string& s) {
 							size_t k = j;
 							for(; (k<s.size() && s[k] != '&'); ++k );
 							v = s.substr(j, (k-j));
-							//std::cerr << "v: " << v << std::endl;
 							goto key_val;
 						}
 					}
@@ -563,7 +571,6 @@ key_val:
 					v[i] = ' ';
 			}
 			M[k] = v;
-			//std::cerr << "M[" << k << "] = " << v << std::endl;
 		}
 	}
 
@@ -586,24 +593,24 @@ bool url::looks_like_url(const std::string& s) {
 
 // if looks like hduri
 bool url::looks_like_hduri(const std::string& str) {
-	size_t i = str.rfind(':');
+	size_t i = str.rfind(HDURI_DELIM);
 	if (i == std::string::npos) return false;
 
 	int sz = str.size() - i;
 	switch (sz) {
-		case 4:  // ":ftp"
+		case 4:  // "!ftp"
 			if (str.substr((i+1), sz-1) == "ftp")
 				return true;
 			break;
 		case 5:
-			// ":http"
+			// "!http"
 			if (str.substr((i+1), sz-1) == "http")
 				return true;
-			// ":file"
+			// "!file"
 			if (str.substr((i+1), sz-1) == "file")
 				return true;
 			break;
-		case 6:  // ":https"
+		case 6:  // "!https"
 			if (str.substr((i+1), sz-1) == "https")
 				return true;
 			break;

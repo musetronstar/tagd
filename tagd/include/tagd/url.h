@@ -5,7 +5,6 @@
 #include <map>
 #include "tagd.h"
 
-
 typedef std::map<std::string, std::string> url_query_map_t;
 
 namespace tagd {
@@ -21,7 +20,7 @@ typedef enum {
 |*| Heirarchical Decomposition of a URL (HDURI)
 |*|
 |*|   0     1         2    3    4      5       6    7    8   (9)
-|*| rpub:priv_label:rsub:path:query:fragment:port:user:pass:scheme
+|*| rpub!priv_label!rsub!path!query!fragment!port!user!pass!scheme
 \*/
 const size_t HDURI_RPUB = 0;
 const size_t HDURI_PRIV = 1;
@@ -32,9 +31,13 @@ const size_t HDURI_FRAGMENT = 5;
 const size_t HDURI_PORT = 6;
 const size_t HDURI_USER = 7;
 const size_t HDURI_PASS = 8;
-// const size_t HDURI_SCHEME = 9; // not needed yet
+// const size_t HDURI_SCHEME = 9; // not needed
 
-const char HDURI_DELIM = ':';
+const char HDURI_DELIM = '!';
+const std::string HDURI_DELIM_ENCODED{"%21"};
+std::string encode_hduri_delim(std::string); 
+std::string decode_hduri_delim(std::string); 
+
 const size_t HDURI_NUM_ELEMS = 9;
 
 typedef unsigned short url_size_t;
