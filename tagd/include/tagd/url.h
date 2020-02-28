@@ -33,8 +33,12 @@ const size_t HDURI_USER = 7;
 const size_t HDURI_PASS = 8;
 // const size_t HDURI_SCHEME = 9; // not needed
 
+const std::string HDURI_SCHEME{"hd:"};
 const char HDURI_DELIM = '!';
 const std::string HDURI_DELIM_ENCODED{"%21"};
+//   hd:rpub!priv_label!rsub!path!query!fragment!port!user!pass!scheme
+const size_t HDURI_DELIM_COUNT = 9;
+
 std::string encode_hduri_delim(std::string); 
 std::string decode_hduri_delim(std::string); 
 
@@ -50,74 +54,45 @@ class url : public abstract_tag {
             be considered if the *_len is set as well.
         */
         // no need for _scheme_offset (always 0)
-        url_size_t _scheme_len;
-        url_size_t _user_offset;
-        url_size_t _user_len;
-        url_size_t _pass_offset;
-        url_size_t _pass_len;
-        url_size_t _host_offset;
-        url_size_t _host_len;
-        url_size_t _port_offset;
-        url_size_t _port_len;
-        url_size_t _path_offset;
-        url_size_t _path_len;
-        url_size_t _query_offset;
-        url_size_t _query_len;
-        url_size_t _fragment_offset;
-        url_size_t _fragment_len;
+        url_size_t _scheme_len = 0;
+        url_size_t _user_offset = 0;
+        url_size_t _user_len = 0;
+        url_size_t _pass_offset = 0;
+        url_size_t _pass_len = 0;
+        url_size_t _host_offset = 0;
+        url_size_t _host_len = 0;
+        url_size_t _port_offset = 0;
+        url_size_t _port_len = 0;
+        url_size_t _path_offset = 0;
+        url_size_t _path_len = 0;
+        url_size_t _query_offset = 0;
+        url_size_t _query_len = 0;
+        url_size_t _fragment_offset = 0;
+        url_size_t _fragment_len = 0;
 
 		// disable setting _id, becuase it would
 		// bypass url initialization.  require init()
         void id(const id_type& A);
 
+	protected:
+        tagd::code init(const std::string &url);
+        tagd::code init_hduri(const std::string &hduri);
+
     public:
         url() :
-        abstract_tag(id_type(), HARD_TAG_IS_A, HARD_TAG_URL, POS_URL),
-        _scheme_len(0),
-        _user_offset(0),
-        _user_len(0),
-        _pass_offset(0),
-        _pass_len(0),
-        _host_offset(0),
-        _host_len(0),
-        _port_offset(0),
-        _port_len(0),
-        _path_offset(0),
-        _path_len(0),
-        _query_offset(0),
-        _query_len(0),
-        _fragment_offset(0),
-        _fragment_len(0) {
+			abstract_tag(id_type(), HARD_TAG_IS_A, HARD_TAG_URL, POS_URL)
+		{
 			_code = URL_EMPTY;
 		}
 
         url(const std::string& u) :
-        abstract_tag(id_type(), HARD_TAG_IS_A, HARD_TAG_URL, POS_URL),
-        _scheme_len(0),
-        _user_offset(0),
-        _user_len(0),
-        _pass_offset(0),
-        _pass_len(0),
-        _host_offset(0),
-        _host_len(0),
-        _port_offset(0),
-        _port_len(0),
-        _path_offset(0),
-        _path_len(0),
-        _query_offset(0),
-        _query_len(0),
-        _fragment_offset(0),
-		_fragment_len(0) {
+			abstract_tag(id_type(), HARD_TAG_IS_A, HARD_TAG_URL, POS_URL)
+		{
 			_code = URL_EMPTY;
 			this->init(u);
 		}
 
 		const id_type& id() const { return _id; }
-		// id() setter is private
-
-        tagd::code init(const std::string &url);
-        tagd::code init_hduri(const std::string &hduri);
-
         std::string scheme() const { return url_substr(0, _scheme_len); }
         std::string user() const { return url_substr(_user_offset, _user_len); }
         std::string pass() const { return url_substr(_pass_offset, _pass_len); }
@@ -149,8 +124,6 @@ class url : public abstract_tag {
         authority_code authority_type() const { return AUTHORITY_HOST; }
 
         std::string hduri() const;
-
-        void clear() { _id.clear(); _code = URL_EMPTY; }
         bool empty() const { return _id.empty(); }
 
 		// parse keys/vals from query string and populate map - returns num k/v pairs parsed
@@ -167,11 +140,6 @@ class url : public abstract_tag {
         std::string url_substr(const url_size_t offset, const url_size_t len) const {
             if (len == 0 || this->empty()) return std::string();
             return _id.substr(offset, len);
-        }
-
-        void host_lower() {
-            for (url_size_t i = _host_offset; i < (_host_offset + _host_len); i++)
-                _id[i] = tolower(_id[i]);
         }
 
 		// we have to distinguish between "no password" and "blank password"

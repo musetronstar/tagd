@@ -89,9 +89,11 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 	tpl.set_value("REQUEST_URL_VIEW_TAG_HTML", tx.req->abs_url_view(TAG_VIEW_ID.name()));
 
 	if (t.pos() == tagd::POS_URL) {
-		tagd::url u;
-		u.init_hduri(t.id());
-		tpl.set_value("id", u.id());
+		tagd::HDURI u(t.id());
+		if (u.ok())
+			tpl.set_value("id", u.id());
+		else
+			tpl.set_value("id", t.id());
 		if (t.related("type", "image_jpeg"))
 			tpl.set_value_show_section("img_src", u.id(), "has_img");
 	} else {
@@ -109,8 +111,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 		tagd_template *relator_dict = nullptr;
 		for (auto p : t.relations) {
 			if (p.relator == "img_src" && tagd::url::looks_like_hduri(p.object)) {
-				tagd::url u;
-				u.init_hduri(p.object);
+				tagd::HDURI u(p.object);
 				img_urls.insert(u);
 				continue;
 			}
@@ -217,8 +218,7 @@ get_handler_t tag_handler(
 tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tagd::abstract_tag& t) {
 	const std::string context = tx.req->query_opt_context();
 	if (t.pos() == tagd::POS_URL) {
-		tagd::url u;
-		u.init_hduri(t.id());
+		tagd::HDURI u(t.id());
 		tpl.set_value("id", u.id());
 	} else {
 		tpl.set_value("id", t.id());
@@ -377,8 +377,7 @@ get_handler_t browse_handler(
 		auto main_tpl = tpl.include("main_html_tpl", tx.vws->fpath(fname));
 
 		if (t.pos() == tagd::POS_URL) {
-			tagd::url u;
-			u.init_hduri(t.id());
+			tagd::HDURI u(t.id());
 			main_tpl->set_value("id", u.id());
 		} else {
 			main_tpl->set_value("id", t.id());

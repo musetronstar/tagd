@@ -161,15 +161,36 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 			return;
 	}
 
-	size_t num_seps = 0;
-	for(size_t i = 0; i < path.size(); i++) {
-		if (path[i] == '/') {
-			if (num_seps == max_seps) {
-				// TODO use error tag
-				_driver->error(tagd::TAGL_ERR, "max_seps exceeded");
-				return;
+	size_t num_seps = 1;
+	{
+		size_t i = 1;
+		/* HDURI if path is:
+		 *   /hd:rpub!priv_label!rsub!path!query!fragment!port!user!pass!scheme
+		 * we have to advance past the path seps in the HDURI
+		 */
+		if (path.substr(i, tagd::HDURI_SCHEME.size()) == tagd::HDURI_SCHEME) {
+			i = i + tagd::HDURI_SCHEME.size();
+			size_t hduri_delim_count = 0;
+			for (; i < path.size(); ++i) {
+				if (path[i] == tagd::HDURI_DELIM) {
+					if (++hduri_delim_count == tagd::HDURI_DELIM_COUNT) {
+						i++;
+						break;
+					}
+				}
 			}
-			seps[num_seps++] = i;
+		}
+
+		// find the offsets of remain path separators
+		for(; i < path.size(); ++i) {
+			if (path[i] == '/') {
+				if (num_seps == max_seps) {
+					// TODO use error tag
+					_driver->error(tagd::TAGL_ERR, "max_seps exceeded");
+					return;
+				}
+				seps[num_seps++] = i;
+			}
 		}
 	}
 
@@ -215,7 +236,8 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 				return;
 			} else {
 				_driver->parse_tok(cmd, NULL);
-				this->scan(tagd::uri_decode(segment));
+				auto decoded = tagd::uri_decode(segment);
+				this->scan(decoded);
 			}
 		}
 	} else {
@@ -352,32 +374,6 @@ tagd::code httagl::tagdurl_del(const request& req) {
 	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_DEL, req);
 
 	return this->code();
-}
-
-void callback::default_cmd_get(const tagd::abstract_tag& t) {
-	tagd::abstract_tag T;
-	auto ssn = _tx->drvr->session_ptr();
-	tagd::code tc = _tx->tdb->get(T, t.id(), ssn, _driver->flags());
-
-	// TODO, if outputting to an iostream is still desirable,
-	// but more efficient to ouput to an evbuffer directly,
-	// want to use std::ios_base::register_callback
-	std::stringstream ss;
-	if (tc == tagd::TAGD_OK) {
-		ss << T << std::endl;
-	} else {
-		_tx->tdb->print_errors(ss);
-	}
-
-	if (_tx->req->method == HTTP_HEAD) {
-		/* even though evhtp will not send content added for HEAD requests,
-		 * we will short circuit that by not adding content
-		 * _evhtp_create_reply() adds Content-Length header if not exists so lets create one
-		 */
-		_tx->res->add_header_content_length(ss.str().size());
-	} else if (ss.str().size()) {
-		_tx->res->add(ss.str());
-	}
 }
 
 void callback::default_cmd_put(const tagd::abstract_tag& t) {
@@ -625,6 +621,54 @@ void callback::output_errors(tagd::code ret_tc) {
 		_tx->add_errors();
 }
 
+#define RET_IF_ERR()              \
+	if (tc != tagd::TAGD_OK) { \
+		output_errors(tc);     \
+		delete T;              \
+		return;                \
+	}
+
+void callback::default_cmd_get(const tagd::abstract_tag& t) {
+	tagd::abstract_tag *T;
+	tagd::code tc;
+	auto ssn = _tx->drvr->session_ptr();
+
+	if (t.pos() == tagd::POS_URL) {
+		T = new tagd::url(t.id());
+		if (!T->ok())
+			tc = _tx->ferror(T->code(), "default_cmd_get parse url failed: %s", t.id().c_str());
+		else
+			tc = _tx->tdb->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags());
+	} else {
+		T = new tagd::abstract_tag();
+		tc = _tx->tdb->get(*T, t.id(), ssn, _driver->flags());
+	}
+
+	// TODO, if outputting to an iostream is still desirable,
+	// but more efficient to ouput to an evbuffer directly,
+	// want to use std::ios_base::register_callback
+	std::stringstream ss;
+	if (tc == tagd::TAGD_OK) {
+		ss << *T << std::endl;
+	} else {
+		_tx->tdb->print_errors(ss);
+	}
+
+	if (_tx->req->method == HTTP_HEAD) {
+		/* even though evhtp will not send content added for HEAD requests,
+		 * we will short circuit that by not adding content
+		 * _evhtp_create_reply() adds Content-Length header if not exists so lets create one
+		 */
+		_tx->res->add_header_content_length(ss.str().size());
+	} else if (ss.str().size()) {
+		_tx->res->add(ss.str());
+	}
+	RET_IF_ERR();
+
+	// no err
+	delete T;
+}
+
 void callback::cmd_get(const tagd::abstract_tag& t) {
 	if (_tx->trace_on) std::cerr << "cmd_get()" << std::endl;
 
@@ -643,26 +687,19 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 
 	tagd::abstract_tag *T;
 	tagd::code tc;
+
 	auto ssn = _tx->drvr->session_ptr();
 	if (t.pos() == tagd::POS_URL) {
 		T = new tagd::url(t.id());
-		tc = _tx->tdb->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn);
+		if (!T->ok())
+			tc = _tx->ferror(T->code(), "cmd_get parse url failed: %s", t.id().c_str());
+		else
+			tc = _tx->tdb->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags());
 	} else {
 		T = new tagd::abstract_tag();
-		tc = _tx->tdb->get(*T, t.id(), ssn);
+		tc = _tx->tdb->get(*T, t.id(), ssn, _driver->flags());
 	}
-
-	if (tc != tagd::TAGD_OK) {
-		output_errors(tc);
-		return;
-	}
-
-#define RET_IF_ERR()              \
-	if (tc != tagd::TAGD_OK) { \
-		output_errors(tc);     \
-		delete T;              \
-		return;                \
-	}
+	RET_IF_ERR();
 
 	view vw;
 	tc = _tx->vws->get(vw, get_view_id(view_name));
@@ -829,12 +866,10 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 	};
 
 	if ( tagd::url::looks_like_hduri(val) ) {
-		tagd::url u;
-		u.init_hduri(val);
+		tagd::HDURI u(val);
 		f_set_vals(u.id(), tagd::uri_encode(u.hduri()));
 	} else if ( tagd::url::looks_like_url(val) ) {
-		tagd::url u;
-		u.init(val);
+		tagd::url u(val);
 		f_set_vals(u.id(), tagd::uri_encode(u.hduri()));
 	} else {
 		f_set_vals(val, tagd::uri_encode(val));

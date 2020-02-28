@@ -1625,7 +1625,7 @@ class Tester : public CxxTest::TestSuite {
         tc = tdb.get(b, a.id(), &ssn); 
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS(b.id(), "http://www.hypermega.com/a/b/c?x=1&y=2#here"); 
-		TS_ASSERT_EQUALS(b.hduri(), "com:hypermega:www:/a/b/c:?x=1&y=2:here:http");
+		TS_ASSERT_EQUALS(b.hduri(), "hd:com!hypermega!www!/a/b/c!?x=1&y=2!here!!!!http");
         TS_ASSERT(b.relations.size() > 1);
         TS_ASSERT(b.related("about", "computer_security"));
         TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_SCHEME, "http"));
@@ -1644,15 +1644,18 @@ class Tester : public CxxTest::TestSuite {
 		auto ssn = tdb.get_session();
         populate_tags(tdb);
 
-        tagd::url a("http://www.hypermega.com/a/b/c?x=1&y=2#here");
+		const std::string url_str{"http://www.hypermega.com/a/b/c?x=1&y=2#here"};
+		const std::string hduri{"hd:com!hypermega!www!/a/b/c!?x=1&y=2!here!!!!http"};
+        tagd::url a(url_str);
         a.relation("about", "computer_security");
         tc = tdb.put(a, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(a.hduri(), hduri);
 
         tagd::abstract_tag b;
-        tc = tdb.get(b, a.hduri(), &ssn); 
+        tc = tdb.get(b, hduri, &ssn); 
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT_EQUALS(b.id(), "com:hypermega:www:/a/b/c:?x=1&y=2:here:http");
+		TS_ASSERT_EQUALS(b.id(), url_str);  // hduri upgraded to url str
         TS_ASSERT_EQUALS(b.super_object() , HARD_TAG_URL);
         TS_ASSERT(b.related("about", "computer_security"));
         TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_SCHEME, "http"));
@@ -1663,6 +1666,22 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_PATH, "/a/b/c"));
         TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_QUERY, "?x=1&y=2"));
         TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "here"));
+
+        tagd::url c;
+        tc = tdb.get(c, url_str, &ssn); 
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(c.id(), url_str);
+		TS_ASSERT_EQUALS(c.hduri(), hduri);
+        TS_ASSERT_EQUALS(c.super_object() , HARD_TAG_URL);
+        TS_ASSERT(c.related("about", "computer_security"));
+        TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_SCHEME, "http"));
+        TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_HOST, "www.hypermega.com"));
+        TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_PRIV_LABEL, "hypermega"));
+        TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_PUBLIC, "com"));
+        TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_SUBDOMAIN, "www"));
+        TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_PATH, "/a/b/c"));
+        TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_QUERY, "?x=1&y=2"));
+        TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "here"));
     }
 
     void test_query_url(void) {

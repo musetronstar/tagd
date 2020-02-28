@@ -171,6 +171,17 @@ class driver : public tagd::errorable {
 
 		static void trace_on(const char * = nullptr);
 		static void trace_off();
+
+		// checks that _tag is set to nullptr, otherwise deletes _tag and sets to nullptr
+		void delete_tag() {
+			if (_tag == nullptr) return;
+
+			delete _tag;
+			_tag = nullptr;
+		}
+
+		// creates a new tagd::url and sets the _tag ptr
+		tagd::code new_url(const std::string&);
 };
 
 } // namespace TAGL

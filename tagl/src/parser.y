@@ -353,12 +353,12 @@ subject ::= INTERROGATOR(I) .
 }
 subject ::= URL(U) .
 {
-	NEW_TAG(tagd::url, *U);
+	tagl->new_url(*U);
 	DELETE(U)
 }
 subject ::= HDURI(U) .
 {
-	NEW_TAG(tagd::HDURI, *U);
+	tagl->new_url(*U);
 	DELETE(U)
 }
 subject ::= REFERENT(R) .

@@ -736,7 +736,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, session
 	OK_OR_RET_SSN_INT_ERR_ACTION("tagdb:get:decode_referent");
 
 	this->prepare(&_get_stmt,
-		"SELECT idt(tag), idt(sub_relator), idt(super_object), pos, rank "
+		"SELECT idt(tag), pos, idt(sub_relator), idt(super_object), rank "
 		"FROM tags WHERE tag = tid(?)",
 		"get_tag"
 	);
@@ -746,9 +746,9 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, session
 	OK_OR_RET_SSN_INT_ERR_ACTION("tagdb:get:get_tag_id");
 
 	const int F_ID = 0;
-	const int F_SUB_REL = 1;
-	const int F_SUB_OBJ = 2;
-	const int F_POS = 3;
+	const int F_POS = 1;
+	const int F_SUB_REL = 2;
+	const int F_SUB_OBJ = 3;
 	const int F_RANK = 4;
 
 	id_transform_func_t f_transform =
@@ -756,10 +756,20 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, session
 
 	int s_rc = sqlite3_step(_get_stmt);
 	if (s_rc == SQLITE_ROW) {
-		t.id( f_transform((const char*) sqlite3_column_text(_get_stmt, F_ID)) );
+		const std::string tag_id{(const char*) sqlite3_column_text(_get_stmt, F_ID)};
+		auto pos = (tagd::part_of_speech) sqlite3_column_int(_get_stmt, F_POS);
+		if (pos == tagd::POS_URL) {
+			// convert hduri to url
+			tagd::HDURI u(tag_id);
+			if (!u.ok())
+				return this->ferror(u.code(), "failed to init HDURI: %s", id.c_str());
+			t.id(u.id());
+		} else {
+			t.id(f_transform(tag_id));
+		}
 		t.sub_relator( f_transform((const char*) sqlite3_column_text(_get_stmt, F_SUB_REL)) );
 		t.super_object( f_transform((const char*) sqlite3_column_text(_get_stmt, F_SUB_OBJ)) );
-		t.pos( (tagd::part_of_speech) sqlite3_column_int(_get_stmt, F_POS) );
+		t.pos(pos);
 		t.rank( (const char*) sqlite3_column_text(_get_stmt, F_RANK) );
 
 		this->get_relations(t.relations, id, ssn, flags);
@@ -794,22 +804,26 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, session
 	RET_SSN_CODE(tagd::TAGD_OK);
 }
 
-tagd::code sqlite::get(tagd::url& u, const tagd::id_type& id, session* ssn, flags_t flags) {
+tagd::code sqlite::get(tagd::url& get_url, const tagd::id_type& id, session* ssn, flags_t flags) {
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 
 	// id should be a canonical url
-	u.init(id);
+	tagd::url u(id);
 	if (!u.ok())
 		RET_SSN_FERROR(u.code(), "url init failed: %s", id.c_str());
 
 	// we use hduri to identify urls internally
-	tagd::id_type hduri = u.hduri();
-	this->get((tagd::abstract_tag&)u, hduri, ssn, flags);
+	auto hduri = u.hduri();
+
+	get_url = u;
+	assert(get_url.ok());
+	assert(hduri == get_url.hduri());
+
+	this->get((tagd::abstract_tag&)get_url, hduri, ssn, flags);
 	OK_OR_RET_SSN_ERR(); // this or ssn errors already set
 
-	u.init_hduri(hduri);  // id() should now be canonical url
-	if (!u.ok())
-		RET_SSN_FERROR(u.code(), "url init_hduri failed: %s", hduri.c_str());
+	if (!get_url.ok())
+		RET_SSN_FERROR(u.code(), "get url failed: %s", get_url.id().c_str());
 
 	RET_SSN_CODE(tagd::TAGD_OK);
 }
@@ -2569,8 +2583,7 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 		if (pos != tagd::POS_URL) {
 			t = new tagd::abstract_tag( f_transform((const char*) sqlite3_column_text(_related_stmt, F_SUBJECT)) );
 		} else {
-			t = new tagd::url();
-			((tagd::url*)t)->init_hduri( (const char*) sqlite3_column_text(_related_stmt, F_SUBJECT) );
+			t = new tagd::HDURI( (const char*) sqlite3_column_text(_related_stmt, F_SUBJECT) );
 			if (t->code() != tagd::TAGD_OK) {
 				auto tc = t->code();
 				if (ssn) {
@@ -2647,8 +2660,7 @@ tagd::code sqlite::get_children(tagd::tag_set& R, const tagd::id_type& super_obj
 				f_transform((const char*) sqlite3_column_text(_get_children_stmt, F_ID))
 			);
 		} else {
-			t = new tagd::url();
-			((tagd::url*)t)->init_hduri( (const char*) sqlite3_column_text(_get_children_stmt, F_ID) );
+			t = new tagd::HDURI( (const char*) sqlite3_column_text(_get_children_stmt, F_ID) );
 			if (t->code() != tagd::TAGD_OK) {
 				this->ferror( t->code(), "failed to init related url: %s",
 						(const char*) sqlite3_column_text(_get_children_stmt, F_ID) );
@@ -3190,8 +3202,7 @@ tagd::code sqlite::dump(std::ostream& os) {
 			}
 
 			if (pos == tagd::POS_URL) {
-				t = new tagd::url;
-				((tagd::url*)t)->init_hduri(id);
+				t = new tagd::HDURI(id);
 			} else {
 				t = new tagd::abstract_tag(id);
 			}

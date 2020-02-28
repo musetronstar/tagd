@@ -139,7 +139,7 @@ void scanner::scan(const char *cur, size_t sz) {
 #define YYSETSTATE(x)   { _state = (x);  }
 #define	YYFILL(n)	{ if(_do_fill && _evbuf && !_eof){ this->fill(); if(_driver->has_errors()) return; } }
 #define YYMARKER        _mark
-#define YYDEBUG(s,c) { if(driver::_trace_on) std::cerr << "scanner debug: s = " << s << ", c = " << c << std::endl; }
+#define YYDEBUG(s,c) { if(driver::_trace_on) std::cerr << "yydebug: s = " << s << ", c = " << c << std::endl; }
 
 next:
 
@@ -157,6 +157,7 @@ next:
 	SCHEME_SPEC_LCHAR = [^\000 \t\r\n'",;]{1} ;
 	URI = URI_SCHEME SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
 	URL = URI_SCHEME "//" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
+	HDURI = "hd:" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
 
 	TAGL_FILE  = [^\000 \t\r\n'"]* ".tagl";
 
@@ -226,6 +227,8 @@ next:
 	                     }
 
 	URL                  {  PARSE_VALUE(TOK_URL); }
+
+	HDURI                {  PARSE_VALUE(TOK_HDURI); }
 
 	URI                  {  goto lookup_parse_uri; }
 

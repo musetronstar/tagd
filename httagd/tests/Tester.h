@@ -65,6 +65,7 @@ tagdb_tester::tagdb_tester() {
 	put_test_tag("bite", HARD_TAG_ENTITY, tagd::POS_TAG);
 	put_test_tag("swim", HARD_TAG_ENTITY, tagd::POS_TAG);
 	put_test_tag("information", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("title", HARD_TAG_ENTITY, tagd::POS_TAG);
 	put_test_tag("internet_security", "information", tagd::POS_TAG);
 	put_test_tag("child", HARD_TAG_ENTITY, tagd::POS_TAG);
 	put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
@@ -100,6 +101,13 @@ tagdb_tester::tagdb_tester() {
 	_cat = cat;
 
 	put_test_tag("breed", "dog", tagd::POS_TAG);
+
+	const std::string url_str = "https://en.wikipedia.org/wiki/Dog";
+	tagd::url u(url_str);
+	u.relation("about", "dog");
+	assert(u.code() == tagd::TAGD_OK);
+	assert(u.related("about", "dog"));
+	db[url_str] = u;
 }
 
 tagd::part_of_speech tagdb_tester::pos(const tagd::id_type& id, tdb_sess_t*, tdb_flags_t) {
@@ -196,14 +204,18 @@ tagd::code tagdb_tester::query(tagd::tag_set& T, const tagd::interrogator& q, td
 class callback_tester : public TAGL::callback {
 		tagdb::tagdb *_tdb;
 
-		void renew_last_tag(const tagd::part_of_speech& pos = tagd::POS_TAG) {
+		void renew_last_tag(const tagd::id_type id, const tagd::part_of_speech& pos = tagd::POS_TAG) {
 			if (last_tag != nullptr)
 				delete last_tag;
 
-			if (pos == tagd::POS_URL)
-				last_tag = new tagd::url();
-			else
-				last_tag = new tagd::abstract_tag();
+			if (pos == tagd::POS_URL) {
+				assert(!id.empty());
+				last_tag = new tagd::url(id);
+			} else {
+				last_tag = ( id.empty()
+							 ? new tagd::abstract_tag()
+							 : new tagd::abstract_tag(id) );
+			}
 		}
 
 	public:
@@ -225,10 +237,8 @@ class callback_tester : public TAGL::callback {
 
 		void cmd_get(const tagd::abstract_tag& t) {
 			cmd = TOK_CMD_GET;
-			renew_last_tag(t.pos());
+			renew_last_tag(t.id(), t.pos());
 			last_code = _tdb->get(*last_tag, t.id(), nullptr);
-			if(t.pos() == tagd::POS_URL)
-				((tagd::url*)last_tag)->init(t.id());
 		}
 
 		void cmd_put(const tagd::abstract_tag& t) {
@@ -237,10 +247,8 @@ class callback_tester : public TAGL::callback {
 				return;
 			}
 			cmd = TOK_CMD_PUT;
-			renew_last_tag(t.pos());
+			renew_last_tag(t.id(), t.pos());
 			*last_tag = t;
-			if (t.pos() == tagd::POS_URL)
-				((tagd::url*)last_tag)->init(t.id());
 			last_code = _tdb->put(*last_tag, nullptr);
 		}
 
@@ -250,10 +258,8 @@ class callback_tester : public TAGL::callback {
 				return;
 			}
 			cmd = TOK_CMD_DEL;
-			renew_last_tag(t.pos());
+			renew_last_tag(t.id(), t.pos());
 			*last_tag = t;
-			if (t.pos() == tagd::POS_URL)
-				((tagd::url*)last_tag)->init(t.id());
 			last_code = _tdb->del(*last_tag, nullptr);
 		}
 
@@ -261,7 +267,7 @@ class callback_tester : public TAGL::callback {
 			assert (q.pos() == tagd::POS_INTERROGATOR);
 
 			cmd = TOK_CMD_QUERY;
-			renew_last_tag();
+			renew_last_tag(q.id(), q.pos());
 
 			*last_tag = q;
 			last_tag_set.clear();
@@ -271,7 +277,7 @@ class callback_tester : public TAGL::callback {
 		void cmd_error() {
 			cmd = _driver->cmd();
 
-			renew_last_tag();
+			renew_last_tag(_driver->tag().id());
 			if (!_driver->tag().empty())
 				*last_tag = _driver->tag();
 		}
@@ -370,6 +376,58 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
 		TS_ASSERT( tagl.tag().related("_has", "legs") )
 		TS_ASSERT( tagl.tag().related("_can", "bark") )
+
+		evbuffer_free(input);
+	}
+
+    void test_get_tagdurl_hduri(void) {
+		INIT_TDB_TAGL();
+		const char *hduri = "hd:org!wikipedia!en!/wiki/Dog!!!!!!https";
+		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, std::string("/").append(hduri)));
+		tagl.finish();
+		std::cerr << "tag:" << std::endl << tagl.tag() << std::endl;
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_GET )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "https://en.wikipedia.org/wiki/Dog" )
+		// TODO WFT FAILS
+		// TS_ASSERT( tagl.tag().related("about", "dog") )
+	}
+
+	void test_put_tagdurl_evbuffer_body_constrained_url(void) {
+		INIT_TDB_TAGL();
+		const std::string hduri{"hd:org!wikipedia!en!/wiki/Cat!!!!!!https"};
+		tagl.tagdurl_put(httagd::request(httagd::HTTP_PUT, std::string("/").append(hduri)));
+
+		const std::string s(">> https://en.wikipedia.org/wiki/Cat about cat _has title = \"Cat - Wikipedia, the free encyclopedia\"");
+		struct evbuffer *input = evbuffer_new();
+		evbuffer_add(input, s.c_str(), s.size());
+		tagl.execute(input);
+		tagl.print_errors();
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "https://en.wikipedia.org/wiki/Cat" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "_url" )
+		TS_ASSERT( tagl.tag().related("about", "cat") )
+		TS_ASSERT( tagl.tag().related("_has", "title", "Cat - Wikipedia, the free encyclopedia") )
+
+		evbuffer_free(input);
+	}
+
+	void test_put_tagdurl_evbuffer_body_constrained_hduri(void) {
+		INIT_TDB_TAGL();
+		const char *hduri = "hd:org!wikipedia!en!/wiki/Cat!!!!!!https";
+		tagl.tagdurl_put(httagd::request(httagd::HTTP_PUT, std::string("/").append(hduri)));
+
+		const std::string s = std::string(">> ").append(hduri).append(" about cat _has title = \"Cat - Wikipedia, the free encyclopedia\"");
+		struct evbuffer *input = evbuffer_new();
+		evbuffer_add(input, s.c_str(), s.size());
+		tagl.execute(input);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "https://en.wikipedia.org/wiki/Cat" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "_url" )
+		TS_ASSERT( tagl.tag().related("about", "cat") )
+		TS_ASSERT( tagl.tag().related("_has", "title", "Cat - Wikipedia, the free encyclopedia") )
 
 		evbuffer_free(input);
 	}

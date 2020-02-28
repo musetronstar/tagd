@@ -20,7 +20,10 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
     RANK_MAX_VALUE,  // max value per rank level
     RANK_MAX_LEN = 255, // max bytes in _data string
 
-    // url errors
+	// URI errors
+    URI_ERR_SCHEME,
+
+    // URL errors
     URL_EMPTY,
     URL_MAX_LEN = 2112, /* We are the Priests of the Temples of Syrinx */
     URL_ERR_SCHEME,

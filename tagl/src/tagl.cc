@@ -413,4 +413,34 @@ tagd::code driver::include_file(const std::string& path) {
 
 }
 
+tagd::code driver::new_url(const std::string& url) {
+	this->delete_tag();
+
+	auto *u = new tagd::url(url);
+	if (!u->ok()) {
+		delete u;
+		return this->ferror(u->code(), "parse URL failed: %s", url.c_str());
+	}
+	
+	if (!_constrain_tag_id.empty()) {
+		// the url constrained url can be either in URI or HDURI form
+		tagd::url uc(_constrain_tag_id);
+		if (!uc.ok()) {
+			delete u;
+			return this->ferror(uc.code(), "parse URL failed for constrained tag id: %s", _constrain_tag_id.c_str());
+		}
+
+		if (u->id() != uc.id()) {
+			delete u;
+			return this->ferror(tagd::TAGL_ERR, "tag id constrained as: %s", _constrain_tag_id.c_str());
+		}
+	}
+
+	_tag = u;
+	return _tag->code();
+}
+
+
+
+
 } // namespace TAGL

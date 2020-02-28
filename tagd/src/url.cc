@@ -8,42 +8,41 @@
 
 namespace tagd {
 
-tagd::code url::init(const std::string &url) {
-    if (!this->empty()) this->clear();
+tagd::code url::init(const std::string &u) {
+    if (u.size() == 0) return _code;  // URL_EMPTY
+    if (u.size() > URL_MAX_LEN) return code(URL_MAX_LEN);
 
-    size_t sz = url.size();
-    if (sz == 0) return _code;  // URL_EMPTY
-
-    if (sz > URL_MAX_LEN) return code(URL_MAX_LEN);
-
-    _id = url;
+	auto url_str = u;  // copy becuase we lower scheme
+	auto sz = url_str.size();
     url_size_t i = 0;
+
+	auto f_scheme = [this, &url_str] {
+		return url_str.substr(0, this->_scheme_len);
+	};
 
 // scheme
     for (; i < sz; i++) {
-        _id[i] = tolower(_id[i]);
-        if (_id[i] == ':') {
-            if (i == 0) return code(URL_ERR_SCHEME);
+        url_str[i] = tolower(url_str[i]);
+        if (url_str[i] == ':') {
+            if (i == 0)
+				return code(URL_ERR_SCHEME);
 
-            if (_id.substr(i, 3) == "://") {
-				/*
-				 * hduri:com:example:http
-				 * becomes:
-				 * http://example.com
-				 */
-				if (_id.substr(0, i) == "hduri")
-					return this->init_hduri(_id.substr(i+3));
-                _scheme_len = i;
+			_scheme_len = i;
+            if (url_str.substr(i, 3) == "://") {
                 i += 3;
                 goto authority;
-            } else if (_id.substr(0, i) == "mailto") {
+			} 
+			
+			if (url_str.substr(0, HDURI_SCHEME.size()) == HDURI_SCHEME)
+				return this->init_hduri(url_str);
+
+			if (url_str.substr(0, i) == "mailto") {
                 // techically a uri, but lets allow it
-                _scheme_len = i;
                 i++;  // pass over ':'
                 goto authority;
-            } else {
-                return code(URL_ERR_SCHEME);
             }
+
+			return code(URL_ERR_SCHEME);
         }
     }
 
@@ -62,7 +61,7 @@ authority:
 
     _user_offset = i;
     for (; i < sz; i++) {
-        switch (_id[i]) {
+        switch (url_str[i]) {
             case '@':
                 if (i == _user_offset) return code(URL_ERR_USER);
                 _user_len = i - _user_offset;
@@ -80,7 +79,7 @@ authority:
                 _host_offset = _user_offset;
 				_user_offset = _user_len = 0;
                 _host_len = i - _host_offset;
-                if (_host_len == 0 && this->scheme() != "file")
+                if (_host_len == 0 && f_scheme() != "file")
 					return code(URL_ERR_HOST);
                 goto path;
             case '?':
@@ -117,12 +116,12 @@ pass:
     /*
         If we made it here, the parsed out user may in fact be a host.
         If no '@' is encountered, we can assume the user is really a host.
-        Empty passwords are ok (i.e. http://joe:example.com)
+        Empty passwords are allowed (i.e. http://joe:example.com)
     */
 
     _pass_offset = i;
     for (; i < sz; i++) {
-        switch (_id[i]) {
+        switch (url_str[i]) {
             case '@':
                 _pass_len = i - _pass_offset;
                 i++; // advance past '@'
@@ -178,7 +177,7 @@ host:
         // I wish their were a more elegent way than repeating
         // the same two lines of code for each case
         // We could use gcc's "computed labels" but that's not portable
-        switch (_id[i]) {
+        switch (url_str[i]) {
             case '/':
                 // empty host
                 if (i == _host_offset) return code(URL_ERR_HOST);
@@ -213,7 +212,7 @@ host:
 port:
     _port_offset = i;
     for (; i < sz; i++) {
-        switch (_id[i]) {
+        switch (url_str[i]) {
             case '/':
                 if (i == _port_offset) return code(URL_ERR_PORT);
                 _port_len = i - _port_offset;
@@ -239,7 +238,7 @@ port:
 path:
     _path_offset = i;
     for (; i < sz; i++) {
-        switch (_id[i]) {
+        switch (url_str[i]) {
             case '?':
                 if (i == _path_offset) return code(URL_ERR_PATH);
                 _path_len = i - _path_offset;
@@ -261,7 +260,7 @@ path:
 query:
     _query_offset = i;
     for (; i < sz; i++) {
-        if (_id[i] == '#') {
+        if (url_str[i] == '#') {
             _query_len = i - _query_offset;
             i++;  // advance past '#'
             goto fragment;
@@ -278,20 +277,26 @@ fragment:
 	if (_fragment_len > 0)
 
 url_ok:
-	this->host_lower();
+	// lower host
+	for (i = _host_offset; i < (_host_offset + _host_len); i++)
+		url_str[i] = tolower(url_str[i]);
+	_id = url_str;
     return this->code(TAGD_OK);
 }
 
-tagd::code url::init_hduri(const std::string &hduri) {
-    if (!this->empty()) this->clear();
+tagd::code url::init_hduri(const std::string &uri) {
+	if (uri.substr(0, HDURI_SCHEME.size()) != HDURI_SCHEME)
+		return code(URI_ERR_SCHEME);
 
-    size_t sz = hduri.size();
+	// payload after uri scheme
+	const std::string& hduri = uri.substr(HDURI_SCHEME.size());
+    auto sz = hduri.size();
     if (sz == 0) return _code;  // URL_EMPTY
 
     if (sz > URL_MAX_LEN) return code(URL_MAX_LEN);
 
 	// find scheme (at the end)
-    size_t i = sz;
+    auto i = sz;
 	while (--i > 0) {
 		if (hduri[i] == HDURI_DELIM)
 			break;
@@ -311,7 +316,7 @@ tagd::code url::init_hduri(const std::string &hduri) {
 
 	{
 		// we will split on the hduri before !scheme
-		std::string s(hduri.substr(0, i));
+		const std::string& s = hduri.substr(0, i);
 
 		size_t idx, j;
 		idx = j = i = 0;
@@ -345,10 +350,23 @@ tagd::code url::init_hduri(const std::string &hduri) {
 		sz += _user_len;
 
 		if (elems[HDURI_PASS]) {
-			ss_url << ':' << decode_hduri_delim(*(elems[HDURI_PASS]));
-			_pass_offset = sz + 1;
-			_pass_len = elems[HDURI_PASS]->size();
-			sz += _pass_len + 1;
+			// an encoded NULL (%00) denotes an empty password
+			//   http://user:@example.com
+			// versus a non-existant password
+			//   http://user@example.com
+			if (*(elems[HDURI_PASS]) == "%00") { // literal empty password
+				ss_url << ':';
+				_pass_offset = sz + 1;
+				_pass_len = 0;  // literal empty passwd gets offset but zero len
+				sz += 1;
+			} else {
+				_pass_len = elems[HDURI_PASS]->size();
+				if (_pass_len > 0) {
+					ss_url << ':' << decode_hduri_delim(*(elems[HDURI_PASS]));
+					_pass_offset = sz + 1;
+					sz += _pass_len + 1;
+				}
+			}
 		}
 
 		ss_url << '@';
@@ -448,43 +466,32 @@ std::string decode_hduri_delim(std::string elem) {
 //  http://sub2.sub1.example.co.uk/a/b/c?id=foo&x=123#summary
 //                     ||  ||
 //                     \/  \/
-//  uk.co!example!sub1.sub2!/a/b/c!?id=foo&x=123!summary!http
-//    |    |        |          |         |        |     ^  |
-//  rpub   |       rsub       path     query    anchor  ^  |
-//       private                                        ^ scheme
+//  uk.co!example!sub1.sub2!/a/b/c!?id=foo&x=123!summary!!!!http
+//    |    |        |          |         |        |     ^    |
+//  rpub   |       rsub       path     query   fragment ^    |
+//       private                                        ^   scheme
 //                                                      ^
-//	port, user, pass are optional (can be dropped) in this case,
-//	because they are followed by non-empty elements
+//	though port, user, pass are empty, they must have placeholders
 //
-//  empty elements between non-empty ones, must be delimmed,
+//  empty URL parts between non-empty ones still must have placeholders
 //  for example:
 //
 //  http://example.com?hi=hey
 //  			|
 //              v
-//  com!example!!!?hi=hey!http
-//
-//  rsub and path are blank, but must be represented
-//  fragment, port, user and pass can be dropped because
-//  a trailing scheme is required
+//  com!example!!!?hi=hey!!!!!http
 std::string url::hduri() const {
 	assert(!this->scheme().empty());
 
     std::stringstream ss;
+	ss << HDURI_SCHEME;
+
 	tagd::domain d(this->host());
-	int dropped = 0;  // the number of delims dropped
 
-	auto hduri_elem_f = [&ss, &dropped](const std::string &elem, bool rev_labels=false) {
-		if (!elem.empty()) {
-			if (dropped) {
-				ss << std::string((dropped), HDURI_DELIM);
-				dropped = 0;
-			}
-
-			ss << HDURI_DELIM << encode_hduri_delim(rev_labels ? reverse_labels(elem) : elem);
-		} else {
-			dropped++;
-		}
+	auto hduri_elem_f = [&ss](const std::string &elem, bool rev_labels=false) {
+		ss << HDURI_DELIM;
+		if (!elem.empty())
+			ss << encode_hduri_delim(rev_labels ? reverse_labels(elem) : elem);
 	};
 
 	if (!d.pub().empty())
@@ -498,19 +505,13 @@ std::string url::hduri() const {
 	hduri_elem_f(this->port());
 	hduri_elem_f(this->user());
 
-	// we have to distinguish between "no password"
-	// and "blank password"
-	if (_pass_offset != 0 && _pass_len == 0) {
-		if (dropped) {
-			ss << std::string(dropped, HDURI_DELIM);
-			dropped = 0;
-		}
-		ss << HDURI_DELIM;  // :<blank pass>
-	} else {
-		hduri_elem_f(this->pass());
-	}
+	// we have to distinguish between "no password" and "blank password"
+	if (_pass_offset != 0 && _pass_len == 0)
+		   ss << HDURI_DELIM << "%00"; // :<blank pass>
+	else
+		   hduri_elem_f(this->pass());
 
-	ss << HDURI_DELIM << encode_hduri_delim(this->scheme());
+	hduri_elem_f(this->scheme());
 
     return ss.str();
 }
@@ -592,11 +593,17 @@ bool url::looks_like_url(const std::string& s) {
 }
 
 // if looks like hduri
-bool url::looks_like_hduri(const std::string& str) {
-	size_t i = str.rfind(HDURI_DELIM);
+bool url::looks_like_hduri(const std::string& uri) {
+	if (uri.substr(0, HDURI_SCHEME.size()) != HDURI_SCHEME)
+		return false;
+
+	// payload after uri scheme
+	const std::string& str = uri.substr(HDURI_SCHEME.size());
+
+	auto i = str.rfind(HDURI_DELIM);
 	if (i == std::string::npos) return false;
 
-	int sz = str.size() - i;
+	auto sz = str.size() - i;
 	switch (sz) {
 		case 4:  // "!ftp"
 			if (str.substr((i+1), sz-1) == "ftp")

@@ -119,8 +119,7 @@ class tagdb_tester : public tagdb::tagdb {
 			} else if (t.pos() == tagd::POS_URL) {
 				// we could make a tagd::url copy constructor/operator
 				// but this is the only place where this madness occurs
-				tagd::url u;
-				u.init(t.id());
+				tagd::url u(t.id());
 				u.relations = t.relations;
 				db[u.hduri()] = u;
 			} else {
@@ -137,10 +136,15 @@ class tagdb_tester : public tagdb::tagdb {
 			}
 
 			tagd::abstract_tag existing;
-			auto id = (
-				t.pos() == tagd::POS_URL
-				? static_cast<tagd::url const *>(&t)->hduri()
-				: t.id() );
+			tagd::id_type id;
+			if (t.pos() == tagd::POS_URL) {
+				tagd::url u(t.id());
+				if (!u.ok())
+					return this->ferror(u.code(), "del failed: %s", t.id().c_str());
+				id = u.hduri();
+			} else {
+				id = t.id();
+			}
 
 			this->get(existing, id, ssn, flags);
 			if (this->code() != tagd::TAGD_OK)
@@ -243,11 +247,14 @@ class callback_tester : public TAGL::callback {
 
 		void cmd_get(const tagd::abstract_tag& t) {
 			cmd = TOK_CMD_GET;
-			renew_last_tag(t.pos());
 			if(t.pos() == tagd::POS_URL) {
-				((tagd::url*)last_tag)->init(t.id());
-				last_code = _tdb->get(*last_tag, ((tagd::url*)last_tag)->hduri(), _driver->session_ptr());
+				if (last_tag != nullptr)
+					delete last_tag;
+				auto u = new tagd::url(t.id());
+				last_tag = u;
+				last_code = _tdb->get(*last_tag, u->hduri(), _driver->session_ptr());
 			} else {
+				renew_last_tag(t.pos());
 				last_code = _tdb->get(*last_tag, t.id(), _driver->session_ptr());
 			}
 		}
@@ -258,11 +265,18 @@ class callback_tester : public TAGL::callback {
 				return;
 			}
 			cmd = TOK_CMD_PUT;
-			renew_last_tag(t.pos());
-			*last_tag = t;
-			if (t.pos() == tagd::POS_URL)
-				((tagd::url*)last_tag)->init(t.id());
-			last_code = _tdb->put(*last_tag, _driver->session_ptr());
+			if (t.pos() == tagd::POS_URL) {
+				if (last_tag != nullptr)
+					delete last_tag;
+				auto u = new tagd::url(t.id());
+				last_tag = u;
+				*last_tag = t;
+				last_code = _tdb->put(*last_tag, _driver->session_ptr());
+			} else {
+				renew_last_tag(t.pos());
+				*last_tag = t;
+				last_code = _tdb->put(*last_tag, _driver->session_ptr());
+			}
 		}
 
 		void cmd_del(const tagd::abstract_tag& t) {
@@ -274,7 +288,8 @@ class callback_tester : public TAGL::callback {
 			renew_last_tag(t.pos());
 			*last_tag = t;
 			if (t.pos() == tagd::POS_URL) {
-				((tagd::url*)last_tag)->init(t.id());
+				tagd::url u(t.id());
+				last_tag->id(u.id());
 			}
 
 			last_code = _tdb->del(*last_tag, _driver->session_ptr());
@@ -1456,7 +1471,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tc == tagl.code() )
 
 		TS_ASSERT_EQUALS( cb.last_tag->id(), "http://hypermega.com" )
-		TS_ASSERT_EQUALS( ((tagd::url*)cb.last_tag)->hduri(), "com:hypermega:http" )
+		TS_ASSERT_EQUALS( ((tagd::url*)cb.last_tag)->hduri(), "hd:com!hypermega!!!!!!!!http" )
 		TS_ASSERT_EQUALS( cb.last_tag->super_object(), HARD_TAG_URL )
 		TS_ASSERT( cb.last_tag->related("about", "internet_security") )
 	}
@@ -1477,7 +1492,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tc == tagl.code() )
 
 		TS_ASSERT_EQUALS( cb.last_tag->id(), "http://hypermega.com" )
-		TS_ASSERT_EQUALS( ((tagd::url*)cb.last_tag)->hduri(), "com:hypermega:http" )
+		TS_ASSERT_EQUALS( ((tagd::url*)cb.last_tag)->hduri(), "hd:com!hypermega!!!!!!!!http" )
 		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "_url" )
 		TS_ASSERT( cb.last_tag->related("about", "internet_security") )
 	}
@@ -1503,6 +1518,7 @@ class Tester : public CxxTest::TestSuite {
 				"!! https://en.wikipedia.org/wiki/Dog\n"
 				"about cat"
 			);
+		tagl.print_errors();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 
 		tc = tagl.execute( "<< https://en.wikipedia.org/wiki/Dog ;" );
@@ -1540,15 +1556,16 @@ class Tester : public CxxTest::TestSuite {
 
 		// hduri
 		// tagl.trace_on();
-		tc = tagl.execute( "<< org:wikipedia:en:/wiki/-99Dog:https" );
+		const char *hduri = "hd:org!wikipedia!en!/wiki/-99Dog!!!!!!https";
+		tc = tagl.execute( std::string("<< ").append(hduri) );
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 
 		TS_ASSERT_EQUALS( cb.last_tag->id(), "https://en.wikipedia.org/wiki/-99Dog" )
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		TS_ASSERT_EQUALS( static_cast<tagd::url *>(cb.last_tag)->hduri(), "org:wikipedia:en:/wiki/-99Dog:https" )
+		TS_ASSERT_EQUALS( static_cast<tagd::url *>(cb.last_tag)->hduri(), hduri )
 		TS_ASSERT( cb.last_tag->related("about", "dog") )
 
-		tc = tagl.execute( "!! org:wikipedia:en:/wiki/-99Dog:https" );
+		tc = tagl.execute( std::string("!! ").append(hduri) );
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 
 		// TODO fix not_found_context_dichotomy (see parser.y)
@@ -1557,9 +1574,25 @@ class Tester : public CxxTest::TestSuite {
 		tagl.execute( "<< https://en.wikipedia.org/wiki/-99Dog ;" );
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
 
-		tagl.execute( "<< org:wikipedia:en:/wiki/-99Dog:https" );
+		tc = tagl.execute( std::string("<< ").append(hduri) );
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
 	}
+
+	void test_constrain_hduri(void) {
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb);
+
+		const std::string hduri{"hd:org!wikipedia!en!/wiki/Dog!!!!!!https"};
+		tagl.constrain_tag_id(hduri);
+		tagd::code tc = tagl.execute(
+				">> https://en.wikipedia.org/wiki/Dog\n"
+				"about dog\n"
+			);
+		tagl.print_errors();
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+	}
+
 
 	void test_uri_put_get_semicolon(void) {
 		tagdb_tester tdb;
@@ -1575,15 +1608,16 @@ class Tester : public CxxTest::TestSuite {
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 
-		tc = tagl.execute( "<< org:wikipedia:en:/wiki/Dog:https;\n" );
+		const char *hduri = "hd:org!wikipedia!en!/wiki/Dog!!!!!!https";
+		tc = tagl.execute(std::string("<< ").append(hduri));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 
 		TS_ASSERT_EQUALS( cb.last_tag->id(), "https://en.wikipedia.org/wiki/Dog" )
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		TS_ASSERT_EQUALS( static_cast<tagd::url *>(cb.last_tag)->hduri(), "org:wikipedia:en:/wiki/Dog:https" )
+		TS_ASSERT_EQUALS( static_cast<tagd::url *>(cb.last_tag)->hduri(), hduri )
 		TS_ASSERT( cb.last_tag->related("about", "myuri:dog") )
 
-		tc = tagl.execute( "!! org:wikipedia:en:/wiki/Dog:https;" );
+		tc = tagl.execute(std::string("!! ").append(hduri));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 
 		// TODO fix not_found_context_dichotomy (see parser.y)
@@ -1592,7 +1626,7 @@ class Tester : public CxxTest::TestSuite {
 		tagl.execute( "<< https://en.wikipedia.org/wiki/Dog;" );
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
 
-		tagl.execute( "<< org:wikipedia:en:/wiki/Dog:https;" );
+		tc = tagl.execute(std::string("<< ").append(hduri));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
 	}
 

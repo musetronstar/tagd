@@ -91,6 +91,10 @@ test "put_dolphin" \
 	 "PUT" "/dolphin" ">> dolphin _is_a whale" \
 	 "200 OK"
 
+test "get_dolphin" \
+	 "GET" "/dolphin" "" \
+	 "dolphin _is_a whale"
+
 test "put_empty_tagdurl" \
 	 "PUT" "" "narwhal _is_a whale" \
 	 "400 Bad Request"
@@ -154,6 +158,14 @@ test "query_mammal_sub" \
 test "query_parent_relator" \
      "GET" "/animal/blood=warm,tail,bark" "" \
 	 "dog"
+
+test "put_url" \
+	 "PUT" "/hd:org!wikipedia!en!/wiki/Dog!!!!!!https" ">> https://en.wikipedia.org/wiki/Dog about dog _has title = \"Dog - Wikipedia, the free encyclopedia\"" \
+	 "200 OK"
+
+test "get_wiki_dog_url" \
+	 "GET" "/hd:org!wikipedia!en!/wiki/Dog!!!!!!https" "" \
+	 "https://en.wikipedia.org/wiki/Dog(.*)about dog"
 
 # this works, but it shouldn't
 # TODO encode utf8 urls
