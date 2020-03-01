@@ -13,8 +13,6 @@ LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite -L $(TAGL_DIR)/lib -ltagl -L $(TA
 
 all: build
 
-DEBUG=
-debug: DEBUG=debug
 debug: CXXFLAGS = -g
 debug: build
 

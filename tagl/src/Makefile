@@ -8,8 +8,6 @@ PARSER_H = ../include/parser.h
 
 all: build
 
-DEBUG=
-debug: DEBUG=debug
 debug: CXXFLAGS = -g
 debug: RE2CFLAGS = -d
 debug: build

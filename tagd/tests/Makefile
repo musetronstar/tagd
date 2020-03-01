@@ -6,6 +6,8 @@ INC = -I$(INCLUDE)
 LFLAGS = -L../lib -ltagd
 CXXTEST = cxxtestgen --error-printer
 
+all: tag_tests domain_tests url_tests
+
 debug: CXXFLAGS = -g
 debug: all
 
@@ -18,8 +20,6 @@ valgrind: TESTER = $(VALGRIND) ./tester
 valgrind: URL_TESTER = $(VALGRIND) ./url-tester
 valgrind: DOMAIN_TESTER = $(VALGRIND) ./domain-tester
 valgrind: debug
-
-all: tag_tests domain_tests url_tests
 
 tag_tests:
 	$(CXXTEST) Tester.h -o tester.cpp

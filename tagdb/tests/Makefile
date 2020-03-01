@@ -12,16 +12,14 @@ SRC = tester.cc
 BIN = ./tester
 TESTER = $(BIN)
 
-DEBUG=
-debug: DEBUG = debug
+all: build
+
 debug: CXXFLAGS = -g
 debug: all
 
 VALGRIND = valgrind --leak-check=full --error-exitcode=1
 valgrind: TESTER = $(VALGRIND) $(BIN)
 valgrind: debug
-
-all: build
 
 build: $(LIBTAGD)
 	$(CXXTEST) Tester.h -o $(SRC)

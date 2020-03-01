@@ -6,13 +6,13 @@ LIB = $(BUILD_DIR)/libtagdb-sqlite.a
 
 TARGET=
 
+all: build
+
 debug: TARGET = debug
 debug: all
 
 valgrind: debug
 	make -C $(TEST_DIR) valgrind
-
-all: build
 
 build: tagdb $(LIB)
 

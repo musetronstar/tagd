@@ -10,8 +10,6 @@ BIN = tagdb
 
 all: build
 
-DEBUG=
-debug: DEBUG=debug
 debug: CXXFLAGS = -g
 debug: build
 

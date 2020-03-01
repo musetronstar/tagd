@@ -11,13 +11,13 @@ LIB = $(LIB_DIR)/libhttagd.a
 
 TARGET=
 
+all: build
+
 debug: TARGET = debug
 debug: all
 
 valgrind: debug
 	make -C $(TEST_DIR) $(EVHTP_ARGS) valgrind
-
-all: build
 
 build: src lib app
 

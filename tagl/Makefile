@@ -5,14 +5,14 @@ LIB = $(BUILD_DIR)/libtagl.a
 
 TARGET=
 
+all: build
+
 debug: TARGET = debug
 debug: all
 
 valgrind: debug
 valgrind:
 	make -C $(TEST_DIR) valgrind
-
-all: build
 
 build: libtagl
 

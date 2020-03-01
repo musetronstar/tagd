@@ -2,8 +2,6 @@
 
 >> about _type_of _rel
 
->> what _type_of _interrogator
-
 >> substance _type_of _entity
 
 >> physical_object _type_of substance
@@ -35,3 +33,5 @@
 >> is_a _refers_to _is_a _context simple_english
 
 >> has _refers_to _has _context simple_english
+
+>> what _refers_to _what _context simple_english

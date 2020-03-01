@@ -1,5 +1,7 @@
-TARGET=
 MAKE_DIRS = tagd tagdb tagl tagsh httagd
+TARGET=
+
+all: build
 
 debug: TARGET=debug
 debug: build
@@ -12,8 +14,6 @@ tests: build
 
 clean: TARGET=clean
 clean: build
-
-all: build
 
 build: force_look
 	for dir in $(MAKE_DIRS) ; do \

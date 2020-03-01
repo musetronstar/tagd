@@ -17,7 +17,7 @@ LFLAGS += -L$(TAGD_DIR)/lib -ltagd
 LFLAGS += -L$(TAGL_DIR)/lib -ltagl
 LFLAGS += -L$(TAGSH_DIR)/lib -ltagsh
 
-LFLAGS +=  -lsqlite3 -levent -lreadline
+LFLAGS += -lsqlite3 -levent -lreadline
 LFLAGS += -lctemplate_nothreads
 
 ifdef EVHTP_SRC_DIR
@@ -29,6 +29,8 @@ endif
 
 LFLAGS += -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
 
+all: build
+
 debug: CXXFLAGS = -g -Wno-write-strings
 debug: all
 
@@ -36,8 +38,6 @@ TESTER = ./tester
 VALGRIND = valgrind --leak-check=full --error-exitcode=1
 valgrind: TESTER = $(VALGRIND) ./tester
 valgrind: debug
-
-all: build
 
 build: cxx_tests exp_tests
 

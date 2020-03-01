@@ -13,8 +13,6 @@ HARD_TAG_GPERF_H=hard-tags.gperf.h
 
 all: build
 
-DEBUG=
-debug: DEBUG=debug
 debug: CXXFLAGS = -g -DDEBUG
 debug: build
 

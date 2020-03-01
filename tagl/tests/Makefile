@@ -10,14 +10,14 @@ LFLAGS =  -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite -L../lib -ltagl -L$(TAGD_DIR)/li
 
 TESTER = ./tester
 
+all: build
+
 debug: CXXFLAGS = -g -Wno-write-strings
 debug: all
 
 VALGRIND = valgrind --leak-check=full --error-exitcode=1
 valgrind: TESTER = $(VALGRIND) ./tester
 valgrind: debug
-
-all: build
 
 build: tagl_tests
 

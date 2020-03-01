@@ -4,14 +4,14 @@ LIB_DIR = ./lib
 TEST_DIR = ./tests
 LIB = $(LIB_DIR)/libtagsh.a
 
+all: build
+
 TARGET=
 debug: TARGET = debug
 debug: all
 
 valgrind: debug
 	make -C $(TEST_DIR) valgrind
-
-all: build
 
 build: tagsh $(LIB)
 
