@@ -177,15 +177,18 @@ class tagdb_tester : public tagdb::tagdb {
 			return this->error(tagd::TS_INTERNAL_ERR, "fix del() method");
 		}
 
+		// !!!tag_set results hard coded!!!
 		tagd::code query(tagd::tag_set& T, const tagd::interrogator& q, tdb_session_t * = nullptr, tdb_flags_t flags = tdb_flags_t()) {
 			if (q.super_object().empty() &&
 					q.related("legs") &&
 					q.related("tail") ) {
 				T.insert(_cat);
 				T.insert(_dog);
+				return tagd::TAGD_OK;
 			} else if (q.super_object() == "animal") {
 				T.insert(_cat);
 				T.insert(_dog);
+				return tagd::TAGD_OK;
 			}
 
 			return tagd::TS_NOT_FOUND;
@@ -1330,6 +1333,35 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "animal" )
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_HAS, "tail") )
+	}
+
+    void test_query_children(void) {
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb);
+		tagd::code tc = tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_IS_A " animal");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TAGD_OK" )
+		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
+		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "animal" )
+
+		TS_ASSERT( cb.last_tag_set.size() == 2 );
+		tagd::tag_set::iterator it = cb.last_tag_set.begin();
+		TS_ASSERT_EQUALS( it->id(), "cat" )
+		it++;
+		TS_ASSERT_EQUALS( it->id(), "dog" )
+	}
+
+    void test_query_children_empty(void) {
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb);
+		tagd::code tc = tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_IS_A " dog");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )  // TAGL statment ok
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )  // cmd_query returned TS_NOT_FOUND
+		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
+		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "dog" )
+		TS_ASSERT( cb.last_tag_set.size() == 0 );
 	}
 
     void test_query_wildcard_relator(void) {

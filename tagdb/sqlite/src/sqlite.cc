@@ -2888,10 +2888,15 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& q, session 
 		RET_SSN_CODE(this->query_referents(R, intr));
 
 	if (intr.relations.empty()) {
-		if (intr.super_object().empty())
+		if (intr.super_object().empty()) {
 			RET_SSN_ERROR(tagd::TS_MISUSE, "interrogator with empty relations and empty super_object");
-		else
-			RET_SSN_CODE(this->get_children(R, intr.super_object(), ssn, flags));
+		} else {
+			auto tc = this->get_children(R, intr.super_object(), ssn, flags);
+			if (tc == tagd::TS_NOT_FOUND && (flags & F_NO_NOT_FOUND_ERROR))
+				return tagd::TS_NOT_FOUND;
+			else
+				RET_SSN_CODE(tc);
+		}
 	}
 
 	size_t n = 0;
@@ -2921,9 +2926,12 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& q, session 
 		n += merge_containing_tags(R, S);
 	}
 
-
-	if (n == 0)
-		RET_SSN_CODE(tagd::TS_NOT_FOUND);
+	if (n == 0) {
+		if (flags & F_NO_NOT_FOUND_ERROR)
+			return tagd::TS_NOT_FOUND;
+		else
+			RET_SSN_CODE(tagd::TS_NOT_FOUND);
+	}
 
 	RET_SSN_CODE(tagd::TAGD_OK);
 }

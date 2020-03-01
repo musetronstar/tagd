@@ -242,12 +242,12 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 		}
 	} else {
 		if(cmd != TOK_CMD_PUT && cmd != TOK_CMD_DEL) {
-			_driver->error(tagd::TAGD_ERR, "illegal command");
+			_driver->error(tagd::TS_MISUSE, "illegal command");
 			return;
 		}
 
 		if (!opt_search.empty()) {
-			_driver->error(tagd::TAGD_ERR, "illegal use of search terms with method");
+			_driver->error(tagd::TS_MISUSE, "illegal use of search terms with method");
 			return;
 		}
 
@@ -378,20 +378,18 @@ tagd::code httagl::tagdurl_del(const request& req) {
 
 void callback::default_cmd_put(const tagd::abstract_tag& t) {
 	auto ssn = _tx->drvr->session_ptr();
-	_tx->tdb->put(t, ssn, _driver->flags());
-	if (_tx->tdb->has_errors()) {
+	if ( _tx->tdb->put(t, ssn, _driver->flags()) != tagd::TAGD_OK) {
 		std::stringstream ss;
-		_tx->tdb->print_errors(ss);
+		ssn->print_errors(ss);
 		_tx->res->add(ss.str());
 	}
 }
 
 void callback::default_cmd_del(const tagd::abstract_tag& t) {
 	auto ssn = _tx->drvr->session_ptr();
-	_tx->tdb->del(t, ssn, _driver->flags());
-	if (_tx->tdb->has_errors()) {
+	if (_tx->tdb->del(t, ssn, _driver->flags()) != tagd::TAGD_OK) {
 		std::stringstream ss;
-		_tx->tdb->print_errors(ss);
+		ssn->print_errors(ss);
 		_tx->res->add(ss.str());
 	}
 }
@@ -399,15 +397,15 @@ void callback::default_cmd_del(const tagd::abstract_tag& t) {
 void callback::default_cmd_query(const tagd::interrogator& q) {
 	tagd::tag_set T;
 	auto ssn = _tx->drvr->session_ptr();
-	tagd::code tc = _tx->tdb->query(T, q, ssn, _driver->flags());
-
 	std::stringstream ss;
-	if (tc == tagd::TAGD_OK) {
+
+	if (_tx->tdb->query(T, q, ssn, _driver->flags()) == tagd::TAGD_OK) {
 		tagd::print_tag_ids(T, ss);
 		ss << std::endl;
 	} else {
-		_tx->tdb->print_errors(ss);
+		ssn->print_errors(ss);
 	}
+
 	if (ss.str().size())
 		_tx->res->add(ss.str());
 }
@@ -429,7 +427,7 @@ void callback::finish() {
 	}
 
 	_tx->res->send_reply(
-		_tx->most_severe(tagd::TAGD_OK)
+		_tx->most_severe(_tx->drvr->session_ptr()->code())
 	);
 }
 
@@ -440,7 +438,8 @@ evhtp_res response::tagd_code_evhtp_res(tagd::code tc) {
 		case tagd::TAGL_ERR:
 		case tagd::TS_AMBIGUOUS:
 		case tagd::HTTP_ERR:
-			return EVHTP_RES_BADREQ;  // 401
+		case tagd::TS_MISUSE:
+			return EVHTP_RES_BADREQ;  // 400
 		case tagd::TS_NOT_FOUND:
 			return EVHTP_RES_NOTFOUND;	// 404
 		case tagd::TS_DUPLICATE:
@@ -645,7 +644,7 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 	if (tc == tagd::TAGD_OK) {
 		ss << *T << std::endl;
 	} else {
-		_tx->tdb->print_errors(ss);
+		ssn->print_errors(ss);
 	}
 
 	if (_tx->req->method == HTTP_HEAD) {
@@ -664,7 +663,7 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 
 #define RET_IF_ERR()              \
 	if (tc != tagd::TAGD_OK) { \
-		output_errors(tc);     \
+		this->output_errors(tc);     \
 		delete T;              \
 		return;                \
 	}
@@ -734,23 +733,23 @@ void callback::cmd_query(const tagd::interrogator& q) {
 
 	tagd::tag_set R;
 	auto ssn = _tx->drvr->session_ptr();
-	tagd::code tc = _tx->tdb->query(R, q, ssn);
+	tagd::code tc = _tx->tdb->query(R, q, ssn, _driver->flags());
 
-	if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND) {
-		output_errors(tc);
+	if (tc != tagd::TAGD_OK) {
+		this->output_errors(tc);
 		return;
 	}
 
 	view vw;
 	tc = _tx->vws->get(vw, query_view_id(view_name));
 	if (tc != tagd::TAGD_OK) {
-		output_errors(tc);
+		this->output_errors(tc);
 		return;
 	}
 
 	tc = vw.query_function(*_tx, vw, q, R);
 	if (tc != tagd::TAGD_OK) {
-		output_errors(tc);
+		this->output_errors(tc);
 		return;
 	}
 }
@@ -761,7 +760,7 @@ void callback::cmd_error() {
 	if (_tx->req->effective_opt_view() == DEFAULT_VIEW)
 		return this->default_cmd_error();
 
-	output_errors(_tx->code());
+	this->output_errors(_tx->code());
 }
 
 
@@ -775,13 +774,13 @@ void callback::empty() {
 	view vw;
 	tagd::code tc = _tx->vws->get(vw, empty_view_id(view_name));
 	if (tc != tagd::TAGD_OK) {
-		output_errors(tc);
+		this->output_errors(tc);
 		return;
 	}
 
 	tc = vw.empty_function(*_tx, vw);
 	if (tc != tagd::TAGD_OK) {
-		output_errors(tc);
+		this->output_errors(tc);
 		return;
 	}
 }

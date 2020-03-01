@@ -95,6 +95,14 @@ test "get_dolphin" \
 	 "GET" "/dolphin" "" \
 	 "dolphin _is_a whale"
 
+test "get_children" \
+	 "GET" "/mammal/" "" \
+	 "dog, cat, whale, bat"
+
+test "get_children_empty" \
+	 "GET" "/dog/" "" \
+	 "404 Not Found"
+
 test "put_empty_tagdurl" \
 	 "PUT" "" "narwhal _is_a whale" \
 	 "400 Bad Request"
@@ -105,7 +113,7 @@ test "put_slash_empty_tagdurl" \
 
 test "put_illegal_search" \
      "PUT" "/pigeon?q=oops" "_is_a bird" \
-	 "500 Internal Server Error"
+	 "400 Bad Request"
 
 test "get_doggy_not_exists" \
 	 "GET" "/doggy" "" \
@@ -145,7 +153,7 @@ test "get_doggy_deleted_not_exists" \
 
 test "delete_illegal_search" \
      "DELETE" "/bat?q=oops" "" \
-	 "500 Internal Server Error"
+	 "400 Bad Request"
 
 test "delete_bat" \
      "DELETE" "/bat" "" \

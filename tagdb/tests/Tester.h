@@ -1342,6 +1342,33 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT(tag_set_exists(S, "whale"));
 
         S.clear();
+        tagd::interrogator q_mammal_children(HARD_TAG_WHAT, "mammal");
+        tc = tdb.query(S, q_mammal_children, &ssn);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
+        TS_ASSERT(ssn.ok())
+        TS_ASSERT_EQUALS(S.size(), 4);
+        TS_ASSERT(tag_set_exists(S, "dog"));
+        TS_ASSERT(tag_set_exists(S, "cat"));
+        TS_ASSERT(tag_set_exists(S, "whale"));
+        TS_ASSERT(tag_set_exists(S, "bat"));
+
+        S.clear();
+        tagd::interrogator q_dog_no_children(HARD_TAG_WHAT, "dog");
+        tc = tdb.query(S, q_dog_no_children, &ssn, tagdb::F_NO_NOT_FOUND_ERROR);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
+        TS_ASSERT(ssn.ok())
+        TS_ASSERT_EQUALS(S.size(), 0);
+
+        S.clear();
+        tc = tdb.query(S, q_dog_no_children, &ssn);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TS_NOT_FOUND");
+        TS_ASSERT(!ssn.ok())
+        TS_ASSERT_EQUALS(S.size(), 0);
+
+        S.clear();
         tagd::interrogator r(HARD_TAG_WHAT);
         r.relation(HARD_TAG_HAS, "fangs");
         tc = tdb.query(S, r, &ssn);
@@ -1359,6 +1386,21 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT(tag_set_exists(S, "mammal"));
         TS_ASSERT(tag_set_exists(S, "spider"));  // fangs are teeth
         TS_ASSERT(tag_set_exists(S, "snake"));
+
+        S.clear();
+        tagd::interrogator q_not_found(HARD_TAG_WHAT);
+        q_not_found.relation(HARD_TAG_HAS, "dentures");
+        tc = tdb.query(S, q_not_found, &ssn);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TS_NOT_FOUND");
+        TS_ASSERT_EQUALS(S.size(), 0);
+
+        S.clear();
+		ssn.clear_errors();
+        tc = tdb.query(S, q_not_found, &ssn, tagdb::F_NO_NOT_FOUND_ERROR);
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
+        TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
+        TS_ASSERT_EQUALS(S.size(), 0);
 
         S.clear();
         tagd::interrogator q1(HARD_TAG_WHAT);

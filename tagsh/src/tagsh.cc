@@ -137,7 +137,7 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 			break;
 		case tagd::TS_NOT_FOUND:  // TS_NOT_FOUND not an error for queries
 			if (_tsh->echo_result_code)
-				std::cout << "-- " << tagd::code_str(_tdb->code()) << std::endl;
+				std::cout << "-- " << tagd::code_str(tc) << std::endl;
 			break;
 		default:	
 			this->handle_cmd_error();

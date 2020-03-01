@@ -146,9 +146,13 @@ test "delete_bat" \
      "!! bat;" \
 	 "TAGD_OK"
 
-test "query_mammal_sub" \
+test "query_mammal_children" \
 	 "?? what is_a mammal;" \
 	 "dog, cat, whale"
+
+test "query_mammal_children_empty" \
+	 "?? what is_a dog;" \
+	 "TS_NOT_FOUND"
 
 test "query_parent_relator" \
 	 "?? what is_a animal
