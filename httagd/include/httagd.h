@@ -821,9 +821,8 @@ class viewspace : public tagd::errorable {
 			}
 		}
 
-		// TODO insert errors, for get, put failures, etc.
-		// if inserting errors is not always desirable,
-		// add a register_errors(bool) method
+		// TODO add a flags variable to get(), put(), etc.
+		// such as F_DISABLE_ERROR_REPORTING
 
 		tagd::code put(const view& vw) {
 			if ( !_views.emplace(std::make_pair(static_cast<view_id>(vw), vw)).second )

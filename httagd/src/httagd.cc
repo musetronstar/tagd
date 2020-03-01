@@ -379,8 +379,8 @@ tagd::code httagl::tagdurl_del(const request& req) {
 void callback::default_cmd_put(const tagd::abstract_tag& t) {
 	auto ssn = _tx->drvr->session_ptr();
 	_tx->tdb->put(t, ssn, _driver->flags());
-	std::stringstream ss;
 	if (_tx->tdb->has_errors()) {
+		std::stringstream ss;
 		_tx->tdb->print_errors(ss);
 		_tx->res->add(ss.str());
 	}
@@ -389,8 +389,8 @@ void callback::default_cmd_put(const tagd::abstract_tag& t) {
 void callback::default_cmd_del(const tagd::abstract_tag& t) {
 	auto ssn = _tx->drvr->session_ptr();
 	_tx->tdb->del(t, ssn, _driver->flags());
-	std::stringstream ss;
 	if (_tx->tdb->has_errors()) {
+		std::stringstream ss;
 		_tx->tdb->print_errors(ss);
 		_tx->res->add(ss.str());
 	}
@@ -606,9 +606,10 @@ void callback::output_errors(tagd::code ret_tc) {
 
 	// get the error_function view
 	view vw;
+	auto b = _tx->vws->report_errors;
 	_tx->vws->report_errors = false;
 	tagd::code tc = _tx->vws->get(vw, error_view_id(_tx->req->effective_opt_view()));
-	_tx->vws->report_errors = true;
+	_tx->vws->report_errors = b;
 
 	// call error_function_t for the errorable object
 	if (tc == tagd::TAGD_OK)
@@ -620,13 +621,6 @@ void callback::output_errors(tagd::code ret_tc) {
 	if (tc != tagd::TAGD_OK)
 		_tx->add_errors();
 }
-
-#define RET_IF_ERR()              \
-	if (tc != tagd::TAGD_OK) { \
-		output_errors(tc);     \
-		delete T;              \
-		return;                \
-	}
 
 void callback::default_cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag *T;
@@ -663,11 +657,17 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 	} else if (ss.str().size()) {
 		_tx->res->add(ss.str());
 	}
-	RET_IF_ERR();
 
 	// no err
 	delete T;
 }
+
+#define RET_IF_ERR()              \
+	if (tc != tagd::TAGD_OK) { \
+		output_errors(tc);     \
+		delete T;              \
+		return;                \
+	}
 
 void callback::cmd_get(const tagd::abstract_tag& t) {
 	if (_tx->trace_on) std::cerr << "cmd_get()" << std::endl;
