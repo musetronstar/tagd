@@ -1667,7 +1667,7 @@ class Tester : public CxxTest::TestSuite {
         tc = tdb.get(b, a.id(), &ssn); 
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS(b.id(), "http://www.hypermega.com/a/b/c?x=1&y=2#here"); 
-		TS_ASSERT_EQUALS(b.hduri(), "hd:com!hypermega!www!/a/b/c!?x=1&y=2!here!!!!http");
+		TS_ASSERT_EQUALS(b.hduri(), "hd:com!hypermega!www!/a/b/c!?x=1&y=2!#here!!!!http");
         TS_ASSERT(b.relations.size() > 1);
         TS_ASSERT(b.related("about", "computer_security"));
         TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_SCHEME, "http"));
@@ -1677,7 +1677,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_SUBDOMAIN, "www"));
         TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_PATH, "/a/b/c"));
         TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_QUERY, "?x=1&y=2"));
-        TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "here"));
+        TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "#here"));
     }
 
     void test_get_hduri(void) {
@@ -1687,7 +1687,7 @@ class Tester : public CxxTest::TestSuite {
         populate_tags(tdb);
 
 		const std::string url_str{"http://www.hypermega.com/a/b/c?x=1&y=2#here"};
-		const std::string hduri{"hd:com!hypermega!www!/a/b/c!?x=1&y=2!here!!!!http"};
+		const std::string hduri{"hd:com!hypermega!www!/a/b/c!?x=1&y=2!#here!!!!http"};
         tagd::url a(url_str);
         a.relation("about", "computer_security");
         tc = tdb.put(a, &ssn);
@@ -1707,7 +1707,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_SUBDOMAIN, "www"));
         TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_PATH, "/a/b/c"));
         TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_QUERY, "?x=1&y=2"));
-        TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "here"));
+        TS_ASSERT(b.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "#here"));
 
         tagd::url c;
         tc = tdb.get(c, url_str, &ssn); 
@@ -1723,7 +1723,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_SUBDOMAIN, "www"));
         TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_PATH, "/a/b/c"));
         TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_QUERY, "?x=1&y=2"));
-        TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "here"));
+        TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "#here"));
     }
 
     void test_query_url(void) {
