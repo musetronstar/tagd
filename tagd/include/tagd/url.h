@@ -126,6 +126,12 @@ class url : public abstract_tag {
         std::string hduri() const;
         bool empty() const { return _id.empty(); }
 
+		// we have to distinguish between "no password" and "blank password"
+		// empty pass will have non-zero offset and zero length
+		bool pass_empty() const {
+			return (_pass_offset == 0 && _pass_len == 0);
+		}
+
 		// parse keys/vals from query string and populate map - returns num k/v pairs parsed
 		static size_t parse_query(url_query_map_t&, const std::string&);
 		static bool query_find(const url_query_map_t&, std::string& val, const std::string& key);
@@ -141,12 +147,6 @@ class url : public abstract_tag {
             if (len == 0 || this->empty()) return std::string();
             return _id.substr(offset, len);
         }
-
-		// we have to distinguish between "no password" and "blank password"
-		// empty pass will have non-zero offset and zero length
-		bool pass_empty() {
-			return (_pass_offset == 0 && _pass_len == 0);
-		}
 };
 
 // initializes a url with an hduri string

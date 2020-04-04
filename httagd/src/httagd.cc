@@ -3,6 +3,12 @@
 #include "parser.h"  // for CMDs
 #include <evhtp.h>
 
+// functions stat, open, close
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 const char* evhtp_res_str(int tok) {
 	switch (tok) {
 #include "evhtp-results.inc"
@@ -421,8 +427,10 @@ void callback::default_empty() {
 }
 
 void callback::finish() {
+	assert(!_tx->res->reply_sent());  // should only be called once
 	if (_tx->res->reply_sent()) {
-		std::cerr << "reply already sent" << std::endl;
+		if (TRACE_ON)
+			std::cerr << "reply already sent" << std::endl;
 		return;
 	}
 
@@ -431,7 +439,7 @@ void callback::finish() {
 	);
 }
 
-evhtp_res response::tagd_code_evhtp_res(tagd::code tc) {
+evhtp_res tagd_code_evhtp_res(tagd::code tc) {
 	switch (tc) {
 		case tagd::TAGD_OK:
 			return EVHTP_RES_OK;	// 200
@@ -451,26 +459,29 @@ evhtp_res response::tagd_code_evhtp_res(tagd::code tc) {
 }
 
 void response::send_reply(tagd::code tc) {
-	if (_tx->svr->args()->opt_trace)
+	if (TRACE_ON)
 		std::cerr << "send_reply => " << tagd::code_str(tc) << std::endl;
-	this->send_reply(_res_code >= 0 ? _res_code : tagd_code_evhtp_res(tc));
+	this->send_ev_reply(_res_code >= 0 ? _res_code : tagd_code_evhtp_res(tc));
 }
 
-void response::send_reply(evhtp_res res) {
+void response::send_ev_reply(evhtp_res res) {
+	assert(!_reply_sent);  // we shouldn't be calling this more than once
 	if (_reply_sent) {
-		std::cerr << "reply already sent" << std::endl;
+		if (TRACE_ON)
+			std::cerr << "reply already sent" << std::endl;
 		return;
 	}
-	this->add_header("Content-Type", content_type);
-	if (_tx->svr->args()->opt_trace)
+
+	if (TRACE_ON)
 		std::cerr << "send_reply(" << res << "): " << evhtp_res_str(res) << std::endl;
+
 	evhtp_send_reply(_ev_req, res);
 	_res_code = res;
 	_reply_sent = true;
 }
 
 void response::add_header(const std::string &k, const std::string &v) {
-	if (_tx->svr->args()->opt_trace)
+	if (TRACE_ON)
 		std::cerr << "add_header(" << '"' << k << '"' << ", " << '"' << v << '"' << ")" << std::endl;
 
 /* from evhtp.h
@@ -485,17 +496,6 @@ void response::add_header(const std::string &k, const std::string &v) {
 		// params 3,4 must be set, else strings from previous calls can get intermingled
 		evhtp_header_new(k.c_str(), v.c_str(), 1, 1)
 	);
-}
-
-request::request(transaction* tx, evhtp_request_t *ev_req)
-	: _tx{tx}, _ev_req{ev_req}
-{
-	if ( ev_req->uri->query_raw != NULL ) {
-		tagd::url::parse_query(
-			_query_map, (char*)ev_req->uri->query_raw );
-	}
-
-	_path = ev_req->uri->path->full;
 }
 
 std::string request::canonical_url() const {
@@ -586,11 +586,11 @@ std::string request::abs_url_view(const std::string& view_name) const {
 	return url;
 }
 
-std::string request::effective_opt_view() const {
-	std::string view_opt = this->query_opt(QUERY_OPT_VIEW);
+std::string transaction::effective_opt_view() const {
+	std::string view_opt = this->req->query_opt(QUERY_OPT_VIEW);
 	if (view_opt.empty()) {
-		if (!_tx->svr->args()->default_view.empty())
-			return _tx->svr->args()->default_view;  // user supplied default
+		if (!this->svr->args()->default_view.empty())
+			return this->svr->args()->default_view;  // user supplied default
 		else
 			return DEFAULT_VIEW;  // hard-coded default
 	}
@@ -601,13 +601,13 @@ void callback::output_errors(tagd::code ret_tc) {
 	if (!_tx->size())
 		_tx->ferror(tagd::TS_INTERNAL_ERR, "no errors to output, returned: %s", tagd::code_str(ret_tc));
 
-	if (_tx->trace_on) _tx->print_errors();
+	if (TRACE_ON) _tx->print_errors();
 
 	// get the error_function view
 	view vw;
 	auto b = _tx->vws->report_errors;
 	_tx->vws->report_errors = false;
-	tagd::code tc = _tx->vws->get(vw, error_view_id(_tx->req->effective_opt_view()));
+	tagd::code tc = _tx->vws->get(vw, error_view_id(_tx->effective_opt_view()));
 	_tx->vws->report_errors = b;
 
 	// call error_function_t for the errorable object
@@ -669,9 +669,9 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 	}
 
 void callback::cmd_get(const tagd::abstract_tag& t) {
-	if (_tx->trace_on) std::cerr << "cmd_get()" << std::endl;
+	if (TRACE_ON) std::cerr << "cmd_get()" << std::endl;
 
-	std::string view_name = _tx->req->effective_opt_view();
+	std::string view_name = _tx->effective_opt_view();
 	if (view_name == DEFAULT_VIEW)
 		return this->default_cmd_get(t);
 
@@ -725,9 +725,9 @@ void callback::cmd_del(const tagd::abstract_tag& t) {
 
 
 void callback::cmd_query(const tagd::interrogator& q) {
-	if (_tx->trace_on) std::cerr << "cmd_query()" << std::endl;
+	if (TRACE_ON) std::cerr << "cmd_query()" << std::endl;
 
-	std::string view_name = _tx->req->effective_opt_view();
+	std::string view_name = _tx->effective_opt_view();
 	if (view_name == DEFAULT_VIEW)
 		return this->default_cmd_query(q);
 
@@ -755,9 +755,9 @@ void callback::cmd_query(const tagd::interrogator& q) {
 }
 
 void callback::cmd_error() {
-	if (_tx->trace_on) std::cerr << "cmd_error()" << std::endl;
+	if (TRACE_ON) std::cerr << "cmd_error()" << std::endl;
 
-	if (_tx->req->effective_opt_view() == DEFAULT_VIEW)
+	if (_tx->effective_opt_view() == DEFAULT_VIEW)
 		return this->default_cmd_error();
 
 	this->output_errors(_tx->code());
@@ -765,9 +765,9 @@ void callback::cmd_error() {
 
 
 void callback::empty() {
-	if (_tx->trace_on) std::cerr << "empty()" <<  std::endl;
+	if (TRACE_ON) std::cerr << "empty()" <<  std::endl;
 
-	std::string view_name = _tx->req->effective_opt_view();
+	std::string view_name = _tx->effective_opt_view();
 	if (view_name == DEFAULT_VIEW)
 		return this->default_empty();
 
@@ -878,19 +878,18 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagd::server *svr = (httagd::server*)arg;
 
-	// if (svr->trace_on) print_evbuf(ev_req->buffer_in);
+	// if (TRACE_ON) print_evbuf(ev_req->buffer_in);
 
 	// for now, this request uses the servers tagdb reference
 	// TODO allow requests to use other tagdbs (given the request)
 	auto tdb = svr->tdb();
 	auto vws = svr->vws();
 
-	// circular dependencies between transaction and request/response pointers
-	transaction tx(svr, tdb, nullptr, vws, nullptr, nullptr);
-	request req(&tx, ev_req);
-	response res(&tx, ev_req);
-	tx.req = &req;
-	tx.res = &res;
+	request req(ev_req);
+	response res(ev_req);
+
+	// nullptr driver becuase circular depends httagl
+	transaction tx(svr, &req, &res, tdb, nullptr, vws);
 
 	auto ssn = tdb->get_session();
 	if (!req.query_opt_context().empty())
@@ -913,7 +912,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	if (!res.reply_sent())
 		tagl.finish();
 
-	if (tx.trace_on && tx.has_errors()) {
+	if (TRACE_ON && tx.has_errors()) {
 		// TODO write to log
 		tx.print_errors();
 	}
@@ -926,16 +925,114 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	}
 }
 
+// open file given by path and add to buf
+tagd::code response::add_file(const std::string& path, tagd::errorable* err) {
+	auto f_ferror =
+		[err](tagd::code tc, const char* msg, const char *arg) -> tagd::code {
+			if(TRACE_ON)
+				printf(msg, arg);
+			return err == nullptr ? tc : err->ferror(tc, msg, arg);
+		};
+
+	int fd = open(path.c_str(), O_RDONLY);
+	if (fd < 0)
+		return f_ferror(tagd::TS_NOT_FOUND, "failed to open: %s", path.c_str());
+
+	struct stat st;
+	if (fstat(fd, &st) < 0) {
+		close(fd);
+		return f_ferror(tagd::TS_NOT_FOUND, "stat failed: %s", path.c_str());
+	}
+
+	if (st.st_size == 0) {
+		// TODO create flag FAIL_OPEN_ZERO_LENGTH_FILE
+		if (fcntl(fd, F_GETFD) != -1)
+			close(fd);
+		return tagd::TAGD_OK;
+	}
+
+	// evbuffer_add_file closes fd for us; ret 0 is successful, -1 not
+	if (evbuffer_add_file(_ev_req->buffer_out, fd, 0, st.st_size) != 0)
+		return f_ferror(tagd::TAGD_ERR, "evbuffer_add_file failed: %s", path.c_str());
+
+	return tagd::TAGD_OK;
+}
+
+static void
+file_cb(evhtp_request_t * evreq, void * arg) {
+	httagd::server *svr = (httagd::server*)arg;
+	request req(evreq);
+	response res(evreq);
+	base_transaction tx(svr, &req, &res);
+	tagd::code tc;
+	size_t pos;
+
+	// req.path() in the form of: /_file/path/to/file.ext
+	// shift leading "/_file" from request path - becomes file path
+	pos = tagd::file::dir_shift_pos(req.path());
+	assert(pos != std::string::npos);
+	if (pos == std::string::npos) {
+		tc = tx.ferror(tagd::TAGD_ERR, "dir_shift_pos failed: %s", req.path().c_str());
+		tx.print_errors(); // TODO log errors
+		res.send_reply(tc);
+		return;
+	}
+
+	auto path = tagd::io::concat_dir(svr->args()->www_dir, req.path().substr(pos));
+
+	if (TRACE_ON) {
+		std::cerr << "req path: " << req.path() << std::endl;
+		std::cerr << "sys path: " << path << std::endl;
+	}
+
+	// add content_type given file extension if possible
+	pos = tagd::file::ext_pos(path);
+	if (pos != std::string::npos) {
+		auto ext = path.substr(pos);
+		const char *media_type = tagd::file::ext_media_type(ext);
+		if(media_type != nullptr)
+			res.add_header_content_type(media_type);
+
+		if (TRACE_ON)
+			std::cerr << "media_type: " << media_type << std::endl;
+	}
+
+	tc = res.add_file(path, &tx);
+
+	if (tc != tagd::TAGD_OK)
+		tx.print_errors(); // TODO log errors
+
+	res.send_reply(tc);
+}
+
+static void
+favicon_cb(evhtp_request_t * evreq, void * arg) {
+	httagd::server *svr = (httagd::server*)arg;
+
+	request req(evreq);
+	response res(evreq);
+	base_transaction tx(svr, &req, &res);
+
+	res.add_header_content_type("image/x-icon");
+	tagd::code tc = res.add_file(svr->args()->favicon, &tx);
+	if (tc != tagd::TAGD_OK) {
+		// TODO log errors
+		tx.print_errors();
+	}
+
+	res.send_reply(tc);
+}
+
 tagd::code server::start() {
 
 	if (_args->opt_trace) {
 		_tdb->trace_on();
-		TAGL::driver::trace_on((char *)"trace: ");
 	}
 
 	// for debug printing request data
 	// evhtp_set_post_accept_cb(_htp, set_my_connection_handlers, nullptr);
-    
+	evhtp_set_cb(_htp, "/_file", file_cb, this);
+	evhtp_set_cb(_htp, "/favicon.ico", favicon_cb, this);
 	evhtp_set_gencb(_htp, httagd::main_cb, this);
 
 	const char *bind_addr = ( _bind_addr == "localhost" ? "0.0.0.0" : _bind_addr.c_str() );

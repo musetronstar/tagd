@@ -172,16 +172,10 @@ std::vector<std::string> split_string(const std::string &s, const char *delim = 
     return results;
 }
 
-// TODO put in a utility library
-bool tagsh::file_exists(const std::string& fname) {
-  struct stat buff;
-  return (stat(fname.c_str(), &buff) == 0);
-}
-
 void tagsh::dump_file(const std::string& fname, bool check_existing) {
 	assert(!fname.empty());
 
-	if (check_existing && file_exists(fname)) {
+	if (check_existing && tagd::io::file_exists(fname)) {
 		error("file exists: %s\nuse '-f' to overwrite", fname.c_str());
 		return;
 	}
@@ -208,7 +202,7 @@ void tagsh::command(const std::string& cmdline) {
 			return;
 		}
 
-		if (!file_exists(V[1])) {
+		if (!tagd::io::file_exists(V[1])) {
 			error("no such file: %s", V[1].c_str());
 			return;
 		}
@@ -369,7 +363,7 @@ cmd_args::cmd_args()
 			if (val[0] == '-')
 				this->db_fname = ":memory:";
 			else {
-				if (!this->opt_db_create && !tagsh::file_exists(val)) {
+				if (!this->opt_db_create && !tagd::io::file_exists(val)) {
 					this->ferror(tagd::TAGD_ERR, "no such file: %s", val);
 					return;
 				}
@@ -401,7 +395,7 @@ cmd_args::cmd_args()
 
 	cmd_handler file_handler = {
 		[this](char *val) {
-			if (!tagsh::file_exists(val)) {
+			if (!tagd::io::file_exists(val)) {
 				this->ferror(tagd::TAGD_ERR, "no such file: %s", val);
 				return;
 			}

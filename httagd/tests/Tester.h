@@ -499,4 +499,11 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	// TODO test request::canonical_url(), abs_url(), abs_url_view_tag()
+
+	void test_file_path(void) {
+		auto req = httagd::request(httagd::HTTP_GET, "/_file/path/to/style.css");
+		auto pos = tagd::file::dir_shift_pos(req.path());
+		auto sub = req.path().substr(pos);
+		TS_ASSERT_EQUALS( sub , "path/to/style.css" )
+	}
 };

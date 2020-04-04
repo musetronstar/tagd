@@ -15,9 +15,22 @@ const char* evhtp_res_str(int);
 
 namespace httagd {
 
+static bool TRACE_ON = false;
+
+inline void SET_TRACE_ON() {
+	TRACE_ON = true;
+	static bool TRACE_INIT = false;
+	if (!TRACE_INIT) { // init once ...
+		TRACE_INIT = true;
+		TAGL::driver::trace_on((char *)"trace: ");
+	}
+}
+
 class httagd_args : public cmd_args {
 	public:
 		std::string tpl_dir;
+		std::string www_dir;
+		std::string favicon;
 		std::string default_view;
 		std::string bind_addr;
 		uint16_t bind_port;
@@ -25,7 +38,24 @@ class httagd_args : public cmd_args {
 		httagd_args () : bind_port{0} {
 			_cmds["--tpl-dir"] = {
 				[this](char *val) {
+						if (!tagd::io::dir_exists(val)) {
+							this->ferror(tagd::TAGD_ERR,
+								"invalid value for argument --tpl-dir: no such directory: %s", val);
+							return;
+						}
 						this->tpl_dir = val;
+				},
+				true
+			};
+
+			_cmds["--www-dir"] = {
+				[this](char *val) {
+						if (!tagd::io::dir_exists(val)) {
+							this->ferror(tagd::TAGD_ERR,
+								"invalid value for argument --www-dir: no such directory: %s", val);
+							return;
+						}
+						this->www_dir = val;
 				},
 				true
 			};
@@ -71,14 +101,11 @@ class server : public tagsh, public tagd::errorable {
 			_htp = evhtp_new(_evbase, NULL);
 		}
 	public:
-		bool trace_on = false;
-
 		server(tagdb::sqlite *tdb, viewspace *vs, httagd_args *args)
 			: tagsh(tdb), _vws{vs}, _args{args}
 		{
 			_bind_addr = (!args->bind_addr.empty() ? args->bind_addr : "localhost");
 			_bind_port = (args->bind_port ? args->bind_port : 2112);
-			trace_on = _args->opt_trace;
 			this->init();
 		}
 
@@ -106,27 +133,24 @@ class server : public tagsh, public tagd::errorable {
 		tagd::code start();
 };
 
+class base_transaction;
 class transaction;
+
+static const std::string DEFAULT_CONTENT_TYPE{"text/plain; charset=utf-8"};
 
 class response {
 	protected:
-		transaction *_tx;
 		evhtp_request_t *_ev_req;
-		bool _reply_sent;
-
-		// the res_code sent
+		// res_code sent
 		// when set to >= 0 before sending,
 		// send this code instead of translated tagd::code to EVHTP_RES_*
-		int _res_code;
+		int _res_code = -1;
+		bool _reply_sent = false;
 
 	public:
-		std::string content_type;
-		response(transaction* tx, evhtp_request_t *req)
-			: _tx{tx}, _ev_req{req}, _reply_sent{false}, _res_code{-1},
-			// default content type, it is up to view handlers to overwrite
-			content_type{"text/plain; charset=utf-8"} {}
+		response() = delete;
 
-		static evhtp_res tagd_code_evhtp_res(tagd::code tc);
+		response(evhtp_request_t *req) : _ev_req{req} {}
 
 		bool reply_sent() const {
 			return _reply_sent;
@@ -153,14 +177,19 @@ class response {
 			return _ev_req->buffer_out;
 		}
 
-		void send_reply(tagd::code);
-		void send_reply(evhtp_res);
+		void send_reply(tagd::code c);
+		void send_ev_reply(evhtp_res);
 
 		void add_header(const std::string &key, const std::string &val);
 
+		void add_header_content_type(const std::string& content_type) {
+			this->add_header("Content-Type", content_type);
+		}
 		void add_header_content_length(size_t sz) {
 			this->add_header("Content-Length", std::to_string(sz));
 		}
+
+		tagd::code add_file(const std::string& path, tagd::errorable *err=nullptr);
 
 		void add_error_str(const tagd::errorable &err) {
 			std::stringstream ss;
@@ -176,13 +205,7 @@ const std::string QUERY_OPT_SEARCH{"q"};    // full text search
 const std::string QUERY_OPT_VIEW{"v"};		// view name
 const std::string QUERY_OPT_CONTEXT{"c"};   // tagspace context
 
-// view name when query opt or default-view arg not given
 const std::string DEFAULT_VIEW{"tagl"};     // plain text tagl
-
-typedef enum {
-	MEDIA_TYPE_TEXT_TAGL,
-	MEDIA_TYPE_TEXT_HTML
-} media_type_t;
 
 // supported HTTP methods
 typedef enum {
@@ -198,19 +221,24 @@ class request {
 	public:
 		http_method method = HTTP_UNKNOWN;
 
-	private:
+	protected:
+		evhtp_request_t *_ev_req = nullptr;
+		std::string _path;
 		url_query_map_t _query_map;
 
-	protected:
-		transaction *_tx;
-		evhtp_request_t *_ev_req;
-		std::string _path; // for testing
-
 	public:
-		request(transaction*, evhtp_request_t *);
+		request(evhtp_request_t *ev_req)
+			: _ev_req{ev_req},
+			_path{_ev_req->uri->path->full}
+		{
+			if ( ev_req->uri->query_raw != NULL ) {
+				tagd::url::parse_query(
+					_query_map, (char*)ev_req->uri->query_raw );
+			}
+		}
 
-		request(http_method meth, const std::string &path)	// for testing
-			: method{meth}, _tx{nullptr}, _ev_req{nullptr}, _path{path} {}
+		request(http_method meth, const std::string path)
+			: method{meth}, _path{path} {}  // for Tester
 
 		std::string query_opt(const std::string &opt) const {
 			std::string val;
@@ -221,9 +249,6 @@ class request {
 		std::string query_opt_search() const {
 			return this->query_opt(QUERY_OPT_SEARCH);
 		}
-
-		// opt view if not empty, or the default if not empty, or "tagl"
-		std::string effective_opt_view() const;
 
 		std::string query_opt_view() const {
 			return this->query_opt(QUERY_OPT_VIEW);
@@ -284,28 +309,37 @@ class httagl : public TAGL::driver {
 };
 
 // holds members passed to every callback
-class transaction : public tagd::errorable {
-	transaction() = delete;
-
+class base_transaction : public tagd::errorable {
 	public:
-		server *svr;
+		server *svr = nullptr;
+		request *req = nullptr;
+		response *res = nullptr;
+		base_transaction(
+			server *sv,
+			request *r,
+			response *s
+			) : svr{sv}, req{r}, res{s} {}
+};
+
+class transaction : public base_transaction	{
+	public:
 		tagdb::tagdb *tdb;
 		httagl *drvr;
 		httagd::viewspace *vws;
-		request *req;
-		response *res;
-		bool trace_on;
 
 		transaction(
 			server *sv,
+			request *r,
+			response *s,
 			tagdb::tagdb *td,
 			httagl *dr,
-			httagd::viewspace *vs,
-			request *rq,
-			response *rs
-		) : svr{sv}, tdb{td}, drvr{dr}, vws{vs}, req{rq}, res{rs},
-			trace_on{sv->args()->opt_trace}
+			httagd::viewspace *vs
+		) : base_transaction(sv, r, s),
+			tdb{td}, drvr{dr}, vws{vs}
 		{}
+
+		// opt view if not empty, or the default if not empty, or "tagl"
+		std::string effective_opt_view() const;
 
 		// adds errors to response ouput buffer in plain text
 		void add_errors() const {
@@ -811,16 +845,7 @@ class viewspace : public tagd::errorable {
 		view fallback_error_view;
 
 		viewspace(const std::string& tpl_dir) :
-			_tpl_dir{tpl_dir}, fallback_error_view(default_error_view)
-		{
-			if (_tpl_dir.empty()) {
-				_tpl_dir = "./";
-			} else {
-				if ( _tpl_dir[_tpl_dir.size()-1] != '/' )
-					_tpl_dir.push_back('/');
-			}
-		}
-
+			_tpl_dir{tpl_dir}, fallback_error_view(default_error_view) {} 
 		// TODO add a flags variable to get(), put(), etc.
 		// such as F_DISABLE_ERROR_REPORTING
 
@@ -850,8 +875,7 @@ class viewspace : public tagd::errorable {
 		}
 
 		std::string fpath(const std::string& tpl_fname) {
-			return std::string(_tpl_dir)  // has trailing '/'
-					.append(tpl_fname);
+			return tagd::io::concat_dir(_tpl_dir, tpl_fname); 
 		}
 };
 

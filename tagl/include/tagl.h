@@ -45,24 +45,26 @@ class scanner {
 
 	protected:
 		driver *_driver;
-		size_t _line_number;
 
-		const char *_beg, *_cur, *_mark, *_lim, *_eof;
+		const char
+			*_beg  = nullptr ,
+			*_cur  = nullptr ,
+			*_mark = nullptr ,
+			*_lim  = nullptr ,
+			*_eof  = nullptr ;
+
+		size_t _line_number = 1;
+		int _tok = -1;
+		int32_t _state = -1;
 		char _buf[BUF_SZ];
-		int _tok;
-		int32_t _state;
-		std::string _val;
-		bool _do_fill;
-		evbuffer *_evbuf;
+		std::string _val;  // holds _buf overflow
+		evbuffer *_evbuf = nullptr;
+		bool _do_fill = false;
 
 
 	public:
-		scanner(driver *d) :
-			_driver(d), _line_number{1},
-			_beg{nullptr}, _cur{nullptr}, _mark{nullptr}, _lim{nullptr}, _eof{nullptr},
-			_tok{-1}, _state{-1}, _do_fill{false}, _evbuf{nullptr} {
-				_buf[0] = '\0';
-			}
+		scanner(driver *d) : _driver(d) { _buf[0] = '\0'; }
+
 		virtual ~scanner() {}
 
 		const char* fill();

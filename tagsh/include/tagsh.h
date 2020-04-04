@@ -38,7 +38,7 @@ class tagsh {
 		TAGL::driver _driver;
 
 	public:
-		static constexpr const char* DEFAULT_PROMPT = "|tagd| ";
+		static constexpr const char* DEFAULT_PROMPT = "tagd: ";
 		std::string prompt = DEFAULT_PROMPT;
 		bool echo_result_code = true;
 
@@ -73,7 +73,6 @@ class tagsh {
 		void dump() { _tdb->dump(); }
 		void dump_file(const std::string&, bool = true);
 		static int error(const char *errfmt, ...);
-		static bool file_exists(const std::string&);
 		static void cmd_show();
 };
 

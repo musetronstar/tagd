@@ -40,6 +40,7 @@ const error_view_id TREE_ERROR_VIEW_ID{"tree.html"};
 
 const std::string LAYOUT_TPL{"layout.html.tpl"};
 
+const std::string HTML_CONTENT_TYPE{"text/html; charset=utf-8"};
 
 void fill_header(transaction& tx, tagd_template& tpl, const std::string& title) {
 	tpl.set_value("title", title);
@@ -62,7 +63,7 @@ void fill_header(transaction& tx, tagd_template& tpl, const std::string& title) 
 
 empty_handler_t home_handler(
 	[](transaction& tx, const view& vw) -> tagd::code {
-		tx.res->content_type = "text/html; charset=utf-8";
+		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("home", tx.res->output_buffer());
 
 		// TODO don't do this
@@ -203,7 +204,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 
 get_handler_t tag_handler(
 	[](transaction& tx, const view& vw, const tagd::abstract_tag& t) -> tagd::code {
-		tx.res->content_type = "text/html; charset=utf-8";
+		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("tag", tx.res->output_buffer());
 		fill_tag(tx, vw, tpl, t);
 
@@ -273,7 +274,7 @@ tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tag
 
 get_handler_t tree_handler(
 	[](transaction& tx, const view& vw, const tagd::abstract_tag& t) -> tagd::code {
-		tx.res->content_type = "text/html; charset=utf-8";
+		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("tree", tx.res->output_buffer());
 		tagd::code tc = fill_tree(tx, vw, tpl, t);
 		if (tc != tagd::TAGD_OK) return tc;
@@ -342,7 +343,7 @@ tagd::code fill_query(transaction& tx, const view&, tagd_template& tpl, const ta
 
 query_handler_t query_handler(
 	[](transaction& tx, const view& vw, const tagd::interrogator& q, const tagd::tag_set& R) -> tagd::code {
-		tx.res->content_type = "text/html; charset=utf-8";
+		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("query", tx.res->output_buffer());
 
 		std::stringstream ss;
@@ -365,7 +366,7 @@ query_handler_t query_handler(
 
 get_handler_t browse_handler(
 	[](transaction& tx, const view& vw, const tagd::abstract_tag& t) -> tagd::code {
-		tx.res->content_type = "text/html; charset=utf-8";
+		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("browse", tx.res->output_buffer());
 
 		fill_header(tx, tpl, t.id());
@@ -440,7 +441,7 @@ void fill_error(const url_query_map_t& qm, tagd_template& tpl, const tagd::error
 
 error_handler_t error_handler(
 	[](transaction& tx, const view& vw, const tagd::errorable& E) -> tagd::code {
-		tx.res->content_type = "text/html; charset=utf-8";
+		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("error", tx.res->output_buffer());
 		fill_header(tx, tpl, tagd::tag_ids_str(E.errors()));
 
@@ -462,7 +463,7 @@ error_handler_t error_handler(
 
 error_handler_t partial_error_handler(
 	[](transaction& tx, const view& vw, const tagd::errorable& E) -> tagd::code {
-		tx.res->content_type = "text/html; charset=utf-8";
+		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("error", tx.res->output_buffer());
 
 		std::string fname;
@@ -517,6 +518,9 @@ int main(int argc, char ** argv) {
 		return args.code();
 	}
 
+	if (args.opt_trace)
+		httagd::SET_TRACE_ON();
+
 	tagdb::sqlite tdb;
 	if (tdb.init(args.db_fname) != tagd::TAGD_OK) {
 		tdb.print_errors();
@@ -525,6 +529,11 @@ int main(int argc, char ** argv) {
 
 	if (args.tpl_dir.empty())
 		args.tpl_dir = "./app/tpl/";
+
+	if (args.www_dir.empty())
+		args.www_dir = "./app/www/";
+
+	args.favicon = std::string(args.www_dir).append("favicon.ico");
 
 	viewspace vws(args.tpl_dir);
 	init_viewspace(vws);
@@ -548,4 +557,3 @@ int main(int argc, char ** argv) {
 
 	return svr.code();
 }
-

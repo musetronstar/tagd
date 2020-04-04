@@ -2,7 +2,7 @@ CXX = g++ -std=c++14 -Wall -Wextra
 CXXFLAGS = -O3 
 
 INC =  -I../include
-SRCS = tagd.cc rank.cc url.cc utf8.cc
+SRCS = tagd.cc rank.cc utf8.cc url.cc io.cc file.cc
 CODES_H = ../include/tagd/codes.h
 HDRS = $(wildcard $(INC).h)
 OBJS=$(SRCS:.cc=.o)

@@ -11,18 +11,19 @@ HTTAGD_DIR = $(PRG_DIR)/httagd
 BIN_DIR = ../bin
 BIN = $(BIN_DIR)/httagd
 
-INC = -I${HTTAGD_DIR}/include \
-	  -I$(TAGD_DIR)/include \
-	  -I$(TAGL_DIR)/include \
+INC = -I$(TAGD_DIR)/include \
 	  -I$(TAGSPACE_DIR)/include \
 	  -I$(TAGSPACE_DIR)/sqlite/include \
-	  -I$(TAGSH_DIR)/include
+	  -I$(TAGL_DIR)/include \
+	  -I$(TAGSH_DIR)/include \
+	  -I${HTTAGD_DIR}/include
 
-LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite \
-		 -L $(TAGL_DIR)/lib -ltagl \
+# WTF why must httagd.a be linked first, or else 'undefined reference' errors?
+LFLAGS = -L $(HTTAGD_DIR)/lib -lhttagd \
 		 -L $(TAGD_DIR)/lib -ltagd \
+		 -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite \
+		 -L $(TAGL_DIR)/lib -ltagl \
 		 -L $(TAGSH_DIR)/lib -ltagsh \
-		 -L $(HTTAGD_DIR)/lib -lhttagd \
 		 -lsqlite3 -levent -lreadline -lctemplate_nothreads
 
 ifdef EVHTP_SRC_DIR

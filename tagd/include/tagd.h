@@ -476,4 +476,5 @@ struct util {
 
 #include "tagd/domain.h"
 #include "tagd/url.h"
-
+#include "tagd/io.h"
+#include "tagd/file.h"

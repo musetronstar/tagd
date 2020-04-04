@@ -94,9 +94,6 @@ authority:
 				_user_offset = _user_len = 0;
                 if (i == _host_offset) return code(URL_ERR_HOST);
                 _host_len = i - _host_offset;
-				// TODO we probably want to include the # so that we can be consistent with query strings
-				// and urls with empty framents can be represented (i.e. http://hypermega.com#)
-                i++; // advance past '#'
                 goto fragment;
             //default: NOP
         }
@@ -155,7 +152,6 @@ pass:
                 if (i == _port_offset) return code(URL_ERR_PORT);
                 _port_len = i - _pass_offset;
                 _pass_offset = _pass_len = 0;
-                i++; // advance past '#'
                 goto fragment;
             //default: NOP
         }
@@ -196,7 +192,6 @@ host:
             case '#':
                 if (i == _host_offset) return code(URL_ERR_HOST);
                 _host_len = i - _host_offset;
-                i++; // advance past '#'
                 goto fragment;
             //default: NOP
         }
@@ -225,7 +220,6 @@ port:
             case '#':
                 if (i == _port_offset) return code(URL_ERR_PORT);
                 _port_len = i - _port_offset;
-                i++; // advance past '#'
                 goto fragment;
             //default: NOP
         }
@@ -247,7 +241,6 @@ path:
             case '#':
                 if (i == _path_offset) return code(URL_ERR_PATH);
                 _path_len = i - _path_offset;
-                i++; // advance past '#'
                 goto fragment;
             //default: NOP
         }
@@ -262,7 +255,6 @@ query:
     for (; i < sz; i++) {
         if (url_str[i] == '#') {
             _query_len = i - _query_offset;
-            i++;  // advance past '#'
             goto fragment;
         }
     }
@@ -426,8 +418,8 @@ tagd::code url::init_hduri(const std::string &uri) {
 	}
 
 	if (elems[HDURI_FRAGMENT]) {
-		ss_url << '#' << decode_hduri_delim(*(elems[HDURI_FRAGMENT]));
-		_fragment_offset = sz + 1;
+		ss_url << decode_hduri_delim(*(elems[HDURI_FRAGMENT]));
+		_fragment_offset = sz;
         _fragment_len = elems[HDURI_FRAGMENT]->size();
 		sz += elems[HDURI_FRAGMENT]->size() + 1;
 	}
@@ -466,11 +458,11 @@ std::string decode_hduri_delim(std::string elem) {
 //  http://sub2.sub1.example.co.uk/a/b/c?id=foo&x=123#summary
 //                     ||  ||
 //                     \/  \/
-//  uk.co!example!sub1.sub2!/a/b/c!?id=foo&x=123!summary!!!!http
-//    |    |        |          |         |        |     ^    |
-//  rpub   |       rsub       path     query   fragment ^    |
-//       private                                        ^   scheme
-//                                                      ^
+//  uk.co!example!sub1.sub2!/a/b/c!?id=foo&x=123!#summary!!!!http
+//    |    |        |          |         |         |     ^    |
+//  rpub   |       rsub       path     query    fragment ^    |
+//       private                                         ^  scheme
+//                                                       ^
 //	though port, user, pass are empty, they must have placeholders
 //
 //  empty URL parts between non-empty ones still must have placeholders

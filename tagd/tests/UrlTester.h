@@ -487,9 +487,9 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.scheme(), "http" );
         TS_ASSERT_EQUALS( a.host(), "example.com" );
         TS_ASSERT( a.path().empty() );
-        TS_ASSERT_EQUALS( a.fragment(), "here" );
+        TS_ASSERT_EQUALS( a.fragment(), "#here" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com#here" );
-        TS_ASSERT_EQUALS( a.hduri(), "hd:com!example!!!!here!!!!http" )
+        TS_ASSERT_EQUALS( a.hduri(), "hd:com!example!!!!#here!!!!http" )
 
         tagd::HDURI b(a.hduri());
         TS_ASSERT( !b.empty() );
@@ -497,9 +497,9 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.scheme(), "http" );
         TS_ASSERT_EQUALS( b.host(), "example.com" );
         TS_ASSERT( b.path().empty() );
-        TS_ASSERT_EQUALS( b.fragment(), "here" );
+        TS_ASSERT_EQUALS( b.fragment(), "#here" );
         TS_ASSERT_EQUALS( b.id(), "http://example.com#here" );
-        TS_ASSERT_EQUALS( b.hduri(), "hd:com!example!!!!here!!!!http" )
+        TS_ASSERT_EQUALS( b.hduri(), "hd:com!example!!!!#here!!!!http" )
     }
 
 	//  TODO maybe - test between NULL fragments and blank ones 
@@ -989,7 +989,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_SUBDOMAIN, "www") )
 		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_PATH) )
 		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_QUERY) )
-		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "here") )
+		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "#here") )
 		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_PORT) )
 		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_USER) )
 		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_PASS) )
@@ -1017,11 +1017,11 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( url_test("http://RegExr.com", "http", "regexr.com", "", "", "", "") );
         TS_ASSERT( url_test("http://www.RegExr.com?2rjl6", "http", "www.regexr.com", "", "", "?2rjl6", "") );
         TS_ASSERT( url_test("http://www.RegExr.com?2rjl6(v85)&x=99&498", "http", "www.regexr.com", "", "", "?2rjl6(v85)&x=99&498", "") );
-        TS_ASSERT( url_test("http://RegExr.com#foo", "http", "regexr.com", "", "", "", "foo") );
-        TS_ASSERT( url_test("http://RegExr.com#foo(bar)", "http", "regexr.com", "", "", "", "foo(bar)") );
+        TS_ASSERT( url_test("http://RegExr.com#foo", "http", "regexr.com", "", "", "", "#foo") );
+        TS_ASSERT( url_test("http://RegExr.com#foo(bar)", "http", "regexr.com", "", "", "", "#foo(bar)") );
         TS_ASSERT( url_test("http://foo.com/blah_blah", "http", "foo.com", "", "/blah_blah", "", "") );
         TS_ASSERT( url_test("http://foo.com/blah_blah_(wikipedia)", "http", "foo.com", "", "/blah_blah_(wikipedia)", "", "") );
-        TS_ASSERT( url_test("http://foo.com/blah_(wikipedia)_blah#cite-1", "http", "foo.com", "", "/blah_(wikipedia)_blah", "", "cite-1") );
+        TS_ASSERT( url_test("http://foo.com/blah_(wikipedia)_blah#cite-1", "http", "foo.com", "", "/blah_(wikipedia)_blah", "", "#cite-1") );
         TS_ASSERT( url_test("http://foo.com/unicode_(✪)_in_parens", "http", "foo.com", "", "/unicode_(✪)_in_parens", "", "") );
         TS_ASSERT( url_test("http://foo.com/(something)?after=parens", "http", "foo.com", "", "/(something)", "?after=parens", "") );
         TS_ASSERT( url_test("http://✪df.ws/1234", "http", "✪df.ws", "", "/1234", "", "") );
@@ -1054,6 +1054,20 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b.path(), "/favicon.ico" );
         TS_ASSERT_EQUALS( b.id(), "file:///favicon.ico" );
         TS_ASSERT_EQUALS( b.hduri(), "hd:!!!/favicon.ico!!!!!!file" );
-    }
 
+		// local path
+        tagd::url c("file:///somefile.mp4?w=full&qv=hd#o=2112");
+        TS_ASSERT( !c.empty() );
+        TS_ASSERT( c.ok() )
+        TS_ASSERT_EQUALS( c.scheme(), "file" );
+        TS_ASSERT( c.host().empty() );
+        TS_ASSERT_EQUALS( c.path(), "/somefile.mp4" );
+        TS_ASSERT_EQUALS( c.query(), "?w=full&qv=hd" );
+        TS_ASSERT_EQUALS( c.fragment(), "#o=2112" );
+        TS_ASSERT_EQUALS( c.id(), "file:///somefile.mp4?w=full&qv=hd#o=2112" );
+        // TODO local-path : everything after authority
+		// TS_ASSERT_EQUALS( c.local_path(), "/somefile.mp4?w=full&qv=hd#o=2112" );
+		// rpub!priv_label!rsub!path!query!fragment!port!user!pass!scheme
+        TS_ASSERT_EQUALS( c.hduri(), "hd:!!!/somefile.mp4!?w=full&qv=hd!#o=2112!!!!file" );
+    }
 };

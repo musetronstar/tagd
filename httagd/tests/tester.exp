@@ -2,7 +2,7 @@
 
 # exp_internal 1   ;# diagnostics
 
-set spawn_httagd "spawn ../bin/httagd --file ../../tagsh/bootstrap.tagl"
+set spawn_httagd "spawn ../bin/httagd --file ../../tagsh/bootstrap.tagl --www-dir ./www-tester"
 
 set MAX_ERRORS 3
 set ERRORS 0
@@ -189,6 +189,10 @@ test "get_japanese_dog_ambiguous" \
 test "get_japanese_dog" \
 	 "GET" "/イヌ?c=japanese" "" \
 	 "イヌ _is_a mammal(.*)_refers_to dog"
+
+test "get_txt_file" \
+	 "GET" "/_file/test.txt" "" \
+	 "FILE_TEXT"
 
 close
 wait
