@@ -10,8 +10,6 @@ namespace tagd {
 class rank;
 typedef std::set<rank> rank_set;
 
-void print_rank_set(const tagd::rank_set&);
-
 // encapsulates bytes used to order the tag heirachy
 class rank {
 /*\

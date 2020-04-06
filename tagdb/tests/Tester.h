@@ -158,38 +158,6 @@ tagd::code tdb_related(
 	return tdb.query(S, q, ssn);
 }
 
-tagd::code tdb_refers(
-		tagdb_type& tdb,
-		tagd::id_type& what,
-		const tagd::id_type& refers,
-		tagdb::session *ssn)
-{
-	tagd::tag_set S;
-
-	tagd::interrogator q(HARD_TAG_INTERROGATOR, HARD_TAG_SUB, HARD_TAG_REFERENT);
-	q.relation(HARD_TAG_REFERS, refers);
-
-	auto tc = tdb.query(S, q, ssn);
-	if (tdb.has_errors())
-		return tdb.code();
-	if (ssn && ssn->has_errors())
-		return ssn->code();
-	if (tc != tagd::TAGD_OK)
-		return tc;
-
-	std::cerr << "tdb_refers: " << q << std::endl;
-
-	// return first result
-	for (auto t : S) {
-		std::cerr << "t: " << t << std::endl;
-		what = t.id();
-	}
-	return tc;
-
-	return tagd::TS_NOT_FOUND;
-}
-
-
 #define TAGD_CODE_STRING(c)	std::string(tagd::code_str(c))
 
 #define TDB_CONS_INIT() \
@@ -1481,8 +1449,6 @@ class Tester : public CxxTest::TestSuite {
 	void test_search(void) {
         TDB_CONS_INIT();
 
-		// std::cout << std::endl; tdb.dump_search();
-
 		std::string terms = "mammal can swim";
         tagd::tag_set S;
         tagd::code tc = tdb.search(S, terms);
@@ -1782,7 +1748,6 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_delete_url(void) {
         TDB_CONS_INIT();
-
 		tagd::code tc;
         tagd::url a("http://en.wikipedia.org/wiki/Dog");
         a.relation("about", "dog");
@@ -1816,21 +1781,5 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT(!db_file.empty());
 	}
 
-//    void test_dump(void) {
-//        tagdb_type tdb;
-//        tdb.init(db_fname);
-//		std::cout << std::endl;
-//        populate_tags(tdb);
-//		tdb.dump();
-//	}
-
-//	void test_dump_terms(void) {
-//        tagdb_type tdb;
-//        tdb.init(db_fname);
-//		std::cout << std::endl;
-//        populate_tags(tdb);
-//		tdb.dump_terms();
-//	}
-
-
+	// TODO test tagdb::dump() and tagdb::dump_terms()
 };

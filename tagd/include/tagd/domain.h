@@ -53,16 +53,6 @@ class domain {
         tld_code process_icann(const std::string &domain, size_t *offset);
         tld_code process_wildcard(const std::string &domain, size_t *offset);
 
-/*
-        void debug_stat(const char *entry) {
-            std::cout << ">> " << entry << ": " << std::endl;
-            std::cout << "    _domain: " << _domain << std::endl
-                      << "_tld_offset: " << _tld_offset << std::endl
-                      << "_reg_offset: " << _reg_offset << std::endl
-                      << "  _tld_code: " << tld_code_str(_tld_code) << std::endl;
-        }
-*/
-
     public:
         domain() : _tld_offset(-1), _reg_offset(-1), _domain(), _tld_code(TLD_UNKNOWN) {}
 

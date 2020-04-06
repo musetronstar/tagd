@@ -385,7 +385,7 @@ class Tester : public CxxTest::TestSuite {
 		const char *hduri = "hd:org!wikipedia!en!/wiki/Dog!!!!!!https";
 		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, std::string("/").append(hduri)));
 		tagl.finish();
-		std::cerr << "tag:" << std::endl << tagl.tag() << std::endl;
+
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_GET )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "https://en.wikipedia.org/wiki/Dog" )

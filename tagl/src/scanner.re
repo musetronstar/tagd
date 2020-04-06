@@ -12,38 +12,37 @@
 namespace TAGL {
 
 void scanner::print_buf() {
-	std::cerr << "print_buf:" << std::endl;
+	LOG_DEBUG( "print_buf:" << std::endl )
 	//for(size_t i=0; i<BUF_SZ; ++i) {
-	//	std::cerr << (i % 10);
+	//	LOG_DEBUG( (i % 10) )
 	//}
-	//std::cerr << std::endl;
+	//LOG_DEBUG( std::endl )
 	size_t sz = _lim - _buf;
 	for(size_t i=0; i<=sz; ++i) {
-		std::cerr << _buf[i];
+		LOG_DEBUG( _buf[i] )
 	}
-	std::cerr << std::endl;
-	std::cerr << "print_buf _beg(" << (_beg-_buf) << "): " << ((int)*_beg) << ", " << *_beg << std::endl;
-	std::cerr << "print_buf _cur(" << (_cur-_buf) << "): " << ((int)*_cur) << ", " << *_cur << std::endl;
-	std::cerr << "print_buf _lim(" << (_lim-_buf) << "): " << ((int)*_lim) << ", " << *_lim << std::endl;
+	LOG_DEBUG( std::endl )
+	LOG_DEBUG( "print_buf _beg(" << (_beg-_buf) << "): " << ((int)*_beg) << ", " << *_beg << std::endl )
+	LOG_DEBUG( "print_buf _cur(" << (_cur-_buf) << "): " << ((int)*_cur) << ", " << *_cur << std::endl )
+	LOG_DEBUG( "print_buf _lim(" << (_lim-_buf) << "): " << ((int)*_lim) << ", " << *_lim << std::endl )
 	if (_eof == nullptr)
-		std::cerr << "print_buf _eof: NULL" << std::endl;
+		LOG_DEBUG( "print_buf _eof: NULL" << std::endl )
 	else
-		std::cerr << "print_buf _eof(" << (_eof-_buf) << "): " << ((int)*_eof) << ", " << *_eof << std::endl;
-	std::cerr << "print_buf _val(" << _val.size() << "): `" << _val << "'" << std::endl;
+		LOG_DEBUG( "print_buf _eof(" << (_eof-_buf) << "): " << ((int)*_eof) << ", " << *_eof << std::endl )
+	LOG_DEBUG( "print_buf _val(" << _val.size() << "): `" << _val << "'" << std::endl )
 }
 
 const char* scanner::fill() {
-	if (driver::_trace_on) {
-		std::cerr << "fill ln: " << _line_number << std::endl;
-		std::cerr << "fill _cur(" << (_cur-_buf) << "): " << ((int)*_cur) << ", " << *_cur << std::endl;
+	if (TAGL_TRACE_ON) {
+		LOG_DEBUG( "fill ln: " << _line_number << std::endl )
+		LOG_DEBUG( "fill _cur(" << (_cur-_buf) << "): " << ((int)*_cur) << ", " << *_cur << std::endl )
 		print_buf();
 	}
 
 // YYFILL(n)  should adjust YYCURSOR, YYLIMIT, YYMARKER and YYCTXMARKER as needed.
 	if (_cur == nullptr) {
 		_eof = _cur;
-		if (driver::_trace_on)
-			std::cerr << "fill eof. " << std::endl;
+		TAGL_LOG_TRACE( "fill eof. " << std::endl )
 	}
 
 	size_t sz, offset;
@@ -57,9 +56,9 @@ const char* scanner::fill() {
 		// and copy _cur to the beginning of the buffer for scanning
 		size_t apnd_sz = BUF_SZ - 1;
 		_val.append(_buf, apnd_sz);
-		if (driver::_trace_on) {
-			std::cerr << "fill _val.append(" << apnd_sz << "): `" << std::string(_buf, apnd_sz) << "'" << std::endl;
-			std::cerr << "fill    new _val(" << _val.size() << "): `" << _val << "'" << std::endl;
+		if (TAGL_TRACE_ON) {
+			LOG_DEBUG( "fill _val.append(" << apnd_sz << "): `" << std::string(_buf, apnd_sz) << "'" << std::endl )
+			LOG_DEBUG( "fill    new _val(" << _val.size() << "): `" << _val << "'" << std::endl )
 		}
 		_buf[0] = *_cur;
 		_beg = _cur = &_buf[0];
@@ -73,17 +72,17 @@ const char* scanner::fill() {
 	_buf[sz] = '\0';
 	_mark = _cur;
 
-	if (driver::_trace_on) {
+	if (TAGL_TRACE_ON) {
 		if (!_val.empty())
-			std::cerr << "fill val: `" << _val << "'" << std::endl;
-		std::cerr << "fill buf(" << sz << "): `" << std::string(_buf, sz) << "'" << std::endl;
+			LOG_DEBUG( "fill val: `" << _val << "'" << std::endl )
+		LOG_DEBUG( "fill buf(" << sz << "): `" << std::string(_buf, sz) << "'" << std::endl )
 	}
 
 	size_t read_sz = BUF_SZ - offset;
-	if (driver::_trace_on) {
-		std::cerr << "fill sz: " << sz << std::endl;
-		std::cerr << "fill offset: " << offset << std::endl;
-		std::cerr << "fill read_sz: " << read_sz << std::endl;
+	if (TAGL_TRACE_ON) {
+		LOG_DEBUG( "fill sz: " << sz << std::endl )
+		LOG_DEBUG( "fill offset: " << offset << std::endl )
+		LOG_DEBUG( "fill read_sz: " << read_sz << std::endl )
 	}
 
 	if ((sz = evbuffer_remove(_evbuf, &_buf[offset], read_sz)) != 0) {
@@ -96,20 +95,20 @@ const char* scanner::fill() {
 			sz += offset;
 		}
 		_lim = &_buf[sz];
-		if (driver::_trace_on)
-			std::cerr << "filled(" << sz << "): `" << std::string(_beg, sz) << "'" << std::endl;
+		if (TAGL_TRACE_ON)
+			LOG_DEBUG( "filled(" << sz << "): `" << std::string(_beg, sz) << "'" << std::endl )
 	} else {
 		_eof = _lim = &_buf[offset];
 	}
 
-	if (driver::_trace_on) print_buf();
+	if (TAGL_TRACE_ON) print_buf();
 
 	return _cur;
 }
 
 void scanner::scan(const char *cur, size_t sz) {
-	if (driver::_trace_on)
-		std::cerr << "scan(" << &cur << "): " << std::string(cur, sz) << std::endl;
+	if (TAGL_TRACE_ON)
+		LOG_DEBUG( "scan(" << &cur << "): " << std::string(cur, sz) << std::endl )
 
 	if (sz >= BUF_SZ) {
 		_driver->ferror(tagd::TAGL_ERR, "scan size (%d) >= buffer(%d)", sz, BUF_SZ);
@@ -139,7 +138,7 @@ void scanner::scan(const char *cur, size_t sz) {
 #define YYSETSTATE(x)   { _state = (x);  }
 #define	YYFILL(n)	{ if(_do_fill && _evbuf && !_eof){ this->fill(); if(_driver->has_errors()) return; } }
 #define YYMARKER        _mark
-#define YYDEBUG(s,c) { if(driver::_trace_on) std::cerr << "yydebug: s = " << s << ", c = " << c << std::endl; }
+#define YYDEBUG(s,c) { if(TAGL_TRACE_ON) LOG_DEBUG("yydebug: s = " << s << ", c = " << c << std::endl) }
 
 next:
 

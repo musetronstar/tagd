@@ -143,7 +143,6 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( a.path().empty() );
         TS_ASSERT_EQUALS( a.id(), "http://example.com" );
         TS_ASSERT_EQUALS( a.hduri(), "hd:com!example!!!!!!!!http" )
-		// std::cout << a << std::endl;
 
 		auto hduri = a.hduri();
         TS_ASSERT_EQUALS( hduri, "hd:com!example!!!!!!!!http" )
@@ -174,7 +173,6 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.path(), "/" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com/" );
         TS_ASSERT_EQUALS( a.hduri(), "hd:com!example!!/!!!!!!http" )
-		// std::cout << a << std::endl;
 
 		tagd::HDURI b(a.hduri());
         TS_ASSERT( !b.empty() );
@@ -195,7 +193,6 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.path(), "/" );
         TS_ASSERT_EQUALS( a.id(), "http://a.b.c.example.com/" );
         TS_ASSERT_EQUALS( a.hduri(), "hd:com!example!c.b.a!/!!!!!!http" )
-		// std::cout << a << std::endl;
 
 		tagd::HDURI b(a.hduri());
         TS_ASSERT( !b.empty() );
@@ -311,7 +308,6 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com/?a=1&b=2" );
         TS_ASSERT_EQUALS( a.hduri(), "hd:com!example!!/!?a=1&b=2!!!!!http" )
-		// std::cout << a << std::endl;
 
         tagd::HDURI b(a.hduri());
         TS_ASSERT( !b.empty() );
@@ -334,7 +330,6 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com/a/b/c?a=1&b=2" );
         TS_ASSERT_EQUALS( a.hduri(), "hd:com!example!!/a/b/c!?a=1&b=2!!!!!http" )
-		// std::cout << a << std::endl;
 
         tagd::HDURI b(a.hduri());
         TS_ASSERT( !b.empty() );
@@ -357,7 +352,6 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( a.query(), "?a=1&b=2" );
         TS_ASSERT_EQUALS( a.id(), "http://example.com/a/b/c/?a=1&b=2" );
         TS_ASSERT_EQUALS( a.hduri(), "hd:com!example!!/a/b/c/!?a=1&b=2!!!!!http" )
-		// std::cout << a << std::endl;
 
         tagd::HDURI b(a.hduri());
 
@@ -381,7 +375,6 @@ class Tester : public CxxTest::TestSuite {
 		// in the hduri to determine between "http://example.com?" and "http://example.com"
         TS_ASSERT_EQUALS( a.query(),  "?" );
         TS_ASSERT_EQUALS( a.hduri(), "hd:com!example!!!?!!!!!http" )
-		// std::cout << a << std::endl;
 
         tagd::HDURI b(a.hduri());
         TS_ASSERT( b.ok() )

@@ -19,6 +19,16 @@
 #include "tagdb/sqlite.h"
 #include "tagsh.h"
 
+void ALL_SET_TRACE_ON() {
+	TAGDB_SET_TRACE_ON();
+	TAGL_SET_TRACE_ON();
+}
+
+void ALL_SET_TRACE_OFF() {
+	TAGDB_SET_TRACE_OFF();
+	TAGL_SET_TRACE_OFF();
+}
+
 // TODO put in a utility library
 int tagsh::error(const char *errfmt, ...) {
 	va_list args;
@@ -29,7 +39,7 @@ int tagsh::error(const char *errfmt, ...) {
 	if (err == NULL)
 		std::perror("error: ");
 	else
-		std::cerr << err << std::endl;
+		TAGD_CERR << err << std::endl;
 
 	return 1;
 }
@@ -77,7 +87,7 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 
 	if(CMD_OK())
-		std::cout << *T << std::endl;
+		TAGD_COUT << *T << std::endl;
 	else
 		this->handle_cmd_error();
 
@@ -92,7 +102,7 @@ void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 
 	if (CMD_OK()) {
 		if (_tsh->echo_result_code)
-			std::cout << "-- " << tagd::code_str(tc) << std::endl;
+			TAGD_COUT << "-- " << tagd::code_str(tc) << std::endl;
 	} else {
 		this->handle_cmd_error();
 	}
@@ -106,10 +116,10 @@ void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 
 	if (CMD_OK()) {
 		if (_tsh->echo_result_code)
-			std::cout << "-- " << tagd::code_str(tc) << std::endl;
+			TAGD_COUT << "-- " << tagd::code_str(tc) << std::endl;
 	} else if (_tdb->code() == tagd::TS_NOT_FOUND ) {
 		if (_tsh->echo_result_code)
-			std::cout << "-- " << tagd::code_str(tc) << std::endl;
+			TAGD_COUT << "-- " << tagd::code_str(tc) << std::endl;
 	} else {
 		this->handle_cmd_error();
 	}
@@ -137,7 +147,7 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 			break;
 		case tagd::TS_NOT_FOUND:  // TS_NOT_FOUND not an error for queries
 			if (_tsh->echo_result_code)
-				std::cout << "-- " << tagd::code_str(tc) << std::endl;
+				TAGD_COUT << "-- " << tagd::code_str(tc) << std::endl;
 			break;
 		default:	
 			this->handle_cmd_error();
@@ -188,7 +198,7 @@ void tagsh::dump_file(const std::string& fname, bool check_existing) {
 	}
 	_tdb->dump(ofs);
 	ofs.close();
-	std::cout << "dumped to file: " << fname << std::endl;
+	TAGD_COUT << "dumped to file: " << fname << std::endl;
 }
 
 void tagsh::command(const std::string& cmdline) {
@@ -247,7 +257,7 @@ void tagsh::command(const std::string& cmdline) {
 	}
 
 	if ( cmd == ".print_flags" ) {
-		std::cout << tagdb::flag_util::flag_list_str(_driver.flags()) << std::endl;
+		TAGD_COUT << tagdb::flag_util::flag_list_str(_driver.flags()) << std::endl;
 		return;
 	}
 
@@ -259,13 +269,12 @@ void tagsh::command(const std::string& cmdline) {
 	}
 
 	if ( cmd == ".trace_on" ) {
-		this->trace_on();
+		ALL_SET_TRACE_ON();
 		return;
 	}
 
 	if ( cmd == ".trace_off" ) {
-		_tdb->trace_off();
-		_driver.trace_off();
+		ALL_SET_TRACE_OFF();
 		return;
 	}
 
@@ -321,13 +330,13 @@ int tagsh::interpret(std::istream& ins) {
 	std::string line;
 
 	if (!prompt.empty())
-		std::cout << prompt;
+		TAGD_COUT << prompt;
 
 	while (getline(ins, line)) {
 		this->interpret(line);
 
 		if (!prompt.empty())
-			std::cout << prompt;
+			TAGD_COUT << prompt;
 	}
 
 	_driver.finish();
@@ -342,18 +351,18 @@ int tagsh::interpret_fname(const  std::string& fname) {
 }
 
 void tagsh::cmd_show() {
-	std::cout << ".load <filename>\t# load a tagl file" << std::endl;
-	std::cout << ".dump\t# dump tagspace to stdout" << std::endl;
-	std::cout << ".dump [-f] <filename>\t# dump tagspace to file, [-f] forces overwrite existing" << std::endl;
-	std::cout << ".dump_grid\t# dump tagspace to stdout as a grid (specific to sqlite)" << std::endl;
-	std::cout << ".dump_terms\t# dump tagspace terms and part_of_speech lists to stdout" << std::endl;
-	std::cout << ".dump_search\t# dump full text content of tag search terms" << std::endl;
-	std::cout << ".print_flags\t# print TAGL flags set" << std::endl;
-	std::cout << ".trace_on\t# trace tagl lexer and parser execution path and sql statements" << std::endl;
-	std::cout << ".trace_off\t# turn trace off" << std::endl;
-	std::cout << ".exit\t# exit this shell" << std::endl;
-	std::cout << ".quit\t# same as .exit" << std::endl;
-	std::cout << ".show\t# show commands" << std::endl;
+	TAGD_COUT << ".load <filename>\t# load a tagl file" << std::endl;
+	TAGD_COUT << ".dump\t# dump tagspace to stdout" << std::endl;
+	TAGD_COUT << ".dump [-f] <filename>\t# dump tagspace to file, [-f] forces overwrite existing" << std::endl;
+	TAGD_COUT << ".dump_grid\t# dump tagspace to stdout as a grid (specific to sqlite)" << std::endl;
+	TAGD_COUT << ".dump_terms\t# dump tagspace terms and part_of_speech lists to stdout" << std::endl;
+	TAGD_COUT << ".dump_search\t# dump full text content of tag search terms" << std::endl;
+	TAGD_COUT << ".print_flags\t# print TAGL flags set" << std::endl;
+	TAGD_COUT << ".trace_on\t# trace tagl lexer and parser execution path and sql statements" << std::endl;
+	TAGD_COUT << ".trace_off\t# turn trace off" << std::endl;
+	TAGD_COUT << ".exit\t# exit this shell" << std::endl;
+	TAGD_COUT << ".quit\t# same as .exit" << std::endl;
+	TAGD_COUT << ".show\t# show commands" << std::endl;
 }
 
 cmd_args::cmd_args()
@@ -464,7 +473,7 @@ int cmd_args::interpret(tagsh& shell) {
 	};
 
 	if (this->opt_trace)
-		shell.trace_on();
+		ALL_SET_TRACE_ON();
 	else
 		shell.echo_result_code = false;
 
@@ -503,7 +512,7 @@ int cmd_args::interpret(tagsh& shell) {
 	shell.echo_result_code = true;
 
 	if (!this->opt_noshell) {
-		std::cout << "use .show to list commands" << std::endl;
+		TAGD_COUT << "use .show to list commands" << std::endl;
 		shell.prompt = tagsh::DEFAULT_PROMPT;
 		return shell.interpret_readline();
 	}

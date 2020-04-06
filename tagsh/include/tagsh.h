@@ -38,7 +38,7 @@ class tagsh {
 		TAGL::driver _driver;
 
 	public:
-		static constexpr const char* DEFAULT_PROMPT = "tagd: ";
+		static constexpr const char* DEFAULT_PROMPT = "tagd> ";
 		std::string prompt = DEFAULT_PROMPT;
 		bool echo_result_code = true;
 
@@ -58,11 +58,6 @@ class tagsh {
 		~tagsh() {
 			if (_own_callback)
 				delete _callback;
-		}
-	
-		void trace_on() {
-			_tdb->trace_on();  // specific to sqlite
-			_driver.trace_on("trace: ");
 		}
 
 		void command(const std::string&);

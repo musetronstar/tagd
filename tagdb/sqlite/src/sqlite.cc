@@ -12,18 +12,6 @@
 
 #include "tagdb/sqlite.h"
 
-void trace_callback( void* udp, const char* sql ) {
-	if (udp == nullptr) {
-		std::cerr << "SQL trace: " << sql << std::endl;
-	} else {
-		std::cerr << "SQL trace(udp " << udp << "): " << sql << std::endl;
-	}
-}
-
-// TODO
-// profile_callback
-// void *sqlite3_profile(sqlite3*, void(*xProfile)(void*,const char*,sqlite3_uint64), void*);
-
 typedef enum {
 	// specify types as sqlite only returns generic SQLITE_CONSTRAINT
 	TS_SQLITE_UNIQUE,
@@ -191,17 +179,28 @@ sqlite::~sqlite() {
 	this->close();
 }
 
+// TODO
+// profile_callback
+// void *sqlite3_profile(sqlite3*, void(*xProfile)(void*,const char*,sqlite3_uint64), void*);
+
+void trace_callback( void* udp, const char* sql ) {
+	if (udp == nullptr) {
+		LOG_DEBUG( "SQL trace: " << sql << std::endl )
+	} else {
+		LOG_DEBUG( "SQL trace(udp " << udp << "): " << sql << std::endl )
+	}
+}
+
+// TODO sqlite3_trace depreciated, use sqlite3_trace_v2
 void sqlite::trace_on() {
 	tagdb::trace_on();
 	if (_db != nullptr)
 		sqlite3_trace(_db, trace_callback, nullptr);
-	dout << "### sqlite trace on ###" << std::endl;
 }
 
 void sqlite::trace_off() {
 	tagdb::trace_off();
 	sqlite3_trace(_db, nullptr, nullptr);
-	dout << "### sqlite trace off ###" << std::endl;
 }
 
 tagd::code sqlite::init(const std::string& fname) {
@@ -692,7 +691,8 @@ void sqlite::close() {
 	this->finalize();
 	auto rc = sqlite3_close(_db);
 	if (rc) {
-		std::cerr << "error: sqlite3_close() returned " << rc << ": " << sqlite3_errmsg(_db) << std::endl;
+		LOG_ERROR( "error: sqlite3_close() returned "
+				<< rc << ": " << sqlite3_errmsg(_db) << std::endl )
 	}
 	_db = nullptr;
 }
@@ -700,14 +700,12 @@ void sqlite::close() {
 tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, session* ssn, flags_t flags) {
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 
-	if (_trace_on)
-		std::cerr << "sqlite::get: " << term << std::endl;
+	TAGDB_LOG_TRACE( "sqlite::get: " << term << std::endl )
 
 	if (t.id()[0] == '_') {
 		tagd::code tc = hard_tag::get(t, term);
 		if (tc == tagd::TAGD_OK) {
-			if (_trace_on)
-				std::cerr << "got hard_tag: " << t << " -- " << t.rank().dotted_str() << std::endl;
+			TAGDB_LOG_TRACE( "got hard_tag: " << t << " -- " << t.rank().dotted_str() << std::endl )
 			RET_SSN_CODE(tc);
 		} else if (tc != tagd::TS_NOT_FOUND) {
 			RET_SYS_SSN_FERROR(tc, "hard_tag::get(%s) unexpected tag code: %s",
@@ -716,7 +714,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, session
 	}
 
 	tagd::part_of_speech term_pos = this->term_pos(term);
-	// std::cerr << "term_pos(" << term << "): " << pos_list_str(term_pos) << std::endl;
+	TAGDB_LOG_TRACE( "term_pos(" << term << "): " << pos_list_str(term_pos) << std::endl )
 
 	if (term_pos == tagd::POS_UNKNOWN) {
 		if (flags & F_NO_NOT_FOUND_ERROR) {
@@ -1085,8 +1083,7 @@ bool sqlite::exists(const tagd::id_type& id, flags_t flags) {
 tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t flags) {
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 
-	if (_trace_on)
-		std::cerr << "sqlite::put: " << put_tag << " -- " << flag_util::flag_list_str(flags) << std::endl;
+	TAGDB_LOG_TRACE( "sqlite::put: " << put_tag << " -- " << flag_util::flag_list_str(flags) << std::endl )
 
 	if (put_tag.id().length() > tagd::MAX_TAG_LEN)
 		RET_SSN_FERROR(tagd::TS_ERR_MAX_TAG_LEN, "tag exceeds MAX_TAG_LEN of %d", tagd::MAX_TAG_LEN);
@@ -1239,8 +1236,7 @@ void tag_affected(std::set<tagd::id_type>& terms_affected, const tagd::abstract_
 tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags) {
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 
-	if (_trace_on)
-		std::cerr << "sqlite::del: " << t << std::endl;
+	TAGDB_LOG_TRACE( "sqlite::del: " << t << std::endl )
 
 	if (t.id().empty())
 		RET_SSN_ERROR(tagd::TS_MISUSE, "deleting empty tag not allowed");
@@ -1618,7 +1614,7 @@ tagd::part_of_speech sqlite::term_pos_occurence(const tagd::id_type& id, session
 	while ((s_rc = sqlite3_step(this->_term_pos_occurence_stmt)) == SQLITE_ROW) {
 		// occurence_pos |= pos is prettier, but give invalid conversion error
 		tagd::part_of_speech pos = (tagd::part_of_speech) sqlite3_column_int(this->_term_pos_occurence_stmt, F_POS);
-		//std::cerr << id << ": " << pos_list_str(occurence_pos) << " |= " << pos_str(pos) << std::endl;
+		TAGDB_LOG_TRACE( id << ": " << pos_list_str(occurence_pos) << " |= " << pos_str(pos) << std::endl )
 		occurence_pos = ((tagd::part_of_speech)(occurence_pos | pos));
 
 		// using this method to set error for the cause of FK constraint failures
@@ -1667,7 +1663,7 @@ tagd::part_of_speech sqlite::term_pos_occurence(const tagd::id_type& id, session
 			}
 		}
 	}
-	//std::cerr << "occurence_pos(" << id << "): " << pos_list_str(occurence_pos) << std::endl;
+	TAGDB_LOG_TRACE( "occurence_pos(" << id << "): " << pos_list_str(occurence_pos) << std::endl )
 
 	if (s_rc == SQLITE_ERROR)
 		SQLITE_FERROR(s_rc, "term pos occurence failed: %s", id.c_str());
@@ -1772,7 +1768,7 @@ tagd::code sqlite::delete_tag(const tagd::id_type& id, session *ssn) {
 	} else if (s_rc == SQLITE_CONSTRAINT) {
 		if (_trace_on) {
 			const char* errmsg = sqlite3_errmsg(_db);
-			std::cerr << "SQLITE_CONSTRAINT: " << errmsg << std::endl;
+			TAGDB_LOG_TRACE( "SQLITE_CONSTRAINT: " << errmsg << std::endl )
 		}
 		
 		// set error for cause of FK constraint failure
@@ -1789,10 +1785,12 @@ tagd::code sqlite::delete_tag(const tagd::id_type& id, session *ssn) {
 }
 
 tagd::code sqlite::next_rank(tagd::rank& next, const tagd::abstract_tag& sub) {
-	if( !(!sub.rank().empty() || (sub.rank().empty() && sub.id() == HARD_TAG_ENTITY)) ) {
-		std::cerr << "next_rank: " << sub << "\t-- " << sub.rank().dotted_str() << std::endl;
-	}
-	assert( !sub.rank().empty() || (sub.rank().empty() && sub.id() == HARD_TAG_ENTITY) );
+	bool is_entity_or_has_rank =
+		sub.id() == HARD_TAG_ENTITY || !sub.rank().empty();
+
+	if(!is_entity_or_has_rank)
+		LOG_ERROR( "next_rank: " << sub << "\t-- " << sub.rank().dotted_str() << std::endl )
+	assert(is_entity_or_has_rank);
 
 	this->max_child_rank(next, sub.id());
 	tagd::code r_rc;
@@ -1925,8 +1923,7 @@ tagd::code sqlite::insert_fts_tag(const tagd::id_type& id, flags_t flags) {
 	this->get(t, id, nullptr, flags);
 	OK_OR_RET_ERR(); 
 
-	if (_trace_on)
-		std::cerr << "insert_fts_tag( " << id << " ): " << format_fts(t) << std::endl;
+	TAGDB_LOG_TRACE( "insert_fts_tag( " << id << " ): " << format_fts(t) << std::endl )
 
 	this->prepare(&_insert_fts_tag_stmt,
 		"INSERT INTO fts_tags (docid, content) VALUES (tid(?), ?)",
@@ -1954,8 +1951,7 @@ tagd::code sqlite::update_fts_tag(const tagd::id_type& id, flags_t flags) {
 	this->get(t, id, nullptr, flags);
 	OK_OR_RET_ERR(); 
 
-	if (_trace_on)
-		std::cerr << "update_fts_tag( " << id << " ): " << format_fts(t) << std::endl;
+	TAGDB_LOG_TRACE( "update_fts_tag( " << id << " ): " << format_fts(t) << std::endl )
 
 	this->prepare(&_update_fts_tag_stmt,
 		"UPDATE fts_tags SET content = ? WHERE docid = tid(?)",
@@ -2060,8 +2056,7 @@ tagd::code sqlite::delete_term(const tagd::id_type& id) {
 }
 
 tagd::code sqlite::insert(const tagd::abstract_tag& t, const tagd::abstract_tag& destination) {
-	if (_trace_on)
-		std::cerr << "sqlite::insert " << t << std::endl;
+	TAGDB_LOG_TRACE( "sqlite::insert " << t << std::endl )
 
 	assert( t.super_object() == destination.id() );
 	assert( !t.id().empty() );
@@ -2071,8 +2066,6 @@ tagd::code sqlite::insert(const tagd::abstract_tag& t, const tagd::abstract_tag&
 	tagd::rank rank;
 	next_rank(rank, destination);
 	OK_OR_RET_ERR(); 
-
-	// dout << "insert next rank: (" << rank.dotted_str() << ")" << std::endl;
 
 	this->prepare(&_insert_stmt,
 		"INSERT INTO tags (tag, sub_relator, super_object, rank, pos) "
@@ -2131,8 +2124,6 @@ tagd::code sqlite::update(const tagd::abstract_tag& t, const tagd::abstract_tag&
 		tagd::rank rank;
 		next_rank(rank, destination);
 		OK_OR_RET_ERR(); 
-
-		// dout << "update next rank: (" << rank.dotted_str() << ")" << std::endl;
 
 		// update the ranks
 		this->prepare(&_update_ranks_stmt, 
@@ -2228,8 +2219,7 @@ tagd::code sqlite::insert_relations(const tagd::abstract_tag& t, flags_t flags) 
 			// sqlite does't tell us whether the object or relator caused the violation
 			const char* errmsg = sqlite3_errmsg(_db);
 
-			if (_trace_on)
-				std::cerr << "SQLITE_CONSTRAINT: " << errmsg << std::endl;
+			TAGDB_LOG_TRACE( "SQLITE_CONSTRAINT: " << errmsg << std::endl )
 
 			ts_sqlite_code ts_sql_rc = sqlite_constraint_type(errmsg);
 			if (ts_sql_rc == TS_SQLITE_UNIQUE) { // object UNIQUE violation
@@ -2346,8 +2336,7 @@ tagd::code sqlite::insert_referent(const tagd::referent& put_ref, session *ssn, 
 	// sqlite does't tell us whether the context or refers_to caused the violation
 	const char* errmsg = sqlite3_errmsg(_db);
 
-	if (_trace_on)
-		std::cerr << "SQLITE_CONSTRAINT: " << errmsg << std::endl;
+	TAGDB_LOG_TRACE( "SQLITE_CONSTRAINT: " << errmsg << std::endl )
 
 	ts_sqlite_code ts_sql_rc = sqlite_constraint_type(errmsg);
 	if (ts_sql_rc == TS_SQLITE_UNIQUE) { // referents UNIQUE violation
@@ -2610,8 +2599,7 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 		}
 		t->relation(pred);
 
-		if (_trace_on)
-			std::cerr << "related R.insert: " << *t << std::endl;
+		TAGDB_LOG_TRACE( "related R.insert: " << *t << std::endl )
 
 		it = R.insert(it, *t);
 		delete t;
@@ -2686,8 +2674,7 @@ tagd::code sqlite::get_children(tagd::tag_set& R, const tagd::id_type& super_obj
 }
 
 tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& intr) {
-	if (_trace_on)
-		std::cerr << "sqlite::query: " << intr << std::endl;
+	TAGDB_LOG_TRACE( "sqlite::query: " << intr << std::endl )
 
 	tagd::id_type refers, refers_to, context;
 	for (auto it = intr.relations.begin(); it != intr.relations.end(); ++it) {
@@ -2914,12 +2901,13 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& q, session 
 		}
 
 		if (_trace_on) {
-			if (p.object == HARD_TAG_TERMS)
-				std::cerr << "search: " << p.modifier << std::endl;
-			else  // TODO predicate iostream op
-				std::cerr << "related: " << p << std::endl;
+			if (p.object == HARD_TAG_TERMS) {
+				TAGDB_LOG_TRACE( "search: " << p.modifier << std::endl )
+			} else {  // TODO predicate iostream op
+				TAGDB_LOG_TRACE( "related: " << p << std::endl )
+			}
 			tagd::print_tag_ids(S, std::cerr);
-			std::cerr << std::endl;
+			TAGDB_LOG_TRACE( std::endl )
 		}
 
 		OK_OR_RET_ERR();
@@ -2955,8 +2943,7 @@ tagd::code sqlite::search(tagd::tag_set& R, const std::string &terms, flags_t fl
 
 	const int F_TAG_ID = 0;
 
-	if (_trace_on)
-		std::cerr << "search: " << terms << std::endl;
+	TAGDB_LOG_TRACE( "search: " << terms << std::endl )
 
 	int s_rc;
 	size_t n = 0;

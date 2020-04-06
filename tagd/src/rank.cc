@@ -157,7 +157,7 @@ tagd::code rank::next(rank& next, const rank_set& R) {
 	rank_set::const_iterator it = R.begin();
 	if (it == R.end()) return RANK_EMPTY;
 	if (it->_data.empty()) {
-		std::cerr << "empty data in rank set" << std::endl;
+		LOG_ERROR( "empty data in rank set" << std::endl )
 		return RANK_EMPTY;
 	}
 
@@ -169,7 +169,7 @@ tagd::code rank::next(rank& next, const rank_set& R) {
 		it = R.end();
 		--it;
 		if (it->_data.empty()) {
-			std::cerr << "empty data in rank set" << std::endl;
+			LOG_ERROR( "empty data in rank set" << std::endl )
 			return RANK_EMPTY;
 		}
 		next = *it;
@@ -209,21 +209,21 @@ tagd::code rank::next(rank& next, const rank_set& R) {
 		}
 
 		if (prev->_data.empty() || it->_data.empty()) {
-			std::cerr << "empty data in rank set" << std::endl;
+			LOG_ERROR( "empty data in rank set" << std::endl )
 			return RANK_EMPTY;
 		}
 
 		// compares 1.2 in the example above
 		if (prev->_data.size() > 1) {
 			if (prev->_data.compare(0, (prev->_data.size()-1), it->_data.substr(0,(it->_data.size()-1))) != 0) {
-				std::cerr << "mismatched branches in rank set" << std::endl;
+				LOG_ERROR( "mismatched branches in rank set" << std::endl )
 				return RANK_ERR;
 			}
 		}
 
 		int diff = (unsigned char)it->_data[sz-1] - (unsigned char)prev->_data[sz-1];
 		if (diff <= 0) {
-			std::cerr << "unordered rank set" << std::endl;
+			LOG_ERROR( "unordered rank set" << std::endl )
 			return RANK_ERR;
 		}
 
@@ -240,12 +240,6 @@ tagd::code rank::next(rank& next, const rank_set& R) {
 	next = *prev;
 
 	return next.increment();
-}
-
-void print_rank_set(const tagd::rank_set& R) {
-	for (tagd::rank_set::const_iterator it = R.begin(); it!=R.end(); ++it) {
-		std::cout << it->dotted_str() << std::endl;;
-	}
 }
 
 } // namespace tagd

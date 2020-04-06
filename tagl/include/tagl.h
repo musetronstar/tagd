@@ -12,6 +12,12 @@ struct evbuffer;
 struct yyParser;
 static void yy_reduce(yyParser*, unsigned int, int, std::string*);
 
+extern bool TAGL_TRACE_ON;
+void TAGL_SET_TRACE_ON();
+void TAGL_SET_TRACE_OFF();
+#define TAGL_LOG_TRACE(MSG) if(TAGL_TRACE_ON) \
+	{ std::cerr <<  __FILE__  << ':' << __LINE__ << '\t' << MSG ; }
+
 namespace TAGL {
 
 const char* token_str(int);
@@ -112,8 +118,6 @@ class driver : public tagd::errorable {
 		tagd::id_type _constrain_tag_id; // if set, the assigned _tag.id() must be equal to this
 		std::string _path;
 
-		static bool _trace_on;
-
 		// sets up scanner and parser for a fresh start
 		void init();
 		void free_parser();
@@ -142,7 +146,6 @@ class driver : public tagd::errorable {
 		tagd::code execute(const std::string&);
 		tagd::code execute(evbuffer*);
 		int token() const { return _token; }
-		bool is_trace_on() const { return _trace_on; }
 		tagdb::flags_t flags() const { return _flags; }
 		int lookup_pos(const std::string&);
 		void parse_tok(int, std::string*);
@@ -170,9 +173,6 @@ class driver : public tagd::errorable {
 
 		// adds end of input to parser and frees scanner and parser
 		void finish();
-
-		static void trace_on(const char * = nullptr);
-		static void trace_off();
 
 		// checks that _tag is set to nullptr, otherwise deletes _tag and sets to nullptr
 		void delete_tag() {

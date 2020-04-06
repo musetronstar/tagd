@@ -669,12 +669,7 @@ class Tester : public CxxTest::TestSuite {
 		B.insert(cat);
 		B.insert(bird);
 
-		// std::cerr << "A: " ; print_tag_ids(A);
-		// std::cerr << "B: " ; print_tag_ids(B);
-		// std::cerr << "merge_containing_tags:" << std::endl;
         merge_containing_tags(A, B);
-		// std::cerr << "A: " ; print_tag_ids(A);
-		// std::cerr << "-----\n";
         TS_ASSERT_EQUALS( tag_ids_str(A), "cat, bird" )
 
 		A.clear();
@@ -720,17 +715,9 @@ class Tester : public CxxTest::TestSuite {
 		B.clear();
         B.insert(animal);
 
-		// TODO merge_containing_tags() fails to merge the predicates of contained tags
+		// TODO merge_containing_tags() fails to merge predicates of contained tags
 		// for example, the animal predicate "has metabolism" will not be in the resulting tag_set
-		// std::cerr << "A:" << std::endl;
-		// tagd::print_tags(A, std::cerr);
-		// std::cerr << "B:" << std::endl;
-		// tagd::print_tags(B, std::cerr);
-
         merge_containing_tags(A, B);
-
-		// std::cerr << "A:" << std::endl;
-		// tagd::print_tags(A, std::cerr);
 
 		// because cat and bird are animals
         TS_ASSERT_EQUALS( tag_ids_str(A), "animal, cat, bird" )

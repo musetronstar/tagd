@@ -4,6 +4,26 @@
 #include <stdint.h>
 #include "tagd.h"
 
+extern bool TAGDB_TRACE_ON;
+inline void TAGDB_SET_TRACE_ON() {
+	TAGDB_TRACE_ON = true;
+	/*
+	static bool TRACE_INIT = false;
+	if (!TRACE_INIT) { // init once ...
+		TRACE_INIT = true;
+		// init code ...
+	}
+	*/
+}
+
+inline void TAGDB_SET_TRACE_OFF() {
+	TAGDB_TRACE_ON = false;
+}
+
+// _trace_on set to TAGDB_TRACE_ON in constructor
+#define TAGDB_LOG_TRACE(MSG) if(tagdb::tagdb::_trace_on) \
+	{ std::cerr <<  __FILE__  << ':' << __LINE__ << '\t' << MSG ; }
+
 namespace tagdb {
 
 typedef enum {
@@ -94,14 +114,14 @@ class hard_tag {
 // pure virtual interface
 class tagdb : public tagd::errorable {
 	protected:
-		bool _trace_on;
+		bool _trace_on = TAGDB_TRACE_ON;
 		void reset(session *ssn) {
 			_code = tagd::TAGD_OK;
 			if (ssn) ssn->code(tagd::TAGD_OK);
 		}
 
 	public:
-		tagdb() : tagd::errorable(tagd::TS_INIT), _trace_on{false} {}
+		tagdb() : tagd::errorable(tagd::TS_INIT) {}
 		virtual ~tagdb() {}
 
 		virtual void trace_on() { _trace_on = true; }

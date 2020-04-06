@@ -518,8 +518,12 @@ int main(int argc, char ** argv) {
 		return args.code();
 	}
 
-	if (args.opt_trace)
-		httagd::SET_TRACE_ON();
+	if (args.opt_trace) {
+		// TODO opt_trace value to set module(s) to trace explicity
+		TAGDB_SET_TRACE_ON();
+		TAGL_SET_TRACE_ON();
+		HTTAGD_SET_TRACE_ON();
+	}
 
 	tagdb::sqlite tdb;
 	if (tdb.init(args.db_fname) != tagd::TAGD_OK) {

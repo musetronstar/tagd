@@ -254,7 +254,7 @@ tld_code domain::lookup_next_label(const std::string &domain, size_t *offset) {
     std::string label(domain.substr(*offset));
     hash_value *val = tld_hash::lookup(label.c_str(), label.size());
 
-    //std::cout << "tld_hash::lookup( " << label.c_str() << " ) => "
+    //std::cerr << "tld_hash::lookup( " << label.c_str() << " ) => "
     //          << (val == NULL ? "TLD_UNKNOWN" : tld_code_str(val->code)) << std::endl;
 
     if (val == NULL)

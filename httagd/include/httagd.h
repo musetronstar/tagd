@@ -15,16 +15,24 @@ const char* evhtp_res_str(int);
 
 namespace httagd {
 
-static bool TRACE_ON = false;
-
-inline void SET_TRACE_ON() {
-	TRACE_ON = true;
-	static bool TRACE_INIT = false;
-	if (!TRACE_INIT) { // init once ...
-		TRACE_INIT = true;
-		TAGL::driver::trace_on((char *)"trace: ");
+static bool HTTAGD_TRACE_ON = false;
+inline void HTTAGD_SET_TRACE_ON() {
+	HTTAGD_TRACE_ON = true;
+	/*
+	static bool trace_init = false;
+	if (!trace_init) { // init once ...
+		trace_init = true;
+		// init ...
 	}
+	*/
 }
+
+inline void HTTAGD_SET_TRACE_OFF() {
+	HTTAGD_TRACE_ON = false;
+}
+
+#define HTTAGD_LOG_TRACE(MSG) if(HTTAGD_TRACE_ON) \
+	{ std::cerr <<  __FILE__  << ':' << __LINE__ << '\t' << MSG ; }
 
 class httagd_args : public cmd_args {
 	public:
@@ -750,8 +758,8 @@ class view : public view_id {
 		}
 
 		static tagd::code error_mismatched_action(const std::string& member, view_action a) {
-			std::cerr << "attempting to call " << member << " function with action set to "
-				<< view_action_str(a) << std::endl;
+			LOG_ERROR( "attempting to call " << member << " function with action set to "
+				<< view_action_str(a) << std::endl )
 			return tagd::TAGD_ERR;
 		}
 

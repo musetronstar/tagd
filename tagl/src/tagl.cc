@@ -28,6 +28,18 @@ void* ParseFree(void*, void(*freeProc)(void*));
 // debug
 void* ParseTrace(FILE *stream, char *zPrefix);
 
+bool TAGL_TRACE_ON = false;
+
+void TAGL_SET_TRACE_ON() {
+	TAGL_TRACE_ON = true;
+	ParseTrace(stderr, (char *)"tagl_trace: ");
+}
+
+void TAGL_SET_TRACE_OFF() {
+	TAGL_TRACE_ON = false;
+	ParseTrace(NULL, NULL);
+}
+
 namespace TAGL {
 
 const char* token_str(int tok) {
@@ -36,8 +48,6 @@ const char* token_str(int tok) {
 		default: return "UNKNOWN_TOKEN";
 	}
 }
-
-bool driver::_trace_on = false;
 
 driver::driver(tagdb::tagdb *tdb, tagdb::session *ssn) :
 		_own_scanner{true}, _scanner{new scanner(this)},
@@ -130,16 +140,6 @@ void driver::finish() {
 		_callback->finish();
 }
 
-void driver::trace_on(const char* prefix) {
-	_trace_on = true;
-	ParseTrace(stderr, (char *)prefix);
-}
-
-void driver::trace_off() {
-	_trace_on = false;
-	ParseTrace(NULL, NULL);
-}
-
 // looks up a pos type for a tag and returns
 // its equivalent token
 int driver::lookup_pos(const std::string& s) {
@@ -148,13 +148,11 @@ int driver::lookup_pos(const std::string& s) {
 
 	int token;
 	tagd::part_of_speech pos = _tdb->pos(s, _session);
+	TAGL_LOG_TRACE( "pos(" << s << "): " << pos_str(pos) << std::endl )
 
-	if (_trace_on) {
-		// TODO term_pos lookups
-		//tagd::part_of_speech term_pos = _tdb->term_pos(s);
-		//std::cerr << "term_pos(" << s << "): " << pos_list_str(term_pos) << std::endl;
-		std::cerr << "pos(" << s << "): " << pos_str(pos) << std::endl;
-	}
+	// TODO term_pos lookups
+	//tagd::part_of_speech term_pos = _tdb->term_pos(s);
+	//TAGL_LOG_TRACE( "term_pos(" << s << "): " << pos_list_str(term_pos) << std::endl )
 
 	switch(pos) {
 		case tagd::POS_TAG:
@@ -199,8 +197,10 @@ int driver::lookup_pos(const std::string& s) {
 
 void driver::parse_tok(int tok, std::string *s) {
 		_token = tok;
-		if (_trace_on)
-			std::cerr << "line " << _scanner->_line_number << ", token " << token_str(_token) << ": " << (s == nullptr ? "NULL" : *s) << std::endl;
+		TAGL_LOG_TRACE( "line " << _scanner->_line_number
+				<< ", token " << token_str(_token) << ": " << (s == nullptr ? "NULL" : *s)
+				<< std::endl )
+
 		Parse(_parser, _token, s, this);
 }
 
@@ -271,23 +271,19 @@ void driver::do_callback() {
 
 	switch (_cmd) {
 		case TOK_CMD_GET:
-			if (_trace_on)
-				std::cerr << "callback::cmd_get: " << *_tag << std::endl;
+			TAGL_LOG_TRACE( "callback::cmd_get: " << *_tag << std::endl )
 			_callback->cmd_get(*_tag);
 			break;
 		case TOK_CMD_PUT:
-			if (_trace_on)
-				std::cerr << "callback::cmd_put: " << *_tag << std::endl;
+			TAGL_LOG_TRACE( "callback::cmd_put: " << *_tag << std::endl )
 			_callback->cmd_put(*_tag);
 			break;
 		case TOK_CMD_DEL:
-			if (_trace_on)
-				std::cerr << "callback::cmd_del: " << *_tag << std::endl;
+			TAGL_LOG_TRACE( "callback::cmd_del: " << *_tag << std::endl )
 			_callback->cmd_del(*_tag);
 			break;
 		case TOK_CMD_QUERY:
-			if (_trace_on)
-				std::cerr << "callback::cmd_query: " << *_tag << std::endl;
+			TAGL_LOG_TRACE( "callback::cmd_query: " << *_tag << std::endl )
 			_callback->cmd_query((tagd::interrogator&) *_tag);
 			break;
 		default:
@@ -385,7 +381,7 @@ tagd::code driver::include_file(const std::string& path) {
 
 	if (st.st_size == 0) {
 		// TODO create flag FAIL_OPEN_ZERO_LENGTH_FILE
-		//std::cerr << "ignoring zero length file: "  << path << std::endl;
+		//D_CERR << "ignoring zero length file: "  << path << std::endl;
 		if (fcntl(fd, F_GETFD) != -1)
 			close(fd);
 		return tagd::TAGD_OK;

@@ -624,13 +624,13 @@ static char CSPRINTF_BUF[CSPRINTF_MAX_SZ+1];
 char* util::csprintf(const char *fmt, va_list& args) {
 	int sz = vsnprintf(CSPRINTF_BUF, CSPRINTF_MAX_SZ, fmt, args);
 	if (sz <= 0) {
-		std::cerr << "error vsnprintf failed: " << fmt << std::endl;
+		LOG_ERROR( "error vsnprintf failed: " << fmt << std::endl )
 		return NULL;
 	}
 
 	if ((size_t)sz >= CSPRINTF_MAX_SZ) {
 		CSPRINTF_BUF[CSPRINTF_MAX_SZ] = '\0';
-		std::cerr << "error truncated to " << CSPRINTF_MAX_SZ << "chars: " << CSPRINTF_BUF << std::endl;
+		LOG_ERROR( "error truncated to " << CSPRINTF_MAX_SZ << "chars: " << CSPRINTF_BUF << std::endl )
 		return NULL;
 	}
 

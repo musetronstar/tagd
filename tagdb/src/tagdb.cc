@@ -6,6 +6,8 @@
 
 #include "tagdb.h"
 
+bool TAGDB_TRACE_ON = false;
+
 namespace tagdb {
 
 tagd::code session::push_context(const tagd::id_type& id) {
@@ -33,11 +35,11 @@ tagd::code session::clear_context() { _context.clear(); return tagd::TAGD_OK; }
 void session::print_context() {
 	size_t i = 0, sz = this->context().size();
 	for (auto id : this->context()) {
-		std::cout << id;
+		TAGD_COUT << id;
 		if (++i != sz)
-			std::cout << ", ";
+			TAGD_COUT << ", ";
 		else
-			std::cout << std::endl;
+			TAGD_COUT << std::endl;
 	}
 }
 

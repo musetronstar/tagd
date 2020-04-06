@@ -7,15 +7,12 @@
 	#include "tagdb.h"
 
 #define DELETE(p) \
-	if (tagl->is_trace_on()) { \
-		if (p != nullptr) \
-			std::cerr << "DELETE(" << p << "): " << *p << std::endl; \
-		else \
-			std::cerr << "DELETE(" << p << ")" << std::endl; \
-	} \
 	if (p != nullptr) { \
+		TAGL_LOG_TRACE( "DELETE(" << p << "): " << *p << std::endl ) \
 		delete p; \
 		p = nullptr; \
+	} else { \
+		TAGL_LOG_TRACE( "DELETE(NULL)" << std::endl ) \
 	}
 
 #define NEW_TAG(TAG_TYPE, TAG_ID)	\
@@ -74,8 +71,8 @@
 			tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, std::to_string(tagl->line_number())) );
 	}
 
-	if (tagl->is_trace_on()) {
-		std::cerr << "syntax_error stack: " << std::endl;
+	if (TAGL_TRACE_ON) {
+		fprintf(stderr, "syntax_error stack:\n");
 		fprintf(stderr,"yymajor: %s\n",yyTokenName[yymajor]);
 		auto p = yypParser->yystack;
 		while(p++ < yypParser->yytos) {
@@ -101,12 +98,15 @@
 	 */
 	auto p = yypParser->yystack;
 	while(p++ < yypParser->yytos) {
-		if (p->minor.yy0 != nullptr)
+		if (p->minor.yy0 != nullptr) {
 			DELETE(p->minor.yy0);
+		}
 	}
 
-	if (TOKEN != nullptr)
+	if (TOKEN != nullptr) {
 		DELETE(TOKEN)
+	}
+
 	tagl->do_callback();
 }
 

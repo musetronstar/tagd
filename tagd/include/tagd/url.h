@@ -102,23 +102,25 @@ class url : public abstract_tag {
         std::string query() const { return url_substr(_query_offset, _query_len); }
         std::string fragment() const { return url_substr(_fragment_offset, _fragment_len); }
 
+		/*
 		void debug() {
-			std::cout << '\t' << "_scheme_len: " << _scheme_len << std::endl;
-        	std::cout << '\t' << "_user_offset: " << _user_offset << std::endl;
-        	std::cout << '\t' << "_user_len: " << _user_len << std::endl;
-        	std::cout << '\t' << "_pass_offset: " << _pass_offset << std::endl;
-        	std::cout << '\t' << "_pass_len: " << _pass_len << std::endl;
-        	std::cout << '\t' << "_host_offset: " << _host_offset << std::endl;
-        	std::cout << '\t' << "_host_len: " << _host_len << std::endl;
-        	std::cout << '\t' << "_port_offset: " << _port_offset << std::endl;
-        	std::cout << '\t' << "_port_len: " << _port_len << std::endl;
-        	std::cout << '\t' << "_path_offset: " << _path_offset << std::endl;
-        	std::cout << '\t' << "_path_len: " << _path_len << std::endl;
-        	std::cout << '\t' << "_query_offset: " << _query_offset << std::endl;
-        	std::cout << '\t' << "_query_len: " << _query_len << std::endl;
-        	std::cout << '\t' << "_fragment_offset: " << _fragment_offset << std::endl;
-        	std::cout << '\t' << "_fragment_len: " << _fragment_len << std::endl;
+			TAGD_CERR << '\t' << "_scheme_len: " << _scheme_len << std::endl;
+        	TAGD_CERR << '\t' << "_user_offset: " << _user_offset << std::endl;
+        	TAGD_CERR << '\t' << "_user_len: " << _user_len << std::endl;
+        	TAGD_CERR << '\t' << "_pass_offset: " << _pass_offset << std::endl;
+        	TAGD_CERR << '\t' << "_pass_len: " << _pass_len << std::endl;
+        	TAGD_CERR << '\t' << "_host_offset: " << _host_offset << std::endl;
+        	TAGD_CERR << '\t' << "_host_len: " << _host_len << std::endl;
+        	TAGD_CERR << '\t' << "_port_offset: " << _port_offset << std::endl;
+        	TAGD_CERR << '\t' << "_port_len: " << _port_len << std::endl;
+        	TAGD_CERR << '\t' << "_path_offset: " << _path_offset << std::endl;
+        	TAGD_CERR << '\t' << "_path_len: " << _path_len << std::endl;
+        	TAGD_CERR << '\t' << "_query_offset: " << _query_offset << std::endl;
+        	TAGD_CERR << '\t' << "_query_len: " << _query_len << std::endl;
+        	TAGD_CERR << '\t' << "_fragment_offset: " << _fragment_offset << std::endl;
+        	TAGD_CERR << '\t' << "_fragment_len: " << _fragment_len << std::endl;
 		}
+		*/
 
         // TODO this will need to be determined during parsing
         authority_code authority_type() const { return AUTHORITY_HOST; }
