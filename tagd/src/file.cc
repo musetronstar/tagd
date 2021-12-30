@@ -220,6 +220,7 @@ const char * file::ext_media_type(std::string ext) {
 		case 't':
 			switch (ext[++i]) {
 				case 'a':
+					if (ext == "tagl")  return "application/tagl";
 					if (ext == "tar")  return "application/x-tar";
 					break;
 				case 'g':

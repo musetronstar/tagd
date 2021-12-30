@@ -17,29 +17,6 @@
 
 #include <stdio.h>
 
-/*
- * TODO when available in lemon, replace %extra_argument with %extra_context
- * add extra argument to ParseAlloc() and remove from Parse()
- */
-void* ParseAlloc(void* (*allocProc)(size_t));
-void* Parse(void*, int, std::string *, TAGL::driver*);
-void* ParseFree(void*, void(*freeProc)(void*));
-
-// debug
-void* ParseTrace(FILE *stream, char *zPrefix);
-
-bool TAGL_TRACE_ON = false;
-
-void TAGL_SET_TRACE_ON() {
-	TAGL_TRACE_ON = true;
-	ParseTrace(stderr, (char *)"tagl_trace: ");
-}
-
-void TAGL_SET_TRACE_OFF() {
-	TAGL_TRACE_ON = false;
-	ParseTrace(NULL, NULL);
-}
-
 namespace TAGL {
 
 const char* token_str(int tok) {
@@ -97,28 +74,13 @@ void driver::own_session(tagdb::session *ssn) {
 	_own_session = true;
 }
 
-// sets up scanner and parser, wont init if already setup
-void driver::init() {
-	// set _code for new parse, _errors will still contain prev errors
-	if (_code != tagd::TAGD_OK)
-		_code = tagd::TAGD_OK;
-
-	if (_parser != nullptr)
-		return;
-
-    // set up parser
-    _parser = ParseAlloc(malloc);
-}
-
-void driver::free_parser() {
-	if (_parser != nullptr) {
-		if (_token != TOK_TERMINATOR && !this->has_errors())
-			Parse(_parser, TOK_TERMINATOR, NULL, this);
-		if (_token > 0)
-			Parse(_parser, 0, NULL, this);
-		ParseFree(_parser, free);
-		_parser = nullptr;
-	}
+tagd::code driver::push_context(const tagd::id_type& id) {
+	if (_session == nullptr)
+		own_session(_tdb->new_session());
+	auto tc = _session->push_context(id);
+	if (tc == tagd::TAGD_OK)
+		_context_level++;
+	return tc;
 }
 
 void driver::clear_context_levels() {
@@ -147,6 +109,10 @@ int driver::lookup_pos(const std::string& s) {
 		return TOK_MODIFIER;
 
 	int token;
+	if (TAGL_TRACE_ON && _session != nullptr) {
+		std::cerr << "context: ";
+		_session->print_context();
+	}
 	tagd::part_of_speech pos = _tdb->pos(s, _session);
 	TAGL_LOG_TRACE( "pos(" << s << "): " << pos_str(pos) << std::endl )
 
@@ -193,36 +159,6 @@ int driver::lookup_pos(const std::string& s) {
 	}
 
 	return token;
-}
-
-void driver::parse_tok(int tok, std::string *s) {
-		_token = tok;
-		TAGL_LOG_TRACE( "line " << _scanner->_line_number
-				<< ", token " << token_str(_token) << ": " << (s == nullptr ? "NULL" : *s)
-				<< std::endl )
-
-		Parse(_parser, _token, s, this);
-}
-
-/* parses an entire string, replace end of input with a newline
- * init() should be called before calls to parseln and
- * finish() should be called afterwards
- * empty line will result in passing a TOK_TERMINATOR token to the parser
- */
-tagd::code driver::parseln(const std::string& line) {
-	this->init();
-
-	// end of input
-	if (line.empty()) {
-		Parse(_parser, TOK_TERMINATOR, NULL, this);
-		_token = 0;
-		Parse(_parser, _token, NULL, this);
-		return this->code();
-	}
-
-	_scanner->scan(line);
-
-	return this->code();
 }
 
 tagd::code driver::execute(const std::string& statement) {
@@ -418,25 +354,22 @@ tagd::code driver::new_url(const std::string& url) {
 		return this->ferror(u->code(), "parse URL failed: %s", url.c_str());
 	}
 	
-	if (!_constrain_tag_id.empty()) {
+	if (!constrain_tag_id.empty()) {
 		// the url constrained url can be either in URI or HDURI form
-		tagd::url uc(_constrain_tag_id);
+		tagd::url uc(constrain_tag_id);
 		if (!uc.ok()) {
 			delete u;
-			return this->ferror(uc.code(), "parse URL failed for constrained tag id: %s", _constrain_tag_id.c_str());
+			return this->ferror(uc.code(), "parse URL failed for constrained tag id: %s", constrain_tag_id.c_str());
 		}
 
 		if (u->id() != uc.id()) {
 			delete u;
-			return this->ferror(tagd::TAGL_ERR, "tag id constrained as: %s", _constrain_tag_id.c_str());
+			return this->ferror(tagd::TAGL_ERR, "tag id constrained as: %s", constrain_tag_id.c_str());
 		}
 	}
 
 	_tag = u;
 	return _tag->code();
 }
-
-
-
 
 } // namespace TAGL

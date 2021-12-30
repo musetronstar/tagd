@@ -208,6 +208,14 @@ test "put_url_cat" \
     ">> https://en.wikipedia.org/wiki/Cat about cat" \
 	"TAGD_OK"
 
+test "query_tag" \
+	 "?? dog;" \
+	 "TAGL_ERR"
+
+test "search" \
+	 "?? \"dog\";" \
+"https://en.wikipedia.org/wiki/Dog, http://animal.discovery.com/breed-selector/dog-breeds.html, dog"
+
 test "query_url_dog" \
      "?? what is_a _url about dog" \
 "https://en.wikipedia.org/wiki/Dog, http://animal.discovery.com/breed-selector/dog-breeds.html"

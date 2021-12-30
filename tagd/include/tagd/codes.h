@@ -3,7 +3,8 @@
 
 namespace tagd {
 
-typedef enum {	// TAGD_CODES_START  // marks automated processing
+// TAGD_CODES_START  // marks automated processing
+typedef enum {
     TAGD_OK = 0,
 
     TS_INIT,
@@ -55,7 +56,8 @@ typedef enum {	// TAGD_CODES_START  // marks automated processing
     TAGL_ERR,
 
 	HTTP_ERR
-} code;  // TAGD_CODES_END
+} code;
+// TAGD_CODES_END
 
 /*\
 |*| order of operations for tagd::predicates

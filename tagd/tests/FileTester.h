@@ -130,6 +130,9 @@ class Tester : public CxxTest::TestSuite {
 		const char *mt_upper = tagd::file::ext_media_type("JPG");
 		TS_ASSERT_EQUALS( mt_upper , "image/jpeg" )
 
+		const char *mt_tagl = tagd::file::ext_media_type("tagl");
+		TS_ASSERT_EQUALS( mt_tagl , "application/tagl" )
+
 		const char *mt_not_found = tagd::file::ext_media_type("caca");
 		TS_ASSERT_EQUALS( mt_not_found , nullptr )
 	}

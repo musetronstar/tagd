@@ -80,10 +80,10 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 
 	if (t.pos() == tagd::POS_URL) {
 		T = new tagd::url();
-		_tdb->get((tagd::url&)*T, t.id(), ssn, _driver->flags());
+		_tdb->get((tagd::url&)*T, t.id(), ssn, _driver->flags);
 	} else {
 		T = new tagd::abstract_tag();
-		_tdb->get(*T, t.id(), ssn, _driver->flags());
+		_tdb->get(*T, t.id(), ssn, _driver->flags);
 	}
 
 	if(CMD_OK())
@@ -98,7 +98,7 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 
 void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 	auto ssn = _driver->session_ptr();
-	tagd::code tc = _tdb->put(t, ssn, _driver->flags());
+	tagd::code tc = _tdb->put(t, ssn, _driver->flags);
 
 	if (CMD_OK()) {
 		if (_tsh->echo_result_code)
@@ -112,12 +112,12 @@ void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 
 void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 	auto ssn = _driver->session_ptr();
-	tagd::code tc = _tdb->del(t, ssn, _driver->flags());
+	tagd::code tc = _tdb->del(t, ssn, _driver->flags);
 
 	if (CMD_OK()) {
 		if (_tsh->echo_result_code)
 			TAGD_COUT << "-- " << tagd::code_str(tc) << std::endl;
-	} else if (_tdb->code() == tagd::TS_NOT_FOUND ) {
+	} else if (_tdb->code() == tagd::TS_NOT_FOUND) {
 		if (_tsh->echo_result_code)
 			TAGD_COUT << "-- " << tagd::code_str(tc) << std::endl;
 	} else {
@@ -131,7 +131,7 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 	tagd::tag_set T;
 	auto ssn = _driver->session_ptr();
 
-	auto tc = _tdb->query(T, q, ssn, _driver->flags()|tagdb::F_NO_NOT_FOUND_ERROR);
+	auto tc = _tdb->query(T, q, ssn, _driver->flags|tagdb::F_NO_NOT_FOUND_ERROR);
 	if (!CMD_OK()) {
 		this->handle_cmd_error();
 		add_history_lines_clear(_lines);
@@ -222,7 +222,7 @@ void tagsh::command(const std::string& cmdline) {
 		return;
 	}
 
-	if ( cmd == ".dump" ) {
+	if (cmd == ".dump") {
 		switch (V.size()) {
 			case 1:
 				this->dump();
@@ -240,40 +240,40 @@ void tagsh::command(const std::string& cmdline) {
 	}
 
 	// dump_grid specific only to tagdb_sqlite
-	if ( cmd == ".dump_grid" ) {
+	if (cmd == ".dump_grid") {
 		_tdb->dump_grid();
 		return;
 	
 	}
 
-	if ( cmd == ".dump_terms" ) {
+	if (cmd == ".dump_terms") {
 		_tdb->dump_terms();
 		return;
 	}
 
-	if ( cmd == ".dump_search" ) {
+	if (cmd == ".dump_search") {
 		_tdb->dump_search();
 		return;
 	}
 
-	if ( cmd == ".print_flags" ) {
-		TAGD_COUT << tagdb::flag_util::flag_list_str(_driver.flags()) << std::endl;
+	if (cmd == ".print_flags") {
+		TAGD_COUT << tagdb::flag_util::flag_list_str(_driver.flags) << std::endl;
 		return;
 	}
 
-	if ( cmd == ".print_context" ) {
+	if (cmd == ".print_context") {
 		auto ssn = _driver.session_ptr();
 		if (!ssn) return;
 		ssn->print_context();
 		return;
 	}
 
-	if ( cmd == ".trace_on" ) {
+	if (cmd == ".trace_on") {
 		ALL_SET_TRACE_ON();
 		return;
 	}
 
-	if ( cmd == ".trace_off" ) {
+	if (cmd == ".trace_off") {
 		ALL_SET_TRACE_OFF();
 		return;
 	}
@@ -294,7 +294,7 @@ int tagsh::interpret_readline() {
     rl_bind_key('\t', rl_complete);
 
 	char* input;
-    while( (input = readline(prompt.c_str())) != NULL ) {
+    while((input = readline(prompt.c_str())) != NULL) {
         _callback->_lines.push_back(input);
 		this->interpret(input);
     }
@@ -415,12 +415,10 @@ cmd_args::cmd_args()
 	_cmds["--file"] = file_handler;
 	_cmds["-f"] = file_handler;
 
-	cmd_handler trace_handler = {
+	_cmds["--trace"] = {
 		[this](char *) { opt_trace = true; },
 		false
 	};
-	_cmds["--trace"] = trace_handler;
-	_cmds["--trace_on"] = trace_handler;
 
 	_cmds["--dump"] = {
 		[this](char *) {
@@ -429,6 +427,38 @@ cmd_args::cmd_args()
 		},
 		false
 	};
+
+	cmd_handler help_handler = {
+		[this](char *) {
+			opt_noshell = true;
+			std::cout
+<< "tagsh" 																		<< std::endl
+<< "		with no options: interactive tagl prompt with an in memory tagdb" 	<< std::endl
+<< "tagsh [options]" 															<< std::endl
+<< "---------------" 															<< std::endl
+<< "  --db <database path | :memory:>" 										<< std::endl
+<< "		specify tagdb, :memory: by default" 								<< std::endl
+<< "  --create" 																<< std::endl
+<< "		create the file specified by --db (if not already existing)" 		<< std::endl
+<< "  -f <tagl file>" 															<< std::endl
+<< "  --file" 																	<< std::endl
+<< "		execute tagl file, multiple flags will be processed in order" 		<< std::endl
+<< "  -t <tagl code>" 															<< std::endl
+<< "  --tagl" 																	<< std::endl
+<< "		tagl code to be executed in order" 									<< std::endl
+<< "  -n" 																		<< std::endl
+<< "  --noshell" 																<< std::endl
+<< "		execute then exit with no shell" 									<< std::endl
+<< "  --dump" 																	<< std::endl
+<< "		dump tagspace" 														<< std::endl
+<< "  --trace" 																	<< std::endl
+<< "		debug tracing" 														<< std::endl
+			<< std::endl;
+		}, false
+	};
+	_cmds["--help"] = help_handler;
+	_cmds["-h"] = help_handler;
+
 }
 
 void cmd_args::parse(int argc, char **argv) {

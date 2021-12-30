@@ -91,9 +91,7 @@ class abstract_tag {
         part_of_speech _pos;
         tagd::rank _rank;
 		tagd::code _code;
-
-        // set and return
-        tagd::code code(tagd::code c) { _code = c; return _code; }
+        tagd::code code(tagd::code c) { return _code = c; } // set and return
     public:
         // empty tag
         abstract_tag() :
@@ -365,7 +363,7 @@ class referent : public abstract_tag {
 };
 
 
-// TODO maybe
+// TODO modifier maybe
 /*
    measures the object of a predicate (i.e. answers "how many?")
    however, it could also represent a more general sense of quantification

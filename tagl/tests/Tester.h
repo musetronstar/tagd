@@ -236,10 +236,9 @@ class callback_tester : public TAGL::callback {
 		tagd::abstract_tag *last_tag;
 		tagd::tag_set last_tag_set;
 		int cmd;
-		int err_cmd;
 
 		callback_tester(tagdb::tagdb *tdb) :
-			last_code(), last_tag(nullptr), err_cmd(-1) {
+			last_code(), last_tag(nullptr)  {
 			_tdb = tdb;
 		}
 
@@ -683,10 +682,10 @@ class Tester : public CxxTest::TestSuite {
 
 	}
 
-	void test_constrain_tag_id_consistent(void) {
+	void testconstrain_tag_id_consistent(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		tagl.constrain_tag_id("dog");
+		tagl.constrain_tag_id = "dog";
 		tagd::code tc = tagl.execute(
 				">> dog " HARD_TAG_IS_A " animal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
@@ -701,10 +700,10 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bite") )
 	}
 
-	void test_constrain_tag_id_inconsistent(void) {
+	void testconstrain_tag_id_inconsistent(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		tagl.constrain_tag_id("dog");
+		tagl.constrain_tag_id = "dog";
 		tagd::code tc = tagl.execute(
 				">> dog " HARD_TAG_IS_A " animal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
@@ -1172,7 +1171,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 	}
 
-	// tagdb_tester won't allow this, but tagl parser will
+	// TODO tagdb_tester won't allow this, but tagl parser will
 	// void test_put_referent_self(void) {
 	// 	tagdb_tester tdb;
 	// 	TAGL::driver tagl(&tdb);
@@ -1250,19 +1249,19 @@ class Tester : public CxxTest::TestSuite {
 	void test_set_ignore_duplicates(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		TS_ASSERT( tagl.flags() != tagdb::F_IGNORE_DUPLICATES )
+		TS_ASSERT( tagl.flags != tagdb::F_IGNORE_DUPLICATES )
 
 		tagd::code tc = tagl.execute("%% " HARD_TAG_IGNORE_DUPLICATES " 1");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		TS_ASSERT( tagl.flags() == tagdb::F_IGNORE_DUPLICATES )
+		TS_ASSERT( tagl.flags == tagdb::F_IGNORE_DUPLICATES )
 
 		tc = tagl.execute("%% " HARD_TAG_IGNORE_DUPLICATES " 0");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		TS_ASSERT( tagl.flags() != tagdb::F_IGNORE_DUPLICATES )
+		TS_ASSERT( tagl.flags != tagdb::F_IGNORE_DUPLICATES )
 
 		tc = tagl.execute("%% " HARD_TAG_IGNORE_DUPLICATES " 5");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		TS_ASSERT( tagl.flags() == tagdb::F_IGNORE_DUPLICATES )
+		TS_ASSERT( tagl.flags == tagdb::F_IGNORE_DUPLICATES )
 	}
 
 	void test_set_context_list(void) {
@@ -1415,16 +1414,37 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( it->related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( it->related(HARD_TAG_HAS, "tail") )
 	}
-//     void test_query_not_found(void) {
-// 		tagdb_tester tdb;
-// 		callback_tester cb(&tdb);
-// 		TAGL::driver tagl(&tdb, &cb);
-// 		tagd::code tc = tagl.execute("<< " HARD_TAG_WHAT " " HARD_TAG_IS_A " snipe");
-// 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-// 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
-// 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
-// 		TS_ASSERT( cb.err_cmd == TOK_CMD_GET )
-// 	}
+
+    void test_query_not_found(void) {
+ 		tagdb_tester tdb;
+ 		callback_tester cb(&tdb);
+ 		TAGL::driver tagl(&tdb, &cb);
+ 		tagd::code tc = tagl.execute("<< " HARD_TAG_WHAT " " HARD_TAG_IS_A " snipe");
+		// TODO why not NOT_FOUND?
+ 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
+ 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
+ 	}
+
+    void test_query_tag(void) {
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb);
+		// search string must be in double quotes
+		tagd::code tc = tagl.execute("?? dog;");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
+	}
+
+	// TODO this segfaults on free()ing invalid pointer
+	// however, the same query works in tagl/tests/tester.exp
+    void test_search(void) {
+		TAGL_SET_TRACE_ON();
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb);
+		tagd::code tc = tagl.execute("?? \"dog\";");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TAGL_SET_TRACE_OFF();
+	}
 
 	void test_query_referents(void) {
 		tagdb_tester tdb;
@@ -1616,7 +1636,7 @@ class Tester : public CxxTest::TestSuite {
 		TAGL::driver tagl(&tdb, &cb);
 
 		const std::string hduri{"hd:org!wikipedia!en!/wiki/Dog!!!!!!https"};
-		tagl.constrain_tag_id(hduri);
+		tagl.constrain_tag_id = hduri;
 		tagd::code tc = tagl.execute(
 				">> https://en.wikipedia.org/wiki/Dog\n"
 				"about dog\n"

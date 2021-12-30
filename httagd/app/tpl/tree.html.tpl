@@ -39,10 +39,10 @@ li.id:before {
 <script type="text/javascript">
 
 var tree = {
-	"super_object_link": null,
-	"id_link": null,
-	"prev_link": null,
-	"next_link": null,
+	"superObj": null,
+	"idLink": null,
+	"prevLink": null,
+	"nextLink": null,
 	"child": []
 };
 
@@ -52,23 +52,23 @@ $(".tree li").each(function(i) {
 });
 
 $(".tree li.sub > a").each(function(i) {
-	tree["super_object_link"] = $(this).attr('href');
-	//console.log('sub('+i+','+typeof($( this ))+'): '+tree['super_object_link']);
+	tree["superObj"] = $(this).attr('href');
+	//console.log('sub('+i+','+typeof($( this ))+'): '+tree['superObj']);
 });
 
 $(".tree li.prev > a").each(function(i) {
-	tree["prev_link"] = $(this).attr('href');
-	//console.log('prev('+i+','+typeof($( this ))+'): '+tree['prev_link']);
+	tree["prevLink"] = $(this).attr('href');
+	//console.log('prev('+i+','+typeof($( this ))+'): '+tree['prevLink']);
 });
 
 $(".tree li.id > a").each(function(i) {
-	tree["id_link"] = $(this).attr('href');
-	//console.log('id('+i+','+typeof($( this ))+'): '+tree['id_link']);
+	tree["idLink"] = $(this).attr('href');
+	//console.log('id('+i+','+typeof($( this ))+'): '+tree['idLink']);
 });
 
 $(".tree li.next > a").each(function(i) {
-	tree["next_link"] = $(this).attr('href');
-	//console.log('next('+i+','+typeof($( this ))+'): '+tree['next_link']);
+	tree["nextLink"] = $(this).attr('href');
+	//console.log('next('+i+','+typeof($( this ))+'): '+tree['nextLink']);
 });
 
 $(".tree li.child > a").each(function(i) {
@@ -85,13 +85,13 @@ $(document).ready(function() {
 $(document).keydown(function(e){
 	switch(e.keyCode) {
 		case 37:
-			window.location.href = tree['super_object_link'];
-			//console.log("left: " + tree['super_object_link']);
+			window.location.href = tree['superObj'];
+			//console.log("left: " + tree['superObj']);
 			break;
 		case 38:
-			if (tree['prev_link'])
-				window.location.href = tree['prev_link'];
-			//console.log("up: " + tree['prev_link']);
+			if (tree['prevLink'])
+				window.location.href = tree['prevLink'];
+			//console.log("up: " + tree['prevLink']);
 			break;
 		case 39:
 			if (tree['child'][0])
@@ -99,9 +99,9 @@ $(document).keydown(function(e){
 			//console.log("right: " + tree['child']);
 			break;
 		case 40:
-			if (tree['next_link'])
-				window.location.href = tree['next_link'];
-			//console.log("down: " + tree['next_link']);
+			if (tree['nextLink'])
+				window.location.href = tree['nextLink'];
+			//console.log("down: " + tree['nextLink']);
 			break;
 	}
 	return true;

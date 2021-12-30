@@ -66,9 +66,7 @@ empty_handler_t home_handler(
 		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("home", tx.res->output_buffer());
 
-		// TODO don't do this
-		// messages should be internationalized
-		// a _home_page tag might suffice for these type of definitions
+		// TODO internationalize a _home_page tag, etc. 
 		tagd::abstract_tag t("Welcomd to tagd!");
 		fill_header(tx, tpl, t.id());
 

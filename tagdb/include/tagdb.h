@@ -115,6 +115,8 @@ class hard_tag {
 class tagdb : public tagd::errorable {
 	protected:
 		bool _trace_on = TAGDB_TRACE_ON;
+
+		// rest tagdb and session to OK state
 		void reset(session *ssn) {
 			_code = tagd::TAGD_OK;
 			if (ssn) ssn->code(tagd::TAGD_OK);
@@ -142,11 +144,23 @@ class tagdb : public tagd::errorable {
 		 * call to this->reset() that respect the F_NO_RESET flag
 		 * such as:  if (!(flags & F_NO_RESET)) this->reset();
 		 */
-		virtual tagd::code get(tagd::abstract_tag&, const tagd::id_type&, session*, flags_t = 0) = 0; // get into tag, given id
+
+		// get into tag from db, given id
+		virtual tagd::code get(tagd::abstract_tag&, const tagd::id_type&, session*, flags_t = 0) = 0;
+
+		// put into db given tag
 		virtual tagd::code put(const tagd::abstract_tag&, session*, flags_t = 0) = 0;
+
+		// delete from db given tag
 		virtual tagd::code del(const tagd::abstract_tag&, session*, flags_t = 0) = 0;
+
+		// query db given interrogator, populate set of tag ids
 		virtual tagd::code query(tagd::tag_set&, const tagd::interrogator&, session*, flags_t = 0) = 0;
+
+		// return a tag::pos given a tag id
 		virtual tagd::part_of_speech pos(const tagd::id_type&, session*, flags_t = 0) = 0; 
+
+		// returns whether a tag id exists
 		virtual bool exists(const tagd::id_type&, flags_t = 0) = 0;
 
 		virtual tagd::code dump(std::ostream& os = std::cout) = 0;

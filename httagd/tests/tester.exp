@@ -80,7 +80,7 @@ proc test_file {n m u f e} {
 
 eval $spawn_httagd
 
-# there must be a better way to wait for the server to start up
+# TODO there must be a better way to wait for the server to start up
 sleep 1
 
 test "get_dog" \
@@ -134,6 +134,25 @@ test "get_doggy_no_context" \
 test "get_doggy" \
 	 "GET" "/doggy?c=simple_english" "" \
 	 "doggy is_a mammal(.*)_refers_to dog"
+
+test "search" \
+	 "GET" "?q=can+bark" "" \
+	 "dog"
+
+test "tag_search" \
+	 "GET" "/animal?q=warm+blood" "" \
+	 "400 Bad Request"
+
+# TODO httagd should produce this query (which works in tagsh):
+# ?? _interrogator _sub animal _has _terms = "warm blood";
+test "tag_sub_search" \
+	 "GET" "/animal/?q=warm+blood" "" \
+	 "mammal"
+
+test "illegal_get_tag_search" \
+	 "GET" "?q=can+bark" "" \
+	 "dog"
+
 
 test "delete_refers_no_context" \
      "DELETE" "/doggy" "" \
@@ -193,6 +212,15 @@ test "get_japanese_dog" \
 test "get_txt_file" \
 	 "GET" "/_file/test.txt" "" \
 	 "FILE_TEXT"
+
+# TODO
+#test "refer_file" \
+#     "POST" "/test" "_refers_to /_file/test.txt _context _file" \
+#	 "200 OK"
+
+#test "get_refered_txt_file" \
+#	 "GET" "/test?c=_file" "" \
+#	 "FILE_TEXT"
 
 close
 wait

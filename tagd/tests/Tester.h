@@ -172,6 +172,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( b, 1 );
         b = r4.pop_back();
         TS_ASSERT( r4.empty() );
+        TS_ASSERT_EQUALS( r4.dotted_str() , "" );
         TS_ASSERT_EQUALS( b, 0 );
         b = r4.pop_back(); // again
         TS_ASSERT_EQUALS( b, 0 );
@@ -180,6 +181,7 @@ class Tester : public CxxTest::TestSuite {
         tagd::rank r5;
         b = r4.pop_back();
         TS_ASSERT_EQUALS( b, 0 );
+        TS_ASSERT( r4.empty() );
         TS_ASSERT_EQUALS( r4.dotted_str() , "" );
         TS_ASSERT_EQUALS( r4.back() , 0 );
         TS_ASSERT_EQUALS( r4.size() , 0 );

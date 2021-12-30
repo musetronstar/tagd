@@ -13,6 +13,9 @@
 lib/
 bin/
 
+# project files
+.vscode/
+
 # CxxTest output - note the ucase in test filenames (e.g. Tester.h)
 *tester*
 !tester.exp
@@ -26,10 +29,11 @@ bin/
 *.db
 
 # generated files
-hard-tags.gperf
-hard-tags.gperf.h
+*.gperf*
+!public-suffix.gperf*
 *.inc
 *.out
+*.out.cc
 parser.h
 parser.cc
 scanner.cc

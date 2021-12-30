@@ -272,12 +272,12 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 		|*|   >> dog is_a animal has legs, can bark
 		\*/
 
-		auto tag_id = tagd::uri_decode(segment);
-		_driver->constrain_tag_id(tag_id);
+		const auto id = tagd::uri_decode(segment);
+		_driver->constrain_tag_id = id;
 
 		if (req.method != HTTP_PUT) {
 			_driver->parse_tok(cmd, NULL);
-			this->scan(tag_id);
+			this->scan(id);
 		}
 	}
 
@@ -384,7 +384,7 @@ tagd::code httagl::tagdurl_del(const request& req) {
 
 void callback::default_cmd_put(const tagd::abstract_tag& t) {
 	auto ssn = _tx->drvr->session_ptr();
-	if ( _tx->tdb->put(t, ssn, _driver->flags()) != tagd::TAGD_OK) {
+	if ( _tx->tdb->put(t, ssn, _driver->flags) != tagd::TAGD_OK) {
 		std::stringstream ss;
 		ssn->print_errors(ss);
 		_tx->res->add(ss.str());
@@ -393,7 +393,7 @@ void callback::default_cmd_put(const tagd::abstract_tag& t) {
 
 void callback::default_cmd_del(const tagd::abstract_tag& t) {
 	auto ssn = _tx->drvr->session_ptr();
-	if (_tx->tdb->del(t, ssn, _driver->flags()) != tagd::TAGD_OK) {
+	if (_tx->tdb->del(t, ssn, _driver->flags) != tagd::TAGD_OK) {
 		std::stringstream ss;
 		ssn->print_errors(ss);
 		_tx->res->add(ss.str());
@@ -405,7 +405,7 @@ void callback::default_cmd_query(const tagd::interrogator& q) {
 	auto ssn = _tx->drvr->session_ptr();
 	std::stringstream ss;
 
-	if (_tx->tdb->query(T, q, ssn, _driver->flags()) == tagd::TAGD_OK) {
+	if (_tx->tdb->query(T, q, ssn, _driver->flags) == tagd::TAGD_OK) {
 		tagd::print_tag_ids(T, ss);
 		ss << std::endl;
 	} else {
@@ -627,10 +627,10 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 		if (!T->ok())
 			tc = _tx->ferror(T->code(), "default_cmd_get parse url failed: %s", t.id().c_str());
 		else
-			tc = _tx->tdb->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags());
+			tc = _tx->tdb->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags);
 	} else {
 		T = new tagd::abstract_tag();
-		tc = _tx->tdb->get(*T, t.id(), ssn, _driver->flags());
+		tc = _tx->tdb->get(*T, t.id(), ssn, _driver->flags);
 	}
 
 	// TODO, if outputting to an iostream is still desirable,
@@ -689,10 +689,10 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 		if (!T->ok())
 			tc = _tx->ferror(T->code(), "cmd_get parse url failed: %s", t.id().c_str());
 		else
-			tc = _tx->tdb->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags());
+			tc = _tx->tdb->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags);
 	} else {
 		T = new tagd::abstract_tag();
-		tc = _tx->tdb->get(*T, t.id(), ssn, _driver->flags());
+		tc = _tx->tdb->get(*T, t.id(), ssn, _driver->flags);
 	}
 	RET_IF_ERR();
 
@@ -729,7 +729,7 @@ void callback::cmd_query(const tagd::interrogator& q) {
 
 	tagd::tag_set R;
 	auto ssn = _tx->drvr->session_ptr();
-	tagd::code tc = _tx->tdb->query(R, q, ssn, _driver->flags());
+	tagd::code tc = _tx->tdb->query(R, q, ssn, _driver->flags);
 
 	if (tc != tagd::TAGD_OK) {
 		this->output_errors(tc);

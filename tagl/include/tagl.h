@@ -10,7 +10,6 @@ struct evbuffer;
 
 // forward declare types used by lemon parser
 struct yyParser;
-static void yy_reduce(yyParser*, unsigned int, int, std::string*);
 
 extern bool TAGL_TRACE_ON;
 void TAGL_SET_TRACE_ON();
@@ -46,7 +45,6 @@ class callback {
 const size_t BUF_SZ = 16384;
 
 class scanner {
-	friend void ::yy_reduce(yyParser*, unsigned int, int, std::string*);
 	friend class TAGL::driver;
 
 	protected:
@@ -92,7 +90,6 @@ class scanner {
 };
 
 class driver : public tagd::errorable {
-	friend void ::yy_reduce(yyParser*, unsigned int, int, std::string*);
 	friend class TAGL::scanner;
 
 	protected:
@@ -102,20 +99,16 @@ class driver : public tagd::errorable {
 		// number of items pushed on the stack by this parser
 		size_t _context_level = 0;
 		// pop off only what this instance pushed on (leaving previous items untouched)
-		void clear_context_levels();
 
 		scanner *_scanner = nullptr;
 		void *_parser = nullptr;	// lemon parser context
 		int _token = -1;		// last token scanned: 0 = <End of Input>, -1 = unitialized (ready for new parse tree)
 		int _cmd = -1;		// _token value representing a TAGL command
-		tagdb::flags_t _flags = 0;
 
 		tagdb::tagdb *_tdb = nullptr;
 		tagdb::session *_session = nullptr;
 		callback *_callback = nullptr;
 		tagd::abstract_tag *_tag = nullptr;  // tag of the current statement
-		tagd::id_type _relator;    // current relator
-		tagd::id_type _constrain_tag_id; // if set, the assigned _tag.id() must be equal to this
 		std::string _path;
 
 		// sets up scanner and parser for a fresh start
@@ -130,10 +123,17 @@ class driver : public tagd::errorable {
 		driver(tagdb::tagdb*, callback*, tagdb::session* = nullptr);
 		virtual ~driver();
 
+		tagdb::flags_t flags = 0;
+		tagd::id_type constrain_tag_id; // if set, the assigned _tag.id() must be equal to this
+
+		// TODO remove from here, create/destroy relator in parser
+		tagd::id_type relator;    // current relator
+
 		void session_ptr(tagdb::session *ssn) { _session = ssn; }
 		tagdb::session* session_ptr() { return _session; }
 		// sets _session and _own_session, delete old session (if set and not the same)
 		void own_session(tagdb::session *);
+		tagd::code push_context(const tagd::id_type&);
 
 		void callback_ptr(callback *c) {
 			_callback = c;
@@ -146,13 +146,15 @@ class driver : public tagd::errorable {
 		tagd::code execute(const std::string&);
 		tagd::code execute(evbuffer*);
 		int token() const { return _token; }
-		tagdb::flags_t flags() const { return _flags; }
 		int lookup_pos(const std::string&);
 		void parse_tok(int, std::string*);
 		tagd::code include_file(const std::string&);
 		int open_rel(const std::string& path, int flags);
 
+		void clear_context_levels();
+
 		int cmd() const { return _cmd; }
+		void cmd(int c) { _cmd = c; }
 
 		size_t line_number() const {
 			return _scanner->_line_number;
@@ -161,18 +163,18 @@ class driver : public tagd::errorable {
 		void path(const std::string& f) { _path = f; }
 		const std::string& path() const { return _path; }
 
-		const tagd::abstract_tag& tag() const {
-			static const tagd::abstract_tag empty_tag;
-			return (_tag == nullptr ? empty_tag : *_tag);
-		}
-
-		void constrain_tag_id(const tagd::id_type &id) { _constrain_tag_id = id; }
-
 		bool is_setup();
 		void do_callback();
 
 		// adds end of input to parser and frees scanner and parser
 		void finish();
+
+		void tag_ptr(tagd::abstract_tag *t) { _tag = t; }
+		tagd::abstract_tag* tag_ptr() const { return _tag; }
+		const tagd::abstract_tag& tag() const {
+			static const tagd::abstract_tag empty_tag;
+			return (_tag == nullptr ? empty_tag : *_tag);
+		}
 
 		// checks that _tag is set to nullptr, otherwise deletes _tag and sets to nullptr
 		void delete_tag() {
