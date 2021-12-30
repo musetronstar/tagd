@@ -2,7 +2,7 @@
 
 # exp_internal 1   ;# diagnostics
 
-set spawn_httagd "spawn ../bin/httagd --file ../../tagsh/bootstrap.tagl --www-dir ./www-tester"
+set spawn_httagd "spawn ../bin/httagd --file ../../tagsh/bootstrap.tagl --www-dir ./www"
 
 set MAX_ERRORS 3
 set ERRORS 0
