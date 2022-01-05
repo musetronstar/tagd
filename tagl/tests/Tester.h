@@ -26,6 +26,7 @@ class tagdb_tester : public tagdb::tagdb {
 		}
 
 		// animals
+		tagd::abstract_tag _mammal;
 		tagd::abstract_tag _dog;
 		tagd::abstract_tag _cat;
 	public:
@@ -48,11 +49,14 @@ class tagdb_tester : public tagdb::tagdb {
 			put_test_tag("child", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("fun", "action", tagd::POS_TAG);
+			put_test_tag(HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_SUB_RELATOR);
 			put_test_tag(HARD_TAG_IS_A, HARD_TAG_ENTITY, tagd::POS_SUB_RELATOR);
 			put_test_tag("about", HARD_TAG_ENTITY, tagd::POS_RELATOR);
 			put_test_tag(HARD_TAG_HAS, HARD_TAG_ENTITY, tagd::POS_RELATOR);
 			put_test_tag(HARD_TAG_CAN, HARD_TAG_ENTITY, tagd::POS_RELATOR);
+			put_test_tag(HARD_TAG_INTERROGATOR, HARD_TAG_ENTITY, tagd::POS_INTERROGATOR);
 			put_test_tag(HARD_TAG_WHAT, HARD_TAG_ENTITY, tagd::POS_INTERROGATOR);
+			put_test_tag(HARD_TAG_TERMS, HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag(HARD_TAG_MESSAGE, HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag(HARD_TAG_REFERENT, HARD_TAG_SUB, tagd::POS_REFERENT);
 			put_test_tag(HARD_TAG_REFERS, HARD_TAG_ENTITY, tagd::POS_REFERS);
@@ -61,7 +65,13 @@ class tagdb_tester : public tagdb::tagdb {
 			put_test_tag(HARD_TAG_FLAG, HARD_TAG_ENTITY, tagd::POS_FLAG);
 			put_test_tag(HARD_TAG_IGNORE_DUPLICATES, HARD_TAG_FLAG, tagd::POS_FLAG);
 
-			tagd::abstract_tag dog("dog", "animal", tagd::POS_TAG);
+			tagd::abstract_tag mammal("mammal", "animal", tagd::POS_TAG);
+			// search terms
+			mammal.relation(HARD_TAG_HAS, HARD_TAG_TERMS, "warm blood");
+			db[mammal.id()] = mammal;
+			_mammal = mammal;
+
+			tagd::abstract_tag dog("dog", "mammal", tagd::POS_TAG);
 			dog.relation(HARD_TAG_HAS, "legs");
 			dog.relation(HARD_TAG_HAS, "tail");
 			dog.relation(HARD_TAG_HAS, "fur");
@@ -70,7 +80,7 @@ class tagdb_tester : public tagdb::tagdb {
 			db[dog.id()] = dog;
 			_dog = dog;
 
-			tagd::abstract_tag cat("cat", "animal", tagd::POS_TAG);
+			tagd::abstract_tag cat("cat", "mammal", tagd::POS_TAG);
 			cat.relation(HARD_TAG_HAS, "legs");
 			cat.relation(HARD_TAG_HAS, "tail");
 			cat.relation(HARD_TAG_HAS, "fur");
@@ -179,13 +189,16 @@ class tagdb_tester : public tagdb::tagdb {
 
 		// !!!tag_set results hard coded!!!
 		tagd::code query(tagd::tag_set& T, const tagd::interrogator& q, tdb_session_t * = nullptr, tdb_flags_t flags = tdb_flags_t()) {
-			if (q.super_object().empty() &&
+			if ( q.super_object().empty() &&
 					q.related("legs") &&
 					q.related("tail") ) {
 				T.insert(_cat);
 				T.insert(_dog);
 				return tagd::TAGD_OK;
 			} else if (q.super_object() == "animal") {
+				T.insert(_mammal);
+				return tagd::TAGD_OK;
+			} else if (q.super_object() == "mammal") {
 				T.insert(_cat);
 				T.insert(_dog);
 				return tagd::TAGD_OK;
@@ -370,24 +383,24 @@ class Tester : public CxxTest::TestSuite {
     void test_get_sub_identity_error(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		tagd::code tc = tagl.execute("<< dog " HARD_TAG_IS_A " animal");
+		tagd::code tc = tagl.execute("<< dog " HARD_TAG_IS_A " mammal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 	}
 
     void test_subject_sub_identity(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		tagd::code tc = tagl.execute(">> dog " HARD_TAG_IS_A " animal");
+		tagd::code tc = tagl.execute(">> dog " HARD_TAG_IS_A " mammal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 	}
 
     void test_unknown_sub_relator(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		tagd::code tc = tagl.execute(">> dog snarfs animal");
+		tagd::code tc = tagl.execute(">> dog snarfs mammal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
 	}
 
@@ -446,14 +459,14 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
 		tagd::code tc = tagl.execute(
-				">> dog " HARD_TAG_IS_A " animal\n"
+				">> dog " HARD_TAG_IS_A " mammal\n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				HARD_TAG_CAN " bark, bite"
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
@@ -465,14 +478,14 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
 		tagd::code tc = tagl.execute(
-				">> dog " HARD_TAG_IS_A " animal \n"
+				">> dog " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				HARD_TAG_CAN " bark, bite"
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
@@ -552,7 +565,7 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
 		tagd::code tc = tagl.execute(
-				"!! dog " HARD_TAG_IS_A " animal\n"
+				"!! dog " HARD_TAG_IS_A " mammal\n"
 				HARD_TAG_CAN " bite"
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_MISUSE" )
@@ -660,20 +673,20 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
 		tagd::code tc = tagl.execute(
-				">> dog " HARD_TAG_IS_A " animal \n"
+				">> dog " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				HARD_TAG_CAN " bark, bite\n"
 				"\n"
 				"<< dog\n"
 				"\n"
-				">> cat " HARD_TAG_IS_A " animal \n"
+				">> cat " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				HARD_TAG_CAN " meow, bite"
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "cat" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
@@ -687,7 +700,7 @@ class Tester : public CxxTest::TestSuite {
 		TAGL::driver tagl(&tdb);
 		tagl.constrain_tag_id = "dog";
 		tagd::code tc = tagl.execute(
-				">> dog " HARD_TAG_IS_A " animal \n"
+				">> dog " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				"\n"
 				">> dog\n"
@@ -705,17 +718,17 @@ class Tester : public CxxTest::TestSuite {
 		TAGL::driver tagl(&tdb);
 		tagl.constrain_tag_id = "dog";
 		tagd::code tc = tagl.execute(
-				">> dog " HARD_TAG_IS_A " animal \n"
+				">> dog " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				"\n"
-				">> cat " HARD_TAG_IS_A " animal \n"
+				">> cat " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				HARD_TAG_CAN " meow, bite"
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
@@ -725,14 +738,14 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
 		tagd::code tc = tagl.execute(
-				">> dog " HARD_TAG_IS_A " animal \n"
+				">> dog " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				HARD_TAG_CAN " bark, bite"
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
@@ -740,14 +753,14 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bite") )
 
 		tc = tagl.execute(
-				">> cat " HARD_TAG_IS_A " animal \n"
+				">> cat " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				HARD_TAG_CAN " meow, bite"
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "cat" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
@@ -772,7 +785,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bite") )
 
 		tc = tagl.execute(
-				">> cat " HARD_TAG_IS_A " animal \n"
+				">> cat " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_CAN " meow, bite\n"
 				HARD_TAG_HAS " legs =4"
 			);
@@ -780,7 +793,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tc == tagl.code() )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "cat" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs", "4") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "meow") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bite") )
@@ -806,13 +819,13 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
 		tagd::code tc = tagl.execute(
-		  ">> dog " HARD_TAG_IS_A " animal " HARD_TAG_HAS " legs, tail, fur " HARD_TAG_CAN " bark, bite; >> cat " HARD_TAG_IS_A " animal " HARD_TAG_HAS " legs, tail, fur " HARD_TAG_CAN " meow, bite"
+		  ">> dog " HARD_TAG_IS_A " mammal " HARD_TAG_HAS " legs, tail, fur " HARD_TAG_CAN " bark, bite; >> cat " HARD_TAG_IS_A " mammal " HARD_TAG_HAS " legs, tail, fur " HARD_TAG_CAN " meow, bite"
 		);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		// tag only holds last tag statement
 		TS_ASSERT_EQUALS( tagl.tag().id() , "cat" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
@@ -830,12 +843,12 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
 		tagd::code tc = tagl.execute(
-		  ">> snipe " HARD_TAG_IS_A " animal " HARD_TAG_HAS " legs"
+		  ">> snipe " HARD_TAG_IS_A " mammal " HARD_TAG_HAS " legs"
 		);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "snipe" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 	}
 
@@ -843,12 +856,12 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
 		tagd::code tc = tagl.execute(
-		  ">> dog " HARD_TAG_IS_A " animal " HARD_TAG_HAS " legs"
+		  ">> dog " HARD_TAG_IS_A " mammal " HARD_TAG_HAS " legs"
 		);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 	}
 
@@ -871,11 +884,11 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( a.tag().id() , "dog" )
 
 		TAGL::driver b(&tdb);
-		tc = b.execute(">> dog " HARD_TAG_IS_A " animal\n");
+		tc = b.execute(">> dog " HARD_TAG_IS_A " mammal\n");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( b.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( b.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( b.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( b.tag().super_object() , "mammal" )
 
 		TAGL::driver c(&tdb);
 		tc = c.execute(">> dog " HARD_TAG_HAS " legs\n");
@@ -886,14 +899,14 @@ class Tester : public CxxTest::TestSuite {
 
 		TAGL::driver d(&tdb);
 		tc = d.execute(
-				">> dog " HARD_TAG_IS_A " animal \n"
+				">> dog " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				HARD_TAG_CAN " bark, bite\n"
 			);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( d.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( d.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( d.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( d.tag().super_object() , "mammal" )
 		TS_ASSERT( d.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( d.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( d.tag().related(HARD_TAG_HAS, "fur") )
@@ -908,7 +921,7 @@ class Tester : public CxxTest::TestSuite {
 		TAGL::driver d(&tdb);
 		tc = d.execute(
 			"-- this is a comment\n"
-			">> dog " HARD_TAG_IS_A " animal --so is this\n"
+			">> dog " HARD_TAG_IS_A " mammal --so is this\n"
 			HARD_TAG_HAS " legs, tail-- no space between token and comment\n"
 			HARD_TAG_HAS "-* i'm a block comment *-fur\n"
 			"--" HARD_TAG_CAN " bark, bite"
@@ -918,7 +931,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( d.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( d.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( d.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( d.tag().super_object() , "mammal" )
 		TS_ASSERT( d.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( d.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( d.tag().related(HARD_TAG_HAS, "fur") )
@@ -926,7 +939,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( !d.tag().related(HARD_TAG_CAN, "bite") )
 
 		tc = d.execute(
-				">> dog " HARD_TAG_IS_A " animal -* i'm a block comment\n"
+				">> dog " HARD_TAG_IS_A " mammal -* i'm a block comment\n"
 				"and I don't end"
 		);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
@@ -935,18 +948,18 @@ class Tester : public CxxTest::TestSuite {
     void test_parseln_terminator(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		tagl.parseln(">> dog " HARD_TAG_IS_A " animal;");
+		tagl.parseln(">> dog " HARD_TAG_IS_A " mammal;");
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 	}
 
    void test_parseln_finish(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		tagl.parseln(">> dog " HARD_TAG_IS_A " animal");
+		tagl.parseln(">> dog " HARD_TAG_IS_A " mammal");
 		tagl.parseln(HARD_TAG_HAS " legs, tail, fur");
 		tagl.parseln(HARD_TAG_CAN " bark, bite");
 		// statement not terminated yet
@@ -955,14 +968,14 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bark") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bite") )
 
-		tagl.parseln(">> cat " HARD_TAG_IS_A " animal");
+		tagl.parseln(">> cat " HARD_TAG_IS_A " mammal");
 		tagl.parseln(HARD_TAG_HAS " legs, tail, fur");
 		tagl.parseln(HARD_TAG_CAN " meow, bite");
 		// statement not terminated yet
@@ -971,7 +984,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "cat" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
@@ -982,28 +995,28 @@ class Tester : public CxxTest::TestSuite {
     void test_parseln_no_finish(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		tagl.parseln(">> dog " HARD_TAG_IS_A " animal");
+		tagl.parseln(">> dog " HARD_TAG_IS_A " mammal");
 		tagl.parseln(HARD_TAG_HAS " legs, tail, fur");
 		tagl.parseln(HARD_TAG_CAN " bark, bite");
 		tagl.parseln();  // end of input
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bark") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bite") )
 
-		tagl.parseln(">> cat " HARD_TAG_IS_A " animal");
+		tagl.parseln(">> cat " HARD_TAG_IS_A " mammal");
 		tagl.parseln(HARD_TAG_HAS " legs, tail, fur");
 		tagl.parseln(HARD_TAG_CAN " meow, bite");
 		tagl.parseln();  // end of input
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "cat" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
@@ -1080,11 +1093,11 @@ class Tester : public CxxTest::TestSuite {
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
 		tagd::code tc = tagl.execute(
-				">> dog " HARD_TAG_IS_A " animal \n"
+				">> dog " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				HARD_TAG_CAN " bark, bite\n"
 				"\n"
-				">> cat " HARD_TAG_IS_A " animal \n"
+				">> cat " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				HARD_TAG_CAN " meow, bite"
 			);
@@ -1093,7 +1106,7 @@ class Tester : public CxxTest::TestSuite {
 
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "cat" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
@@ -1101,7 +1114,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bite") )
 
 		TS_ASSERT_EQUALS( cb.last_tag->id(), "cat" )
-		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "animal" )
+		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "mammal" )
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_HAS, "fur") )
@@ -1112,7 +1125,7 @@ class Tester : public CxxTest::TestSuite {
 		tc = tdb.get(t, "dog");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS( t.id(), "dog" )
-		TS_ASSERT_EQUALS( t.super_object(), "animal" )
+		TS_ASSERT_EQUALS( t.super_object(), "mammal" )
 		TS_ASSERT( t.related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( t.related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( t.related(HARD_TAG_HAS, "fur") )
@@ -1125,10 +1138,10 @@ class Tester : public CxxTest::TestSuite {
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
 		tagd::code tc = tagl.execute(
-				">> dog " HARD_TAG_IS_A " animal \n"
+				">> dog " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				HARD_TAG_CAN " bark, bite;"
-				">> cat " HARD_TAG_IS_A " animal \n"
+				">> cat " HARD_TAG_IS_A " mammal \n"
 				HARD_TAG_HAS " legs, tail, fur\n"
 				HARD_TAG_CAN " meow, bite"
 			);
@@ -1136,7 +1149,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tc == tagl.code() )
 
 		TS_ASSERT_EQUALS( cb.last_tag->id(), "cat" )
-		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "animal" )
+		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "mammal" )
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_HAS, "fur") )
@@ -1144,7 +1157,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_CAN, "bite") )
 
 		TS_ASSERT_EQUALS( tagl.tag().id() , "cat" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
@@ -1155,7 +1168,7 @@ class Tester : public CxxTest::TestSuite {
 		tc = tdb.get(t, "dog");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS( t.id(), "dog" )
-		TS_ASSERT_EQUALS( t.super_object(), "animal" )
+		TS_ASSERT_EQUALS( t.super_object(), "mammal" )
 		TS_ASSERT( t.related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( t.related(HARD_TAG_HAS, "tail") )
 		TS_ASSERT( t.related(HARD_TAG_HAS, "fur") )
@@ -1220,8 +1233,8 @@ class Tester : public CxxTest::TestSuite {
 		tc = ssn.push_context("child");
 		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		tc = tagl.execute("%% " HARD_TAG_CONTEXT " animal, action");
-		// tagl::finish() should have popped {animal, action} and left child intact
+		tc = tagl.execute("%% " HARD_TAG_CONTEXT " mammal, action");
+		// tagl::finish() should have popped {mammal, action} and left child intact
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
 		if ( ssn.context().size() > 0 )
@@ -1232,18 +1245,18 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		auto ssn = tdb.get_session();
 		TAGL::driver tagl(&tdb, &ssn);
-		ssn.push_context("animal");
+		ssn.push_context("mammal");
 
 		tagd::code tc = tagl.execute("%% " HARD_TAG_CONTEXT " child");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
 		if ( ssn.context().size() > 0 )
-			TS_ASSERT_EQUALS( ssn.context()[0] , "animal" )
+			TS_ASSERT_EQUALS( ssn.context()[0] , "mammal" )
 
 		tc = tagl.execute("%% " HARD_TAG_CONTEXT " \"\"");
 		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
 		if ( ssn.context().size() > 0 )
-			TS_ASSERT_EQUALS( ssn.context()[0] , "animal" )
+			TS_ASSERT_EQUALS( ssn.context()[0] , "mammal" )
 	}
 
 	void test_set_ignore_duplicates(void) {
@@ -1274,13 +1287,13 @@ class Tester : public CxxTest::TestSuite {
 		if ( ssn.context().size() == 1 )
 			TS_ASSERT_EQUALS( ssn.context()[0] , "living_thing" )
 
-		tagd::code tc = tagl.parseln("%% " HARD_TAG_CONTEXT " child, animal, fun;");
+		tagd::code tc = tagl.parseln("%% " HARD_TAG_CONTEXT " child, mammal, fun;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( ssn.context().size() , 4 )
 		if ( ssn.context().size() == 4 ) {
 			TS_ASSERT_EQUALS( ssn.context()[0] , "living_thing" )
 			TS_ASSERT_EQUALS( ssn.context()[1] , "child" )
-			TS_ASSERT_EQUALS( ssn.context()[2] , "animal" )
+			TS_ASSERT_EQUALS( ssn.context()[2] , "mammal" )
 			TS_ASSERT_EQUALS( ssn.context()[3] , "fun" )
 		}
 
@@ -1300,36 +1313,36 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
-		tagd::code tc = tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_IS_A " animal " HARD_TAG_HAS " legs, tail");
+		tagd::code tc = tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_IS_A " mammal " HARD_TAG_HAS " legs, tail");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
-		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "animal" )
+		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "mammal" )
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_HAS, "tail") )
 
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_QUERY )
 		TS_ASSERT_EQUALS( tagl.tag().id() , HARD_TAG_WHAT )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )
 
-		TS_ASSERT( cb.last_tag_set.size() == 2 );
+		TS_ASSERT_EQUALS( cb.last_tag_set.size() , 2 );
 		tagd::tag_set::iterator it = cb.last_tag_set.begin();
 		TS_ASSERT_EQUALS( it->id(), "cat" )
-		TS_ASSERT_EQUALS( it->super_object(), "animal" )
+		TS_ASSERT_EQUALS( it->super_object(), "mammal" )
 		TS_ASSERT( it->related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( it->related(HARD_TAG_HAS, "tail") )
 
 		it++;
 		TS_ASSERT_EQUALS( it->id(), "dog" )
-		TS_ASSERT_EQUALS( it->super_object(), "animal" )
+		TS_ASSERT_EQUALS( it->super_object(), "mammal" )
 		TS_ASSERT( it->related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( it->related(HARD_TAG_HAS, "tail") )
 
-		tc = tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_IS_A " animal " HARD_TAG_HAS " legs > 3, tail");
+		tc = tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_IS_A " mammal " HARD_TAG_HAS " legs > 3, tail");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
-		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "animal" )
+		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "mammal" )
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_HAS, "tail") )
 	}
@@ -1338,11 +1351,11 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
-		tagd::code tc = tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_IS_A " animal");
+		tagd::code tc = tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_IS_A " mammal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TAGD_OK" )
 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
-		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "animal" )
+		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "mammal" )
 
 		TS_ASSERT( cb.last_tag_set.size() == 2 );
 		tagd::tag_set::iterator it = cb.last_tag_set.begin();
@@ -1367,10 +1380,10 @@ class Tester : public CxxTest::TestSuite {
 		tagdb_tester tdb;
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
-		tagd::code tc = tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_IS_A " animal * legs, tail");
+		tagd::code tc = tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_IS_A " mammal * legs, tail");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
-		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "animal" )
+		TS_ASSERT_EQUALS( cb.last_tag->super_object(), "mammal" )
 
 		TS_ASSERT( cb.last_tag->related("legs") )
 		TS_ASSERT( cb.last_tag->related("tail") )
@@ -1378,13 +1391,13 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( cb.last_tag_set.size() == 2 );
 		tagd::tag_set::iterator it = cb.last_tag_set.begin();
 		TS_ASSERT_EQUALS( it->id(), "cat" )
-		TS_ASSERT_EQUALS( it->super_object(), "animal" )
+		TS_ASSERT_EQUALS( it->super_object(), "mammal" )
 		TS_ASSERT( it->related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( it->related(HARD_TAG_HAS, "tail") )
 
 		it++;
 		TS_ASSERT_EQUALS( it->id(), "dog" )
-		TS_ASSERT_EQUALS( it->super_object(), "animal" )
+		TS_ASSERT_EQUALS( it->super_object(), "mammal" )
 		TS_ASSERT( it->related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( it->related(HARD_TAG_HAS, "tail") )
 	}
@@ -1404,13 +1417,13 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( cb.last_tag_set.size() == 2 );
 		tagd::tag_set::iterator it = cb.last_tag_set.begin();
 		TS_ASSERT_EQUALS( it->id(), "cat" )
-		TS_ASSERT_EQUALS( it->super_object(), "animal" )
+		TS_ASSERT_EQUALS( it->super_object(), "mammal" )
 		TS_ASSERT( it->related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( it->related(HARD_TAG_HAS, "tail") )
 
 		it++;
 		TS_ASSERT_EQUALS( it->id(), "dog" )
-		TS_ASSERT_EQUALS( it->super_object(), "animal" )
+		TS_ASSERT_EQUALS( it->super_object(), "mammal" )
 		TS_ASSERT( it->related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( it->related(HARD_TAG_HAS, "tail") )
 	}
@@ -1434,16 +1447,21 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 	}
 
-	// TODO this segfaults on free()ing invalid pointer
-	// however, the same query works in tagl/tests/tester.exp
     void test_search(void) {
-		TAGL_SET_TRACE_ON();
 		tagdb_tester tdb;
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
 		tagd::code tc = tagl.execute("?? \"dog\";");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		TAGL_SET_TRACE_OFF();
+	}
+
+    void test_tag_sub_search(void) {
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb);
+		tagd::code tc = tagl.execute(
+			"?? _interrogator _sub mammal _has _terms = \"warm blood\";" );
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 	}
 
 	void test_query_referents(void) {
@@ -1462,31 +1480,31 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagl.tag().relations.size() , 0 )
 
 		// refers.empty() && refers_to.empty() && !context.empty()
-		tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_CONTEXT " animal");
+		tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_CONTEXT " mammal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.tag().pos() , tagd::POS_INTERROGATOR )
 		TS_ASSERT_EQUALS( tagl.tag().super_object(), HARD_TAG_REFERENT )
 		TS_ASSERT_EQUALS( tagl.tag().relations.size() , 1 )
-		TS_ASSERT( tagl.tag().related(HARD_TAG_CONTEXT, "animal") )
+		TS_ASSERT( tagl.tag().related(HARD_TAG_CONTEXT, "mammal") )
 
 		// refers.empty() && !refers_to.empty() && context.empty()
-		tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_REFERS_TO " animal");
+		tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_REFERS_TO " mammal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.tag().relations.size() , 1 )
-		TS_ASSERT( tagl.tag().related(HARD_TAG_REFERS_TO, "animal") )
+		TS_ASSERT( tagl.tag().related(HARD_TAG_REFERS_TO, "mammal") )
 
 		// refers.empty() && !refers_to.empty() && !context.empty()
-		tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_REFERS_TO " animal " HARD_TAG_CONTEXT " living_thing");
+		tagl.execute("?? " HARD_TAG_WHAT " " HARD_TAG_REFERS_TO " mammal " HARD_TAG_CONTEXT " living_thing");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.tag().relations.size() , 2 )
-		TS_ASSERT( tagl.tag().related(HARD_TAG_REFERS_TO, "animal") )
+		TS_ASSERT( tagl.tag().related(HARD_TAG_REFERS_TO, "mammal") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CONTEXT, "living_thing") )
 
 		// !refers.empty() && refers_to.empty() && context.empty()
-		tagl.execute("?? " HARD_TAG_WHAT " _refers animal");
+		tagl.execute("?? " HARD_TAG_WHAT " _refers mammal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.tag().relations.size() , 1 )
-		TS_ASSERT( tagl.tag().related(HARD_TAG_REFERS, "animal") )
+		TS_ASSERT( tagl.tag().related(HARD_TAG_REFERS, "mammal") )
 
 		// !refers.empty() && refers_to.empty() && !context.empty()
 		tagl.execute("?? " HARD_TAG_WHAT " _refers thing " HARD_TAG_CONTEXT " living_thing");
@@ -1496,18 +1514,18 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CONTEXT, "living_thing") )
 
 		// !refers.empty() && !refers_to.empty() && context.empty()
-		tagl.execute("?? " HARD_TAG_WHAT " _refers thing " HARD_TAG_REFERS_TO " animal");
+		tagl.execute("?? " HARD_TAG_WHAT " _refers thing " HARD_TAG_REFERS_TO " mammal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.tag().relations.size() , 2 )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_REFERS, "thing") )
-		TS_ASSERT( tagl.tag().related(HARD_TAG_REFERS_TO, "animal") )
+		TS_ASSERT( tagl.tag().related(HARD_TAG_REFERS_TO, "mammal") )
 
 		// !refers.empty() && !refers_to.empty() && !context.empty()
-		tagl.execute("?? " HARD_TAG_WHAT " _refers thing " HARD_TAG_REFERS_TO " animal " HARD_TAG_CONTEXT " living_thing");
+		tagl.execute("?? " HARD_TAG_WHAT " _refers thing " HARD_TAG_REFERS_TO " mammal " HARD_TAG_CONTEXT " living_thing");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.tag().relations.size() , 3 )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_REFERS, "thing") )
-		TS_ASSERT( tagl.tag().related(HARD_TAG_REFERS_TO, "animal") )
+		TS_ASSERT( tagl.tag().related(HARD_TAG_REFERS_TO, "mammal") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CONTEXT, "living_thing") )
 	}
 
@@ -1684,7 +1702,7 @@ class Tester : public CxxTest::TestSuite {
 
     void test_evbuffer_scan(void) {
 		struct evbuffer *input = evbuffer_new();
-		const char *s = ">> dog " HARD_TAG_IS_A " animal " HARD_TAG_HAS " legs, fur " HARD_TAG_CAN " bark";
+		const char *s = ">> dog " HARD_TAG_IS_A " mammal " HARD_TAG_HAS " legs, fur " HARD_TAG_CAN " bark";
 		evbuffer_add(input, s, strlen(s));
 
 		tagdb_tester tdb;
@@ -1696,7 +1714,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bark") )

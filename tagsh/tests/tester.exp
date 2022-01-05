@@ -212,6 +212,10 @@ test "query_tag" \
 	 "?? dog;" \
 	 "TAGL_ERR"
 
+test "tag_sub_search" \
+	 "?? _interrogator _sub animal _has _terms = \"warm blood\";" \
+	 "mammal"
+
 test "search" \
 	 "?? \"dog\";" \
 "https://en.wikipedia.org/wiki/Dog, http://animal.discovery.com/breed-selector/dog-breeds.html, dog"
