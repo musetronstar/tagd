@@ -2,18 +2,24 @@
 
 <img src="http://musetronstar.me/tagd-cloud.png" align="right" width="300px" />
 
-In a hurry? Go directly to [Installation](#installation)
+[Installation](#installation) instructions are at the end of this document.
 
-The purpose of the tagd semantic-relational engine is to allow
-*intelligent agents* (human or machine) to assign and retrieve the semantic
+The tagd software is composed of
+* semantic entities called **tags**
+* a semantic-relational database called **tagdb**
+* the **TAGL** language and interpreter
+* a **tagsh** shell
+* and the **httagd** web service
+
+*intelligent agents* (human or machine) can define and retrieve the semantic
 meaning of tags through a meta-conceptual language called **TAGL**.
 
-By defining *subordinate relations*, tags can be represented as a tree of knowledge
-called a **tagspace**.  TAGL maps to a tagspace.  A web service called
-**httagd** in turn maps to TAGL, enabling communication over the Web and
+By defining *subordinate relations*, *tagdb* organizes a tree of knowledge
+called a **tagspace**.  TAGL maps to a *tagspace*. The *httagd* web service
+in turn maps to *TAGL*, enabling communication over the Web and
 integration with other services.
 
-All tokens in TAGL are UTF-8 labels.
+All tokens in TAGL are **UTF-8** labels.
 
 ### TAGL Tutorial
 
@@ -26,8 +32,8 @@ then launch **tagsh** - the tagd shell:
 	cd tagsh
 	bin/tagsh --db -
 
-The "--db -" option will tell tagsh to create a sqlite in-memory database.  Otherwise,
-it will open/create a default database file (~/.tagspace.db).
+The `--db -` option tells tagsh to create a sqlite in-memory database.
+`tagsh -h` shows usage and options.
 
 #### PUT Statement
 
@@ -54,45 +60,48 @@ requires a bit of abstract metaphysical thinking, but here we go:
 
 The `>>` is the input operator for putting data.  Note the predicate
 `_is_a _entity`.  Tags with a leading underscore ('\_') are known as
-*hard tags*, that is, they are hard-coded in the software, defined for you, and
+**hard tags**, that is, they are hard-coded in the software, defined for you, and
 cannot be redefined.  User defined tags with a leading underscore are illegal.
 The `_entity` tag is the root of the tagspace - it does not get more
 abtract than that.
 
+Whereas, *SQL* uses *table schemas* to define entities and relations,
+*TAGL* uses semantic relations to define entities.
+
 The `_entity` tag is axiomatic and self-referencing (i.e. `_entity _sub _entity`).
-It is the only tag having this relation.
+It is the only tag having this relation. It is the *root* of a tagspace (tree structure).
 
 Now let's put some more tags so that we can define dog more completely:
 
 	>> can _type_of _rel;
 	>> event _is_a _entity;
-	>> sound _is_a event;
-	>> utterance _is_a sound;
-	>> bark _is_a utterance;
-	>> body_part _is_a physical_object;
-	>> legs _is_a body_part;
-	>> tail _is_a body_part
+	>> sound _type_of event;
+	>> utterance _type_of sound;
+	>> bark _type_of utterance;
+	>> body_part _type_of physical_object;
+	>> legs _type_of body_part;
+	>> tail _type_of body_part
 
 	>> dog
 	can bark
 	_has legs = 4, tail;
 
-Note the missing semicolon (';') after the statement `>> tail _is_a body_part`.
+Note the missing semicolon (';') after the statement `>> tail _type_of body_part`.
 That's not a syntax error.  A statement can be terminated by a semicolon,
 `<EOF>`, or a double newline.
 
-The equals sign ('=') after "legs" indicates that the "4" is a *modifier*.
-In this case, more specifically, as a numeric, it becomes a *quantifier*,
-that is, it quantifies the object.  Modifiers are optional, but if present
-they must be preceded by an equals sign.
+The equal sign (`=`) after `legs` indicates that the `4` is a **modifier**.
+In this case, more specifically, as a number, it becomes a **quantifier**,
+that is, it quantifies the object.  Modifiers are optional, but if present,
+they must be preceded by an equal sign.
 
-The intent of a modifier is to assign values to objects when appropriate.  You
-can think of objects and modifiers as key/value pairs that are attributes
+The intent of a modifier is to assign values to objects when appropriate.
+You can think of objects and modifiers as *key/value pairs* that are *attributes*
 of a tag.
 
 Note, when speaking of subjects and objects, this is meant in the linguistic
-sense of the terms (i.e. subject-verb-object).  Also, I tend to use the terms
-relations and predicates interchangeably.
+sense of the terms (i.e. subject-verb-object). Also, we tend to use the terms
+*relations* and *predicates* interchangeably.
 
 Now is a good time to define a input (`>>`) statement more formally...
 
@@ -159,7 +168,7 @@ of more than one tag in the future.
 
 Let's set up a nonsense tag and delete it:
 
-	>> fangs _is_a body_part;
+	>> fangs _type_of body_part;
 
 	>> turtle _is_a mammal
 	_has legs, fangs;
@@ -200,20 +209,20 @@ statements.  Let's define some more tags to make it interesting:
 
 	>> lives_in _type_of _rel;
 	>> substance _is_a _entity;
-	>> fluid _is_a substance;
-	>> water _is_a fluid;
+	>> fluid _type_of substance;
+	>> water _type_of fluid;
 	>> gas _is_a substance;
-	>> air _is_a gas;
+	>> air _type_of gas;
 	>> body_fluid _is_a substance;
-	>> blood _is_a body_fluid;
-	>> fins _is_a body_part;
-	>> gills _is_a body_part;
-	>> hair _is_a body_part;
-	>> scales _is_a body_part;
+	>> blood _type_of body_fluid;
+	>> fins _type_of body_part;
+	>> gills _type_of body_part;
+	>> hair _type_of body_part;
+	>> scales _type_of body_part;
 	>> breathes _is_a _rel;
 	>> what _is_a _interrogator;
 
-	>> fish _is_a vertibrate
+	>> fish _type_of vertibrate
 	_has gills, fins, scales
 	lives_in water
 	breathes water
@@ -233,8 +242,7 @@ Now let's try a query:
 
 Results should be:
 
-	whale ,
-	fish
+	whale, fish
 
 The `_interrogator` tag is optional, the following statements are synonymous:
 
@@ -243,8 +251,8 @@ The `_interrogator` tag is optional, the following statements are synonymous:
 
 But `whale _is_a mammal` and `fish _is_a vertibrate` - how did we query for
 `_is_a animal` and get a match?  Since tagspace is organized as a tree, and
-animal is a parent (aka subordinate or hypernym) of both vertibrate and
-mammal, it is logically true that whale and fish match.
+animal is a parent (being *superordinate* or a *hypernym*) of both vertibrate
+and mammal, we can logically deduce that whale and fish match.
 
 Let's try another:
 
