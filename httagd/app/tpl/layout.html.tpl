@@ -14,7 +14,7 @@
   <bigger><strong>tagd</strong></bigger>
  </span>
  <span id="search">
-  <form id="search-form" method="GET" action="{{request_url}}">
+  <form id="search-form" method="GET" action="/">
 {{#query_options}}
  {{#query_option}}
  <input type="hidden" name="{{query_key}}" value="{{query_value}}">
