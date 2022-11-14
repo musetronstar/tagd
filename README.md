@@ -804,9 +804,8 @@ So far, that is all that httagd can do.  More features will be coming soon...
 
 ### Installation
 
-So far, this has only been developed, compiled, and tested on recent versions
-of Ubuntu.  I would be happy to hear of successful installation on other
-platforms.
+This has been developed and tested on Ubuntu/Linux Mint. I would be happy to hear of
+successful builds and tests on other platforms.
 
 ##### Dependencies
 
@@ -822,7 +821,7 @@ platforms.
 * [SQLite v3](http://www.sqlite.org/) libs and development headers
 * [libevent](http://libevent.org/) libs and development headers
 * For the httagd http server
-	* [libevhtp](https://github.com/criticalstack/libevhtp)
+	* [libevhtp](https://github.com/Yellow-Camper/libevhtp)
 	* [OpenSSL Development Headers](https://www.openssl.org/)
 	* [ctemplate](https://github.com/olafvdspek/ctemplate) for html/json templates
 * For testing

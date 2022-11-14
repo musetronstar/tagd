@@ -2,9 +2,9 @@
 
 >> animal _is_a living_thing
 
->> vertibrate _is_a animal
+>> vertebrate _is_a animal
 
->> mammal _is_a vertibrate
+>> mammal _is_a vertebrate
 
 >> dog _is_a mammal
 
@@ -14,11 +14,11 @@
 
 >> bat _is_a mammal
 
->> reptile _is_a vertibrate
+>> reptile _is_a vertebrate
 
 >> snake _is_a reptile
 
->> bird _is_a vertibrate
+>> bird _is_a vertebrate
 
 >> canary _is_a bird
 
