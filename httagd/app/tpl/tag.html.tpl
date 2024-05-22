@@ -88,6 +88,7 @@
 {{/gallery}}
 
 <script>
+/*
 $(document).ready(function(){
 	function enable_colorbox() {
 		if ($(window).width() >= 680) {
@@ -105,14 +106,15 @@ if (window.matchMedia) {
 		$.colorbox.remove();
 	}
 }
+*/
 
-function refresh_tag_html() {
+function refreshTagHTML() {
 	var req = new XMLHttpRequest();
 
 	req.onload = function () {
 		if (req.status == 200) {
-			document.getElementById("tag_container").innerHTML = req.response;
 		} else {
+      document.getElementById("tag_container").innerHTML = req.response;
 			document.getElementById("tagl_error").innerHTML = req.response;
 		}
 	}
@@ -121,12 +123,12 @@ function refresh_tag_html() {
 	req.send();
 }
 
-function post_tagl() {
+function postTAGL() {
 	var req = new XMLHttpRequest();
 
 	req.onload = function () {
 		if (req.status == 200) {
-			refresh_tag_html();
+			refreshTagHTML();
 		} else {
 			document.getElementById("tagl_error").innerHTML = req.response;
 		}
@@ -138,7 +140,7 @@ function post_tagl() {
 }
 
 </script>
-<form name="tagl_form" action="javascript:void(0);" onsubmit="post_tagl()" role="add tagl predicate">
+<form name="tagl_form" action="javascript:void(0);" onsubmit="postTAGL()" role="add tagl predicate">
  <input name="tagl" id="tagl_input" type="text" required>
  <button>add predicate</button><br>
  <code id="tagl_error">&nbsp;</code>

@@ -46,64 +46,33 @@ var tree = {
 	"child": []
 };
 
-$(".tree li").each(function(i) {
-	var cls = $(this).attr('class');
-	//console.log('li('+i+','+typeof($( this ))+'): '+cls);
+tree["superObj"] = document.querySelector(".tree li.sub > a").getAttribute('href');
+tree["prevLink"] = document.querySelector(".tree li.prev > a").getAttribute('href');
+tree["idLink"] = document.querySelector(".tree li.id > a").getAttribute('href');
+tree["nextLink"] = document.querySelector(".tree li.next > a").getAttribute('href');
+
+document.querySelectorAll(".tree li.child > a").forEach(function(e) {
+  tree["child"].push(e.getAttribute('href'));
 });
 
-$(".tree li.sub > a").each(function(i) {
-	tree["superObj"] = $(this).attr('href');
-	//console.log('sub('+i+','+typeof($( this ))+'): '+tree['superObj']);
-});
-
-$(".tree li.prev > a").each(function(i) {
-	tree["prevLink"] = $(this).attr('href');
-	//console.log('prev('+i+','+typeof($( this ))+'): '+tree['prevLink']);
-});
-
-$(".tree li.id > a").each(function(i) {
-	tree["idLink"] = $(this).attr('href');
-	//console.log('id('+i+','+typeof($( this ))+'): '+tree['idLink']);
-});
-
-$(".tree li.next > a").each(function(i) {
-	tree["nextLink"] = $(this).attr('href');
-	//console.log('next('+i+','+typeof($( this ))+'): '+tree['nextLink']);
-});
-
-$(".tree li.child > a").each(function(i) {
-	tree["child"][i] = $(this).attr('href');
-	//console.log('child('+i+','+typeof($( this ))+'): '+tree['child']);
-});
-
-/*
-$(document).ready(function() {
-	console.log(JSON.stringify(tree));
-});
-*/
-
-$(document).keydown(function(e){
+document.onkeydown = function(e){
 	switch(e.keyCode) {
 		case 37:
 			window.location.href = tree['superObj'];
-			//console.log("left: " + tree['superObj']);
 			break;
 		case 38:
 			if (tree['prevLink'])
 				window.location.href = tree['prevLink'];
-			//console.log("up: " + tree['prevLink']);
 			break;
 		case 39:
 			if (tree['child'][0])
 				window.location.href = tree['child'][0];
-			//console.log("right: " + tree['child']);
 			break;
 		case 40:
 			if (tree['nextLink'])
 				window.location.href = tree['nextLink'];
-			//console.log("down: " + tree['nextLink']);
 			break;
 	}
 	return true;
-});
+};
 </script>
