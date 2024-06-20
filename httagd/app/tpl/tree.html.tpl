@@ -20,7 +20,7 @@ li.id:before {
 }
 </style>
 <ul class="tree">
-<li class="sub"><a href="{{super_object_lnk}}">{{super_object}}</a>
+<li class="super"><a href="{{super_object_lnk}}">{{super_object}}</a>
  <ul>
  {{#has_prev}}<li class="prev"><a href="{{prev_lnk}}">{{prev}}</a></li>{{/has_prev}}
   <li class="id"><a href="{{id_lnk}}">{{id}}</a>
@@ -46,7 +46,7 @@ var tree = {
 	"child": []
 };
 
-tree["superObj"] = document.querySelector(".tree li.sub > a").getAttribute('href');
+tree["superObj"] = document.querySelector(".tree li.super > a").getAttribute('href');
 tree["prevLink"] = document.querySelector(".tree li.prev > a").getAttribute('href');
 tree["idLink"] = document.querySelector(".tree li.id > a").getAttribute('href');
 tree["nextLink"] = document.querySelector(".tree li.next > a").getAttribute('href');
