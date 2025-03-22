@@ -79,69 +79,13 @@
 </ul>
 -->
 
-{{#gallery}}
-  <div id="gallery">
-    {{#gallery_item}}
-    <a class="gallery_item" href="{{rel_img_src}}"><img class="thumbnail" width="140" src="{{rel_img_src}}"></a>
-    {{/gallery_item}}
-  </div>
-{{/gallery}}
-
-<script>
-/*
-$(document).ready(function(){
-	function enable_colorbox() {
-		if ($(window).width() >= 680) {
-			$('.gallery_item').colorbox({rel:'gallery_item', slideshow:true});
-		}
-	}
-
-    enable_colorbox();
-    $(window).resize(enable_colorbox);
-});
-
-if (window.matchMedia) {
-	// media check
-	if (window.matchMedia("(max-width: 700px)").matches){
-		$.colorbox.remove();
-	}
-}
-*/
-
-function refreshTagHTML() {
-	var req = new XMLHttpRequest();
-
-	req.onload = function () {
-		if (req.status == 200) {
-		} else {
-      document.getElementById("tag_container").innerHTML = req.response;
-			document.getElementById("tagl_error").innerHTML = req.response;
-		}
-	}
-
-	req.open("GET", "{{REQUEST_URL_VIEW_TAG_HTML}}");
-	req.send();
-}
-
-function postTAGL() {
-	var req = new XMLHttpRequest();
-
-	req.onload = function () {
-		if (req.status == 200) {
-			refreshTagHTML();
-		} else {
-			document.getElementById("tagl_error").innerHTML = req.response;
-		}
-	}
-
-	req.open("POST", "{{REQUEST_URL_VIEW_TAGL}}");
-	req.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
-	req.send(tagl_form.tagl.value);
-}
-
-</script>
+<button class="tagd:open-diaglog">＋</button>
+<dialog class="tagd:dialog" style="visibility:hidden" open>
 <form name="tagl_form" action="javascript:void(0);" onsubmit="postTAGL()" role="add tagl predicate">
+ <input id="tagl_url" type="hidden" value="{{REQUEST_URL_VIEW_TAGL}}">
  <input name="tagl" id="tagl_input" type="text" required>
  <button>add predicate</button><br>
  <code id="tagl_error">&nbsp;</code>
 </form>
+</dialog>
+<script src="/_file/script/tagl.js"></script>
