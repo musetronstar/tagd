@@ -319,13 +319,7 @@ interrogator_query ::= CMD_QUERY interrogator query_referent_relations .
 	tagl->tag_ptr()->super_object(HARD_TAG_REFERENT);
 }
 
-search_query ::= CMD_QUERY quoted_str(s) search_query_list .
-{
-	// use quoted str in production so we can reduce here
-	NEW_TAG(tagd::interrogator, HARD_TAG_SEARCH)
-	tagl->tag_ptr()->relation(HARD_TAG_HAS, HARD_TAG_TERMS, *s);
-	MDELETE(s)
-}
+search_query ::= CMD_QUERY search_query_list .
 
 search_query_list ::= search_query_list COMMA search_query_quoted_str .
 search_query_list ::= search_query_quoted_str .
@@ -333,6 +327,7 @@ search_query_list ::= .
 
 search_query_quoted_str ::= quoted_str(s) .
 {
+	NEW_TAG(tagd::interrogator, HARD_TAG_SEARCH)
 	tagl->tag_ptr()->relation(HARD_TAG_HAS, HARD_TAG_TERMS, *s);
 	MDELETE(s)
 }
@@ -576,7 +571,7 @@ rhs_object(o) ::= QUANTIFIER(Q) .
 { o = Q; }
 rhs_object(o) ::= MODIFIER(M) . 
 { o = M; }
-rhs_object(o) ::= QUOTED_STRING(Q) . 
+rhs_object(o) ::= QUOTED_STR(Q) . 
 { o = Q; }
 rhs_object(o) ::= URL(U) . 
 { o = U; }
