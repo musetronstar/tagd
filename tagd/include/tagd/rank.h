@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <cstdint>  // for uint64_t, uint32_t
 #include <set>
 #include <algorithm>  // reverse_copy
 #include "codes.h"
