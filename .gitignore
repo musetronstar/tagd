@@ -37,3 +37,4 @@ bin/
 parser.h
 parser.cc
 scanner.cc
+lemon
