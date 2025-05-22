@@ -1,23 +1,18 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <cstring>
-#include <cstdlib>
-#include <cstdio>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
+#include "tagsh.h"
 
-#include <readline/readline.h>
-#include <readline/history.h>
+#include <iostream>      // std::cout, std::cerr
+#include <fstream>       // std::ofstream
+#include <string>        // std::string
+#include <vector>        // std::vector
+#include <cstring>       // std::strcmp, std::strerror (if used)
+#include <cstdlib>       // std::exit, EXIT_SUCCESS, perror
 
-#include <event2/buffer.h>
+#include <readline/readline.h>  // readline()
+#include <readline/history.h>   // add_history()
+
 #include "tagd.h"
 #include "tagl.h"
 #include "tagdb/sqlite.h"
-#include "tagsh.h"
 
 void ALL_SET_TRACE_ON() {
 	TAGDB_SET_TRACE_ON();
@@ -430,30 +425,30 @@ cmd_args::cmd_args()
 
 	cmd_handler help_handler = {
 		[this](char *) {
-			opt_noshell = true;
 			std::cout
-<< "tagsh" 																		<< std::endl
-<< "		with no options: interactive tagl prompt with an in memory tagdb" 	<< std::endl
-<< "tagsh [options]" 															<< std::endl
-<< "---------------" 															<< std::endl
-<< "  --db <database path | :memory:>" 										<< std::endl
-<< "		specify tagdb, :memory: by default" 								<< std::endl
-<< "  --create" 																<< std::endl
-<< "		create the file specified by --db (if not already existing)" 		<< std::endl
-<< "  -f <tagl file>" 															<< std::endl
-<< "  --file" 																	<< std::endl
-<< "		execute tagl file, multiple flags will be processed in order" 		<< std::endl
-<< "  -t <tagl code>" 															<< std::endl
-<< "  --tagl" 																	<< std::endl
-<< "		tagl code to be executed in order" 									<< std::endl
-<< "  -n" 																		<< std::endl
-<< "  --noshell" 																<< std::endl
-<< "		execute then exit with no shell" 									<< std::endl
-<< "  --dump" 																	<< std::endl
-<< "		dump tagspace" 														<< std::endl
-<< "  --trace" 																	<< std::endl
-<< "		debug tracing" 														<< std::endl
+			<< "tagsh" 																		<< std::endl
+			<< "		with no options: interactive tagl prompt with an in memory tagdb" 	<< std::endl
+			<< "tagsh [options]" 															<< std::endl
+			<< "---------------" 															<< std::endl
+			<< "  --db <database path | :memory:>"											<< std::endl
+			<< "		specify tagdb, :memory: by default" 								<< std::endl
+			<< "  --create" 																<< std::endl
+			<< "		create the file specified by --db (if not already existing)" 		<< std::endl
+			<< "  -f <tagl file>" 															<< std::endl
+			<< "  --file" 																	<< std::endl
+			<< "		execute tagl file, multiple flags will be processed in order" 		<< std::endl
+			<< "  -t <tagl code>" 															<< std::endl
+			<< "  --tagl" 																	<< std::endl
+			<< "		tagl code to be executed in order" 									<< std::endl
+			<< "  -n" 																		<< std::endl
+			<< "  --noshell" 																<< std::endl
+			<< "		execute then exit with no shell" 									<< std::endl
+			<< "  --dump" 																	<< std::endl
+			<< "		dump tagspace" 														<< std::endl
+			<< "  --trace" 																	<< std::endl
+			<< "		debug tracing" 														<< std::endl
 			<< std::endl;
+			std::exit(EXIT_SUCCESS);
 		}, false
 	};
 	_cmds["--help"] = help_handler;
