@@ -620,7 +620,7 @@ char* util::csprintf(const char *fmt, ...) {
 }
 
 static const size_t CSPRINTF_MAX_SZ = 255;
-static char CSPRINTF_BUF[CSPRINTF_MAX_SZ+1];
+thread_local static char CSPRINTF_BUF[CSPRINTF_MAX_SZ+1];
 char* util::csprintf(const char *fmt, va_list& args) {
 	int sz = vsnprintf(CSPRINTF_BUF, CSPRINTF_MAX_SZ, fmt, args);
 	if (sz <= 0) {
