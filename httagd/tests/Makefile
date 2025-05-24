@@ -43,8 +43,7 @@ build: cxx_tests exp_tests
 
 cxx_tests: $(LIBHTTAGD)
 	$(CXXTEST) Tester.h -o tester.cpp
-	g++ $(CXXFLAGS) -c -o tester.o tester.cpp $(INC)
-	g++ $(CXXFLAGS) -o tester tester.o $(LFLAGS)
+	g++ $(CXXFLAGS) -o tester tester.cpp $(INC) $(LFLAGS)
 	$(TESTER)
 
 exp_tests:
@@ -54,5 +53,5 @@ $(LIBHTTAGD):
 	make -C $(TAGD_DIR)
 
 clean:
-	rm -f tester.cpp tester.o ./tester
+	rm -f tester.cpp ./tester
 

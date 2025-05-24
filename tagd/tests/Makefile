@@ -44,7 +44,8 @@ file_tests:
 	$(FILE_TESTER)
 
 clean:
-	rm -f tester.cpp tester.o ./tester
-	rm -f url-tester.cpp url-tester.o url-tester
-	rm -f domain-tester.cpp domain-tester.o domain-tester
+	rm -f tester.cpp tester
+	rm -f url-tester.cpp url-tester
+	rm -f domain-tester.cpp  domain-tester
+	rm -f file-tester.cpp file-tester
 

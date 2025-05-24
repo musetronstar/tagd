@@ -45,4 +45,5 @@ clean:
 	rm -rf  $(LIB_DIR) $(BIN_DIR)
 	make -C $(SRC_DIR) clean
 	make -C $(APP_DIR) clean
+	make -C $(TEST_DIR) clean
 
