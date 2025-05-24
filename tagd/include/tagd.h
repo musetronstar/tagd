@@ -160,15 +160,11 @@ class abstract_tag {
         tagd::code code() const { return _code; }
         bool ok() const { return _code == TAGD_OK; }
 
-        tagd::code relation(const predicate&);
-                            // relator, object
-        tagd::code relation(const id_type&, const id_type&);
-                            // relator, object, modifier
-        tagd::code relation(const id_type&, const id_type&, const id_type&);
-                            // relator, object, modifier, opr8r
-        tagd::code relation(const id_type&, const id_type&, const id_type&, operator_t);
-                            // relator, object, modifier, opr8r, modifier_type
-        tagd::code relation(const id_type&, const id_type&, const id_type&, operator_t, data_t);
+        [[nodiscard]] tagd::code relation(const predicate&);
+        [[nodiscard]] tagd::code relation(const id_type&, const id_type&); // relator, object
+        [[nodiscard]] tagd::code relation(const id_type&, const id_type&, const id_type&); // relator, object, modifier
+        [[nodiscard]] tagd::code relation(const id_type&, const id_type&, const id_type&, operator_t); // relator, object, modifier, opr8r
+        [[nodiscard]] tagd::code relation(const id_type&, const id_type&, const id_type&, operator_t, data_t); // relator, object, modifier, opr8r, modifier_type
 
         tagd::code not_relation(const predicate&);
                             // relator, object
