@@ -1,5 +1,5 @@
-CXX = g++ -std=c++14 -Wall -Wextra
-CXXFLAGS = -O3 
+# Use flags from top-level, or defaults if called directly
+CXXFLAGS ?= -Wall -Wextra -O3
 
 TAGDDIR =../../tagd
 INC = -I../include -I$(TAGDDIR)/include
@@ -13,16 +13,16 @@ HARD_TAG_GPERF_H=hard-tags.gperf.h
 
 all: build
 
-debug: CXXFLAGS = -g -DDEBUG
+debug: CXXFLAGS += -g -DDEBUG -O0
 debug: build
 
 build: $(HDRS) $(SRCS) $(OBJS) $(HARD_TAG_GPERF_H) hard-tag.o
 
 .cc.o :
-	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INC)
+	g++ $(CXXFLAGS) -c -o $@ $< $(INC)
 
 hard-tag.o: hard-tag.cc
-	$(CXX) $(CXXFLAGS) -Wno-missing-field-initializers -c -o $@ $? $(INC)
+	g++ $(CXXFLAGS) -Wno-missing-field-initializers -c -o $@ $? $(INC)
 
 $(HARD_TAG_GPERF_H): $(HARD_TAG_GPERF)
 	gperf $? > $@
@@ -32,3 +32,4 @@ $(HARD_TAG_GPERF):
 
 clean:
 	rm -f *.o $(HARD_TAG_GPERF) $(HARD_TAG_GPERF_H)
+

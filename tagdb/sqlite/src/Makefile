@@ -1,5 +1,5 @@
-CXX = g++ -std=c++14 -Wall -Wextra 
-CXXFLAGS = -O3
+# Use flags from top-level, or defaults if called directly
+CXXFLAGS ?= -Wall -Wextra -O3
 
 TAGDDIR =../../../tagd
 INC = -I../include -I../../include -I$(TAGDDIR)/include
@@ -10,13 +10,13 @@ BIN = tagdb
 
 all: build
 
-debug: CXXFLAGS = -g
+debug: CXXFLAGS += -g -O0
 debug: build
 
 build: $(HDRS) $(SRCS) $(OBJS)
 
 .cc.o :
-	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INC)
+	g++ $(CXXFLAGS) -c -o $@ $< $(INC)
 
 clean:
 	rm -f *.o $(BIN)

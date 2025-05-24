@@ -1,5 +1,5 @@
-CXX = g++ -std=c++14 -O3
-CXXFLAGS = -Wall -Wextra
+# Use flags from top-level, or defaults if called directly
+CXXFLAGS ?= -Wall -Wextra -O3
 YACC = 
 RE2CFLAGS = 
 
@@ -8,7 +8,7 @@ PARSER_H = ../include/parser.h
 
 all: build
 
-debug: CXX = g++ -std=c++14 -g
+debug: CXXFLAGS += -g -O0
 debug: RE2CFLAGS = -d
 debug: build
 
@@ -18,7 +18,7 @@ scanner.out.cc: scanner.re.cc
 	re2c $(RE2CFLAGS) -o scanner.out.cc scanner.re.cc
 
 scanner.o: scanner.out.cc lemonfiles
-	$(CXX) $(CXXFLAGS) -c -o $@ scanner.out.cc $(INC) 
+	g++ $(CXXFLAGS) -c -o $@ scanner.out.cc $(INC) 
 
 parser.cc: lemonfiles
  
@@ -42,10 +42,10 @@ parser.o: $(PARSER_H) parser.cc
 	# we have to silence certain lemon warnings/errors
 	# -Wno-sign-compare : int / unsigned long comparisons
 	# -fpermissive : *yyParser to unsigned char conversion
-	$(CXX) -Wno-sign-compare -fpermissive -c -o $@ parser.cc $(INC) 
+	g++ $(CXXFLAGS) -Wno-sign-compare -fpermissive -c -o $@ parser.cc $(INC) 
 
 tagl.o: tokens.inc tagl.cc
-	$(CXX) $(CXXFLAGS) -c -o $@ tagl.cc $(INC) 
+	g++ $(CXXFLAGS) -c -o $@ tagl.cc $(INC) 
  
 .PHONY: clean
 clean:

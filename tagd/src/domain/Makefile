@@ -1,5 +1,5 @@
-CXX= g++ -std=c++14 -Wall -Wextra
-CXXFLAGS = -O3
+# Use flags from top-level, or defaults if called directly
+CXXFLAGS ?= -Wall -Wextra -O3
 
 GPERF=public-suffix.gperf
 GPERF_H=public-suffix.gperf.h
@@ -11,13 +11,13 @@ all: build
 
 DEBUG=
 debug: DEBUG=debug
-debug: CXXFLAGS = -g
+debug: CXXFLAGS += -g -O0
 debug: build
 
 build: $(OBJS)
 
 $(OBJS): $(GPERF_H) $(INC_DIR)/tagd/domain.h domain.cc
-	$(CXX) $(CXXFLAGS) -Wno-missing-field-initializers -c domain.cc -I $(INC_DIR) -I./
+	g++ $(CXXFLAGS) -Wno-missing-field-initializers -c domain.cc -I $(INC_DIR) -I./
 
 $(GPERF_H): $(GPERF)
 	gperf $? > $@
@@ -36,3 +36,4 @@ clean:
 
 extra_clean: clean
 	rm -f $(GPERF) $(GPERF_H)
+

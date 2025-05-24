@@ -1,5 +1,5 @@
-CXX = g++ -std=c++14 -Wall -Wextra -fpermissive
-CXXFLAGS = -O3
+# Use flags from top-level, or defaults if called directly
+CXXFLAGS ?= -Wall -Wextra -fpermissive -O3
 
 PRG_DIR = ../..
 TAGD_DIR = $(PRG_DIR)/tagd
@@ -33,7 +33,7 @@ endif
 
 all: build
 
-debug: CXXFLAGS = -g
+debug: CXXFLAGS += -g -O0
 debug: build
 
 build : httagd.o
@@ -45,9 +45,10 @@ evhtp-results.inc: $(EVHTP_H)
 httagd.cc: evhtp-results.inc
 
 httagd.o : httagd.cc
-	$(CXX) $(CXXFLAGS) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
+	g++ $(CXXFLAGS) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
 
 clean :
 	rm -f *.o
 	rm -f *.inc
 	rm -f $(BIN)
+

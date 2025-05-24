@@ -19,14 +19,14 @@ build: libtagl
 libtagl: tagl $(LIB)
 
 tagl: force_look
-	make -C	$(SRC_DIR) $(TARGET)
+	make -C	$(SRC_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 $(LIB):
 	[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
 	ar rcs $(LIB) $(SRC_DIR)/*.o
 
 tests: libtagl force_look 
-	make -C $(TEST_DIR) $(TARGET)
+	make -C $(TEST_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 force_look:
 	true

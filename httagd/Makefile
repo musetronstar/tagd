@@ -23,14 +23,14 @@ build: src lib app
 
 src: force_look
 	[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
-	make -C	$(SRC_DIR) $(EVHTP_ARGS) $(TARGET)
+	make -C	$(SRC_DIR) $(EVHTP_ARGS) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 app: force_look lib
 	[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
-	make -C	$(APP_DIR) $(EVHTP_ARGS) $(TARGET)
+	make -C	$(APP_DIR) $(EVHTP_ARGS) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 tests: force_look app
-	make -C $(TEST_DIR) $(EVHTP_ARGS) $(TARGET)
+	make -C $(TEST_DIR) $(EVHTP_ARGS) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 lib: src $(LIB)
 
@@ -45,3 +45,4 @@ clean:
 	rm -rf  $(LIB_DIR) $(BIN_DIR)
 	make -C $(SRC_DIR) clean
 	make -C $(APP_DIR) clean
+

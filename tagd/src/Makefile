@@ -1,5 +1,5 @@
-CXX = g++ -std=c++14 -Wall -Wextra
-CXXFLAGS = -O3 
+# Use flags from top-level, or defaults if called directly
+CXXFLAGS ?= -Wall -Wextra -O3
 
 INC =  -I../include
 SRCS = tagd.cc rank.cc utf8.cc url.cc io.cc file.cc
@@ -9,7 +9,7 @@ OBJS=$(SRCS:.cc=.o)
 
 all : build
 
-debug : CXXFLAGS =  -g
+debug : CXXFLAGS += -g -O0
 debug : build
 
 build : $(HARD_TAG_GPERF_H) tagd-codes.inc part-of-speech.inc $(SRCS) $(OBJS)
@@ -21,7 +21,7 @@ part-of-speech.inc: $(CODES_H)
 	./gen-codes-inc.pl PART_OF_SPEECH $? > $@
 
 .cc.o :
-	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INC)
+	g++ $(CXXFLAGS) -c -o $@ $< $(INC)
 
 clean :
 	rm -f *.o *.inc

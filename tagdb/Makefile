@@ -17,15 +17,15 @@ valgrind: debug
 build: tagdb $(LIB)
 
 tagdb: force_look
-	make -C $(SRC_DIR) $(TARGET)
-	make -C $(PRG_DIR) $(TARGET)
+	make -C $(SRC_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
+	make -C $(PRG_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 $(LIB):
 	[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
 	ar rcs $(LIB) $(SRC_DIR)/*.o $(PRG_DIR)/src/*.o
 
 tests: tagdb $(LIB) force_look
-	make -C $(TEST_DIR) $(TARGET)
+	make -C $(TEST_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 # 'true' forces make to look (otherwise its always up to date)
 force_look:
@@ -36,3 +36,4 @@ clean:
 	make -C $(PRG_DIR) clean
 	make -C $(TEST_DIR) clean
 	rm -rf  $(BUILD_DIR)
+

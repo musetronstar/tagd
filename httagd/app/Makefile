@@ -1,5 +1,5 @@
-CXX = g++ -std=c++14 -Wall -Wextra
-CXXFLAGS = -O3
+# Use flags from top-level, or defaults if called directly
+CXXFLAGS ?= -Wall -Wextra -O3
 
 PRG_DIR = ../..
 TAGD_DIR = $(PRG_DIR)/tagd
@@ -39,18 +39,19 @@ all: build
 
 DEBUG=
 debug: DEBUG=debug
-debug: CXXFLAGS = -g
+debug: CXXFLAGS += -g -O0
 debug: build
 
 build : $(BIN)
 
 main.o : main.cc
-	$(CXX) $(CXXFLAGS) -c -o $@ $? $(INC)
+	g++ $(CXXFLAGS) -c -o $@ $? $(INC)
 
 $(BIN) : main.o
 	[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $? $(LFLAGS)
+	g++ $(CXXFLAGS) -o $@ $? $(LFLAGS)
 
 clean :
 	rm -f *.o
 	rm -f $(BIN)
+

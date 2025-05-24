@@ -21,10 +21,10 @@ $(LIB):
 
 tagsh: force_look
 	[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
-	make -C	$(SRC_DIR) $(TARGET)
+	make -C	$(SRC_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 tests: force_look build
-	make -C $(TEST_DIR) $(TARGET)
+	make -C $(TEST_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 force_look:
 	true

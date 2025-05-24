@@ -3,9 +3,9 @@ LIBTAGD = $(TAGD_DIR)/lib/libtagd.a
 PRG_DIR = ../sqlite
 INC = -I../include -I$(TAGD_DIR)/include -I$(PRG_DIR)/include
 
-CXX = g++ -std=c++14 -Wall -Wextra
+# Use flags from top-level, or defaults if called directly
+CXXFLAGS ?= -Wall -Wextra -O3
 CXXTEST = cxxtestgen --error-printer
-CXXFLAGS = -O3
 LFLAGS = -L../lib -ltagdb-sqlite -L$(TAGD_DIR)/lib -ltagd -lsqlite3 
 
 SRC = tester.cc
@@ -14,7 +14,7 @@ TESTER = $(BIN)
 
 all: build
 
-debug: CXXFLAGS = -g
+debug: CXXFLAGS += -g -O0
 debug: all
 
 VALGRIND = valgrind --leak-check=full --error-exitcode=1
@@ -23,7 +23,7 @@ valgrind: debug
 
 build: $(LIBTAGD)
 	$(CXXTEST) Tester.h -o $(SRC)
-	$(CXX) $(CXXFLAGS) -o $(BIN) $(SRC) $(INC) $(LFLAGS)
+	g++ $(CXXFLAGS) -o $(BIN) $(SRC) $(INC) $(LFLAGS)
 	$(TESTER)
 
 $(LIBTAGD):
@@ -31,3 +31,4 @@ $(LIBTAGD):
 
 clean:
 	rm -f $(SRC) $(BIN) *.sqlite
+

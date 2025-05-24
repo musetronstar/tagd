@@ -8,8 +8,8 @@ INC = -I../include -I$(TAGD_DIR)/include -I$(TAGSPACE_DIR)/include -I$(TAGSPACE_
 LIBHTTAGD = $(HTTAGD_DIR)/lib/libhttagd.a
 
 CXXTEST = cxxtestgen --error-printer
-CXX = g++ -std=c++14 
-CXXFLAGS = -O3 -Wno-write-strings
+# Use flags from top-level, or defaults if called directly
+CXXFLAGS ?= -Wall -Wextra -O3 -Wno-write-strings
 LFLAGS  =
 LFLAGS += -L$(HTTAGD_DIR)/lib -lhttagd
 LFLAGS += -L$(TAGSPACE_DIR)/lib -ltagdb-sqlite
@@ -31,7 +31,7 @@ LFLAGS += -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthr
 
 all: build
 
-debug: CXXFLAGS = -g -Wno-write-strings
+debug: CXXFLAGS += -g -DDEBUG -O0 -Wno-write-strings
 debug: all
 
 TESTER = ./tester
@@ -43,8 +43,8 @@ build: cxx_tests exp_tests
 
 cxx_tests: $(LIBHTTAGD)
 	$(CXXTEST) Tester.h -o tester.cpp
-	$(CXX) $(CXXFLAGS) -c -o tester.o tester.cpp $(INC)
-	$(CXX) $(CXXFLAGS) -o tester tester.o $(LFLAGS)
+	g++ $(CXXFLAGS) -c -o tester.o tester.cpp $(INC)
+	g++ $(CXXFLAGS) -o tester tester.o $(LFLAGS)
 	$(TESTER)
 
 exp_tests:
@@ -55,3 +55,4 @@ $(LIBHTTAGD):
 
 clean:
 	rm -f tester.cpp tester.o ./tester
+

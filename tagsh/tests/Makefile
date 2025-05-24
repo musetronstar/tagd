@@ -9,3 +9,4 @@ tests:
 
 valgrind:
 	$(VALGRIND) $(BIN)
+

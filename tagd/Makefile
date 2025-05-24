@@ -16,8 +16,8 @@ valgrind: debug
 build: tagd libtagd
 
 tagd: force_look
-	make -C	$(SRC_DIR) $(TARGET)
-	make -C	$(SRC_DIR)/domain $(TARGET)
+	make -C	$(SRC_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
+	make -C	$(SRC_DIR)/domain $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 libtagd: tagd $(LIB)
 
@@ -26,7 +26,7 @@ $(LIB):
 	ar rcs $(LIB) $(SRC_DIR)/*.o $(SRC_DIR)/domain/*.o 
 
 tests: force_look libtagd 
-	make -C $(TEST_DIR) $(TARGET)
+	make -C $(TEST_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 # 'true' forces make to look (otherwise its always up to date)
 force_look:
