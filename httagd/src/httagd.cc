@@ -9,6 +9,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+bool HTTAGD_TRACE_ON = false;
+
 const char* evhtp_res_str(int tok) {
 	switch (tok) {
 #include "evhtp-results.inc"

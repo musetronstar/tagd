@@ -13,9 +13,10 @@
 
 const char* evhtp_res_str(int);
 
+extern bool HTTAGD_TRACE_ON;
+
 namespace httagd {
 
-static bool HTTAGD_TRACE_ON = false;
 inline void HTTAGD_SET_TRACE_ON() {
 	HTTAGD_TRACE_ON = true;
 	/*
