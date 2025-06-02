@@ -396,7 +396,7 @@ get_handler_t browse_handler(
 			q_related.relation(t.id(), "");
 		else
 			q_related.relation("", t.id());
-		tc = tx.tdb->query(S, q_related, tx.drvr->session_ptr());
+		tc = tx.tdb->query(S, q_related, tx.drvr->session_ptr(), tagdb::F_NO_NOT_FOUND_ERROR);
 
 		if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
 			return tc;
