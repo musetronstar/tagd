@@ -38,3 +38,7 @@ parser.h
 parser.cc
 scanner.cc
 lemon
+
+# vim Coc generated
+.cache/
+compile_commands.json
