@@ -7,10 +7,10 @@ using namespace httagd;
 
 // view => <tagd_template fname>
 std::map< view_id, std::string > tpl_map;
-tagd::code tpl_fname(std::string& fname, tagd::errorable& E, const view_id& id) {
+tagd::code tpl_fname(std::string& fname, tagd::errorable& errs, const view_id& id) {
 	auto it = tpl_map.find(id);
 	if (it == tpl_map.end())
-		return E.ferror(tagd::TS_NOT_FOUND, "no tpl fname for view_id: %s, %s", id.action_cstr(), id.name().c_str());
+		return errs.ferror(tagd::TS_NOT_FOUND, "no tpl fname for view_id: %s, %s", id.action_cstr(), id.name().c_str());
 	fname = it->second;
 
 	return tagd::TAGD_OK;
@@ -47,16 +47,16 @@ void fill_header(transaction& tx, tagd_template& tpl, const std::string& title) 
 
 	auto qm = tx.req->query_map();
 	if ( qm.size() > 0 ) {
-		std::string v = qm[QUERY_OPT_VIEW];
+		std::string opt_vw = qm[QUERY_OPT_VIEW];
 		// don't propagate an error from a bad view name
-		if (!v.empty() && v != BROWSE_VIEW_ID.name())
+		if (!opt_vw.empty() && opt_vw != BROWSE_VIEW_ID.name())
 				qm[QUERY_OPT_VIEW] = BROWSE_VIEW_ID.name();
 
 		tpl.show_section("query_options");
-		auto t = tpl.add_section("query_option");
+		auto sec_qry = tpl.add_section("query_option");
 		for ( auto &kv : qm ) {
-			t->set_value("query_key", kv.first);
-			t->set_value("query_value", kv.second);
+			sec_qry->set_value("query_key", kv.first);
+			sec_qry->set_value("query_value", kv.second);
 		}
 	}
 }
@@ -67,15 +67,15 @@ empty_handler_t home_handler(
 		tagd_template tpl("home", tx.res->output_buffer());
 
 		// TODO internationalize a _home_page tag, etc. 
-		tagd::abstract_tag t("Welcomd to tagd!");
-		fill_header(tx, tpl, t.id());
+		tagd::abstract_tag home_tag("Welcomd to tagd!");
+		fill_header(tx, tpl, home_tag.id());
 
 		std::string fname;
 		tagd::code tc = tpl_fname(fname, tx, vw);
 		if (tc != tagd::TAGD_OK) return tc;
 
 		auto home_tpl = tpl.include("main_html_tpl", tx.vws->fpath(fname));
-		home_tpl->set_value("msg", t.id());
+		home_tpl->set_value("msg", home_tag.id());
 
 		return tpl.expand(*tx.vws, LAYOUT_TPL);
 	}
@@ -83,59 +83,59 @@ empty_handler_t home_handler(
 
 tagd::code fill_query(transaction&, const view&, tagd_template&, const tagd::interrogator&, const tagd::tag_set&);
 
-tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd::abstract_tag& t) {
+tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd::abstract_tag& this_tag) {
 	tpl.set_value("REQUEST_URL_VIEW_TAGL", tx.req->abs_url_view(DEFAULT_VIEW));
 	tpl.set_value("REQUEST_URL_VIEW_TAG_HTML", tx.req->abs_url_view(TAG_VIEW_ID.name()));
 
-	if (t.pos() == tagd::POS_URL) {
-		tagd::HDURI u(t.id());
+	if (this_tag.pos() == tagd::POS_URL) {
+		tagd::HDURI u(this_tag.id());
 		if (u.ok())
 			tpl.set_value("id", u.id());
 		else
-			tpl.set_value("id", t.id());
-		if (t.related("type", "image_jpeg"))
+			tpl.set_value("id", this_tag.id());
+		if (this_tag.related("type", "image_jpeg"))
 			tpl.set_value_show_section("img_src", u.id(), "has_img");
 	} else {
-		tpl.set_value("id", t.id());
+		tpl.set_value("id", this_tag.id());
 	}
 
 	const std::string context = tx.req->query_opt_context();
-	tpl.set_tag_link(tx, "sub_relator", t.sub_relator());
-	tpl.set_tag_link(tx, "super_object", t.super_object());
+	tpl.set_tag_link(tx, "sub_relator", this_tag.sub_relator());
+	tpl.set_tag_link(tx, "super_object", this_tag.super_object());
 
 	tagd::tag_set img_urls;
-	if (t.relations.size() > 0) {
+	if (this_tag.relations.size() > 0) {
 		tpl.show_section("relations");
 		tagd::id_type last_relator;
 		tagd_template *relator_dict = nullptr;
-		for (auto p : t.relations) {
-			if (p.relator == "img_src" && tagd::url::looks_like_hduri(p.object)) {
-				tagd::HDURI u(p.object);
+		for (auto pred : this_tag.relations) {
+			if (pred.relator == "img_src" && tagd::url::looks_like_hduri(pred.object)) {
+				tagd::HDURI u(pred.object);
 				img_urls.insert(u);
 				continue;
 			}
 
-			if (p.relator != last_relator) {
-				last_relator = p.relator;
+			if (pred.relator != last_relator) {
+				last_relator = pred.relator;
 				relator_dict = tpl.add_section("relation_set");
-				relator_dict->set_relator_link(tx, "relator", p.relator);
+				relator_dict->set_relator_link(tx, "relator", pred.relator);
 			}
 
 			if (!relator_dict) continue;
 
 			auto sub_dict = relator_dict->add_section("relation");
-			sub_dict->set_tag_link(tx, "object", p.object);
-			if (!p.modifier.empty()) {
+			sub_dict->set_tag_link(tx, "object", pred.object);
+			if (!pred.modifier.empty()) {
 				sub_dict->show_section("has_modifier");
-				sub_dict->set_value("modifier", p.modifier);
+				sub_dict->set_value("modifier", pred.modifier);
 			}
 		}
 	}
 
 	if (img_urls.size() > 0) {
 		tpl.show_section("gallery");
-		for (auto u : img_urls) {
-			tpl.set_value_show_section("rel_img_src", u.id(), "gallery_item");
+		for (auto iu : img_urls) {
+			tpl.set_value_show_section("rel_img_src", iu.id(), "gallery_item");
 		}
 	}
 
@@ -201,10 +201,10 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 }
 
 get_handler_t tag_handler(
-	[](transaction& tx, const view& vw, const tagd::abstract_tag& t) -> tagd::code {
+	[](transaction& tx, const view& vw, const tagd::abstract_tag& this_tag) -> tagd::code {
 		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("tag", tx.res->output_buffer());
-		fill_tag(tx, vw, tpl, t);
+		fill_tag(tx, vw, tpl, this_tag);
 
 		std::string fname;
 		tagd::code tc = tpl_fname(fname, tx, vw);
@@ -214,33 +214,33 @@ get_handler_t tag_handler(
 	}
 );
 
-tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tagd::abstract_tag& t) {
+tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tagd::abstract_tag& this_tag) {
 	const std::string context = tx.req->query_opt_context();
-	if (t.pos() == tagd::POS_URL) {
-		tagd::HDURI u(t.id());
-		tpl.set_value("id", u.id());
+	if (this_tag.pos() == tagd::POS_URL) {
+		tagd::HDURI hduri(this_tag.id());
+		tpl.set_value("id", hduri.id());
 	} else {
-		tpl.set_value("id", t.id());
+		tpl.set_value("id", this_tag.id());
 	}
-	tpl.set_tag_link(tx, "sub_relator", t.sub_relator());
-	tpl.set_tag_link(tx, "super_object", t.super_object());
+	tpl.set_tag_link(tx, "sub_relator", this_tag.sub_relator());
+	tpl.set_tag_link(tx, "super_object", this_tag.super_object());
 
-	tagd::tag_set S;
+	tagd::tag_set sibling_set;
 	auto ssn = tx.drvr->session_ptr();
-	tagd::code tc = tx.tdb->query(S,
-			tagd::interrogator(HARD_TAG_INTERROGATOR, t.super_object()), ssn);
+	tagd::code tc = tx.tdb->query(sibling_set,
+			tagd::interrogator(HARD_TAG_INTERROGATOR, this_tag.super_object()), ssn);
 
 	if (tc == tagd::TAGD_OK) {
-		for (auto it=S.begin(); it != S.end(); ++it) {
-			if (it->id() == t.id()) {
-				if (it != S.begin()) {
+		for (auto it=sibling_set.begin(); it != sibling_set.end(); ++it) {
+			if (it->id() == this_tag.id()) {
+				if (it != sibling_set.begin()) {
 					--it;
 					auto s1 = tpl.add_section("has_prev");
 					s1->set_tag_link(tx, "prev", it->id());
 					++it;
 				}
 				++it;
-				if (it != S.end()) {
+				if (it != sibling_set.end()) {
 					auto s1 = tpl.add_section("has_next");
 					s1->set_tag_link(tx, "next", it->id());
 				}
@@ -250,19 +250,19 @@ tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tag
 	}
 
 	// query children
-	S.clear();
-	tc = tx.tdb->query(S,
-			tagd::interrogator(HARD_TAG_INTERROGATOR, t.id()), ssn);
+	tagd::tag_set child_set;
+	tc = tx.tdb->query(child_set,
+			tagd::interrogator(HARD_TAG_INTERROGATOR, this_tag.id()), ssn);
 
 	if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
 		return tx.tdb->code();
 
-	if (S.size() > 0) {
+	if (child_set.size() > 0) {
 		auto s1 = tpl.add_section("has_children");
-		for (auto s : S) {
+		for (auto child : child_set) {
 			auto s2 = s1->add_section("children");
-			if (s.id() != t.id()) {
-				s2->set_tag_link(tx, "child", s.id());
+			if (child.id() != this_tag.id()) {
+				s2->set_tag_link(tx, "child", child.id());
 			}
 		}
 	}
@@ -271,10 +271,10 @@ tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tag
 }
 
 get_handler_t tree_handler(
-	[](transaction& tx, const view& vw, const tagd::abstract_tag& t) -> tagd::code {
+	[](transaction& tx, const view& vw, const tagd::abstract_tag& this_tag) -> tagd::code {
 		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("tree", tx.res->output_buffer());
-		tagd::code tc = fill_tree(tx, vw, tpl, t);
+		tagd::code tc = fill_tree(tx, vw, tpl, this_tag);
 		if (tc != tagd::TAGD_OK) return tc;
 
 		std::string fname;
@@ -285,48 +285,48 @@ get_handler_t tree_handler(
 	}
 );
 
-tagd::code fill_query(transaction& tx, const view&, tagd_template& tpl, const tagd::interrogator& q, const tagd::tag_set& R) {
+tagd::code fill_query(transaction& tx, const view&, tagd_template& tpl, const tagd::interrogator& qry, const tagd::tag_set& results) {
 	const std::string context = tx.req->query_opt_context();
-	tpl.set_value("interrogator", q.id());
-	if (!q.super_object().empty()) {
+	tpl.set_value("interrogator", qry.id());
+	if (!qry.super_object().empty()) {
 		tpl.show_section("sub_relations");
 		auto s1 = tpl.add_section("sub_relation");
-		s1->set_tag_link(tx, "sub_relator", q.sub_relator());
-		s1->set_tag_link(tx, "super_object", q.super_object());
+		s1->set_tag_link(tx, "sub_relator", qry.sub_relator());
+		s1->set_tag_link(tx, "super_object", qry.super_object());
 	}
 
-	if (q.relations.size() > 0) {
+	if (qry.relations.size() > 0) {
 		tpl.show_section("relations");
-		for (auto p : q.relations) {
+		for (auto qr : qry.relations) {
 			auto s1 = tpl.add_section("relation");
-			s1->set_relator_link(tx, "relator", p.relator);
-			s1->set_tag_link(tx, "object", p.object);
-			if (!p.modifier.empty()) {
+			s1->set_relator_link(tx, "relator", qr.relator);
+			s1->set_tag_link(tx, "object", qr.object);
+			if (!qr.modifier.empty()) {
 				s1->show_section("has_modifier");
-				s1->set_value("modifier", p.modifier);
+				s1->set_value("modifier", qr.modifier);
 			}
 		}
 	}
 
-	tpl.set_int_value("num_results", R.size());
+	tpl.set_int_value("num_results", results.size());
 
-	if (R.size() > 0) {
+	if (results.size() > 0) {
 		tpl.show_section("results");
-		for (auto r : R) {
+		for (auto res : results) {
 			auto s1 = tpl.add_section("result");
 			// if (r.has_relator(HARD_TAG_CONTEXT))	// to check context
-			s1->set_tag_link(tx, "res_id", r.id());
-			s1->set_tag_link(tx, "res_sub_relator", r.sub_relator());
-			s1->set_tag_link(tx, "res_super_object", r.super_object());
-			if (r.relations.size() > 0) {
+			s1->set_tag_link(tx, "res_id", res.id());
+			s1->set_tag_link(tx, "res_sub_relator", res.sub_relator());
+			s1->set_tag_link(tx, "res_super_object", res.super_object());
+			if (res.relations.size() > 0) {
 				s1->show_section("res_relations");
-				for (auto p : r.relations) {
+				for (auto res_pred : res.relations) {
 					auto s2 = s1->add_section("res_relation");
-					s2->set_relator_link(tx, "res_relator", p.relator);
-					s2->set_tag_link(tx, "res_object", p.object);
-					if (!p.modifier.empty()) {
+					s2->set_relator_link(tx, "res_relator", res_pred.relator);
+					s2->set_tag_link(tx, "res_object", res_pred.object);
+					if (!res_pred.modifier.empty()) {
 						s2->show_section("res_has_modifier");
-						s2->set_value("res_modifier", p.modifier);
+						s2->set_value("res_modifier", res_pred.modifier);
 					}
 				}
 			}
@@ -340,12 +340,12 @@ tagd::code fill_query(transaction& tx, const view&, tagd_template& tpl, const ta
 }
 
 query_handler_t query_handler(
-	[](transaction& tx, const view& vw, const tagd::interrogator& q, const tagd::tag_set& R) -> tagd::code {
+	[](transaction& tx, const view& vw, const tagd::interrogator& qry, const tagd::tag_set& results) -> tagd::code {
 		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("query", tx.res->output_buffer());
 
 		std::stringstream ss;
-		ss << q;
+		ss << qry;
 
 		fill_header(tx, tpl, ss.str());
 
@@ -355,7 +355,7 @@ query_handler_t query_handler(
 
 		auto main_tpl = tpl.include("main_html_tpl", tx.vws->fpath(fname));
 
-		tc = fill_query(tx, vw, *main_tpl, q, R);
+		tc = fill_query(tx, vw, *main_tpl, qry, results);
 		if (tc != tagd::TAGD_OK) return tc;
 
 		return tpl.expand(*tx.vws, LAYOUT_TPL);
@@ -363,11 +363,11 @@ query_handler_t query_handler(
 );
 
 get_handler_t browse_handler(
-	[](transaction& tx, const view& vw, const tagd::abstract_tag& t) -> tagd::code {
+	[](transaction& tx, const view& vw, const tagd::abstract_tag& this_tag) -> tagd::code {
 		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("browse", tx.res->output_buffer());
 
-		fill_header(tx, tpl, t.id());
+		fill_header(tx, tpl, this_tag.id());
 
 		std::string fname;
 		tagd::code tc = tpl_fname(fname, tx, vw);
@@ -375,35 +375,35 @@ get_handler_t browse_handler(
 
 		auto main_tpl = tpl.include("main_html_tpl", tx.vws->fpath(fname));
 
-		if (t.pos() == tagd::POS_URL) {
-			tagd::HDURI u(t.id());
+		if (this_tag.pos() == tagd::POS_URL) {
+			tagd::HDURI u(this_tag.id());
 			main_tpl->set_value("id", u.id());
 		} else {
-			main_tpl->set_value("id", t.id());
+			main_tpl->set_value("id", this_tag.id());
 		}
 
 		auto tree_tpl = main_tpl->include("tree_html_tpl", tx.vws->fpath(TREE_TPL));
-		tc = fill_tree(tx, vw, *tree_tpl, t);
+		tc = fill_tree(tx, vw, *tree_tpl, this_tag);
 		if (tc != tagd::TAGD_OK) return tc;
 
 		auto tag_tpl = main_tpl->include("tag_html_tpl", tx.vws->fpath(TAG_TPL));
-		tc = fill_tag(tx, vw, *tag_tpl, t);
+		tc = fill_tag(tx, vw, *tag_tpl, this_tag);
 		if (tc != tagd::TAGD_OK) return tc;
 
-		tagd::tag_set S;
+		tagd::tag_set results;
 		tagd::interrogator q_related(HARD_TAG_INTERROGATOR);
-		if (t.pos() == tagd::POS_RELATOR)
-			q_related.relation(t.id(), "");
+		if (this_tag.pos() == tagd::POS_RELATOR)
+			q_related.relation(this_tag.id(), "");
 		else
-			q_related.relation("", t.id());
-		tc = tx.tdb->query(S, q_related, tx.drvr->session_ptr(), tagdb::F_NO_NOT_FOUND_ERROR);
+			q_related.relation("", this_tag.id());
+		tc = tx.tdb->query(results, q_related, tx.drvr->session_ptr(), tagdb::F_NO_NOT_FOUND_ERROR);
 
 		if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
 			return tc;
 
-		if (S.size() > 0) {
+		if (results.size() > 0) {
 			auto results_tpl = main_tpl->include("results_html_tpl", tx.vws->fpath(QUERY_TPL));
-			tc = fill_query(tx, vw, *results_tpl, q_related, S);
+			tc = fill_query(tx, vw, *results_tpl, q_related, results);
 			if (tc != tagd::TAGD_OK) return tc;
 		}
 
@@ -411,25 +411,25 @@ get_handler_t browse_handler(
 	}
 );
 
-void fill_error(const url_query_map_t& qm, tagd_template& tpl, const tagd::errorable& E) {
-	tpl.set_value("err_ids", tagd::tag_ids_str(E.errors()));
+void fill_error(const url_query_map_t& qm, tagd_template& tpl, const tagd::errorable& errs) {
+	tpl.set_value("err_ids", tagd::tag_ids_str(errs.errors()));
 
-	if (E.size() > 0) {
+	if (errs.size() > 0) {
 		tpl.show_section("errors");
-		for (auto r : E.errors()) {
+		for (auto err : errs.errors()) {
 			auto s1 = tpl.add_section("error");
-			s1->set_value("err_id", r.id());
-			s1->set_tag_link(qm, "err_sub_relator", r.sub_relator());
-			s1->set_tag_link(qm, "err_super_object", r.super_object());
-			if (r.relations.size() > 0) {
+			s1->set_value("err_id", err.id());
+			s1->set_tag_link(qm, "err_sub_relator", err.sub_relator());
+			s1->set_tag_link(qm, "err_super_object", err.super_object());
+			if (err.relations.size() > 0) {
 				s1->show_section("err_relations");
-				for (auto p : r.relations) {
+				for (auto err_pred : err.relations) {
 					auto s2 = s1->add_section("err_relation");
-					s2->set_tag_link(qm, "err_relator", p.relator);
-					s2->set_tag_link(qm, "err_object", p.object);
-					if (!p.modifier.empty()) {
+					s2->set_tag_link(qm, "err_relator", err_pred.relator);
+					s2->set_tag_link(qm, "err_object", err_pred.object);
+					if (!err_pred.modifier.empty()) {
 						s2->show_section("err_has_modifier");
-						s2->set_value("err_modifier", p.modifier);
+						s2->set_value("err_modifier", err_pred.modifier);
 					}
 				}
 			}
@@ -438,29 +438,29 @@ void fill_error(const url_query_map_t& qm, tagd_template& tpl, const tagd::error
 }
 
 error_handler_t error_handler(
-	[](transaction& tx, const view& vw, const tagd::errorable& E) -> tagd::code {
+	[](transaction& tx, const view& vw, const tagd::errorable& errs) -> tagd::code {
 		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("error", tx.res->output_buffer());
-		fill_header(tx, tpl, tagd::tag_ids_str(E.errors()));
+		fill_header(tx, tpl, tagd::tag_ids_str(errs.errors()));
 
 		std::string fname;
 		tagd::code tc = tpl_fname(fname, tx, vw);
 		if (tc != tagd::TAGD_OK) return tc;
 
 		auto qm = tx.req->query_map();
-		std::string v = qm[QUERY_OPT_VIEW];
+		std::string opt_vw = qm[QUERY_OPT_VIEW];
 		// don't propagate an error from a bad view name
-		if (!v.empty() && v != BROWSE_VIEW_ID.name())
+		if (!opt_vw.empty() && opt_vw != BROWSE_VIEW_ID.name())
 			qm[QUERY_OPT_VIEW] = BROWSE_VIEW_ID.name();
 
-		fill_error(qm, *(tpl.include("main_html_tpl", tx.vws->fpath(fname))), E);
+		fill_error(qm, *(tpl.include("main_html_tpl", tx.vws->fpath(fname))), errs);
 
 		return tpl.expand(*tx.vws, LAYOUT_TPL);
 	}
 );
 
 error_handler_t partial_error_handler(
-	[](transaction& tx, const view& vw, const tagd::errorable& E) -> tagd::code {
+	[](transaction& tx, const view& vw, const tagd::errorable& errs) -> tagd::code {
 		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("error", tx.res->output_buffer());
 
@@ -469,12 +469,12 @@ error_handler_t partial_error_handler(
 		if (tc != tagd::TAGD_OK) return tc;
 
 		auto qm = tx.req->query_map();
-		std::string v = qm[QUERY_OPT_VIEW];
+		std::string opt_vw = qm[QUERY_OPT_VIEW];
 		// don't propagate an error from a bad view name
-		if (!v.empty() && v != TAG_VIEW_ID.name())
+		if (!opt_vw.empty() && opt_vw != TAG_VIEW_ID.name())
 			qm[QUERY_OPT_VIEW] = TAG_VIEW_ID.name();
 
-		fill_error(qm, tpl, E);
+		fill_error(qm, tpl, errs);
 
 		return tpl.expand(*tx.vws, fname);
 	}
