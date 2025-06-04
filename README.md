@@ -831,7 +831,13 @@ successful builds and tests on other platforms.
 
 ###### Install Dependencies on Debian/Ubuntu/Mint
 
-	sudo apt install build-essential gperf libnet-idn-encode-perl re2c lemon libreadline-dev libsqlite3-dev libevent-dev libevhtp-dev libssl-dev libctemplate-dev cxxtest expect
+To Build:
+
+	sudo apt install build-essential gperf libnet-idn-encode-perl re2c lemon libreadline-dev libsqlite3-dev libevent-dev libevhtp-dev libssl-dev libctemplate-dev
+
+For Testing:
+
+	sudo apt install cxxtest expect curl
 
 Building and Testing:
 
@@ -842,3 +848,4 @@ Building and Testing:
 
 In the pursuit of Universal love, peace, and harmony, this is free software
 committed to the public domain as [CC0](http://creativecommons.org/publicdomain/zero/1.0/).
+
