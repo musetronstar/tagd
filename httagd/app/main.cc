@@ -216,12 +216,14 @@ get_handler_t tag_handler(
 
 tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tagd::abstract_tag& this_tag) {
 	const std::string context = tx.req->query_opt_context();
+	/*
 	if (this_tag.pos() == tagd::POS_URL) {
 		tagd::HDURI hduri(this_tag.id());
 		tpl.set_value("id", hduri.id());
 	} else {
 		tpl.set_value("id", this_tag.id());
 	}
+	*/
 	tpl.set_tag_link(tx, "sub_relator", this_tag.sub_relator());
 	tpl.set_tag_link(tx, "super_object", this_tag.super_object());
 
@@ -231,38 +233,31 @@ tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tag
 			tagd::interrogator(HARD_TAG_INTERROGATOR, this_tag.super_object()), ssn);
 
 	if (tc == tagd::TAGD_OK) {
-		for (auto it=sibling_set.begin(); it != sibling_set.end(); ++it) {
-			if (it->id() == this_tag.id()) {
-				if (it != sibling_set.begin()) {
-					--it;
-					auto s1 = tpl.add_section("has_prev");
-					s1->set_tag_link(tx, "prev", it->id());
-					++it;
+		for (auto sibling : sibling_set) {
+			auto sec_siblings = tpl.add_section("siblings");
+			if (sibling.id() == this_tag.id()) {
+				auto sec_this_tag = sec_siblings->add_section("this_tag");
+				sec_this_tag->set_tag_link(tx, "this_tag_id", sibling.id());
+				// query children
+				tagd::tag_set child_set;
+				tc = tx.tdb->query(child_set,
+						tagd::interrogator(HARD_TAG_INTERROGATOR, this_tag.id()), ssn);
+
+				if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
+					return tx.tdb->code();
+
+				if (child_set.size() > 0) {
+					auto s1 = tpl.add_section("has_children");
+					for (auto child : child_set) {
+						auto s2 = s1->add_section("children");
+						if (child.id() != this_tag.id()) {
+							s2->set_tag_link(tx, "child", child.id());
+						}
+					}
 				}
-				++it;
-				if (it != sibling_set.end()) {
-					auto s1 = tpl.add_section("has_next");
-					s1->set_tag_link(tx, "next", it->id());
-				}
-				break;
-			}
-		}
-	}
-
-	// query children
-	tagd::tag_set child_set;
-	tc = tx.tdb->query(child_set,
-			tagd::interrogator(HARD_TAG_INTERROGATOR, this_tag.id()), ssn);
-
-	if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
-		return tx.tdb->code();
-
-	if (child_set.size() > 0) {
-		auto s1 = tpl.add_section("has_children");
-		for (auto child : child_set) {
-			auto s2 = s1->add_section("children");
-			if (child.id() != this_tag.id()) {
-				s2->set_tag_link(tx, "child", child.id());
+			} else {
+				auto sec_sibling = sec_siblings->add_section("sibling");
+				sec_sibling->set_tag_link(tx, "sibling_id", sibling.id());
 			}
 		}
 	}
