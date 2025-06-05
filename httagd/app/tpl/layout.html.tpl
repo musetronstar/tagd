@@ -23,8 +23,8 @@
  </span>
  <hr>
 </header>
-
+<main id="layout">
 {{>main_html_tpl}}
-
+</main>
 </body>
 </html>
