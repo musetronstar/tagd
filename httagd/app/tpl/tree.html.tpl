@@ -18,13 +18,23 @@ li.id:before {
     top: 0.9em;
     position: relative;
 }
+
+.add-child-wrapper .add-child-btn {
+  display: none;
+  margin-left: 0.5em;
+  font-size: 0.8em;
+}
+
+.add-child-wrapper:hover .add-child-btn {
+  display: inline;
+}
 </style>
 <ul class="tree">
 <li class="super"><a href="{{super_object_lnk}}">{{super_object}}</a>
  <ul>
  {{#siblings}}
   {{#this_tag}}
-   <li class="sibling id"><a href="{{this_tag_id_lnk}}">{{this_tag_id}}</a></li>
+   <li class="sibling id"><a href="{{this_tag_id_lnk}}">{{this_tag_id}}</a>
    {{#has_children}}
     <ul>
     {{#children}}
@@ -32,6 +42,7 @@ li.id:before {
     {{/children}}
     </ul>
    {{/has_children}}
+   </li>
   {{/this_tag}}
   {{#sibling}}
    <li class="sibling"><a href="{{sibling_id_lnk}}">{{sibling_id}}</a></li>
@@ -81,6 +92,84 @@ document.onkeydown = function(e){
 	}
 	return true;
 };
+</script>
+<form id="add-child-form" style="display:none; position:absolute; z-index:10000; background:#fff; border:1px solid #ccc; padding:0.5em; box-shadow:0 0 5px rgba(0,0,0,0.1);" onsubmit="return submitAddChild(event)">
+  <input type="text" id="add-child-name" placeholder="New entity name" required autofocus>
+  <input type="hidden" id="add-child-parent">
+  <button type="submit">Add</button>
+</form>
+<script>
+document.querySelectorAll("#sidebar nav li").forEach(li => {
+  const link = li.querySelector("a");
+  if (!link) return;
+
+  // Create + button
+  const addBtn = document.createElement("button");
+  addBtn.textContent = "＋";
+  addBtn.classList.add("add-child-btn");
+
+  // Wrap the link and button in a span container
+  const wrapper = document.createElement("span");
+  wrapper.classList.add("add-child-wrapper");
+  link.replaceWith(wrapper);
+  wrapper.appendChild(link);
+  wrapper.appendChild(addBtn);
+
+  // Open popup form on click
+  addBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    const form = document.getElementById("add-child-form");
+    const nameInput = document.getElementById("add-child-name");
+    const parentInput = document.getElementById("add-child-parent");
+
+    const rect = addBtn.getBoundingClientRect();
+    form.style.top = `${rect.bottom + window.scrollY}px`;
+    form.style.left = `${rect.left + window.scrollX}px`;
+
+    parentInput.value = link.textContent.trim();
+    nameInput.value = "";
+    form.style.display = "block";
+    nameInput.focus();
+  });
+});
+
+// Handle submission of the popup form
+function submitAddChild(event) {
+	event.preventDefault(); // Stop normal form submission
+
+	const name = document.getElementById("add-child-name").value.trim();   // New entity
+	const parent = document.getElementById("add-child-parent").value.trim(); // Superordinate entity
+	const form = document.getElementById("add-child-form");
+
+	if (!name || !parent) return false; // Guard clause
+
+	// Format tagl assertion body: >> new_entity _is_a parent_entity
+	const body = `>> ${name} _is_a ${parent}`;
+
+	// Create and configure PUT request
+	const xhr = new XMLHttpRequest();
+	xhr.open("PUT", `http://localhost:2112/${encodeURIComponent(name)}`);
+	xhr.setRequestHeader("Content-Type", "text/plain");
+
+	// On successful request
+	xhr.onload = () => {
+		if (xhr.status >= 200 && xhr.status < 300) {
+			location.reload();
+		} else {
+			alert(`Error: ${xhr.status}\n${xhr.responseText}`);
+		}
+	};
+
+	// Handle network error
+	xhr.onerror = () => alert("Network error");
+
+	// Send the PUT request body
+	xhr.send(body);
+
+	// Hide the form after submitting
+	form.style.display = "none";
+	return false;
+}
 </script>
 <div id="nav-hint" style="
   position: fixed;
