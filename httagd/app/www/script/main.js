@@ -1,0 +1,179 @@
+// tagl.js — Unified behavior module for TAGD UI
+
+
+/**
+* Get the base URL (scheme + host + optional port), cache on first use
+* @returns {string}
+*/
+function getBaseURL() {
+	if (!getBaseURL.cached) {
+		const loc = window.location;
+		getBaseURL.cached = loc.origin || (loc.protocol + "//" + loc.host);
+	}
+	return getBaseURL.cached;
+}
+
+/**
+* Initialize sidebar navigation buttons for adding children
+* @param {HTMLElement} container — Optional container to limit scope
+*/
+export function setupSidebarNavigation(container = document) {
+	container.querySelectorAll("#sidebar nav li").forEach(li => {
+		const link = li.querySelector("a");
+		if (!link) return;
+
+		// Create the + button
+		const addBtn = document.createElement("button");
+		addBtn.textContent = "＋";
+		addBtn.classList.add("add-child-btn");
+
+		// Wrap <a> and button inside a span for hover styling
+		const wrapper = document.createElement("span");
+		wrapper.classList.add("add-child-wrapper");
+
+		link.replaceWith(wrapper);
+		wrapper.appendChild(link);
+		wrapper.appendChild(addBtn);
+
+		// Click event: show popup form
+		addBtn.addEventListener("click", (e) => {
+			e.preventDefault();
+			openAddChildForm(addBtn, link);
+		});
+	});
+}
+
+/**
+* Show the add-child form near the clicked button
+* @param {HTMLElement} button — The + button clicked
+* @param {HTMLElement} link — The parent <a> tag for this node
+*/
+export function openAddChildForm(button, link) {
+	const form = document.getElementById("add-child-form");
+	const nameInput = document.getElementById("add-child-name");
+	const parentInput = document.getElementById("add-child-parent");
+
+	const rect = button.getBoundingClientRect();
+	form.style.top = `${rect.bottom + window.scrollY}px`;
+	form.style.left = `${rect.left + window.scrollX}px`;
+
+	parentInput.value = link.textContent.trim();
+	nameInput.value = "";
+	form.style.display = "block";
+	nameInput.focus();
+}
+
+/**
+* Handle form submission for creating new child entity
+*/
+export function submitAddChild(event) {
+	event.preventDefault();
+
+	const name = document.getElementById("add-child-name").value.trim();
+	const parent = document.getElementById("add-child-parent").value.trim();
+	const form = document.getElementById("add-child-form");
+
+	if (!name || !parent) return false;
+
+	const body = `>> ${name} _is_a ${parent}`;
+	const xhr = new XMLHttpRequest();
+	xhr.open("PUT", `${getBaseURL()}/${encodeURIComponent(name)}`);
+	xhr.setRequestHeader("Content-Type", "text/plain");
+
+	xhr.onload = () => {
+		if (xhr.status >= 200 && xhr.status < 300) {
+			location.reload(); // TODO: replace with dynamic partial update in future
+		} else {
+			alert(`Error: ${xhr.status}\n${xhr.responseText}`);
+		}
+	};
+
+	xhr.onerror = () => alert("Network error");
+	xhr.send(body);
+	form.style.display = "none";
+	return false;
+}
+
+/**
+* Hide form when pressing Escape or clicking outside
+*/
+export function setupAddChildCancel() {
+	const form = document.getElementById("add-child-form");
+	document.addEventListener("keydown", (e) => {
+		if (e.key === "Escape") {
+			form.style.display = "none";
+		}
+	});
+
+	document.addEventListener("mousedown", (e) => {
+		if (!form.contains(e.target)) {
+			form.style.display = "none";
+		}
+	});
+}
+
+/**
+* Populate keyboard shortcut hints (Ctrl+arrows)
+*/
+export function updateNavHint() {
+	const modKey = navigator.platform.includes("Mac") ? "⌘" : "Ctrl";
+	const hints = [];
+
+	if (tree["superLink"]) hints.push(`${modKey} + ← parent`);
+	if (tree["prevLink"]) hints.push(`${modKey} + ↑ previous`);
+	if (tree["nextLink"]) hints.push(`${modKey} + ↓ next`);
+	if (tree["childLink"]) hints.push(`${modKey} + → child`);
+
+	const hintBox = document.getElementById("nav-hint");
+	if (hintBox) hintBox.innerHTML = hints.join("<br>");
+}
+
+// Internal tree navigation state
+const tree = {
+	superLink: null,
+	idLink: null,
+	prevLink: null,
+	nextLink: null,
+	childLink: null
+};
+
+/**
+* Populate tree object with link targets for keyboard navigation
+*/
+function setupTreeNavigation() {
+	tree.superLink = document.querySelector(".tree li.super > a")?.href || null;
+	const idLi = document.querySelector(".tree li.id");
+	tree.idLink = idLi?.querySelector("a")?.href || null;
+	tree.prevLink = idLi?.previousElementSibling?.querySelector("a")?.href || null;
+	tree.nextLink = idLi?.parentElement?.querySelector("li.id ~ li.sibling a")?.href || null;
+	tree.childLink = document.querySelector(".tree li.child a")?.href || null;
+}
+
+/**
+* Setup Ctrl/Meta + arrow key keyboard navigation
+*/
+function setupKeyboardNavigation() {
+	document.addEventListener("keydown", (e) => {
+		if (!e.ctrlKey && !e.metaKey) return;
+
+		switch (e.key) {
+			case "ArrowLeft":  if (tree.superLink) location.href = tree.superLink; break;
+			case "ArrowUp":    if (tree.prevLink)  location.href = tree.prevLink;  break;
+			case "ArrowRight": if (tree.childLink) location.href = tree.childLink; break;
+			case "ArrowDown":  if (tree.nextLink)  location.href = tree.nextLink;  break;
+		}
+	});
+}
+
+// DOM bootstrap
+// Called on full page load to initialize behaviors
+document.addEventListener("DOMContentLoaded", () => {
+	setupTreeNavigation();
+	setupKeyboardNavigation();
+	setupSidebarNavigation();
+	setupAddChildCancel();
+	updateNavHint();
+
+	const form = document.getElementById("add-child-form");
+	form?.addEventListener("submit", submitAddChild);
+});

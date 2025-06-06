@@ -26,5 +26,7 @@
 <main id="layout">
 {{>main_html_tpl}}
 </main>
+<div id="nav-hint"></div>
+<script type="module" src="/_file/script/main.js"></script>
 </body>
 </html>

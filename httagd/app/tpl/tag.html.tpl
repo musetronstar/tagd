@@ -1,5 +1,5 @@
-<p>
 <h1>{{id}}</h1>
+<p>
 &rarr;<a href="{{sub_relator_lnk}}">{{sub_relator}}</a>
 <a href="{{super_object_lnk}}">{{super_object}}</a>
 </p>
@@ -48,44 +48,3 @@
    </li>
  </ul>
 {{/referents_refers}}
-<!--
-{{#objects_related}}
-<h3><a href="{{query_related_lnk}}">Related</a></h3>
-<ul>
- <li><a href="{{related_lnk}}">{{related}}</a>
-  <ul>
- {{#related_predicate}}
-   <li>
-    <a href="{{related_relator_lnk}}">{{related_relator}}</a>
-    <a href="{{related_object_lnk}}">{{related_object}}</a>
-  {{#has_related_modifier}} = {{modifier}}{{/has_related_modifier}}
-   </li>
- {{/related_predicate}}
-  </ul>
- </li>
-</ul>
-{{/objects_related}}
-
-<ul>
-{{#siblings}}
- <li><a href="{{sibling_lnk}}">{{sibling}}</a></li>
-{{/siblings}}
-</ul>
-
-<ul>
-{{#children}}
- <li><a href="{{child_lnk}}">{{child}}</a></li>
-{{/children}}
-</ul>
--->
-
-<button class="tagd:open-diaglog">＋</button>
-<dialog class="tagd:dialog" style="visibility:hidden" open>
-<form name="tagl_form" action="javascript:void(0);" onsubmit="postTAGL()" role="add tagl predicate">
- <input id="tagl_url" type="hidden" value="{{REQUEST_URL_VIEW_TAGL}}">
- <input name="tagl" id="tagl_input" type="text" required>
- <button>add predicate</button><br>
- <code id="tagl_error">&nbsp;</code>
-</form>
-</dialog>
-<script src="/_file/script/tagl.js"></script>
