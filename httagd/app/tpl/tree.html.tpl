@@ -170,6 +170,26 @@ function submitAddChild(event) {
 	form.style.display = "none";
 	return false;
 }
+
+// Cancel the add-child form with Escape key
+document.addEventListener("keydown", (e) => {
+  const form = document.getElementById("add-child-form");
+  if (e.key === "Escape" && form.style.display === "block") {
+    form.style.display = "none";
+  }
+});
+
+// Cancel the add-child form with click-outside
+document.addEventListener("click", (e) => {
+  const form = document.getElementById("add-child-form");
+  const isFormOpen = form.style.display === "block";
+  const isClickInsideForm = form.contains(e.target);
+  const isAddButton = e.target.classList.contains("add-child-btn");
+
+  if (isFormOpen && !isClickInsideForm && !isAddButton) {
+    form.style.display = "none";
+  }
+});
 </script>
 <div id="nav-hint" style="
   position: fixed;
