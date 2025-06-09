@@ -435,6 +435,9 @@ void callback::finish() {
 		return;
 	}
 
+	if (!_tx->res->header_content_type_added())
+		_tx->res->add_header_content_type(DEFAULT_CONTENT_TYPE);
+
 	_tx->res->send_reply(
 		_tx->most_severe(_tx->drvr->session_ptr()->code())
 	);

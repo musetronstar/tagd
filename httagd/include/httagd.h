@@ -155,6 +155,7 @@ class response {
 		// send this code instead of translated tagd::code to EVHTP_RES_*
 		int _res_code = -1;
 		bool _reply_sent = false;
+		bool _header_content_type_added = false;
 
 	public:
 		response() = delete;
@@ -163,6 +164,10 @@ class response {
 
 		bool reply_sent() const {
 			return _reply_sent;
+		}
+
+		bool header_content_type_added() const {
+			return _header_content_type_added;
 		}
 
 		int res_code() const {
@@ -193,6 +198,7 @@ class response {
 
 		void add_header_content_type(const std::string& content_type) {
 			this->add_header("Content-Type", content_type);
+			_header_content_type_added = true;
 		}
 		void add_header_content_length(size_t sz) {
 			this->add_header("Content-Length", std::to_string(sz));
