@@ -40,6 +40,9 @@ export function setupAddChild(container = document) {
 			openAddChildForm(addBtn, link);
 		});
 	});
+
+	document.getElementById("add-child-form")
+		?.addEventListener("submit", submitAddChild);
 }
 
 /**
@@ -109,8 +112,6 @@ export function setupAddChildCancel() {
 			form.style.display = "none";
 		}
 	});
-
-	form?.addEventListener("submit", submitAddChild);
 }
 
 // Internal tree navigation state

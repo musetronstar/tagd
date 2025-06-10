@@ -5,7 +5,7 @@
 </nav>
 </aside>
 <article id="content">
-<section id="tag_container">
+<section id="tag-container">
 {{>tag_html_tpl}}
 </section>
 <hr>
@@ -14,8 +14,3 @@
 </section>
 </article>
 {{>footer_html_tpl}}
-<form id="add-child-form">
-  <input type="text" id="add-child-name" placeholder="put subordinate entity" autocomplete="off" required autofocus>
-  <input type="hidden" id="add-child-parent">
-  <button type="submit">Add</button>
-</form>
