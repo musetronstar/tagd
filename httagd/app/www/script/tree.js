@@ -1,3 +1,6 @@
+import { putTag } from "./api.js";
+import { encodePutTag } from "./tagl.js";
+
 /***** Functions navigating and manipulating the tagspace tree  *****/
 
 /**
@@ -52,46 +55,40 @@ export function setupAddChild(container = document) {
 */
 export function openAddChildForm(button, link) {
 	const form = document.getElementById("add-child-form");
-	const nameInput = document.getElementById("add-child-name");
-	const parentInput = document.getElementById("add-child-parent");
+	const subId = document.getElementById("add-child-id");
+	const superInput = document.getElementById("add-child-super");
 
 	const rect = button.getBoundingClientRect();
 	form.style.top = `${rect.bottom + window.scrollY}px`;
 	form.style.left = `${rect.left + window.scrollX}px`;
 
-	parentInput.value = link.textContent.trim();
-	nameInput.value = "";
+	superInput.value = link.textContent.trim();
+	subId.value = "";
 	form.style.display = "block";
-	nameInput.focus();
+	subId.focus();
 }
 
 /**
 * Handle form submission for creating new child entity
 */
-export function submitAddChild(event) {
+export async function submitAddChild(event) {
 	event.preventDefault();
 
-	const name = document.getElementById("add-child-name").value.trim();
-	const parent = document.getElementById("add-child-parent").value.trim();
+	const subId = document.getElementById("add-child-id").value.trim();
+	const superId = document.getElementById("add-child-super").value.trim();
 	const form = document.getElementById("add-child-form");
 
-	if (!name || !parent) return false;
+	if (!subId || !superId) return false;
 
-	const body = `>> ${name} _is_a ${parent}`;
-	const xhr = new XMLHttpRequest();
-	xhr.open("PUT", `${getBaseURL()}/${encodeURIComponent(name)}`);
-	xhr.setRequestHeader("Content-Type", "text/plain");
+	try {
+		// Generate the TAGL statement and submit it
+		// TODO don't hardcode _sub, get the relation from the UI
+		await putTag(subId, encodePutTag(subId, "_sub", superId));
+		location.reload(); // TODO: Replace with dynamic partial update in future
+	} catch (err) {
+		alert(`Error: ${err.message}`);
+	}
 
-	xhr.onload = () => {
-		if (xhr.status >= 200 && xhr.status < 300) {
-			location.reload(); // TODO: replace with dynamic partial update in future
-		} else {
-			alert(`Error: ${xhr.status}\n${xhr.responseText}`);
-		}
-	};
-
-	xhr.onerror = () => alert("Network error");
-	xhr.send(body);
 	form.style.display = "none";
 	return false;
 }

@@ -31,8 +31,8 @@
 	<button type="submit">Add Predicate</button>
 </form>
 <form id="add-child-form">
-  <input type="text" id="add-child-name" placeholder="put subordinate entity" autocomplete="off" required autofocus>
-  <input type="hidden" id="add-child-parent">
+  <input type="text" id="add-child-id" placeholder="put subordinate entity" autocomplete="off" required autofocus>
+  <input type="hidden" id="add-child-super">
   <button type="submit">Add</button>
 </form>
 <div id="nav-hint"></div>

@@ -1,3 +1,6 @@
+import { putTag } from "./api.js";
+import { encodePutPredicate } from "./tagl.js";
+
 /**
  * Setup add-predicate button and form
  */
@@ -44,30 +47,21 @@ export function openAddPredicateForm(button) {
 /**
  * Submit the add-predicate form via POST
  */
-export function submitAddPredicate(event) {
+export async function submitAddPredicate(event) {
 	event.preventDefault();
 
-	const input = document.getElementById("add-predicate-input");
-	const tagId = document.getElementById("tag-id")?.textContent.trim();
-	if (!input || !tagId) return false;
+	const tagId = document.getElementById("tag-id")?.textContent.trim() || null;
+	const predicate = document.getElementById("add-predicate-input")?.value.trim() || null;
+	if (!tagId || !predicate) return false;
 
-	const body = input.value.trim();
-	if (!body) return false;
-
-	const xhr = new XMLHttpRequest();
-	xhr.open("POST", `${location.origin}/${encodeURIComponent(tagId)}`);
-	xhr.setRequestHeader("Content-Type", "text/plain");
-
-	xhr.onload = () => {
-		if (xhr.status >= 200 && xhr.status < 300) {
-			location.reload(); // TODO: dynamic refresh in future
-		} else {
-			alert(`Error: ${xhr.status}\n${xhr.responseText}`);
-		}
-	};
-
-	xhr.onerror = () => alert("Network error");
-	xhr.send(body);
+	try {
+		// Generate the TAGL statement and submit it
+		// TODO don't hardcode _sub, get the relation from the UI
+		await putTag(tagId, encodePutPredicate(tagId, predicate));
+		location.reload(); // TODO: Replace with dynamic partial update in future
+	} catch (err) {
+		alert(`Error: ${err.message}`);
+	}
 
 	document.getElementById("add-predicate-form").style.display = "none";
 	return false;

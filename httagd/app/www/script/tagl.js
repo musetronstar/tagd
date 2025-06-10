@@ -1,34 +1,24 @@
+// scripts/tagl.js
 
-function refreshTagHTML() {
-	var req = new XMLHttpRequest();
-
-	req.onload = function () {
-		if (req.status == 200) {
-		} else {
-      document.getElementById("tag_container").innerHTML = req.response;
-			document.getElementById("tagl_error").innerHTML = req.response;
-		}
-	}
-
-	req.open("GET", "{{REQUEST_URL_VIEW_TAG_HTML}}");
-	req.send();
+/**
+ * Creates a TAGL PUT tag statement
+ *
+ * @param {string} tagId - The tag being defined (left side)
+ * @param {string} subRel - The subordinate relation
+ * @param {string} superId - The superordinate tag
+ * @returns {string} - A PUT tag TAGL statement
+ */
+export function encodePutTag(tagId, subRel, superId) {
+	return `>> ${tagId} ${subRel} ${superId}`;
 }
 
-function postTAGL() {
-	var req = new XMLHttpRequest();
-
-	req.onload = function () {
-		if (req.status == 200) {
-			refreshTagHTML();
-		} else {
-			document.getElementById("tagl_error").innerHTML = req.response;
-		}
-	}
-
-	taglURL = document.getElementById('tagl_url').value;
-	req.open("POST", taglURL);
-	req.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
-	req.send(tagl_form.tagl.value);
+/**
+ * Creates a TAGL PUT tag relation statement
+ *
+ * @param {string} subject - The tag being predicated upon
+ * @param {string} predicate - The relation and the tag related to
+ * @returns {string} - A PUT tag relation TAGL statement
+ */
+export function encodePutPredicate(subject, predicate) {
+	return `>> ${subject} ${predicate}`;
 }
-
-
