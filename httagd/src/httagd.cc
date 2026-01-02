@@ -238,14 +238,12 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 				this->scan(tagd::uri_decode(segment));
 			}
 		} else {
-			if (!opt_search.empty()) {  // turn into query (like adding a '/' to the end)
-				f_parse_cmd_query();
-				f_parse_search_terms();
+			if (!opt_search.empty()) {  // GET tag should not have a FTS query
+				_driver->error(tagd::TS_MISUSE, "illegal use of search terms with GET command");
 				return;
 			} else {
 				_driver->parse_tok(cmd, NULL);
-				auto decoded = tagd::uri_decode(segment);
-				this->scan(decoded);
+				this->scan(tagd::uri_decode(segment));
 			}
 		}
 	} else {
