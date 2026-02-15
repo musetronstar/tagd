@@ -1,14 +1,18 @@
-// Module-scoped cache for base URL
-let BASE_URL = null;
-
-// Returns the base URL (protocol + host) for this app
+// Returns the base URL (protocol + host) for this window
 export function getBaseURL() {
-	if (!BASE_URL) {
-		const { protocol, host } = window.location;
-		BASE_URL = `${protocol}//${host}`;
+	if (!getBaseURL.cached) {
+		const loc = window.location;
+		getBaseURL.cached = loc.origin || (loc.protocol + "//" + loc.host);
 	}
-	return BASE_URL;
+	return getBaseURL.cached;
 }
+
+// Returns the tagdurl for a tagId
+export function tagdURL(tagId) {
+	return `${getBaseURL()}/${encodeURIComponent(tagId)}`;
+}
+
+const HTTP_HEADERS = { "Content-Type": "text/plain; charset=utf-8" };
 
 /**
  * Sends a HTTP PUT request to the httagd server 
@@ -18,11 +22,11 @@ export function getBaseURL() {
  * @param {string} body - TAGL statement
  * @returns {Promise<Response>} - Resolves with the fetch Response
  */
-export async function putTag(tagId, body) {
-	const res = await fetch(`${getBaseURL()}/${encodeURIComponent(tagId)}`, {
+export async function putTag(tagId, taglBody) {
+	const res = await fetch(tagdURL(tagId), {
 		method: "PUT",
-		headers: { "Content-Type": "text/plain; charset=utf-8" },
-		body
+		headers: HTTP_HEADERS,
+		body: taglBody
 	});
 	if (!res.ok) throw new Error(await res.text());
 	return res;
@@ -35,11 +39,28 @@ export async function putTag(tagId, body) {
  * @param {string} body - TAGL-formatted predicate statement
  * @returns {Promise<Response>} - Resolves with the fetch Response
  */
-export async function postTag(tagId, body) {
-	const res = await fetch(`${getBaseURL()}/${encodeURIComponent(tagId)}`, {
+export async function postTag(tagId, taglBody) {
+	const res = await fetch(tagdURL(tagId), {
 		method: "POST",
-		headers: { "Content-Type": "text/plain; charset=utf-8" },
-		body
+		headers: HTTP_HEADERS,
+		body: taglBody
+	});
+	if (!res.ok) throw new Error(await res.text());
+	return res;
+}
+
+/**
+ * Sends a POST request to the httagd server where
+ * body content contains valid TAGL statements
+ *
+ * @param {string} taglBody - TAGL statements
+ * @returns {Promise<Response>} - Resolves with the fetch Response
+ */
+export async function postTAGL(taglBody) {
+	const res = await fetch(getBaseURL()+'/', {
+		method: "POST",
+		headers: HTTP_HEADERS,
+		body: taglBody
 	});
 	if (!res.ok) throw new Error(await res.text());
 	return res;

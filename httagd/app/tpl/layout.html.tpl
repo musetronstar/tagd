@@ -26,6 +26,12 @@
 <main id="layout">
 {{>main_html_tpl}}
 </main>
+<footer>
+</footer>
+<form id="tagsh-form">
+	<textarea id="tagsh-input" placeholder="TAGL" required autocomplete="off"></textarea>
+	<button type="submit">Execute &gt;</button>
+</form>
 <form id="add-predicate-form">
 	<input type="text" id="add-predicate-input" placeholder="add predicate" required autocomplete="off">
 	<button type="submit">Add Predicate</button>

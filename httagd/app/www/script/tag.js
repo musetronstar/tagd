@@ -4,7 +4,7 @@ import { encodePutPredicate } from "./tagl.js";
 /**
  * Setup add-predicate button and form
  */
-export function setupAddPredicate() {
+function setupAddPredicate() {
 	const tagContainer = document.getElementById("tag-container");
 	if (!tagContainer) return;
 
@@ -27,7 +27,7 @@ export function setupAddPredicate() {
 /**
  * Show the add-predicate form near the button
  */
-export function openAddPredicateForm(button) {
+function openAddPredicateForm(button) {
 	const form = document.getElementById("add-predicate-form");
 	const input = document.getElementById("add-predicate-input");
 	const tagId = document.getElementById("tag-id");
@@ -71,5 +71,9 @@ export async function submitAddPredicate(event) {
 |*| Call all setup functions is this module.
 \*/
 export function setupTag() {
+	if (setupTag.isSetup) return; // already set up
+
 	setupAddPredicate();
+
+	setupTag.isSetup = true;
 }

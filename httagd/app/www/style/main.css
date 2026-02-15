@@ -97,7 +97,7 @@ header hr {
 	margin: 1.671em 0 0 0;
 }
 
-main#layout {
+#layout {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 1em;
@@ -145,16 +145,6 @@ li.id:before {
   display: inline;
 }
 
-#add-child-form {
-	display:none;
-	position:absolute;
-	z-index:10000;
-	background:#fff;
-	border:1px solid #ccc;
-	padding:0.5em;
-	box-shadow:0 0 5px rgba(0,0,0,0.1);
-}
-
 #nav-hint {
 	position: fixed;
 	bottom: 1em;
@@ -171,25 +161,38 @@ li.id:before {
 	pointer-events: none;
 }
 
-.add-predicate-btn {
-	margin-top: 1em;
-	font-size: 0.9em;
+#add-predicate-form,
+#add-child-form
+{
+	display: none;
+	position: absolute;
+	z-index: 10000;
 }
 
-#add-predicate-form {
-	display:none;
-	position:absolute;
-	z-index:10000;
-	background:#fff;
-	border:1px solid #ccc;
-	padding:0.5em;
-	box-shadow:0 0 5px rgba(0,0,0,0.1);
+#add-predicate-form,
+#add-child-form,
+#tagsh-form
+{
+	background: #fff;
+	border: 1px solid #ccc;
+	padding: 0.5em;
+	box-shadow: 0 0 5px rgba(0,0,0,0.1);
 }
 
+#tagsh-form {
+	display: flex;
+	flex-direction: column;
+}
+
+#tagsh-form textarea
+{
+	width: 100%;
+	height: 5em;
+}
 /* end tree css */
 
 @media screen and (max-width: 700px) {
-	main#layout {
+	#layout {
 		flex-direction: column;
 	}
 

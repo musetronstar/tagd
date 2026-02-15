@@ -22,3 +22,4 @@ export function encodePutTag(tagId, subRel, superId) {
 export function encodePutPredicate(subject, predicate) {
 	return `>> ${subject} ${predicate}`;
 }
+

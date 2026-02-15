@@ -4,22 +4,10 @@ import { encodePutTag } from "./tagl.js";
 /***** Functions navigating and manipulating the tagspace tree  *****/
 
 /**
-* Get the base URL (scheme + host + optional port), cache on first use
-* @returns {string}
-*/
-function getBaseURL() {
-	if (!getBaseURL.cached) {
-		const loc = window.location;
-		getBaseURL.cached = loc.origin || (loc.protocol + "//" + loc.host);
-	}
-	return getBaseURL.cached;
-}
-
-/**
 * Initialize tree navigation buttons for adding children
 * @param {HTMLElement} container — Optional container to limit scope
 */
-export function setupAddChild(container = document) {
+function setupAddChild(container = document) {
 	container.querySelectorAll("#sidebar nav li").forEach(li => {
 		const link = li.querySelector("a");
 		if (!link) return;
@@ -53,7 +41,7 @@ export function setupAddChild(container = document) {
 * @param {HTMLElement} button — The + button clicked
 * @param {HTMLElement} link — The parent <a> tag for this node
 */
-export function openAddChildForm(button, link) {
+function openAddChildForm(button, link) {
 	const form = document.getElementById("add-child-form");
 	const subId = document.getElementById("add-child-id");
 	const superInput = document.getElementById("add-child-super");
@@ -71,7 +59,7 @@ export function openAddChildForm(button, link) {
 /**
 * Handle form submission for creating new child entity
 */
-export async function submitAddChild(event) {
+async function submitAddChild(event) {
 	event.preventDefault();
 
 	const subId = document.getElementById("add-child-id").value.trim();
@@ -96,7 +84,7 @@ export async function submitAddChild(event) {
 /**
 * Hide form when pressing Escape or clicking outside
 */
-export function setupAddChildCancel() {
+function setupAddChildCancel() {
 	const form = document.getElementById("add-child-form");
 	document.addEventListener("keydown", (e) => {
 		if (e.key === "Escape") {
@@ -123,7 +111,7 @@ const tree = {
 /**
 * Populate tree object with link targets for keyboard navigation
 */
-export function setupTreeNavigation() {
+function setupTreeNavigation() {
 	tree.superLink = document.querySelector(".tree li.super a")?.href || null;
 	const idLi = document.querySelector(".tree li.id");
 	tree.idLink = idLi?.querySelector("a")?.href || null;
@@ -135,12 +123,13 @@ export function setupTreeNavigation() {
 /**
 * Setup Ctrl/Meta + arrow key keyboard navigation
 */
-export function setupKeyboardNavigation() {
+function setupKeyboardNavigation() {
 	document.addEventListener("keydown", (e) => {
 		if (!e.ctrlKey && !e.metaKey) return;
 
-		console.log("keydown", e.key);
-		console.log("tree", tree);
+		// console.log("keydown", e.key);
+		// console.log("tree", tree);
+
 		switch (e.key) {
 			case "ArrowLeft":
 				if (tree.superLink)
@@ -165,7 +154,7 @@ export function setupKeyboardNavigation() {
 /**
 * Populate keyboard shortcut hints (Ctrl+arrows)
 */
-export function updateNavHint() {
+function updateNavHint() {
 	const modKey = navigator.platform.includes("Mac") ? "⌘" : "Ctrl";
 	const hints = [];
 
@@ -182,9 +171,13 @@ export function updateNavHint() {
 |*| Call all setup functions is this module.
 \*/
 export function setupTree() {
+	if (setupTree.isSetup) return;
+
 	setupAddChild();
 	setupAddChildCancel();
 	setupTreeNavigation();
 	setupKeyboardNavigation();
 	updateNavHint();
+
+	setupTree.isSetup = true;
 }
