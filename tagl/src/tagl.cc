@@ -350,8 +350,9 @@ tagd::code driver::new_url(const std::string& url) {
 
 	auto *u = new tagd::url(url);
 	if (!u->ok()) {
+		const auto code = u->code();
 		delete u;
-		return this->ferror(u->code(), "parse URL failed: %s", url.c_str());
+		return this->ferror(code, "parse URL failed: %s", url.c_str());
 	}
 	
 	if (!constrain_tag_id.empty()) {

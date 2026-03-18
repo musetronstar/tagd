@@ -4,7 +4,7 @@ PRG_DIR = ../sqlite
 INC = -I../include -I$(TAGD_DIR)/include -I$(PRG_DIR)/include
 
 # Use flags from top-level, or defaults if called directly
-CXXFLAGS ?= -Wall -Wextra -O3
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wno-unused-result -O3
 CXXTEST = cxxtestgen --error-printer
 LFLAGS = -L../lib -ltagdb-sqlite -L$(TAGD_DIR)/lib -ltagd -lsqlite3 
 
@@ -31,4 +31,3 @@ $(LIBTAGD):
 
 clean:
 	rm -f $(SRC) $(BIN) *.sqlite
-

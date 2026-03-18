@@ -1,3 +1,6 @@
+MAKEFLAGS += --no-print-directory
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wno-unused-result -O3
+
 SRC_DIR = ./src
 BUILD_DIR = ./lib
 TEST_DIR = ./tests
@@ -16,25 +19,28 @@ valgrind: debug
 build: tagd libtagd
 
 tagd: force_look
-	make -C	$(SRC_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
-	make -C	$(SRC_DIR)/domain $(TARGET) CXXFLAGS="$(CXXFLAGS)"
+	@printf '[build] %s\n' 'tagd/src'
+	@make -C $(SRC_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
+	@printf '[build] %s\n' 'tagd/src/domain'
+	@make -C $(SRC_DIR)/domain $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 libtagd: tagd $(LIB)
 
 $(LIB):
-	[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
+	@printf '[ar] %s\n' 'tagd/libtagd.a'
+	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
 	ar rcs $(LIB) $(SRC_DIR)/*.o $(SRC_DIR)/domain/*.o 
 
 tests: force_look libtagd 
-	make -C $(TEST_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
+	@printf '[test] %s\n' 'tagd'
+	@make -C $(TEST_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 # 'true' forces make to look (otherwise its always up to date)
 force_look:
-	true
+	@true
 
 clean:
 	rm -rf  $(BUILD_DIR)
-	make -C $(SRC_DIR) clean
-	make -C $(SRC_DIR)/domain clean
-	make -C $(TEST_DIR) clean
-
+	@make -C $(SRC_DIR) clean
+	@make -C $(SRC_DIR)/domain clean
+	@make -C $(TEST_DIR) clean

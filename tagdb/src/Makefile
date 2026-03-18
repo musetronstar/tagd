@@ -1,5 +1,5 @@
 # Use flags from top-level, or defaults if called directly
-CXXFLAGS ?= -Wall -Wextra -O3
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 
 TAGDDIR =../../tagd
 INC = -I../include -I$(TAGDDIR)/include
@@ -32,4 +32,3 @@ $(HARD_TAG_GPERF):
 
 clean:
 	rm -f *.o $(HARD_TAG_GPERF) $(HARD_TAG_GPERF_H)
-

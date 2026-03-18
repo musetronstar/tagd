@@ -388,9 +388,9 @@ get_handler_t browse_handler(
 		tagd::tag_set results;
 		tagd::interrogator q_related(HARD_TAG_INTERROGATOR);
 		if (this_tag.pos() == tagd::POS_RELATOR)
-			q_related.relation(this_tag.id(), "");
+			(void)q_related.relation(this_tag.id(), "");
 		else
-			q_related.relation("", this_tag.id());
+			(void)q_related.relation("", this_tag.id());
 		tc = tx.tdb->query(results, q_related, tx.drvr->session_ptr(), tagdb::F_NO_NOT_FOUND_ERROR);
 
 		if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)

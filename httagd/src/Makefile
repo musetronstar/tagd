@@ -1,5 +1,5 @@
 # Use flags from top-level, or defaults if called directly
-CXXFLAGS ?= -Wall -Wextra -fpermissive -O3
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -fpermissive -O3
 
 PRG_DIR = ../..
 TAGD_DIR = $(PRG_DIR)/tagd
@@ -51,4 +51,3 @@ clean :
 	rm -f *.o
 	rm -f *.inc
 	rm -f $(BIN)
-

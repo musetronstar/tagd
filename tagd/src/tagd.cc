@@ -729,7 +729,7 @@ tagd::code errorable::error(tagd::code c, const predicate& p) {
 	if (!report_errors) return c;
 
 	tagd::error err(c);
-	err.relation(p);
+	(void)err.relation(p);
 	return this->error(err);
 }
 

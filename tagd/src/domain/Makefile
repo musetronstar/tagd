@@ -1,5 +1,5 @@
 # Use flags from top-level, or defaults if called directly
-CXXFLAGS ?= -Wall -Wextra -O3
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 
 GPERF=public-suffix.gperf
 GPERF_H=public-suffix.gperf.h
@@ -36,4 +36,3 @@ clean:
 
 extra_clean: clean
 	rm -f $(GPERF) $(GPERF_H)
-

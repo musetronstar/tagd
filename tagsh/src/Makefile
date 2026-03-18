@@ -1,5 +1,5 @@
 # Use flags from top-level, or defaults if called directly
-CXXFLAGS ?= -Wall -Wextra -pedantic -O3
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -pedantic -O3
 BUILD_DIR = ../bin
 BIN = $(BUILD_DIR)/tagsh
 
@@ -28,4 +28,3 @@ $(BIN) : tagsh.o main.o
 
 clean :
 	rm -f *.o $(BIN)
-

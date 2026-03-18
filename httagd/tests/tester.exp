@@ -8,6 +8,7 @@ set MAX_ERRORS 3
 set ERRORS 0
 set NL "\r\n"
 set TIMEOUT 1
+set STARTUP_TIMEOUT 10
 
 set timeout $TIMEOUT
 set log_user 1  ;# log output to stdout, 0 disables
@@ -78,10 +79,23 @@ proc test_file {n m u f e} {
 	}
 }
 
+proc wait_for_server {timeout_secs} {
+	for {set i 0} {$i < $timeout_secs} {incr i} {
+		set rc [catch {exec curl -sSf http://localhost:2112/dog} output]
+		if {$rc == 0} {
+			return
+		}
+
+		sleep 1
+	}
+
+	puts "\n!!!!!!!!!!   httagd startup failed   !!!!!!!!!!\n"
+	exit 1
+}
+
 eval $spawn_httagd
 
-# TODO there must be a better way to wait for the server to start up
-sleep 1
+wait_for_server $STARTUP_TIMEOUT
 
 test "get_dog" \
 	 "GET" "/dog" "" \

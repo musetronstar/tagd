@@ -1,5 +1,5 @@
 # Use flags from top-level, or defaults if called directly
-CXXFLAGS ?= -Wall -Wextra -O3
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 YACC = 
 RE2CFLAGS = 
 
@@ -42,7 +42,7 @@ parser.o: $(PARSER_H) parser.cc
 	# we have to silence certain lemon warnings/errors
 	# -Wno-sign-compare : int / unsigned long comparisons
 	# -fpermissive : *yyParser to unsigned char conversion
-	g++ $(CXXFLAGS) -Wno-sign-compare -fpermissive -c -o $@ parser.cc $(INC) 
+	g++ $(CXXFLAGS) -Wno-sign-compare -Wno-array-bounds -Wno-unused-variable -fpermissive -c -o $@ parser.cc $(INC) 
 
 tagl.o: tokens.inc tagl.cc
 	g++ $(CXXFLAGS) -c -o $@ tagl.cc $(INC) 
@@ -52,4 +52,3 @@ clean:
 	rm -f *.o
 	rm -f *.inc
 	rm -f scanner.out.cc parser.cc parser.out $(PARSER_H)
-

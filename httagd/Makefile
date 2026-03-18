@@ -1,3 +1,6 @@
+MAKEFLAGS += --no-print-directory
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wno-unused-result -O3
+
 SRC_DIR = ./src
 APP_DIR = ./app
 BIN_DIR = ./bin
@@ -22,28 +25,31 @@ valgrind: debug
 build: src lib app
 
 src: force_look
-	[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
-	make -C	$(SRC_DIR) $(EVHTP_ARGS) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
+	@printf '[build] %s\n' 'httagd/src'
+	@[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
+	@make -C $(SRC_DIR) $(EVHTP_ARGS) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 app: force_look lib
-	[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
-	make -C	$(APP_DIR) $(EVHTP_ARGS) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
+	@printf '[build] %s\n' 'httagd/app'
+	@[ -d $(BIN_DIR) ] || mkdir $(BIN_DIR)
+	@make -C $(APP_DIR) $(EVHTP_ARGS) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 tests: force_look app
-	make -C $(TEST_DIR) $(EVHTP_ARGS) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
+	@printf '[test] %s\n' 'httagd'
+	@make -C $(TEST_DIR) $(EVHTP_ARGS) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 lib: src $(LIB)
 
 $(LIB):
-	[ -d $(LIB_DIR) ] || mkdir $(LIB_DIR)
+	@printf '[ar] %s\n' 'httagd/libhttagd.a'
+	@[ -d $(LIB_DIR) ] || mkdir $(LIB_DIR)
 	ar rcs $(LIB) $(SRC_DIR)/*.o
 
 force_look:
-	true
+	@true
 
 clean:
 	rm -rf  $(LIB_DIR) $(BIN_DIR)
-	make -C $(SRC_DIR) clean
-	make -C $(APP_DIR) clean
-	make -C $(TEST_DIR) clean
-
+	@make -C $(SRC_DIR) clean
+	@make -C $(APP_DIR) clean
+	@make -C $(TEST_DIR) clean

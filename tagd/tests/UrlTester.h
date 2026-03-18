@@ -923,7 +923,7 @@ class Tester : public CxxTest::TestSuite {
 	void test_percent_encode(void) {
 		TS_ASSERT(tagd::uri_encode("ABC") == "ABC");
 
-		std::string src1(u8"イヌ");
+		const std::string src1("\xE3\x82\xA4\xE3\x83\x8C");
 		std::string enc1("%E3%82%A4%E3%83%8C");
 
 		TS_ASSERT_EQUALS(tagd::uri_encode(src1) , enc1);

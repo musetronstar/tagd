@@ -1,5 +1,5 @@
 # Use flags from top-level, or defaults if called directly
-CXXFLAGS ?= -Wall -Wextra -O3
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 
 INC =  -I../include
 SRCS = tagd.cc rank.cc utf8.cc url.cc io.cc file.cc
@@ -25,4 +25,3 @@ part-of-speech.inc: $(CODES_H)
 
 clean :
 	rm -f *.o *.inc
-

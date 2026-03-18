@@ -328,7 +328,7 @@ search_query_list ::= .
 search_query_quoted_str ::= quoted_str(s) .
 {
 	NEW_TAG(tagd::interrogator, HARD_TAG_SEARCH)
-	tagl->tag_ptr()->relation(HARD_TAG_HAS, HARD_TAG_TERMS, *s);
+	(void)tagl->tag_ptr()->relation(HARD_TAG_HAS, HARD_TAG_TERMS, *s);
 	MDELETE(s)
 }
 
@@ -416,19 +416,19 @@ query_referent_relations ::= query_referent_relation .
 
 query_referent_relation ::= REFERS(R) refers_subject(r) .
 {
-	tagl->tag_ptr()->relation(HARD_TAG_REFERS, *r);
+	(void)tagl->tag_ptr()->relation(HARD_TAG_REFERS, *r);
 	MDELETE(R)
 	MDELETE(r)
 }
 query_referent_relation ::= refers_to(rt) refers_to_object(rto) .
 {
-	tagl->tag_ptr()->relation(HARD_TAG_REFERS_TO, *rto);
+	(void)tagl->tag_ptr()->relation(HARD_TAG_REFERS_TO, *rto);
 	MDELETE(rt)
 	MDELETE(rto)
 }
 query_referent_relation ::= context(c) context_object(co) .
 {
-	tagl->tag_ptr()->relation(HARD_TAG_CONTEXT, *co);
+	(void)tagl->tag_ptr()->relation(HARD_TAG_CONTEXT, *co);
 	MDELETE(c)
 	MDELETE(co)
 }
@@ -559,7 +559,7 @@ object ::= bare_object .
 %destructor op { /* NOOP */ }
 modified_object ::= lhs_object(l) op(o) rhs_object(r) .
 {
-	tagl->tag_ptr()->relation(tagl->relator, *l, *r, o);
+	(void)tagl->tag_ptr()->relation(tagl->relator, *l, *r, o);
 	DELETE(l)
 	DELETE(r)
 }
@@ -580,13 +580,13 @@ rhs_object(o) ::= HDURI(U) .
 
 bare_object ::= TAG(T) .
 {
-	tagl->tag_ptr()->relation(tagl->relator, *T);
+	(void)tagl->tag_ptr()->relation(tagl->relator, *T);
 }
 bare_object ::= URL(U) .
 {
 	tagd::url u(*U);
 	if (u.code() == tagd::TAGD_OK) {
-		tagl->tag_ptr()->relation(tagl->relator, u.hduri());
+		(void)tagl->tag_ptr()->relation(tagl->relator, u.hduri());
 	} else {
 		tagl->ferror(u.code(), "bad url: %s", U->c_str());
 	}
@@ -595,7 +595,7 @@ bare_object ::= HDURI(U) .
 {
 	tagd::HDURI u(*U);
 	if (u.code() == tagd::TAGD_OK) {
-		tagl->tag_ptr()->relation(tagl->relator, u.hduri());
+		(void)tagl->tag_ptr()->relation(tagl->relator, u.hduri());
 	} else {
 		tagl->ferror(u.code(), "bad hduri: %s", U->c_str());
 	}
@@ -603,7 +603,7 @@ bare_object ::= HDURI(U) .
 
 bare_object ::= REFERENT(R) .
 {
-	tagl->tag_ptr()->relation(tagl->relator, *R);
+	(void)tagl->tag_ptr()->relation(tagl->relator, *R);
 }
 
 

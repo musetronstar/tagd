@@ -94,14 +94,14 @@ class tagdb_tester : public tagdb::tagdb {
 			this->code(tagd::TAGD_OK);
 		}
 
-		tagd::part_of_speech pos(const tagd::id_type& id, tdb_session_t * = nullptr, tdb_flags_t flags = tdb_flags_t()) {
+		tagd::part_of_speech pos(const tagd::id_type& id, tdb_session_t * = nullptr, tdb_flags_t = tdb_flags_t()) {
 			tag_map::iterator it = db.find(id);
 			if (it == db.end()) return tagd::POS_UNKNOWN;
 
 			return it->second.pos();
 		}
 
-		tagd::code get(tagd::abstract_tag& t, const tagd::id_type& id, tdb_session_t * = nullptr, tdb_flags_t flags = tdb_flags_t()) {
+		tagd::code get(tagd::abstract_tag& t, const tagd::id_type& id, tdb_session_t * = nullptr, tdb_flags_t = tdb_flags_t()) {
 			tag_map::iterator it = db.find(id);
 			if (it == db.end())
 				return this->ferror(tagd::TS_NOT_FOUND, "unknown tag: %s", id.c_str());
@@ -110,7 +110,7 @@ class tagdb_tester : public tagdb::tagdb {
 			return this->code(tagd::TAGD_OK);
 		}
 
-		tagd::code put(const tagd::abstract_tag& t, tdb_session_t *ssn = nullptr, tdb_flags_t flags = tdb_flags_t()) {
+		tagd::code put(const tagd::abstract_tag& t, tdb_session_t *ssn = nullptr, tdb_flags_t = tdb_flags_t()) {
 			if (t.id()[0] == '_')
 				return this->ferror(tagd::TS_MISUSE, "inserting hard tags not allowed: %s", t.id().c_str());
 
@@ -188,7 +188,7 @@ class tagdb_tester : public tagdb::tagdb {
 		}
 
 		// !!!tag_set results hard coded!!!
-		tagd::code query(tagd::tag_set& T, const tagd::interrogator& q, tdb_session_t * = nullptr, tdb_flags_t flags = tdb_flags_t()) {
+		tagd::code query(tagd::tag_set& T, const tagd::interrogator& q, tdb_session_t * = nullptr, tdb_flags_t = tdb_flags_t()) {
 			if ( q.super_object().empty() &&
 					q.related("legs") &&
 					q.related("tail") ) {
@@ -220,12 +220,12 @@ class tagdb_tester : public tagdb::tagdb {
 			return tagd::TAGD_OK;
 		}
 
-		tagd::code dump_grid(std::ostream& os = std::cout) {
+		tagd::code dump_grid(std::ostream& = std::cout) {
 			assert(false);
 			return tagd::TS_ERR;
 		}
 
-		tagd::code dump_terms(std::ostream& os = std::cout) {
+		tagd::code dump_terms(std::ostream& = std::cout) {
 			assert(false);
 			return tagd::TS_ERR;
 		}

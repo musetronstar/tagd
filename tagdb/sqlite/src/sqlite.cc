@@ -152,14 +152,14 @@ void finalize_stmt(sqlite3_stmt **stmt) {
 #define SQLITE_FERROR(RC, ...) {\
 			auto sqlite_err = tagd::error::ferror(tagd::TS_INTERNAL_ERR, __VA_ARGS__); \
 			if (RC == SQLITE_ERROR) \
-				sqlite_err.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, sqlite3_errmsg(_db)); \
+				(void)sqlite_err.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, sqlite3_errmsg(_db)); \
 			this->error(sqlite_err); \
 	}
 
 #define RET_SQLITE_FERROR(RC, ...) {\
 		auto sqlite_err = tagd::error::ferror(tagd::TS_INTERNAL_ERR, __VA_ARGS__); \
 		if (RC == SQLITE_ERROR) \
-			sqlite_err.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, sqlite3_errmsg(_db)); \
+			(void)sqlite_err.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, sqlite3_errmsg(_db)); \
 		return this->error(sqlite_err); \
 	}
 
@@ -167,7 +167,7 @@ void finalize_stmt(sqlite3_stmt **stmt) {
 		auto sqlite_err = tagd::error::ferror(tagd::TS_INTERNAL_ERR, __VA_ARGS__); \
 		if (ssn) ssn->error(sqlite_err); \
 		if (RC == SQLITE_ERROR) \
-			sqlite_err.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, sqlite3_errmsg(_db)); \
+			(void)sqlite_err.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, sqlite3_errmsg(_db)); \
 		return this->error(sqlite_err); \
 	}
 
@@ -779,7 +779,7 @@ tagd::code sqlite::get(tagd::abstract_tag& t, const tagd::id_type& term, session
 		// as a referent due to the presence of a _refers_to predicate)
 		if (!(flags & F_NO_TRANSFORM_REFERENTS)) {
 			if (id != t.id())
-				t.relation(HARD_TAG_REFERS_TO, id);
+				(void)t.relation(HARD_TAG_REFERS_TO, id);
 		} 
 
 	} else if (s_rc == SQLITE_ERROR) {
@@ -966,7 +966,7 @@ tagd::part_of_speech sqlite::pos(const tagd::id_type& id, session *ssn, flags_t 
 			"tagdb:pos:step failed: %s", (refers_to.empty() ? id.c_str() : refers_to.c_str()));
 		if (ssn)
 			ssn->error(e);
-		e.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, sqlite3_errmsg(_db));
+		(void)e.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, sqlite3_errmsg(_db));
 		this->error(e);
 		return tagd::POS_UNKNOWN;
 	} else {
@@ -1313,7 +1313,7 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags)
 		// referents affected
 		tagd::tag_set R;
 		tagd::interrogator q_refers_to(HARD_TAG_INTERROGATOR, HARD_TAG_REFERENT);
-		q_refers_to.relation(HARD_TAG_REFERS_TO, del_tag.id());
+		(void)q_refers_to.relation(HARD_TAG_REFERS_TO, del_tag.id());
 
 		auto tc = this->query(R, q_refers_to, nullptr);
 		OK_OR_ROLLBACK_RET_SSN_INT_ERR_ACTION("tagdb:del:q_refers_to");
@@ -1342,9 +1342,9 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags)
 							del_tag.id().c_str(), p.relator.c_str(), p.object.c_str(), p.modifier.c_str()); 
 					}
 					if (!this->exists(p.relator, flags|F_NO_RESET))
-						e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, p.relator);
+						(void)e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, p.relator);
 					if (!this->exists(p.object, flags|F_NO_RESET))
-						e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, p.object);
+						(void)e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, p.object);
 
 					this->error(e);
 				}
@@ -2277,17 +2277,17 @@ tagd::code sqlite::insert_referent(const tagd::referent& put_ref, session *ssn, 
 			tagd::error e(tagd::TS_MISUSE, "illegal value in referent");
 
 			if (t.refers().empty())
-				e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_REFERS, HARD_TAG_EMPTY);
+				(void)e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_REFERS, HARD_TAG_EMPTY);
 			else if (t.refers() == HARD_TAG_ENTITY)
-				e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_REFERS, HARD_TAG_ENTITY);
+				(void)e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_REFERS, HARD_TAG_ENTITY);
 
 			if (t.refers_to().empty())
-				e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_REFERS_TO, HARD_TAG_EMPTY);
+				(void)e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_REFERS_TO, HARD_TAG_EMPTY);
 
 			if (t.context().empty())
-				e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_CONTEXT, HARD_TAG_EMPTY);
+				(void)e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_CONTEXT, HARD_TAG_EMPTY);
 			else if (t.context() == HARD_TAG_ENTITY)
-				e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_CONTEXT, HARD_TAG_ENTITY);
+				(void)e.relation(HARD_TAG_CAUSED_BY, HARD_TAG_CONTEXT, HARD_TAG_ENTITY);
 
 			ssn->error(e);
 		}
@@ -2597,7 +2597,7 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 		if (sqlite3_column_type(_related_stmt, F_MODIFIER) != SQLITE_NULL) {
 			pred.modifier = f_transform( (const char*) sqlite3_column_text(_related_stmt, F_MODIFIER) );
 		}
-		t->relation(pred);
+		(void)t->relation(pred);
 
 		TAGDB_LOG_TRACE( "related R.insert: " << *t << std::endl )
 
@@ -3204,12 +3204,12 @@ tagd::code sqlite::dump(std::ostream& os) {
 		}
 
 		if (sqlite3_column_type(stmt, F_MODIFIER) != SQLITE_NULL) {
-			t->relation(
+			(void)t->relation(
 				(const char*) sqlite3_column_text(stmt, F_RELATOR),
 				object,
 				(const char*) sqlite3_column_text(stmt, F_MODIFIER) );
 		} else {
-			t->relation(
+			(void)t->relation(
 				(const char*) sqlite3_column_text(stmt, F_RELATOR),
 				object );
 		}

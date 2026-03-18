@@ -1,7 +1,7 @@
 INCLUDE = ../include
 
 # Use flags from top-level, or defaults if called directly
-CXXFLAGS ?= -Wall -Wextra -O3
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wno-unused-result -O3
 INC = -I$(INCLUDE)
 LFLAGS = -L../lib -ltagd
 CXXTEST = cxxtestgen --error-printer
@@ -48,4 +48,3 @@ clean:
 	rm -f url-tester.cpp url-tester
 	rm -f domain-tester.cpp  domain-tester
 	rm -f file-tester.cpp file-tester
-

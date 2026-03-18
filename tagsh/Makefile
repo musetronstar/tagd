@@ -1,3 +1,6 @@
+MAKEFLAGS += --no-print-directory
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wno-unused-result -O3
+
 SRC_DIR = ./src
 BUILD_DIR = ./bin
 LIB_DIR = ./lib
@@ -16,20 +19,22 @@ valgrind: debug
 build: tagsh $(LIB)
 
 $(LIB):
-	[ -d $(LIB_DIR) ] || mkdir $(LIB_DIR)
+	@printf '[ar] %s\n' 'tagsh/libtagsh.a'
+	@[ -d $(LIB_DIR) ] || mkdir $(LIB_DIR)
 	ar rcs $(LIB) src/*.o
 
 tagsh: force_look
-	[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
-	make -C	$(SRC_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
+	@printf '[build] %s\n' 'tagsh/src'
+	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
+	@make -C $(SRC_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 tests: force_look build
-	make -C $(TEST_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
+	@printf '[test] %s\n' 'tagsh'
+	@make -C $(TEST_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 force_look:
-	true
+	@true
 
 clean:
 	rm -rf  $(BUILD_DIR) $(LIB_DIR)
-	make -C $(SRC_DIR) clean
-
+	@make -C $(SRC_DIR) clean

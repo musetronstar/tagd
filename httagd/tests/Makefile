@@ -9,7 +9,7 @@ LIBHTTAGD = $(HTTAGD_DIR)/lib/libhttagd.a
 
 CXXTEST = cxxtestgen --error-printer
 # Use flags from top-level, or defaults if called directly
-CXXFLAGS ?= -Wall -Wextra -O3 -Wno-write-strings
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wno-unused-result -O3 -Wno-write-strings
 LFLAGS  =
 LFLAGS += -L$(HTTAGD_DIR)/lib -lhttagd
 LFLAGS += -L$(TAGSPACE_DIR)/lib -ltagdb-sqlite
@@ -54,4 +54,3 @@ $(LIBHTTAGD):
 
 clean:
 	rm -f tester.cpp ./tester
-

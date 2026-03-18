@@ -379,11 +379,11 @@ class error : public abstract_tag {
 			_code = c;
 		}
 
-        error(const tagd::code c, const std::string& msg) :
+		error(const tagd::code c, const std::string& msg) :
 			abstract_tag(code_str(c), HARD_TAG_TYPE_OF, HARD_TAG_ERROR, POS_ERROR)
 		{
 			_code = c;
-			this->relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, msg);
+			(void)this->relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, msg);
 		}
 
         const id_type& message() const;
