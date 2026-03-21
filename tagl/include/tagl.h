@@ -147,7 +147,7 @@ class driver : public tagd::errorable {
 		tagd::code execute(evbuffer*);
 		int token() const { return _token; }
 		int lookup_pos(const std::string&);
-		void parse_tok(int, std::string*);
+		virtual void parse_tok(int, std::string*);
 		tagd::code include_file(const std::string&);
 		int open_rel(const std::string& path, int flags);
 
