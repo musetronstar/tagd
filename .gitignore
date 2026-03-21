@@ -37,6 +37,8 @@ bin/
 parser.h
 parser.cc
 scanner.cc
+!tagl/src/scanner.cc
+scanner.tagdurl.cc
 lemon
 
 # vim Coc generated

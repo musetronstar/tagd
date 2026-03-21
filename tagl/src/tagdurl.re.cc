@@ -4,7 +4,7 @@
 
 namespace TAGL {
 
-void scanner::scan(const char *cur, size_t sz) {
+void scanner::tagdurl::scan(const char *cur, size_t sz) {
 	begin_scan(cur, sz);
 	if (_driver->has_errors())
 		return;

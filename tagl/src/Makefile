@@ -12,13 +12,22 @@ debug: CXXFLAGS += -g -O0
 debug: RE2CFLAGS = -d
 debug: build
 
-build: tagl.o parser.o scanner.o
+build: tagl.o parser.o scanner_runtime.o scanner_lexer.o tagdurl_lexer.o
 
 scanner.out.cc: scanner.re.cc
-	re2c $(RE2CFLAGS) -o scanner.out.cc scanner.re.cc
+	re2c $(RE2CFLAGS) -I../include -o scanner.out.cc scanner.re.cc
 
-scanner.o: scanner.out.cc lemonfiles
-	g++ $(CXXFLAGS) -c -o $@ scanner.out.cc $(INC) 
+scanner.tagdurl.cc: tagdurl.re.cc
+	re2c $(RE2CFLAGS) -I../include -o scanner.tagdurl.cc tagdurl.re.cc
+
+scanner_runtime.o: scanner.cc
+	g++ $(CXXFLAGS) -c -o $@ scanner.cc $(INC)
+
+scanner_lexer.o: scanner.out.cc lemonfiles
+	g++ $(CXXFLAGS) -c -o $@ scanner.out.cc $(INC)
+
+tagdurl_lexer.o: scanner.tagdurl.cc lemonfiles
+	g++ $(CXXFLAGS) -c -o $@ scanner.tagdurl.cc $(INC)
 
 parser.cc: lemonfiles
  
@@ -51,4 +60,4 @@ tagl.o: tokens.inc tagl.cc
 clean:
 	rm -f *.o
 	rm -f *.inc
-	rm -f scanner.out.cc parser.cc parser.out $(PARSER_H)
+	rm -f scanner.out.cc scanner.tagdurl.cc parser.cc parser.out $(PARSER_H)

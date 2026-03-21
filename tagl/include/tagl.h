@@ -4,9 +4,7 @@
 #include "tagd.h"
 #include "tagdb.h"
 #include "parser.h"
-
-// forward declare
-struct evbuffer;
+#include "scanner.h"
 
 // forward declare types used by lemon parser
 struct yyParser;
@@ -43,51 +41,6 @@ class callback {
 };
 
 const size_t BUF_SZ = 16384;
-
-class scanner {
-	friend class TAGL::driver;
-
-	protected:
-		driver *_driver;
-
-		const char
-			*_beg  = nullptr ,
-			*_cur  = nullptr ,
-			*_mark = nullptr ,
-			*_lim  = nullptr ,
-			*_eof  = nullptr ;
-
-		size_t _line_number = 1;
-		int _tok = -1;
-		int32_t _state = -1;
-		char _buf[BUF_SZ];
-		std::string _val;  // holds _buf overflow
-		evbuffer *_evbuf = nullptr;
-		bool _do_fill = false;
-
-
-	public:
-		scanner(driver *d) : _driver(d) { _buf[0] = '\0'; }
-
-		virtual ~scanner() {}
-
-		const char* fill();
-		void scan(const std::string& s) { this->scan(s.c_str(), s.size()); }
-		void scan(const char*, size_t);
-		void scan(const char*) = delete; // don't allow implicit conversion to std::string
-		void evbuf(evbuffer *ev) { _evbuf = ev; _do_fill = true; }
-		void print_buf();
-
-		void reset() {
-			_line_number = 1;
-
-			_beg = _mark = _cur = _lim = _eof = nullptr;
-			_val.clear();
-			_evbuf = nullptr;
-			_state = -1;
-			_tok = -1;
-		}
-};
 
 class driver : public tagd::errorable {
 	friend class TAGL::scanner;
