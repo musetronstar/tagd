@@ -549,13 +549,22 @@ predicate_list ::= relator object_list .
 	tagl->relator.clear();
 }
 
-relator ::= RELATOR(R) .
+relator ::= relator_symbol(R) .
 {
 	tagl->relator = *R;
 }
 relator ::= WILDCARD .
 {
 	tagl->relator.clear();
+}
+
+relator_symbol(r) ::= RELATOR(R) .
+{
+	r = R;
+}
+relator_symbol(r) ::= RELATOR_SYMBOL(R) .
+{
+	r = R;
 }
 
 object_list ::= object_list COMMA object .

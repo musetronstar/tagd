@@ -212,7 +212,9 @@ next:
 	">>"                 { PARSE(TOK_CMD_PUT); }
 	"!!"                 { PARSE(TOK_CMD_DEL); }
 	"??"                 { PARSE(TOK_CMD_QUERY); }
+
 	"-^"                 { PARSE_LITERAL_VALUE(TOK_SUB_RELATOR_SYMBOL, HARD_TAG_SUB); }
+	"->"                 { PARSE_LITERAL_VALUE(TOK_RELATOR_SYMBOL, HARD_TAG_RELATOR); }
 
 	"*"                  { PARSE(TOK_WILDCARD); }
 	"\"\""               { PARSE(TOK_EMPTY_STR); }

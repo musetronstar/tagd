@@ -442,6 +442,23 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , HARD_TAG_SUB )
 	}
 
+    void test_relator_symbol(void) {
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(">> dog -> tail");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
+		TS_ASSERT( tagl.tag().related(HARD_TAG_RELATOR, "tail") )
+	}
+
+    void test_relator_object_symbol_error(void) {
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(">> dog -> ->");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
+	}
+
     void test_subject_predicate(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
