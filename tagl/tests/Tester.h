@@ -411,6 +411,54 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
 	}
 
+    void test_sub_relator_symbol(void) {
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(">> dog -^ mammal");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		if (tagl.has_errors())
+			tagl.print_errors();
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
+		TS_ASSERT_EQUALS( tagl.tag().sub_relator() , HARD_TAG_SUB )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
+	}
+
+    void test_sub_relator_object_symbol_error(void) {
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(">> super -^ -^");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
+	}
+
+    void test_sub_relator_object_symbol_sub_relator(void) {
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(">> subordinate -^ " HARD_TAG_SUB);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "subordinate" )
+		TS_ASSERT_EQUALS( tagl.tag().sub_relator() , HARD_TAG_SUB )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , HARD_TAG_SUB )
+	}
+
+    void test_relator_symbol(void) {
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(">> dog -> tail");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
+		TS_ASSERT( tagl.tag().related(HARD_TAG_RELATOR, "tail") )
+	}
+
+    void test_relator_object_symbol_error(void) {
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(">> dog -> ->");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
+	}
+
     void test_subject_predicate(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
@@ -1460,7 +1508,7 @@ class Tester : public CxxTest::TestSuite {
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
 		tagd::code tc = tagl.execute(
-			"?? _interrogator _sub mammal _has _terms = \"warm blood\";" );
+			"?? _interrogator -^ mammal -> _terms = \"warm blood\";" );
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 	}
 

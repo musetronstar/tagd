@@ -498,9 +498,18 @@ context_object(c) ::= TAG(C) .
 	c = C;
 }
 
-sub_relator ::= SUB_RELATOR(S) .
+sub_relator ::= sub_relator_symbol(S) .
 {
 	tagl->tag_ptr()->sub_relator(*S);
+}
+
+sub_relator_symbol(s) ::= SUB_RELATOR(S) .
+{
+	s = S; // actual sub relator tag
+}
+sub_relator_symbol(s) ::= SUB_RELATOR_SYMBOL(S) .
+{
+	s = S; // hard tag substituted for  `-^` symbol
 }
 
 super_object ::=  TAG(T) .
@@ -540,13 +549,22 @@ predicate_list ::= relator object_list .
 	tagl->relator.clear();
 }
 
-relator ::= RELATOR(R) .
+relator ::= relator_symbol(R) .
 {
 	tagl->relator = *R;
 }
 relator ::= WILDCARD .
 {
 	tagl->relator.clear();
+}
+
+relator_symbol(r) ::= RELATOR(R) .
+{
+	r = R;
+}
+relator_symbol(r) ::= RELATOR_SYMBOL(R) .
+{
+	r = R;
 }
 
 object_list ::= object_list COMMA object .

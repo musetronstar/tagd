@@ -14,10 +14,10 @@ debug: build
 
 build: tagl.o parser.o scanner_runtime.o scanner_lexer.o tagdurl_lexer.o
 
-scanner.out.cc: scanner.re.cc
+scanner.out.cc: scanner.re.cc ../include/scanner.h
 	re2c $(RE2CFLAGS) -I../include -o scanner.out.cc scanner.re.cc
 
-scanner.tagdurl.cc: tagdurl.re.cc
+scanner.tagdurl.cc: tagdurl.re.cc ../include/scanner.h
 	re2c $(RE2CFLAGS) -I../include -o scanner.tagdurl.cc tagdurl.re.cc
 
 scanner_runtime.o: scanner.cc

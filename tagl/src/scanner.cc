@@ -166,6 +166,10 @@ void scanner::emit_tagd_pos_lookup() {
 	emit(_driver->lookup_pos(*val), val);
 }
 
+void scanner::emit_literal_value(int tok, const char *cval) {
+	emit(tok, new std::string(cval));
+}
+
 void scanner::emit_lookup_uri_token() {
 	std::string *val = new_value();
 	auto pos = _driver->lookup_pos(*val);

@@ -100,18 +100,18 @@ test_neg "bootstrap" \
 
 test "get_dog" \
 	 "<< dog;" \
-	 "dog _is_a mammal"
+	 "dog kind_of mammal"
 
 test "put_duplicate" \
-     ">> cat _is_a mammal;" \
+     ">> cat kind_of mammal;" \
 	 "TS_DUPLICATE"
 
 test "put_ignore_duplicate" \
-     "%% _ignore_duplicates 1;\n>> cat _is_a mammal;" \
+     "%% _ignore_duplicates 1;\n>> cat kind_of mammal;" \
 	 "TAGD_OK"
 
 test "put_unignore_duplicate" \
-     "%% _ignore_duplicates 0;\n>> cat _is_a mammal;" \
+     "%% _ignore_duplicates 0;\n>> cat kind_of mammal;" \
 	 "TS_DUPLICATE"
 
 test "get_doggy_not_exists" \
@@ -128,7 +128,7 @@ test "refer_doggy" \
 
 test "get_doggy" \
 	 "<< doggy;" \
-	 "doggy is_a mammal(.*)refers_to dog"
+	 "doggy kind_of mammal(.*)refers_to dog"
 
 test "delete_refers_tag_err" \
      "!! doggy;" \
@@ -147,15 +147,15 @@ test "delete_bat" \
 	 "TAGD_OK"
 
 test "query_mammal_children" \
-	 "?? what is_a mammal;" \
+	 "?? what type_of mammal;" \
 	 "dog, cat, whale"
 
 test "query_mammal_children_empty" \
-	 "?? what is_a dog;" \
+	 "?? what type_of dog;" \
 	 "TS_NOT_FOUND"
 
 test "query_parent_relator" \
-	 "?? what is_a animal
+	 "?? what type_of animal
 	  has blood = warm, tail
 	  can bark" \
 	 "dog"
@@ -169,11 +169,11 @@ test "get_japanese_dog_ambiguous" \
 	 "TS_AMBIGUOUS"
 
 test "set_context_not_found" \
-     "%% _context caca" \
+     "%% context caca" \
 	 "TS_NOT_FOUND"
 
 test_neg "set_context_animal" \
-         "%% _context animal" \
+         "%% context animal" \
 	     "TAGL_ERR"
 
 test "get_japanese_dog_ambiguious" \
@@ -186,7 +186,7 @@ test_neg "set_context_simple_english_japanese" \
 
 test "get_japanese_dog" \
 	 "<< イヌ;" \
-	 "イヌ is_a mammal(.*)refers_to dog"
+	 "イヌ kind_of mammal(.*)refers_to dog"
 
 test_neg "set_context_simple_english2" \
          "%% _context simple_english" \
@@ -214,6 +214,10 @@ test "query_tag" \
 
 test "tag_sub_search" \
 	 "?? _interrogator _sub animal _has _terms = \"warm blood\";" \
+	 "mammal"
+
+test "tag_sub_symbol_search" \
+	 "?? _interrogator -^ animal -> _terms = \"warm blood\";" \
 	 "mammal"
 
 test "search" \

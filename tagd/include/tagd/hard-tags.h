@@ -29,8 +29,8 @@
 /***** interrogators *****/
 // resolves objects of inquiry (queries, searches)
 #define HARD_TAG_INTERROGATOR	"_interrogator"	//gperf HARD_TAG_ENTITY, tagd::POS_INTERROGATOR
-#define HARD_TAG_WHAT			"_what"			//gperf HARD_TAG_INTERROGATOR, tagd::POS_INTERROGATOR
-#define HARD_TAG_SEARCH			"_search"		//gperf HARD_TAG_INTERROGATOR, tagd::POS_INTERROGATOR
+#define HARD_TAG_WHAT		"_what"			//gperf HARD_TAG_INTERROGATOR, tagd::POS_INTERROGATOR
+#define HARD_TAG_SEARCH		"_search"		//gperf HARD_TAG_INTERROGATOR, tagd::POS_INTERROGATOR
 
 /***** referents *****/
 // super_object for token that refers to a tag in a context
@@ -45,7 +45,8 @@
 /***** messages *****/
 #define HARD_TAG_MESSAGE	"_message"	//gperf HARD_TAG_ENTITY, tagd::POS_TAG
 #define HARD_TAG_TERMS		"_terms"	//gperf HARD_TAG_MESSAGE, tagd::POS_TAG
-#define HARD_TAG_ACTION	"_action"		//gperf HARD_TAG_ENTITY, tagd::POS_TAG
+#define HARD_TAG_EVENT		"_event"		//gperf HARD_TAG_ENTITY, tagd::POS_TAG
+#define HARD_TAG_ACTION		"_action"		//gperf HARD_TAG_EVENT, tagd::POS_TAG
 
 /***** flags *****/
 #define HARD_TAG_FLAG		"_flag"		//gperf HARD_TAG_ENTITY, tagd::POS_FLAG

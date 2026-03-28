@@ -99,15 +99,15 @@ wait_for_server $STARTUP_TIMEOUT
 
 test "get_dog" \
 	 "GET" "/dog" "" \
-	 "dog _is_a mammal"
+	 "dog kind_of mammal"
 
 test "put_dolphin" \
-	 "PUT" "/dolphin" ">> dolphin _is_a whale" \
+	 "PUT" "/dolphin" ">> dolphin kind_of whale" \
 	 "200 OK"
 
 test "get_dolphin" \
 	 "GET" "/dolphin" "" \
-	 "dolphin _is_a whale"
+	 "dolphin kind_of whale"
 
 test "get_children" \
 	 "GET" "/mammal/" "" \
@@ -118,15 +118,15 @@ test "get_children_empty" \
 	 "404 Not Found"
 
 test "put_empty_tagdurl" \
-	 "PUT" "" "narwhal _is_a whale" \
+	 "PUT" "" "narwhal kind_of whale" \
 	 "400 Bad Request"
 
 test "put_slash_empty_tagdurl" \
-	 "PUT" "/" "narwhal _is_a whale" \
+	 "PUT" "/" "narwhal kind_of whale" \
 	 "400 Bad Request"
 
 test "put_illegal_search" \
-     "PUT" "/pigeon?q=oops" "_is_a bird" \
+     "PUT" "/pigeon?q=oops" "kind_of bird" \
 	 "400 Bad Request"
 
 test "get_doggy_not_exists" \
@@ -147,7 +147,7 @@ test "get_doggy_no_context" \
 
 test "get_doggy" \
 	 "GET" "/doggy?c=simple_english" "" \
-	 "doggy is_a mammal(.*)_refers_to dog"
+	 "doggy kind_of mammal(.*)_refers_to dog"
 
 test "search" \
 	 "GET" "?q=can+bark" "" \
@@ -221,7 +221,7 @@ test "get_japanese_dog_ambiguous" \
 # contextual get
 test "get_japanese_dog" \
 	 "GET" "/イヌ?c=japanese" "" \
-	 "イヌ _is_a mammal(.*)_refers_to dog"
+	 "イヌ kind_of mammal(.*)_refers_to dog"
 
 test "get_txt_file" \
 	 "GET" "/_file/test.txt" "" \

@@ -40,6 +40,9 @@ class scanner {
 		// emit parser token with unknown semantic value.
 		void emit(int tok, std::string *val=nullptr);
 
+		// emit parser token with given value (not _val)
+		void emit_literal_value(int tok, const char *);
+
 		// emit scanner error for unrecognized tokens, or other errors
 		void emit_error();
 
@@ -127,6 +130,9 @@ class scanner::tagdurl : public scanner {
 	"<"                  { emit(TOK_LT); goto next; }
 	"<="                 { emit(TOK_LT_EQ); goto next; }
 	";"                  { emit(TOK_TERMINATOR); goto next; }
+
+	"-^"                 { emit_literal_value(TOK_SUB_RELATOR_SYMBOL, HARD_TAG_SUB); goto next; }
+	"->"                 { emit_literal_value(TOK_RELATOR_SYMBOL, HARD_TAG_RELATOR); goto next; }
 
 	"-"? [0-9]+ ("." [0-9]+)?
 	                     { emit(TOK_QUANTIFIER, new_value()); goto next; }

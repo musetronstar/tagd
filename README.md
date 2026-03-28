@@ -35,13 +35,23 @@ then launch **tagsh** - the tagd shell:
 The `--db -` option tells tagsh to create a sqlite in-memory database.
 `tagsh -h` shows usage and options.
 
+
+#### Sub Relation
+
+To define a tag, you must use a *sub relation*, derived from `_sub`, `_is_a`, or `_type_of`:
+
+##### Sub Relation Symbol
+
+An alias in the *sub relator* role for `_sub` is `-^`.
+Use it when you don't know the sub relator to use, or want to symbolically
+represent the most abstract sub relator: `_sub`.
+
 #### PUT Statement
 
 A tag can be a metaphysical concept or a concrete entity.  It can be anything
-you can think of and put into words.  To define a tag, you must define its
-*sub relation*, given by `_sub`, `_is_a`, or `_type_of`:
+you can think of and put into words.
 
-	>> dog _is_a mammal;
+    >> dog _is_a mammal;
 
 Whoah, we have an error:
 
@@ -51,12 +61,13 @@ Whoah, we have an error:
 The object (mammal in this case) of a sub relation must also be defined. This
 requires a bit of abstract metaphysical thinking, but here we go:
 
-	>> physical_object _is_a _entity;
-	>> living_thing _is_a physical_object;
-	>> animal _is_a living_thing;
-	>> vertibrate _is_a animal;
-	>> mammal _is_a vertibrate;
-	>> dog _is_a mammal;
+	>> physical_object -^ _entity;
+	>> living_thing _type_of physical_object;
+	>> animal _type_of living_thing;
+	>> vertibrate _type_of animal;
+	>> mammal _type_of vertibrate;
+    >> kind_of -^ _type_of;
+	>> dog kind_of mammal;
 
 The `>>` is the input operator for putting data.  Note the predicate
 `_is_a _entity`.  Tags with a leading underscore ('\_') are known as
@@ -73,9 +84,8 @@ It is the only tag having this relation. It is the *root* of a tagspace (tree st
 
 Now let's put some more tags so that we can define dog more completely:
 
-	>> can _type_of _rel;
-	>> event _is_a _entity;
-	>> sound _type_of event;
+	>> can -^ _rel;
+	>> sound _type_of _event;
 	>> utterance _type_of sound;
 	>> bark _type_of utterance;
 	>> body_part _type_of physical_object;
@@ -111,7 +121,10 @@ Now is a good time to define a input (`>>`) statement more formally...
 	put_statement ::= ">>" subject_sub_relation
 	put_statement ::= ">>" subject relations
 
-	subject_sub_relation ::= subject SUB TAG
+	subject_sub_relation ::= subject sub_symbol TAG
+
+	sub_symbol ::= SUB
+	sub_symbol ::= "-^"
 
 	subject ::= TAG
 
@@ -120,7 +133,8 @@ Now is a good time to define a input (`>>`) statement more formally...
 
 	predicate_list ::= relator object_list
 
-	relator ::= TAG
+	relator ::= REL
+	relator ::= "->"
 
 	object_list ::= object_list ',' object
 	object_list ::= object
@@ -170,7 +184,7 @@ Let's set up a nonsense tag and delete it:
 
 	>> fangs _type_of body_part;
 
-	>> turtle _is_a mammal
+	>> turtle kind_of mammal
 	_has legs, fangs;
 
 To delete a particular relation, use the `!!` operator:
@@ -207,22 +221,21 @@ cannot have a sub relation.
 Tags (subjects) can be retrieved according to matching predicates using query
 statements.  Let's define some more tags to make it interesting:
 
-	>> lives_in _type_of _rel;
-	>> substance _is_a _entity;
+	>> lives_in -^ _rel;
+	>> substance _type_of _entity;
 	>> fluid _type_of substance;
 	>> water _type_of fluid;
-	>> gas _is_a substance;
+	>> gas _type_of substance;
 	>> air _type_of gas;
-	>> body_fluid _is_a substance;
+	>> body_fluid _type_of substance;
 	>> blood _type_of body_fluid;
 	>> fins _type_of body_part;
 	>> gills _type_of body_part;
 	>> hair _type_of body_part;
 	>> scales _type_of body_part;
-	>> breathes _is_a _rel;
-	>> what _is_a _interrogator;
+	>> breathes _type_of _action;
 
-	>> fish _type_of vertibrate
+	>> fish kind_of vertibrate
 	_has gills, fins, scales
 	lives_in water
 	breathes water
@@ -231,13 +244,13 @@ statements.  Let's define some more tags to make it interesting:
 	_has hair, blood = warm
 	breathes air
 
-	>> whale _is_a mammal
+	>> whale kind_of mammal
 	_has fins
 	lives_in water;
 
 Now let's try a query:
 
-	?? what _is_a animal
+	?? _what kind_of animal
 	lives_in water;
 
 Results should be:
@@ -333,7 +346,7 @@ Let's put some urls:
 
 Now we can query some URLs:
 
-	?? what _is_a _url
+	?? what -^ _url
 	about dog;
 
 Results:
@@ -343,6 +356,7 @@ Results:
 
 And some more:
 
+    -- TODO replace '*' with '->' operator 
 	?? what * _private = wikipedia,
 	_public = org
 	about animal;
@@ -399,7 +413,7 @@ A context is required in a referent statement. However, a referent alias in the
 
 First, let's create a relevant context `simple_english`:
 
-	>> communication _is_a _entity;
+	>> communication _type_of _message;
 	>> language _type_of communication;
 	>> simple_english _type_of language;
 
@@ -417,6 +431,7 @@ To use a context in statments globally, we must first `SET` it:
 	-- same as
 	-- context _refers_to _context _context simple_english;
 	>> refers _refers_to _refers;
+	>> refers_to _refers_to _refers_to;
 
 We can even alias `_refers_to`:
 
@@ -439,18 +454,18 @@ Results:
 
 Here are some more referents within the `simple_english` context:
 
-	>> plant is_a living_thing;
-	>> fruit is_a plant;
-	>> citrus is_a fruit;
-	>> lemon is_a citrus;
+	>> plant type_of living_thing;
+	>> fruit type_of plant;
+	>> citrus type_of fruit;
+	>> lemon type_of citrus;
 
-	>> quality is_a _entity;
-	>> color is_a quality;
+	>> quality -^ _entity;
+	>> color type_of quality;
 	>> yellow is_a color;
 
-	>> machine is_a physical_object;
-	>> automobile is_a machine;
-	>> used_car is_a automobile;
+	>> machine type_of physical_object;
+	>> automobile type_of machine;
+	>> used_car type_of automobile;
 
 	>> lemon refers_to yellow context color; -- overrides context simple_english
 	>> lemon refers_to used_car context automobile;
@@ -461,13 +476,13 @@ Now, let's get lemon in the `simple_english` context:
 
 Results:
 
-	lemon is_a citrus;
+	lemon type_of citrus;
 
 No surprises - now let's set a different context...
 
 #### SET Statement:
 
-	%% _context automobile;
+	%% context automobile;
 	<< lemon;
 
 Results:
@@ -693,14 +708,14 @@ prevents curl from messing with the new line characters.
 
 Let's put some data:
 
-	curl -XPUT http://localhost:2112/meow --data '_is_a utterance'
-	curl -XPUT http://localhost:2112/cat --data '_is_a mammal _can meow _has legs = 4, tail'
+	curl -XPUT http://localhost:2112/meow --data '_type_of utterance'
+	curl -XPUT http://localhost:2112/cat --data 'kind_of mammal _can meow _has legs = 4, tail'
 
 Which executes the TAGL statements:
 
-	>> meow _is_a utterance
+	>> meow _type_of utterance
 
-	>> cat _is_a mammal
+	>> cat kind_of mammal
 	_can meow
 	_has legs = 4, tail
 
@@ -712,7 +727,7 @@ Now, let's get it:
 
 Results:
 
-	cat _is_a mammal
+	cat kind_of mammal
 	_can meow
 	_has legs = 4, tail
 
@@ -726,7 +741,7 @@ We can also provide a context
 
 Results:
 
-	cat is_a mammal
+	cat kind_of mammal
 	can meow
 	has legs = 4, tail
 
@@ -742,7 +757,7 @@ A slash after the subject indicates a query.  For example, see the difference be
 
 Results:
 
-	mammal _is_a vertibrate
+	mammal type_of vertibrate
 	breathes air
 	has blood = warm, hair
 
