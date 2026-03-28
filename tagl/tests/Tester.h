@@ -442,7 +442,6 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , HARD_TAG_SUB )
 	}
 
-
     void test_subject_predicate(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);

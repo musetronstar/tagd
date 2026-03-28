@@ -127,6 +127,9 @@ void scanner::scan(const char *cur, size_t sz) {
 // parse token and value
 #define PARSE_VALUE(t) _tok = t; goto parse_value
 
+// parse token with an explicit string value that should not be built from _beg.._cur
+#define PARSE_LITERAL_VALUE(t, v) _tok = t; _val.assign(v); goto parse_literal_value
+
 // new string to parse (parser deletes)
 #define NEW_VALUE() ( _val.empty() \
 		 ? new std::string(_beg, (_cur-_beg)) \
@@ -209,12 +212,7 @@ next:
 	">>"                 { PARSE(TOK_CMD_PUT); }
 	"!!"                 { PARSE(TOK_CMD_DEL); }
 	"??"                 { PARSE(TOK_CMD_QUERY); }
-	"-\^"                {
-                            _driver->parse_tok(
-                              TOK_SUB_RELATOR_SYMBOL,
-                              new std::string(HARD_TAG_SUB)
-                            );
-                          }
+	"-^"                 { PARSE_LITERAL_VALUE(TOK_SUB_RELATOR_SYMBOL, HARD_TAG_SUB); }
 
 	"*"                  { PARSE(TOK_WILDCARD); }
 	"\"\""               { PARSE(TOK_EMPTY_STR); }
@@ -294,6 +292,12 @@ parse_value:
 	_beg = _cur;
 	goto next;
 
+parse_literal_value:
+	_driver->parse_tok(_tok, new std::string(_val));
+	_val.clear();
+	_beg = _cur;
+	goto next;
+
 quoted_str:
 /*!re2c
 	"\\\""		{ goto quoted_str; } // escaped double quote
@@ -353,5 +357,3 @@ lookup_tagl_file:
 } // end scan
 
 } // namespace TAGL
-
-
