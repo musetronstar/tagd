@@ -209,6 +209,12 @@ next:
 	">>"                 { PARSE(TOK_CMD_PUT); }
 	"!!"                 { PARSE(TOK_CMD_DEL); }
 	"??"                 { PARSE(TOK_CMD_QUERY); }
+	"-\^"                {
+                            _driver->parse_tok(
+                              TOK_SUB_RELATOR_SYMBOL,
+                              new std::string(HARD_TAG_SUB)
+                            );
+                          }
 
 	"*"                  { PARSE(TOK_WILDCARD); }
 	"\"\""               { PARSE(TOK_EMPTY_STR); }
