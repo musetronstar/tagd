@@ -1,6 +1,6 @@
->> can _type_of _rel
+>> can -^ _rel
 
->> about _type_of _rel
+>> about -^ _rel
 
 >> substance _type_of _entity
 
@@ -8,23 +8,33 @@
 
 >> living_thing _type_of physical_object
 
->> body_part _type_of physical_object
+>> of -^ _sub
 
->> mind _is_a _entity
+>> part_of of of
 
->> knowledge _sub mind
+>> kind_of of _type_of;
+
+>> comes_from of of;
+
+>> body of living_thing
+
+>> body_part part_of body
+
+>> mind -^ _entity
+
+>> knowledge -^ mind
 
 >> concept _type_of knowledge
 
 >> science _type_of knowledge
 
->> creativity _sub mind
+>> creativity -^ mind
 
->> communication _is_a _entity
+>> communication -^ _message
 
->> language _is_a communication
+>> language -^ communication
 
->> simple_english _is_a language
+>> simple_english _type_of language
 
 >> refers_to _refers_to _refers_to _context simple_english
 
@@ -34,4 +44,13 @@
 
 >> has _refers_to _has _context simple_english
 
+>> type_of _refers_to _type_of _context simple_english
+
 >> what _refers_to _what _context simple_english
+
+>> message _refers_to _message _context simple_english
+
+>> event _refers_to _event _context simple_english
+
+>> action _refers_to _action _context simple_english
+

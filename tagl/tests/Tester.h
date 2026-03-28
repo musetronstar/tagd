@@ -1508,7 +1508,7 @@ class Tester : public CxxTest::TestSuite {
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
 		tagd::code tc = tagl.execute(
-			"?? _interrogator _sub mammal _has _terms = \"warm blood\";" );
+			"?? _interrogator -^ mammal -> _terms = \"warm blood\";" );
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 	}
 

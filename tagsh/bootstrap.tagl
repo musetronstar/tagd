@@ -1,117 +1,115 @@
 %% _include bootstrap.inc.tagl
 
->> animal _is_a living_thing
+%% _context simple_english
 
->> vertebrate _is_a animal
+>> animal kind_of living_thing
 
->> mammal _is_a vertebrate
+>> vertebrate type_of animal
 
->> dog _is_a mammal
+>> mammal type_of vertebrate
 
->> cat _is_a mammal
+>> dog kind_of mammal
 
->> whale _is_a mammal
+>> cat kind_of mammal
 
->> bat _is_a mammal
+>> whale kind_of mammal
 
->> reptile _is_a vertebrate
+>> bat kind_of mammal
 
->> snake _is_a reptile
+>> reptile type_of vertebrate
 
->> bird _is_a vertebrate
+>> snake type_of reptile
 
->> canary _is_a bird
+>> bird type_of vertebrate
 
->> invertebrate _is_a animal
+>> canary kind_of bird
 
->> arthropod _is_a invertebrate
+>> invertebrate type_of animal
 
->> insect _is_a arthropod
+>> arthropod type_of invertebrate
 
->> spider _is_a insect
+>> insect type_of arthropod
 
->> teeth _is_a body_part
+>> spider type_of insect
 
->> fangs _is_a teeth
+>> teeth type_of body_part
 
->> tail _is_a body_part
+>> fangs type_of teeth
 
->> legs _is_a body_part
+>> tail type_of body_part
 
->> beak _is_a body_part
+>> legs type_of body_part
 
->> wings _is_a body_part
+>> beak type_of body_part
 
->> feathers _is_a body_part
+>> wings type_of body_part
 
->> fins _is_a body_part
+>> feathers type_of body_part
 
->> body_fluid _is_a substance
+>> fins type_of body_part
 
->> blood _is_a body_fluid
+>> body_fluid type_of substance
 
->> computer_security _is_a science
+>> blood type_of body_fluid
 
->> art _is_a creativity
+>> computer_science kind_of science
 
->> visual_art _is_a art
+>> computer_security part_of computer_science
 
->> movie _is_a visual_art
+>> art type_of creativity
 
->> tv_show _is_a visual_art
+>> visual_art type_of art
 
->> japanese _is_a language
+>> movie type_of visual_art
 
->> information _is_a communication
+>> tv_show type_of visual_art
 
->> content _is_a information
+>> japanese type_of language
 
->> title _is_a content
+>> information comes_from communication
 
->> message _is_a information
+>> content type_of information
 
->> event _is_a _entity
+>> title type_of content
 
->> sound _is_a event
+>> sound type_of event
 
->> utterance _is_a sound
+>> utterance type_of sound
 
->> bark _is_a utterance
+>> bark type_of utterance
 
->> meow _is_a utterance
+>> meow type_of utterance
 
->> action _is_a event
+>> movement type_of action
 
->> move _is_a action
+>> fly type_of movement
 
->> fly _is_a move
-
->> swim _is_a move
+>> swim type_of movement
 
 >> mammal
 _has blood = warm, teeth
 
 >> dog
-_has legs = 4, tail
+has legs = 4, tail
 can bark
 
 >> cat
-_has legs = 4, tail
+has legs = 4, tail
 can meow
 
 >> whale
-_has fins
+has fins
 can swim
 
 >> bat
-_has wings
+has wings
 can fly
 
->> snake _has fangs
+>> snake has fangs
 
 >> bird
-_has feathers, wings
+has feathers, wings
 can fly
 
->> spider _has fangs
+>> spider has fangs
 

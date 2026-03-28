@@ -53,4 +53,4 @@ $(LIBHTTAGD):
 	make -C $(TAGD_DIR)
 
 clean:
-	rm -f tester.cpp ./tester
+	rm -f *.o tester.cpp ./tester
