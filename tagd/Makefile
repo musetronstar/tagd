@@ -26,12 +26,12 @@ tagd: force_look
 
 libtagd: tagd $(LIB)
 
-$(LIB):
+$(LIB): $(wildcard $(SRC_DIR)/*.o $(SRC_DIR)/domain/*.o)
 	@printf '[ar] %s\n' 'tagd/libtagd.a'
 	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
-	ar rcs $(LIB) $(SRC_DIR)/*.o $(SRC_DIR)/domain/*.o 
+	ar rcs $(LIB) $(SRC_DIR)/*.o $(SRC_DIR)/domain/*.o
 
-tests: force_look libtagd 
+tests: force_look libtagd
 	@printf '[test] %s\n' 'tagd'
 	@make -C $(TEST_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 

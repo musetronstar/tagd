@@ -36,18 +36,20 @@ all: build
 debug: CXXFLAGS += -g -O0
 debug: build
 
+DEPS = httagd.d
+
 build : httagd.o
 
 # token to string case statements
 evhtp-results.inc: $(EVHTP_H)
-	grep '#define EVHTP_RES_[A-Z]' $? | awk '{printf "case %s: return \"%s\";\n", $$2, $$2;}' > $@
+	grep '#define EVHTP_RES_[A-Z]' $< | awk '{printf "case %s: return \"%s\";\n", $$2, $$2;}' > $@
 
-httagd.cc: evhtp-results.inc
+httagd.o : httagd.cc evhtp-results.inc
+	g++ $(CXXFLAGS) -MMD -MP -c -o $@ $< $(INC) $(LIBEVHTP_INC)
 
-httagd.o : httagd.cc
-	g++ $(CXXFLAGS) -c -o $@ $? $(INC) $(LIBEVHTP_INC)
+-include $(DEPS)
 
 clean :
-	rm -f *.o
+	rm -f *.o *.d
 	rm -f *.inc
 	rm -f $(BIN)

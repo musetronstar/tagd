@@ -81,11 +81,32 @@ class scanner::tagdurl : public scanner {
 	public:
 		tagdurl(driver *d) : scanner(d) {}
 		void scan(const char*, size_t) override;
+		void scan(int cmd, const std::string& path);
+		void scan(tagd::http_method, const std::string& path);
+
+		// accapt HTTP method, returns TOK_CMD_*
+		static int method_command(tagd::http_method);
 };
 
 } // namespace TAGL
 
 #endif  // TAGL_SCANNER_H
+
+/*\
+|*|  TODO
+|*|  a tagdurl comes after the commend. 
+|*|  add patterns for three tagdurl patterns
+|*|  example of the two command patterns we can support (for now)
+|*|
+|*|  -- 1. GET tag `<< dog;`
+|*|  << /dog;
+|*|
+|*|  -- 2. QUERY `?? _sub mammal`
+|*|  ?? /mammal/;
+|*|
+|*| TODO query opts later...
+\*/ 
+
 
 /*!rules:re2c:tagl_defs
 	NL			= "\r"? "\n" ;
@@ -94,6 +115,9 @@ class scanner::tagdurl : public scanner {
 	URI_SCHEME = [a-zA-Z]+[a-zA-Z0-9.+-]* ":" ;
 	SCHEME_SPEC_DATA  = [^\000 \t\r\n'"]+ ;
 	SCHEME_SPEC_LCHAR = [^\000 \t\r\n'",;]{1} ;
+
+	TAGDURL = "/" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR; 
+
 	URI = URI_SCHEME SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
 	URL = URI_SCHEME "//" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
 	HDURI = "hd:" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
@@ -137,6 +161,7 @@ class scanner::tagdurl : public scanner {
 	"-"? [0-9]+ ("." [0-9]+)?
 	                     { emit(TOK_QUANTIFIER, new_value()); goto next; }
 
+	TAGDURL              { emit(TOK_TAGDURL, new_value()); goto next; }
 	URL                  { emit(TOK_URL, new_value()); goto next; }
 	HDURI                { emit(TOK_HDURI, new_value()); goto next; }
 	URI                  { emit_lookup_uri_token(); goto next; }

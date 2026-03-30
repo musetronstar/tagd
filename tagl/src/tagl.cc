@@ -161,6 +161,20 @@ int driver::lookup_pos(const std::string& s) {
 	return token;
 }
 
+tagd::code driver::scan_tagdurl(int cmd, const std::string& path) {
+	this->init();
+	scanner::tagdurl sc(this);
+	sc.scan(cmd, path);
+	return this->code();
+}
+
+tagd::code driver::scan_tagdurl(tagd::http_method method, const std::string& path) {
+	this->init();
+	scanner::tagdurl sc(this);
+	sc.scan(method, path);
+	return this->code();
+}
+
 tagd::code driver::execute(const std::string& statement) {
 	if (statement.empty())
 		return _code;

@@ -40,7 +40,7 @@ tests: force_look app
 
 lib: src $(LIB)
 
-$(LIB):
+$(LIB): $(wildcard $(SRC_DIR)/*.o)
 	@printf '[ar] %s\n' 'httagd/libhttagd.a'
 	@[ -d $(LIB_DIR) ] || mkdir $(LIB_DIR)
 	ar rcs $(LIB) $(SRC_DIR)/*.o

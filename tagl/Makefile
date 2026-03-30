@@ -25,7 +25,7 @@ tagl: force_look
 	@printf '[build] %s\n' 'tagl/src'
 	@make -C $(SRC_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
-$(LIB):
+$(LIB): $(wildcard $(SRC_DIR)/*.o)
 	@printf '[ar] %s\n' 'tagl/libtagl.a'
 	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
 	ar rcs $(LIB) $(SRC_DIR)/*.o

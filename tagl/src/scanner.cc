@@ -210,4 +210,21 @@ void scanner::emit_error() {
 	}
 }
 
+int scanner::tagdurl::method_command(tagd::http_method method) {
+	switch (method) {
+		case tagd::HTTP_GET:
+		case tagd::HTTP_HEAD:
+			return TOK_CMD_GET;
+		case tagd::HTTP_POST:
+		case tagd::HTTP_PUT:
+			return TOK_CMD_PUT;
+		case tagd::HTTP_DELETE:
+			return TOK_CMD_DEL;
+		default:
+			return TOK_UNKNOWN;
+	}
+
+	return TOK_UNKNOWN;
+}
+
 } // namespace TAGL

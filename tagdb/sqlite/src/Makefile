@@ -4,8 +4,8 @@ CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 TAGDDIR =../../../tagd
 INC = -I../include -I../../include -I$(TAGDDIR)/include
 SRCS = sqlite.cc
-HDRS = ../include/tagdb/sqlite.h
 OBJS=$(SRCS:.cc=.o)
+DEPS=$(OBJS:.o=.d)
 BIN = tagdb
 
 all: build
@@ -13,10 +13,12 @@ all: build
 debug: CXXFLAGS += -g -O0
 debug: build
 
-build: $(HDRS) $(SRCS) $(OBJS)
+build: $(OBJS)
 
 .cc.o :
-	g++ $(CXXFLAGS) -c -o $@ $< $(INC)
+	g++ $(CXXFLAGS) -MMD -MP -c -o $@ $< $(INC)
+
+-include $(DEPS)
 
 clean:
-	rm -f *.o $(BIN)
+	rm -f *.o *.d $(BIN)

@@ -1,5 +1,6 @@
 TAGD_DIR = ../../tagd
 LIBTAGD = $(TAGD_DIR)/lib/libtagd.a
+LIBTAGDB_SQLITE = ../lib/libtagdb-sqlite.a
 PRG_DIR = ../sqlite
 INC = -I../include -I$(TAGD_DIR)/include -I$(PRG_DIR)/include
 
@@ -21,7 +22,7 @@ VALGRIND = valgrind --leak-check=full --error-exitcode=1
 valgrind: TESTER = $(VALGRIND) $(BIN)
 valgrind: debug
 
-build: $(LIBTAGD)
+build: $(LIBTAGD) $(LIBTAGDB_SQLITE)
 	$(CXXTEST) Tester.h -o $(SRC)
 	g++ $(CXXFLAGS) -o $(BIN) $(SRC) $(INC) $(LFLAGS)
 	$(TESTER)

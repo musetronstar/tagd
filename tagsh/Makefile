@@ -18,7 +18,7 @@ valgrind: debug
 
 build: tagsh $(LIB)
 
-$(LIB):
+$(LIB): $(wildcard src/*.o)
 	@printf '[ar] %s\n' 'tagsh/libtagsh.a'
 	@[ -d $(LIB_DIR) ] || mkdir $(LIB_DIR)
 	ar rcs $(LIB) src/*.o

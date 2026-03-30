@@ -4,6 +4,30 @@
 
 namespace TAGL {
 
+void scanner::tagdurl::scan(int cmd, const std::string& path) {
+	if (path.empty() || path == "/") {
+		_driver->error(tagd::TAGL_ERR, "tag id required in path");
+		return;
+	}
+
+	if (path[0] != '/') {
+		_driver->error(tagd::TAGL_ERR, "malformed path: no leading '/'");
+		return;
+	}
+
+	if (cmd == TOK_CMD_GET) {
+		_driver->cmd(cmd);
+		_driver->parse_tok(TOK_CMD_GET, nullptr);
+		this->scanner::scan(tagd::uri_decode(path.substr(1)));
+	} else {
+		_driver->error(tagd::TS_MISUSE, "unhandled command");
+	}
+}
+
+void scanner::tagdurl::scan(tagd::http_method method, const std::string& path) {
+	this->scan(method_command(method), path);
+}
+
 void scanner::tagdurl::scan(const char *cur, size_t sz) {
 	begin_scan(cur, sz);
 	if (_driver->has_errors())

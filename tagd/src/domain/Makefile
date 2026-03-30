@@ -4,6 +4,7 @@ CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 GPERF=public-suffix.gperf
 GPERF_H=public-suffix.gperf.h
 OBJS=domain.o
+DEPS=$(OBJS:.o=.d)
 
 INC_DIR=../../include
 
@@ -17,7 +18,7 @@ debug: build
 build: $(OBJS)
 
 $(OBJS): $(GPERF_H) $(INC_DIR)/tagd/domain.h domain.cc
-	g++ $(CXXFLAGS) -Wno-missing-field-initializers -c domain.cc -I $(INC_DIR) -I./
+	g++ $(CXXFLAGS) -MMD -MP -Wno-missing-field-initializers -c domain.cc -I $(INC_DIR) -I./
 
 $(GPERF_H): $(GPERF)
 	gperf $? > $@
@@ -28,11 +29,10 @@ effective_tld_names.dat:
 $(GPERF): effective_tld_names.dat
 	./gen-gperf-tlds.pl $? > $@
 
-force_look:
-	true
+-include $(DEPS)
 
 clean:
-	rm -f *.o
+	rm -f *.o *.d
 
 extra_clean: clean
 	rm -f $(GPERF) $(GPERF_H)

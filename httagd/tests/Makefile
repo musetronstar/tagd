@@ -50,7 +50,7 @@ exp_tests:
 	./tester.exp
 
 $(LIBHTTAGD):
-	make -C $(TAGD_DIR)
+	make -C $(HTTAGD_DIR)
 
 clean:
 	rm -f *.o tester.cpp ./tester

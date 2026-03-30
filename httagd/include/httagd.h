@@ -222,19 +222,9 @@ const std::string QUERY_OPT_CONTEXT{"c"};   // tagspace context
 
 const std::string DEFAULT_VIEW{"tagl"};     // plain text tagl
 
-// supported HTTP methods
-typedef enum {
-	HTTP_UNKNOWN = 0,
-	HTTP_GET,
-	HTTP_HEAD,
-	HTTP_POST,
-	HTTP_PUT,
-	HTTP_DELETE
-} http_method;
-
 class request {
 	public:
-		http_method method = HTTP_UNKNOWN;
+		tagd::http_method method = tagd::HTTP_UNKNOWN;
 
 	protected:
 		evhtp_request_t *_ev_req = nullptr;
@@ -252,7 +242,7 @@ class request {
 			}
 		}
 
-		request(http_method meth, const std::string path)
+		request(tagd::http_method meth, const std::string path)
 			: method{meth}, _path{path} {}  // for Tester
 
 		std::string query_opt(const std::string &opt) const {

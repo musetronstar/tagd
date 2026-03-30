@@ -82,6 +82,7 @@ class driver : public tagd::errorable {
 		// TODO remove from here, create/destroy relator in parser
 		tagd::id_type relator;    // current relator
 
+		tagdb::tagdb* tdb() { return _tdb; }
 		void session_ptr(tagdb::session *ssn) { _session = ssn; }
 		tagdb::session* session_ptr() { return _session; }
 		// sets _session and _own_session, delete old session (if set and not the same)
@@ -98,6 +99,8 @@ class driver : public tagd::errorable {
 		tagd::code parseln(const std::string& = std::string());
 		tagd::code execute(const std::string&);
 		tagd::code execute(evbuffer*);
+		tagd::code scan_tagdurl(int, const std::string& path);
+		tagd::code scan_tagdurl(tagd::http_method, const std::string& path);
 		int token() const { return _token; }
 		int lookup_pos(const std::string&);
 		virtual void parse_tok(int, std::string*);

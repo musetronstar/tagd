@@ -3,6 +3,7 @@
 #include "tagd/codes.h"
 #include "tagd/config.h"
 #include "tagd/hard-tags.h"
+#include "tagd/http.h"
 #include "tagd/rank.h"
 
 #include <string>

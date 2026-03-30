@@ -295,7 +295,7 @@ class Tester : public CxxTest::TestSuite {
 
     void test_get_tagdurl(void) {
 		INIT_TDB_TAGL();
-		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/dog"));
+		tagl.tagdurl_get(httagd::request(tagd::HTTP_GET, "/dog"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_GET )
@@ -304,7 +304,7 @@ class Tester : public CxxTest::TestSuite {
 
     void test_get_tagdurl_trailing_path(void) {
 		INIT_TDB_TAGL();
-		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/dog/"));
+		tagl.tagdurl_get(httagd::request(tagd::HTTP_GET, "/dog/"));
 		tagl.finish();
 		// two path separators indicate a query
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
@@ -315,7 +315,7 @@ class Tester : public CxxTest::TestSuite {
 
     void test_post_tagdurl(void) {
 		INIT_TDB_TAGL();
-		tagl.tagdurl_put(httagd::request(httagd::HTTP_POST, "/dog"));
+		tagl.tagdurl_put(httagd::request(tagd::HTTP_POST, "/dog"));
 		tagl.execute("_is_a animal _has legs _can bark");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
@@ -328,12 +328,12 @@ class Tester : public CxxTest::TestSuite {
 	void test_del_tagdurl(void) {
 		INIT_TDB_TAGL();
 
-		tagl.tagdurl_del(httagd::request(httagd::HTTP_DELETE, "/dog"));
+		tagl.tagdurl_del(httagd::request(tagd::HTTP_DELETE, "/dog"));
 		tagl.execute("_is_a animal _has legs _can bark");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TS_MISUSE" )
 
 		tagl.clear_errors();
-		tagl.tagdurl_del(httagd::request(httagd::HTTP_DELETE, "/dog"));
+		tagl.tagdurl_del(httagd::request(tagd::HTTP_DELETE, "/dog"));
 		tagl.execute("_has legs _can bark");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_DEL )
@@ -344,7 +344,7 @@ class Tester : public CxxTest::TestSuite {
 
     void test_post_tagdurl_evbuffer_body(void) {
 		INIT_TDB_TAGL();
-		tagl.tagdurl_put(httagd::request(httagd::HTTP_POST, "/dog"));
+		tagl.tagdurl_put(httagd::request(tagd::HTTP_POST, "/dog"));
 
 		struct evbuffer *input = evbuffer_new();
 
@@ -363,7 +363,7 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_post_tagdurl_evbuffer_body_constrained_tag_id_error(void) {
 		INIT_TDB_TAGL();
-		tagl.tagdurl_put(httagd::request(httagd::HTTP_POST, "/dog"));
+		tagl.tagdurl_put(httagd::request(tagd::HTTP_POST, "/dog"));
 
 		struct evbuffer *input = evbuffer_new();
 
@@ -383,7 +383,7 @@ class Tester : public CxxTest::TestSuite {
     void test_get_tagdurl_hduri(void) {
 		INIT_TDB_TAGL();
 		const char *hduri = "hd:org!wikipedia!en!/wiki/Dog!!!!!!https";
-		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, std::string("/").append(hduri)));
+		tagl.tagdurl_get(httagd::request(tagd::HTTP_GET, std::string("/").append(hduri)));
 		tagl.finish();
 
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
@@ -396,7 +396,7 @@ class Tester : public CxxTest::TestSuite {
 	void test_put_tagdurl_evbuffer_body_constrained_url(void) {
 		INIT_TDB_TAGL();
 		const std::string hduri{"hd:org!wikipedia!en!/wiki/Cat!!!!!!https"};
-		tagl.tagdurl_put(httagd::request(httagd::HTTP_PUT, std::string("/").append(hduri)));
+		tagl.tagdurl_put(httagd::request(tagd::HTTP_PUT, std::string("/").append(hduri)));
 
 		const std::string s(">> https://en.wikipedia.org/wiki/Cat about cat _has title = \"Cat - Wikipedia, the free encyclopedia\"");
 		struct evbuffer *input = evbuffer_new();
@@ -416,7 +416,7 @@ class Tester : public CxxTest::TestSuite {
 	void test_put_tagdurl_evbuffer_body_constrained_hduri(void) {
 		INIT_TDB_TAGL();
 		const char *hduri = "hd:org!wikipedia!en!/wiki/Cat!!!!!!https";
-		tagl.tagdurl_put(httagd::request(httagd::HTTP_PUT, std::string("/").append(hduri)));
+		tagl.tagdurl_put(httagd::request(tagd::HTTP_PUT, std::string("/").append(hduri)));
 
 		const std::string s = std::string(">> ").append(hduri).append(" about cat _has title = \"Cat - Wikipedia, the free encyclopedia\"");
 		struct evbuffer *input = evbuffer_new();
@@ -437,7 +437,7 @@ class Tester : public CxxTest::TestSuite {
 		auto ssn = tdb.get_session();
 		callback_tester cb(&tdb);
 		httagd::httagl tagl(&tdb, &cb, &ssn);
-		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/animal/legs,tail"));
+		tagl.tagdurl_get(httagd::request(tagd::HTTP_GET, "/animal/legs,tail"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
@@ -470,7 +470,7 @@ class Tester : public CxxTest::TestSuite {
 		auto ssn = tdb.get_session();
 		callback_tester cb(&tdb);
 		httagd::httagl tagl(&tdb, &cb, &ssn);
-		tagl.tagdurl_get(httagd::request(httagd::HTTP_GET, "/*/legs,tail"));
+		tagl.tagdurl_get(httagd::request(tagd::HTTP_GET, "/*/legs,tail"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
@@ -501,7 +501,7 @@ class Tester : public CxxTest::TestSuite {
 	// TODO test request::canonical_url(), abs_url(), abs_url_view_tag()
 
 	void test_file_path(void) {
-		auto req = httagd::request(httagd::HTTP_GET, "/_file/path/to/style.css");
+		auto req = httagd::request(tagd::HTTP_GET, "/_file/path/to/style.css");
 		auto pos = tagd::file::dir_shift_pos(req.path());
 		auto sub = req.path().substr(pos);
 		TS_ASSERT_EQUALS( sub , "path/to/style.css" )

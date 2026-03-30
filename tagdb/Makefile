@@ -25,7 +25,7 @@ tagdb: force_look
 	@printf '[build] %s\n' 'tagdb/sqlite'
 	@make -C $(PRG_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
-$(LIB):
+$(LIB): $(wildcard $(SRC_DIR)/*.o $(PRG_DIR)/src/*.o)
 	@printf '[ar] %s\n' 'tagdb/libtagdb-sqlite.a'
 	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
 	ar rcs $(LIB) $(SRC_DIR)/*.o $(PRG_DIR)/src/*.o

@@ -275,7 +275,7 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 		const auto id = tagd::uri_decode(segment);
 		_driver->constrain_tag_id = id;
 
-		if (req.method != HTTP_PUT) {
+		if (req.method != tagd::HTTP_PUT) {
 			_driver->parse_tok(cmd, NULL);
 			this->scan(id);
 		}
@@ -298,20 +298,20 @@ void htscanner::scan_tagdurl_path(int cmd, const request& req) {
 
 // translate an HTTP request into a TAGL statement and execute
 tagd::code httagl::execute(transaction& tx) {
-	// translate evhtp_method into httagd::http_method
+	// translate evhtp_method into tagd::http_method
 	htp_method ev_method = evhtp_request_get_method(tx.req->ev_req());
 	switch(ev_method) {
 		case htp_method_HEAD:
-			tx.req->method = HTTP_HEAD;
+			tx.req->method = tagd::HTTP_HEAD;
 			// identical to GET request, but content body not added
 			this->tagdurl_get(*tx.req);
 			break;
 		case htp_method_GET:
-			tx.req->method = HTTP_GET;
+			tx.req->method = tagd::HTTP_GET;
 			this->tagdurl_get(*tx.req);
 			break;
 		case htp_method_PUT:
-			tx.req->method = HTTP_PUT;
+			tx.req->method = tagd::HTTP_PUT;
 			if (tx.req->path().empty() || tx.req->path() == "/") {
 				tx.error(tagd::HTTP_ERR, "tag id in path required for HTTP PUT");
 			} else {
@@ -320,7 +320,7 @@ tagd::code httagl::execute(transaction& tx) {
 			}
 			break;
 		case htp_method_POST:
-			tx.req->method = HTTP_POST;
+			tx.req->method = tagd::HTTP_POST;
 			// if not empty, parse the tagdurl path
 			if (!(tx.req->path().empty() || tx.req->path() == "/")) {
 				this->tagdurl_put(*tx.req);	// put matches tagdb semantics, not http
@@ -328,7 +328,7 @@ tagd::code httagl::execute(transaction& tx) {
 			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
 			break;
 		case htp_method_DELETE:
-			tx.req->method = HTTP_DELETE;
+			tx.req->method = tagd::HTTP_DELETE;
 			this->tagdurl_del(*tx.req);
 			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
 			break;
@@ -348,7 +348,7 @@ tagd::code httagl::execute(transaction& tx) {
   */
 
 		default:
-			tx.req->method = HTTP_UNKNOWN;
+			tx.req->method = tagd::HTTP_UNKNOWN;
 			// TODO use tagd::error
 			tx.ferror(tagd::HTTP_ERR, "unsupported method: %s", evhtp_method_str(ev_method));
 			tx.res->res_code(EVHTP_RES_METHNALLOWED);
@@ -646,7 +646,7 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 		ssn->print_errors(ss);
 	}
 
-	if (_tx->req->method == HTTP_HEAD) {
+	if (_tx->req->method == tagd::HTTP_HEAD) {
 		/* even though evhtp will not send content added for HEAD requests,
 		 * we will short circuit that by not adding content
 		 * _evhtp_create_reply() adds Content-Length header if not exists so lets create one

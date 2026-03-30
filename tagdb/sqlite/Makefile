@@ -1,3 +1,4 @@
+MAKEFLAGS += --no-print-directory
 SRC_DIR = ./src
 
 all: build
@@ -7,12 +8,11 @@ debug: DEBUG=debug
 debug: build
 
 build: force_look
-	make -C	$(SRC_DIR) $(DEBUG) CXXFLAGS="$(CXXFLAGS)"
+	@make -C $(SRC_DIR) $(DEBUG) CXXFLAGS="$(CXXFLAGS)"
 
 force_look:
-	true
+	@true
 
 clean:
-	make -C $(SRC_DIR) clean
-
+	@make -C $(SRC_DIR) clean
 
