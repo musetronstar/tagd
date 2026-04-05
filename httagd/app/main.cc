@@ -47,10 +47,10 @@ void fill_header(transaction& tx, tagd_template& tpl, const std::string& title) 
 
 	auto qm = tx.req->query_map();
 	if ( qm.size() > 0 ) {
-		std::string opt_vw = qm[QUERY_OPT_VIEW];
+		std::string opt_vw = qm[TAGL::QUERY_OPT_VIEW];
 		// don't propagate an error from a bad view name
 		if (!opt_vw.empty() && opt_vw != BROWSE_VIEW_ID.name())
-				qm[QUERY_OPT_VIEW] = BROWSE_VIEW_ID.name();
+				qm[TAGL::QUERY_OPT_VIEW] = BROWSE_VIEW_ID.name();
 
 		tpl.show_section("query_options");
 		auto sec_qry = tpl.add_section("query_option");
@@ -443,10 +443,10 @@ error_handler_t error_handler(
 		if (tc != tagd::TAGD_OK) return tc;
 
 		auto qm = tx.req->query_map();
-		std::string opt_vw = qm[QUERY_OPT_VIEW];
+		std::string opt_vw = qm[TAGL::QUERY_OPT_VIEW];
 		// don't propagate an error from a bad view name
 		if (!opt_vw.empty() && opt_vw != BROWSE_VIEW_ID.name())
-			qm[QUERY_OPT_VIEW] = BROWSE_VIEW_ID.name();
+			qm[TAGL::QUERY_OPT_VIEW] = BROWSE_VIEW_ID.name();
 
 		fill_error(qm, *(tpl.include("main_html_tpl", tx.vws->fpath(fname))), errs);
 
@@ -464,10 +464,10 @@ error_handler_t partial_error_handler(
 		if (tc != tagd::TAGD_OK) return tc;
 
 		auto qm = tx.req->query_map();
-		std::string opt_vw = qm[QUERY_OPT_VIEW];
+		std::string opt_vw = qm[TAGL::QUERY_OPT_VIEW];
 		// don't propagate an error from a bad view name
 		if (!opt_vw.empty() && opt_vw != TAG_VIEW_ID.name())
-			qm[QUERY_OPT_VIEW] = TAG_VIEW_ID.name();
+			qm[TAGL::QUERY_OPT_VIEW] = TAG_VIEW_ID.name();
 
 		fill_error(qm, tpl, errs);
 

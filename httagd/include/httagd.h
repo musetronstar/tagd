@@ -215,11 +215,6 @@ class response {
 
 };
 
-// request url query options
-const std::string QUERY_OPT_SEARCH{"q"};    // full text search
-const std::string QUERY_OPT_VIEW{"v"};		// view name
-const std::string QUERY_OPT_CONTEXT{"c"};   // tagspace context
-
 const std::string DEFAULT_VIEW{"tagl"};     // plain text tagl
 
 class request {
@@ -252,15 +247,19 @@ class request {
 		}
 
 		std::string query_opt_search() const {
-			return this->query_opt(QUERY_OPT_SEARCH);
+			return this->query_opt(TAGL::QUERY_OPT_SEARCH);
+		}
+
+		bool has_search_query() const {
+			return !this->query_opt_search().empty();
 		}
 
 		std::string query_opt_view() const {
-			return this->query_opt(QUERY_OPT_VIEW);
+			return this->query_opt(TAGL::QUERY_OPT_VIEW);
 		}
 
 		std::string query_opt_context() const {
-			return this->query_opt(QUERY_OPT_CONTEXT);
+			return this->query_opt(TAGL::QUERY_OPT_CONTEXT);
 		}
 
 		const url_query_map_t &query_map() const {
@@ -269,6 +268,35 @@ class request {
 
 		const std::string& path() const {
 			return _path;
+		}
+
+		bool has_root_path() const {
+			return _path.empty() || _path == "/";
+		}
+
+		tagd::id_type path_tag_id() const {
+			return has_root_path() ? tagd::EMPTY_ID : tagd::uri_decode(_path.substr(1));
+		}
+
+		std::string tagdurl() const {
+			std::string url = _path;
+			std::string opt_search = this->query_opt_search();
+			if (!opt_search.empty()) {
+				url.push_back(url.find('?') == std::string::npos ? '?' : '&');
+				url.append(TAGL::QUERY_OPT_SEARCH);
+				url.push_back('=');
+				url.append(tagd::uri_encode(opt_search));
+			}
+
+			std::string opt_context = this->query_opt_context();
+			if (!opt_context.empty()) {
+				url.push_back(url.find('?') == std::string::npos ? '?' : '&');
+				url.append(TAGL::QUERY_OPT_CONTEXT);
+				url.push_back('=');
+				url.append(tagd::uri_encode(opt_context));
+			}
+
+			return url;
 		}
 
 		evhtp_request_t *ev_req() const {
@@ -290,7 +318,6 @@ class httagl;
 class htscanner : public TAGL::scanner {
 	public:
 		htscanner(httagl *d) : TAGL::scanner((TAGL::driver*)d) {}
-		void scan_tagdurl_path(int cmd, const request&);
 };
 
 class httagl : public TAGL::driver {
@@ -311,6 +338,12 @@ class httagl : public TAGL::driver {
 		tagd::code tagdurl_get(const request&);
 		tagd::code tagdurl_put(const request&);
 		tagd::code tagdurl_del(const request&);
+		tagd::code scan_request_tagdurl(const request&);
+		// HTTP PUT/POST path validation remains transport-side, separate from
+		// standalone tagdurl-to-TAGL translation in tagl.
+		tagd::code validate_request_tag_id_path(const request&);
+		// Prepare the transport-specific constrained POST/PUT body seam.
+		tagd::code prepare_constrained_body_subject(const request&);
 };
 
 // holds members passed to every callback

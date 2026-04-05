@@ -4,7 +4,6 @@
 #include "tagd.h"
 #include "tagdb.h"
 #include "parser.h"
-#include "scanner.h"
 
 // forward declare types used by lemon parser
 struct yyParser;
@@ -16,8 +15,24 @@ void TAGL_SET_TRACE_OFF();
 	{ std::cerr <<  __FILE__  << ':' << __LINE__ << '\t' << MSG ; }
 
 namespace TAGL {
+struct TokenText {
+	const char *z;  // start of token text
+	int n;          // token length in bytes
+
+	bool empty() const { return z == nullptr || n == 0; }
+	std::string str() const { return empty() ? std::string() : std::string(z, n); }
+};
+
+inline constexpr TokenText EMPTY_VALUE{nullptr, 0};
+}
+
+#include "scanner.h"
+
+namespace TAGL {
 
 const char* token_str(int);
+
+struct NoValue {};
 
 class driver;
 
@@ -68,6 +83,7 @@ class driver : public tagd::errorable {
 		void init();
 		void free_parser();
 		int parse_tokens();
+		TokenText store_token_text(const std::string&);
 
 	public:
 		driver(tagdb::tagdb*, tagdb::session* = nullptr);
@@ -103,7 +119,9 @@ class driver : public tagd::errorable {
 		tagd::code scan_tagdurl(tagd::http_method, const std::string& path);
 		int token() const { return _token; }
 		int lookup_pos(const std::string&);
-		virtual void parse_tok(int, std::string*);
+		virtual void parse_tok(int, TokenText);
+		void parse_tok(int, const std::string&);
+		void parse_tok(int, const char *);
 		tagd::code include_file(const std::string&);
 		int open_rel(const std::string& path, int flags);
 

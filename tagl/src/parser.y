@@ -16,15 +16,6 @@
 		TAGL_LOG_TRACE( "DELETE(NULL)" << std::endl ) \
 	}
 
-// TODO
-// MDELETE marks occurences of manual calls to delete
-// trace each call to MDELETE, test for edge case errors
-// that might cause memory leaks
-// Our goal is to fix all deallocation errors
-// then do away with MDELETE
-#define MDELETE(p) \
-		TAGL_LOG_TRACE( "MDELETE\n" ); DELETE(p)
-
 #define NEW_TAG(TAG_TYPE, TAG_ID)	\
 	if (tagl->constrain_tag_id.empty() || (tagl->constrain_tag_id == TAG_ID)) {	\
 		if (tagl->tag_ptr() != nullptr)	\
@@ -33,10 +24,6 @@
 	} else {	\
 		tagl->ferror(tagd::TAGL_ERR, "tag id constrained as: %s", tagl->constrain_tag_id.c_str());	\
 	}
-
-#define NEW_TAG_DELETE(TAG_TYPE, TAG_ID_PTR) \
-	NEW_TAG(TAG_TYPE, *TAG_ID_PTR); \
-	MDELETE(TAG_ID_PTR);
 
 #define NEW_REFERENT(REFERS, REFERS_TO, CONTEXT)	\
 	if (tagl->constrain_tag_id.empty() || (tagl->constrain_tag_id == REFERS)) {	\
@@ -58,12 +45,35 @@ void last_error_add_file_line_number(TAGL::driver *tagl) {
 	}
 }
 
+void scan_tagdurl(TAGL::driver *tagl, const std::string &tagdurl ) {
+	// Use a separate driver+parser so the tagdurl scanner can call parse_tok
+	// without re-entering the outer parser mid-reduction.
+	TAGL::driver inner(tagl->tdb(), tagl->session_ptr());
+	inner.scan_tagdurl(TOK_CMD_GET, tagdurl);
+	inner.finish();  // flush reductions before inspecting tag_ptr
+	if (inner.has_errors()) {
+		tagl->copy_errors(inner);
+	} else if (inner.tag_ptr() != nullptr) {
+		tagl->delete_tag();
+		tagl->tag_ptr(inner.tag_ptr());
+		inner.tag_ptr(nullptr);  // transfer ownership to outer driver
+	}
+}
+
 } // %include
 
 
 %extra_context { TAGL::driver *tagl }
-%token_type {std::string *}
-%default_destructor { DELETE($$) }
+%token_type {TAGL::TokenText}
+%token_destructor { /* NOOP */ }
+/*
+ * Most TAGL nonterminals are parser-control helpers with side effects, not
+ * semantic values that own memory. Use safe no-value defaults, then opt into
+ * explicit types only for real data carriers such as pointers, scalars, and
+ * TokenText slices.
+ */
+%default_type { TAGL::NoValue }
+%default_destructor { /* NOOP */ }
 %token_prefix	TOK_
 
 %parse_accept
@@ -82,14 +92,16 @@ void last_error_add_file_line_number(TAGL::driver *tagl) {
 {
 	switch(yymajor) { // token that caused error
 		case TOK_UNKNOWN:
-			if (TOKEN != nullptr)
-				tagl->error(tagd::TS_NOT_FOUND, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *TOKEN));
+			if (!TOKEN.empty())
+				tagl->error(tagd::TS_NOT_FOUND, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, TOKEN.str()));
 			else
 				tagl->error(tagd::TAGL_ERR, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
 			break;
 		default:
-			if (TOKEN != nullptr)
-				tagl->ferror(tagd::TAGL_ERR, "parse error near: %s", TOKEN->c_str());
+			if (!TOKEN.empty()) {
+				const auto token = TOKEN.str();
+				tagl->ferror(tagd::TAGL_ERR, "parse error near: %s", token.c_str());
+			}
 			else
 				tagl->error(tagd::TAGL_ERR, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, yyTokenName[yymajor]));
 	}
@@ -108,32 +120,10 @@ void last_error_add_file_line_number(TAGL::driver *tagl) {
 		}
 	}
 */
-	/* TODO
-	 * we shouldn't have to manually delete the stack but
-	 * %default_destructor doesn't get called on "_refers_to" in this situation:
-		>> doggy _refers_to dog
-		syntax_error stack:
-		yymajor: TERMINATOR
-			CMD_PUT: NULL
-			refers: doggy
-			REFERS_TO: _refers_to
-			refers_to: dog
-		DELETE(0x55f590735dc0): dog
-		DELETE(0x55f590736660): doggy
+	/* TODO syntax-error cleanup still deserves a focused follow-up. The parser
+	 * no longer relies on manual stack deletion here, but this path remains the
+	 * place to investigate if a future destructor regression reappears.
 	 */
-	 /*
-	for (int i=0; i<yypParser->yyidx; i++) {
-	//while(p++ < yypParser->yytos) {
-		auto p = &yypParser->yystack[i];
-		if (p->minor.yy0 != nullptr) {
-			MDELETE(p->minor.yy0);
-		}
-	}
-
-	if (TOKEN != nullptr) {
-		DELETE(TOKEN)
-	}
-	*/
 
 	tagl->do_callback();
 }
@@ -187,26 +177,34 @@ set_statement ::= CMD_SET set_flag .
 set_statement ::= CMD_SET set_include .
 
 %type boolean_value { bool }
-%destructor boolean_value { /* NOOP */ }
+%type context_object { TAGL::TokenText }
+%type tagl_file { TAGL::TokenText }
+%type quoted_str { TAGL::TokenText }
+%type refers_subject { TAGL::TokenText }
+%type refers_to_object { TAGL::TokenText }
+%type sub_relator_symbol { TAGL::TokenText }
+%type relator_symbol { TAGL::TokenText }
+%type lhs_object { TAGL::TokenText }
+%type rhs_object { TAGL::TokenText }
+
 set_flag ::= FLAG(F) boolean_value(b) .
 {
+	const auto flag = F.str();
 	// TODO hard tag flags will need to have a flag_value relation holding
 	// the value of the tagdb::flag_t
-	if (*F == HARD_TAG_IGNORE_DUPLICATES) {
+	if (flag == HARD_TAG_IGNORE_DUPLICATES) {
 		if (b) {
 			tagl->flags |= tagdb::F_IGNORE_DUPLICATES;
 		} else {
 			tagl->flags &= ~(tagdb::F_IGNORE_DUPLICATES);
 		}
 	} else {
-		tagl->ferror(tagd::TAGL_ERR, "bad flag: %s", F->c_str());
+		tagl->ferror(tagd::TAGL_ERR, "bad flag: %s", flag.c_str());
 	}
-	MDELETE(F)
 }
 boolean_value(b) ::= QUANTIFIER(Q) .
 {
-	b = (*Q != "0");
-	MDELETE(Q)
+	b = (Q.str() != "0");
 }
 
 set_context ::= new_context context_list .
@@ -234,17 +232,14 @@ context_list ::= push_context .
 
 push_context ::= context_object(c) .
 {
-	tagl->push_context(*c);
-	DELETE(c)
+	tagl->push_context(c.str());
 }
 
-context(c) ::= CONTEXT(C) .
-{ c = C; }
+context ::= CONTEXT .
 
 set_include ::= include tagl_file(f) .
 {
-	tagl->include_file(*f);
-	MDELETE(f)
+	tagl->include_file(f.str());
 }
 tagl_file(f) ::= TAGL_FILE(F) .
 {
@@ -254,8 +249,7 @@ tagl_file(f) ::= QUOTED_STR(S) .
 {
 	f = S;
 }
-include(i) ::= INCLUDE(I) .
-{ i = I; }
+include ::= INCLUDE .
 
 get_statement ::= CMD_GET subject .
 get_statement ::= CMD_GET unknown .
@@ -266,16 +260,15 @@ get_statement ::= CMD_GET unknown .
 // will return tagd_code:TS_AMBIGUOUS, so we have to set
 // the tag so it makes it to tagdb::get via the callback
 // TODO have lookup_pos return REFERENT for out of context referents
-get_statement ::= CMD_GET UNKNOWN(U) .
-{
-	tagl->error(tagd::TS_NOT_FOUND,
-		tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *U));
-	MDELETE(U)
-}
 */
 get_statement ::= CMD_GET REFERS(R) .
 {
-	NEW_TAG_DELETE(tagd::abstract_tag, R)
+	const auto r = R.str();
+	NEW_TAG(tagd::abstract_tag, r)
+}
+get_statement ::= CMD_GET TAGDURL(U) .
+{
+	scan_tagdurl(tagl, U.str());
 }
 get_statement ::= CMD_GET TAGDURL(U) .
 {
@@ -298,14 +291,17 @@ put_statement ::= CMD_PUT subject_sub_relation relations .
 put_statement ::= CMD_PUT subject_sub_relation .
 put_statement ::= CMD_PUT subject relations .
 put_statement ::= CMD_PUT referent_relation .
+put_statement ::= CMD_PUT TAGDURL(U) .
+{
+	scan_tagdurl(tagl, U.str());
+}
 
 del_statement ::= CMD_DEL subject .
 get_statement ::= CMD_DEL UNKNOWN(U) .
 {
 	tagl->error(tagd::TS_NOT_FOUND,
-		tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, *U));
+		tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, U.str()));
 	last_error_add_file_line_number(tagl);
-	MDELETE(U)
 }
 del_statement ::= CMD_DEL del_subject_sub_err .
 {
@@ -315,20 +311,24 @@ del_statement ::= CMD_DEL del_subject_sub_err .
 }
 del_statement ::= CMD_DEL subject relations .
 del_statement ::= CMD_DEL referent_relation .
+del_statement ::= CMD_DEL TAGDURL(U) .
+{
+	scan_tagdurl(tagl, U.str());
+}
 
 del_subject_sub_err ::= subject_sub_relation .
 del_subject_sub_err ::= subject_sub_relation relations .
 
 query_statement ::= interrogator_query .
 query_statement ::= search_query .
+query_statement ::= tagdurl_query .
 
 interrogator_query ::= CMD_QUERY interrogator_sub_relation relations .
 interrogator_query ::= CMD_QUERY interrogator_sub_relation .
 interrogator_query ::= CMD_QUERY interrogator relations .
 interrogator_query ::= CMD_QUERY interrogator sub_relator REFERENT(R) query_referent_relations .
 {
-	tagl->tag_ptr()->super_object(*R);
-	MDELETE(R)
+	tagl->tag_ptr()->super_object(R.str());
 }
 interrogator_query ::= CMD_QUERY interrogator query_referent_relations .
 {
@@ -336,6 +336,13 @@ interrogator_query ::= CMD_QUERY interrogator query_referent_relations .
 }
 
 search_query ::= CMD_QUERY search_query_list .
+{
+}
+
+tagdurl_query ::= CMD_QUERY TAGDURL(U) .
+{
+	scan_tagdurl(tagl, U.str());
+}
 
 search_query_list ::= search_query_list COMMA search_query_quoted_str .
 search_query_list ::= search_query_quoted_str .
@@ -344,18 +351,20 @@ search_query_list ::= .
 search_query_quoted_str ::= quoted_str(s) .
 {
 	NEW_TAG(tagd::interrogator, HARD_TAG_SEARCH)
-	(void)tagl->tag_ptr()->relation(HARD_TAG_HAS, HARD_TAG_TERMS, *s);
-	MDELETE(s)
+	(void)tagl->tag_ptr()->relation(HARD_TAG_HAS, HARD_TAG_TERMS, s.str());
 }
 
 quoted_str(s) ::= QUOTED_STR(S) .
 { s = S; }
 
 interrogator_sub_relation ::= interrogator sub_relator super_object .
+{
+}
 
 interrogator ::= INTERROGATOR(I) .
 {
-	NEW_TAG(tagd::interrogator, *I)
+	const auto i = I.str();
+	NEW_TAG(tagd::interrogator, i)
 }
 
 interrogator ::= .
@@ -368,85 +377,81 @@ subject_sub_relation ::= unknown sub_relator super_object .
 
 subject ::= TAG(T) .
 {
-	NEW_TAG(tagd::tag, *T);
+	const auto t = T.str();
+	NEW_TAG(tagd::tag, t);
 }
 subject ::= SUB_RELATOR(S) .
 {
-	NEW_TAG(tagd::tag, *S);
+	const auto s = S.str();
+	NEW_TAG(tagd::tag, s);
 }
 subject ::= RELATOR(R) .
 {
-	NEW_TAG(tagd::relator, *R);
+	const auto r = R.str();
+	NEW_TAG(tagd::relator, r);
 }
 subject ::= INTERROGATOR(I) .
 {
-	NEW_TAG(tagd::interrogator, *I);
+	const auto i = I.str();
+	NEW_TAG(tagd::interrogator, i);
 }
 subject ::= URL(U) .
 {
-	tagl->new_url(*U);
+	tagl->new_url(U.str());
 }
 subject ::= HDURI(U) .
 {
-	tagl->new_url(*U);
+	tagl->new_url(U.str());
 }
 subject ::= REFERENT(R) .
 {
-	NEW_TAG(tagd::abstract_tag, *R);
+	const auto r = R.str();
+	NEW_TAG(tagd::abstract_tag, r);
 }
 subject ::= REFERS_TO(R) .
 {
-	NEW_TAG(tagd::abstract_tag, *R);
+	const auto r = R.str();
+	NEW_TAG(tagd::abstract_tag, r);
 }
 subject ::= CONTEXT(R) .
 {
-	NEW_TAG(tagd::abstract_tag, *R);
+	const auto r = R.str();
+	NEW_TAG(tagd::abstract_tag, r);
 }
 subject ::= FLAG(F) .
 {
-	NEW_TAG(tagd::abstract_tag, *F);
+	const auto f = F.str();
+	NEW_TAG(tagd::abstract_tag, f);
 }
-
 unknown ::= UNKNOWN(U) .
 {
-	NEW_TAG(tagd::abstract_tag, *U);
+	const auto u = U.str();
+	NEW_TAG(tagd::abstract_tag, u);
 }
 
 
-referent_relation ::= refers_subject(r) refers_to(rt) refers_to_object(rto) context(c) context_object(co) .
+referent_relation ::= refers_subject(r) refers_to refers_to_object(rto) context context_object(co) .
 {
 	// WTF not sure why gcc freaks calling *c a pointer type and not the others
-	NEW_REFERENT(*r, *rto, (*co))
-	DELETE(r)
-	DELETE(rt)
-	DELETE(rto)
-	DELETE(c)
-	DELETE(co)
+	NEW_REFERENT(r.str(), rto.str(), co.str())
 }
 
-refers_to(r) ::= REFERS_TO(R) .
-{ r = R; }
+refers_to ::= REFERS_TO .
 
 query_referent_relations ::= query_referent_relations query_referent_relation .
 query_referent_relations ::= query_referent_relation .
 
-query_referent_relation ::= REFERS(R) refers_subject(r) .
+query_referent_relation ::= REFERS refers_subject(r) .
 {
-	(void)tagl->tag_ptr()->relation(HARD_TAG_REFERS, *r);
-	MDELETE(R)
-	MDELETE(r)
+	(void)tagl->tag_ptr()->relation(HARD_TAG_REFERS, r.str());
 }
-query_referent_relation ::= refers_to(rt) refers_to_object(rto) .
+query_referent_relation ::= refers_to refers_to_object(rto) .
 {
-	(void)tagl->tag_ptr()->relation(HARD_TAG_REFERS_TO, *rto);
-	MDELETE(rt)
-	MDELETE(rto)
+	(void)tagl->tag_ptr()->relation(HARD_TAG_REFERS_TO, rto.str());
 }
-query_referent_relation ::= context(c) context_object(co) .
+query_referent_relation ::= context context_object(co) .
 {
-	(void)tagl->tag_ptr()->relation(HARD_TAG_CONTEXT, *co);
-	MDELETE(c)
-	MDELETE(co)
+	(void)tagl->tag_ptr()->relation(HARD_TAG_CONTEXT, co.str());
 }
 
 refers_subject(r) ::= TAG(T) .
@@ -516,7 +521,7 @@ context_object(c) ::= TAG(C) .
 
 sub_relator ::= sub_relator_symbol(S) .
 {
-	tagl->tag_ptr()->sub_relator(*S);
+	tagl->tag_ptr()->sub_relator(S.str());
 }
 
 sub_relator_symbol(s) ::= SUB_RELATOR(S) .
@@ -528,25 +533,25 @@ sub_relator_symbol(s) ::= SUB_RELATOR_SYMBOL(S) .
 	s = S; // hard tag substituted for  `-^` symbol
 }
 
-super_object ::=  TAG(T) .
+super_object ::= TAG(T) .
 {
-	tagl->tag_ptr()->super_object(*T);
+	tagl->tag_ptr()->super_object(T.str());
 }
-super_object ::=  SUB_RELATOR(S) .
+super_object ::= SUB_RELATOR(S) .
 {
-	tagl->tag_ptr()->super_object(*S);
+	tagl->tag_ptr()->super_object(S.str());
 }
-super_object ::=  RELATOR(R) .
+super_object ::= RELATOR(R) .
 {
-	tagl->tag_ptr()->super_object(*R);
+	tagl->tag_ptr()->super_object(R.str());
 }
-super_object ::=  INTERROGATOR(I) .
+super_object ::= INTERROGATOR(I) .
 {
-	tagl->tag_ptr()->super_object(*I);
+	tagl->tag_ptr()->super_object(I.str());
 }
-super_object ::=  REFERENT(R) .
+super_object ::= REFERENT(R) .
 {
-	tagl->tag_ptr()->super_object(*R);
+	tagl->tag_ptr()->super_object(R.str());
 }
 
 /*
@@ -567,7 +572,7 @@ predicate_list ::= relator object_list .
 
 relator ::= relator_symbol(R) .
 {
-	tagl->relator = *R;
+	tagl->relator = R.str();
 }
 relator ::= WILDCARD .
 {
@@ -590,12 +595,9 @@ object ::= modified_object .
 object ::= bare_object .
 
 %type op { tagd::operator_t }
-%destructor op { /* NOOP */ }
 modified_object ::= lhs_object(l) op(o) rhs_object(r) .
 {
-	(void)tagl->tag_ptr()->relation(tagl->relator, *l, *r, o);
-	DELETE(l)
-	DELETE(r)
+	(void)tagl->tag_ptr()->relation(tagl->relator, l.str(), r.str(), o);
 }
 
 lhs_object(o) ::= TAG(T) . 
@@ -614,30 +616,31 @@ rhs_object(o) ::= HDURI(U) .
 
 bare_object ::= TAG(T) .
 {
-	(void)tagl->tag_ptr()->relation(tagl->relator, *T);
+	(void)tagl->tag_ptr()->relation(tagl->relator, T.str());
 }
 bare_object ::= URL(U) .
 {
-	tagd::url u(*U);
-	if (u.code() == tagd::TAGD_OK) {
-		(void)tagl->tag_ptr()->relation(tagl->relator, u.hduri());
+	tagd::url url(U.str());
+	if (url.code() == tagd::TAGD_OK) {
+		(void)tagl->tag_ptr()->relation(tagl->relator, url.hduri());
 	} else {
-		tagl->ferror(u.code(), "bad url: %s", U->c_str());
+		const auto text = U.str();
+		tagl->ferror(url.code(), "bad url: %s", text.c_str());
 	}
 }
 bare_object ::= HDURI(U) .
 {
-	tagd::HDURI u(*U);
-	if (u.code() == tagd::TAGD_OK) {
-		(void)tagl->tag_ptr()->relation(tagl->relator, u.hduri());
+	tagd::HDURI hduri(U.str());
+	if (hduri.code() == tagd::TAGD_OK) {
+		(void)tagl->tag_ptr()->relation(tagl->relator, hduri.hduri());
 	} else {
-		tagl->ferror(u.code(), "bad hduri: %s", U->c_str());
+		const auto text = U.str();
+		tagl->ferror(hduri.code(), "bad hduri: %s", text.c_str());
 	}
 }
-
 bare_object ::= REFERENT(R) .
 {
-	(void)tagl->tag_ptr()->relation(tagl->relator, *R);
+	(void)tagl->tag_ptr()->relation(tagl->relator, R.str());
 }
 
 
@@ -663,87 +666,4 @@ op(o) ::= LT_EQ .
 }
 
 %code {
-
-/*
- * TODO when available in lemon, replace %extra_argument with %extra_context
- * add extra argument to ParseAlloc() and remove from Parse()
- */
-
-bool TAGL_TRACE_ON = false;
-
-void TAGL_SET_TRACE_ON() {
-	TAGL_TRACE_ON = true;
-
-#ifndef NDEBUG
-	ParseTrace(stderr, (char *)"tagl_trace: ");
-#endif
-}
-
-void TAGL_SET_TRACE_OFF() {
-	TAGL_TRACE_ON = false;
-
-#ifndef NDEBUG
-	ParseTrace(NULL, NULL);
-#endif
-}
-
-namespace TAGL {
-
-// sets up scanner and parser, wont init if already setup
-void driver::init() {
-	// set _code for new parse, _errors will still contain prev errors
-	if (_code != tagd::TAGD_OK)
-		_code = tagd::TAGD_OK;
-
-	if (_parser != nullptr)
-		return;
-
-    // set up parser
-    _parser = ParseAlloc(::operator new, this);
-    // this also works: _parser = ParseAlloc(malloc, this);
-}
-
-void driver::free_parser() {
-	if (_parser != nullptr) {
-		if (_token != TOK_TERMINATOR && !this->has_errors())
-			Parse(_parser, TOK_TERMINATOR, NULL);
-		if (_token > 0)
-			Parse(_parser, 0, NULL);
-		ParseFree(_parser, ::operator delete);
-		// this also works: ParseFree(_parser, free);
-		_parser = nullptr;
-	}
-}
-
-void driver::parse_tok(int tok, std::string *s) {
-		_token = tok;
-		TAGL_LOG_TRACE( "line " << _scanner->_line_number
-				<< ", token " << token_str(_token) << ": " << (s == nullptr ? "NULL" : *s)
-				<< std::endl )
-
-		Parse(_parser, _token, s);
-}
-
-/* parses an entire string, replace end of input with a newline
- * init() should be called before calls to parseln and
- * finish() should be called afterwards
- * empty line will result in passing a TOK_TERMINATOR token to the parser
- */
-tagd::code driver::parseln(const std::string& line) {
-	this->init();
-
-	// end of input
-	if (line.empty()) {
-		Parse(_parser, TOK_TERMINATOR, NULL);
-		_token = 0;
-		Parse(_parser, _token, NULL);
-		return this->code();
-	}
-
-	_scanner->scan(line);
-
-	return this->code();
-}
-
-} // namespace TAGL
 } // %include

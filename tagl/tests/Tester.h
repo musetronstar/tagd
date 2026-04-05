@@ -2,6 +2,7 @@
 
 #include <cxxtest/TestSuite.h>
 #include <cstdio>
+#include <unistd.h>
 #include "tagl.h"
 #include "tagdb.h"
 
@@ -38,6 +39,7 @@ class tagdb_tester : public tagdb::tagdb {
 			put_test_tag("legs", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("tail", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("fur", HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag("blood", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("bark", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("meow", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("bite", HARD_TAG_ENTITY, tagd::POS_TAG);
@@ -45,6 +47,7 @@ class tagdb_tester : public tagdb::tagdb {
 			put_test_tag("information", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("language", "information", tagd::POS_TAG);
 			put_test_tag("simple_english", "language", tagd::POS_TAG);
+			put_test_tag("japanese", "language", tagd::POS_TAG);
 			put_test_tag("internet_security", "information", tagd::POS_TAG);
 			put_test_tag("child", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
@@ -64,6 +67,7 @@ class tagdb_tester : public tagdb::tagdb {
 			put_test_tag(HARD_TAG_CONTEXT, HARD_TAG_ENTITY, tagd::POS_CONTEXT);
 			put_test_tag(HARD_TAG_FLAG, HARD_TAG_ENTITY, tagd::POS_FLAG);
 			put_test_tag(HARD_TAG_IGNORE_DUPLICATES, HARD_TAG_FLAG, tagd::POS_FLAG);
+			put_test_tag(HARD_TAG_INCLUDE, HARD_TAG_RELATOR, tagd::POS_INCLUDE);
 
 			tagd::abstract_tag mammal("mammal", "animal", tagd::POS_TAG);
 			// search terms
@@ -88,6 +92,9 @@ class tagdb_tester : public tagdb::tagdb {
 			cat.relation(HARD_TAG_CAN, "bite");
 			db[cat.id()] = cat;
 			_cat = cat;
+
+			tagd::abstract_tag whale("whale", "mammal", tagd::POS_TAG);
+			db[whale.id()] = whale;
 
 			put_test_tag("breed", "dog", tagd::POS_TAG);
 
@@ -327,6 +334,15 @@ class callback_tester : public TAGL::callback {
 			renew_last_tag();
 			if (!_driver->tag().empty())
 				*last_tag = _driver->tag();
+		}
+};
+
+class driver_tester : public TAGL::driver {
+	public:
+		driver_tester(tagdb::tagdb *tdb) : TAGL::driver(tdb) {}
+
+		void init_parser() {
+			this->init();
 		}
 };
 
@@ -1256,6 +1272,38 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 	}
 
+	void test_put_utf8_subject(void) {
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(">> イヌ " HARD_TAG_IS_A " mammal");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.tag().id(), "イヌ" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object(), "mammal" )
+	}
+
+	void test_put_utf8_referent_context(void) {
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(">> イヌ " HARD_TAG_REFERS_TO " dog " HARD_TAG_CONTEXT " japanese");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.tag().id(), "イヌ" )
+	}
+
+	void test_query_utf8_referent_label(void) {
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		TS_ASSERT_EQUALS(
+			TAGD_CODE_STRING(tagl.execute(">> イヌ " HARD_TAG_REFERS_TO " dog " HARD_TAG_CONTEXT " japanese")),
+			"TAGD_OK"
+		)
+		tagd::code tc = tagl.execute("?? " HARD_TAG_WHAT " _refers イヌ " HARD_TAG_CONTEXT " japanese");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.tag().pos(), tagd::POS_INTERROGATOR )
+		TS_ASSERT_EQUALS( tagl.tag().super_object(), HARD_TAG_REFERENT )
+		TS_ASSERT( tagl.tag().related(HARD_TAG_REFERS, "イヌ") )
+		TS_ASSERT( tagl.tag().related(HARD_TAG_CONTEXT, "japanese") )
+	}
+
 	void test_set_context(void) {
 		tagdb_tester tdb;
 		auto ssn = tdb.get_session();
@@ -1495,6 +1543,56 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 	}
 
+	void test_query_tag_cleanup_then_get_subject(void) {
+		{
+			tagdb_tester tdb;
+			callback_tester cb(&tdb);
+			TAGL::driver tagl(&tdb, &cb);
+			tagd::code tc = tagl.execute("?? dog;");
+			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
+		}
+
+		{
+			tagdb_tester tdb;
+			TAGL::driver tagl(&tdb);
+			tagd::code tc = tagl.execute("<< dog;");
+			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+			TS_ASSERT_EQUALS( tagl.tag().id(), "dog" )
+		}
+	}
+
+	void test_query_tag_cleanup_after_utf8_flows(void) {
+		{
+			tagdb_tester tdb;
+			TAGL::driver tagl(&tdb);
+			TS_ASSERT_EQUALS(
+				TAGD_CODE_STRING(tagl.execute(">> イヌ " HARD_TAG_REFERS_TO " dog " HARD_TAG_CONTEXT " japanese")),
+				"TAGD_OK"
+			)
+		}
+
+		{
+			tagdb_tester tdb;
+			TAGL::driver tagl(&tdb);
+			TS_ASSERT_EQUALS(
+				TAGD_CODE_STRING(tagl.execute(">> イヌ " HARD_TAG_REFERS_TO " dog " HARD_TAG_CONTEXT " japanese")),
+				"TAGD_OK"
+			)
+			TS_ASSERT_EQUALS(
+				TAGD_CODE_STRING(tagl.execute("?? " HARD_TAG_WHAT " _refers イヌ " HARD_TAG_CONTEXT " japanese")),
+				"TAGD_OK"
+			)
+		}
+
+		{
+			tagdb_tester tdb;
+			callback_tester cb(&tdb);
+			TAGL::driver tagl(&tdb, &cb);
+			tagd::code tc = tagl.execute("?? dog;");
+			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
+		}
+	}
+
     void test_search(void) {
 		tagdb_tester tdb;
 		callback_tester cb(&tdb);
@@ -1510,6 +1608,23 @@ class Tester : public CxxTest::TestSuite {
 		tagd::code tc = tagl.execute(
 			"?? _interrogator -^ mammal -> _terms = \"warm blood\";" );
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+	}
+
+	void test_get_subject_search_terms_token_sequence(void) {
+		tagdb_tester tdb;
+		driver_tester tagl(&tdb);
+
+		tagl.init_parser();
+		tagl.parse_tok(TOK_CMD_GET, TAGL::EMPTY_VALUE);
+		tagl.parse_tok(TOK_TAG, "animal");
+		tagl.parse_tok(TOK_RELATOR, HARD_TAG_HAS);
+		tagl.parse_tok(TOK_TAG, HARD_TAG_TERMS);
+		tagl.parse_tok(TOK_EQ, TAGL::EMPTY_VALUE);
+		tagl.parse_tok(TOK_QUOTED_STR, "warm blood");
+		tagl.parse_tok(TOK_TERMINATOR, TAGL::EMPTY_VALUE);
+		tagl.finish();
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_ERR" )
 	}
 
 	void test_query_referents(void) {
@@ -1824,5 +1939,121 @@ class Tester : public CxxTest::TestSuite {
 		evbuffer_free(input);
 
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+	}
+
+	void test_tag_token_larger_than_buf(void) {
+		std::stringstream ss;
+		std::string id;
+
+		while ( id.size() < (TAGL::BUF_SZ * 3) )
+			id.push_back((char)(id.size() % 10 + 97));  // ascii a-j
+
+		ss << ">> " << id << " " HARD_TAG_IS_A " mammal;";
+
+		struct evbuffer *input = evbuffer_new();
+		evbuffer_add(input, ss.str().c_str(), ss.str().size());
+
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(input);
+		evbuffer_free(input);
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.tag().id() , id )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
+	}
+
+	void test_tagl_file_token_survives_later_scanner_activity(void) {
+		std::stringstream ss;
+		std::string path = "tagl_include_lifetime_" + std::to_string(getpid()) + ".tagl";
+		FILE *fp = fopen(path.c_str(), "w");
+		TS_ASSERT(fp != nullptr)
+		if (fp == nullptr)
+			return;
+		fclose(fp);
+
+		ss << "%% " HARD_TAG_INCLUDE " " << path;
+		for (size_t i = 0; i < TAGL::BUF_SZ * 2; ++i)
+			ss << ' ';
+		ss << ';';
+
+		struct evbuffer *input = evbuffer_new();
+		evbuffer_add(input, ss.str().c_str(), ss.str().size());
+
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(input);
+		evbuffer_free(input);
+		remove(path.c_str());
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+	}
+
+	void test_tag_token_survives_later_scanner_activity(void) {
+		std::stringstream ss;
+		ss << "<< dog";
+		for (size_t i = 0; i < TAGL::BUF_SZ * 2; ++i)
+			ss << ' ';
+		ss << ';';
+
+		struct evbuffer *input = evbuffer_new();
+		evbuffer_add(input, ss.str().c_str(), ss.str().size());
+
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(input);
+		evbuffer_free(input);
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_GET )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
+	}
+
+	void test_uri_token_survives_later_scanner_activity(void) {
+		std::stringstream ss;
+		const std::string uri{"https://en.wikipedia.org/wiki/Dog"};
+		ss << "<< " << uri;
+		for (size_t i = 0; i < TAGL::BUF_SZ * 2; ++i)
+			ss << ' ';
+		ss << ';';
+
+		struct evbuffer *input = evbuffer_new();
+		evbuffer_add(input, ss.str().c_str(), ss.str().size());
+
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(std::string(">> ").append(uri).append("\nabout internet_security"));
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		tc = tagl.execute(input);
+		evbuffer_free(input);
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_GET )
+		TS_ASSERT_EQUALS( tagl.tag().id() , uri )
+		TS_ASSERT_EQUALS( tagl.tag().pos() , tagd::POS_URL )
+	}
+
+	void test_quoted_string_token_survives_later_scanner_activity(void) {
+		std::stringstream ss;
+		ss << ">> my_message " HARD_TAG_IS_A " _entity\n"
+		   << HARD_TAG_HAS " " HARD_TAG_MESSAGE " = \"hello world\"";
+		for (size_t i = 0; i < TAGL::BUF_SZ * 2; ++i)
+			ss << ' ';
+		ss << ';';
+
+		struct evbuffer *input = evbuffer_new();
+		evbuffer_add(input, ss.str().c_str(), ss.str().size());
+
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(input);
+		evbuffer_free(input);
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "my_message" )
+		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, HARD_TAG_MESSAGE, "hello world") )
 	}
 };

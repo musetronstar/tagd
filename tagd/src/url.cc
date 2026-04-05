@@ -529,45 +529,53 @@ void insert_host_parts(tagd::predicate_set& P, const url& u) {
 }
 
 size_t url::parse_query(url_query_map_t& M, const std::string& s) {
-	size_t n = M.size();
+	size_t init_map_sz = M.size();
+	size_t i = 0;
 
-	for(size_t i=0; i<s.size(); ++i) {
-		if ((s[i] == '?' || i==0 || s[i] == '&') && ((i+1)<s.size())) {
-			std::string k, v;
-			if (!(i == 0 && s[i] != '?')) {  // handle leading '?' or not
-				if (++i == s.size()-1) {
-					k = s.substr(i);
-					goto key_val;
-				}
-			}
-			for(size_t j=i; j<s.size(); ++j) {
-				if (s[j] == '=' || s[j] == '&' || (j == (s.size()-1))) {
-					k = s.substr(i, (j-i));
-					if (s[j] == '&') {
-						v.clear();
-						goto key_val;
-					}
-					if (s[j] == '=') {
-						if (++j<s.size()) {
-							size_t k = j;
-							for(; (k<s.size() && s[k] != '&'); ++k );
-							v = s.substr(j, (k-j));
-							goto key_val;
-						}
-					}
-				}
-			}
-key_val:
-			v = uri_decode(v);
-			for (size_t i=0; i<v.size(); i++) {
-				if (v[i] == '+')
-					v[i] = ' ';
-			}
-			M[k] = v;
+	auto decode_query_value = [](std::string v) {
+		v = uri_decode(v);
+		for (size_t i = 0; i < v.size(); ++i) {
+			if (v[i] == '+')
+				v[i] = ' ';
 		}
+		return v;
+	};
+
+	// Optional leading '?' before the first query pair.
+	if (i < s.size() && s[i] == '?')
+		++i;
+
+	while (i < s.size()) {
+		// '&' delimits query pairs.
+		if (s[i] == '&') {
+			++i;
+			continue;
+		}
+
+		// Parse one query pair: <key>[=<value>]
+		size_t pair_end = s.find('&', i);
+		if (pair_end == std::string::npos)
+			pair_end = s.size();
+
+		size_t eq_pos = s.find('=', i);
+		std::string k;
+		std::string v;
+
+		if (eq_pos != std::string::npos && eq_pos < pair_end) {
+			k = s.substr(i, eq_pos - i);
+			v = s.substr(eq_pos + 1, pair_end - eq_pos - 1);
+		} else {
+			// Keys without '=' are allowed and map to an empty value.
+			k = s.substr(i, pair_end - i);
+		}
+
+		if (!k.empty())
+			M[k] = decode_query_value(v);
+
+		i = pair_end;
 	}
 
-	return (M.size() - n);
+	return (M.size() - init_map_sz);
 }
 
 bool url::query_find(const url_query_map_t& m, std::string& val, const std::string& key) {

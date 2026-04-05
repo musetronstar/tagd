@@ -2,13 +2,49 @@
 #define TAGL_SCANNER_H
 
 #include <cstdint>
+#include <deque>
 #include <string>
 
 struct evbuffer;
 
 namespace TAGL {
 
+const std::string QUERY_OPT_SEARCH{"q"};    // full text search
+const std::string QUERY_OPT_VIEW{"v"};      // view name
+const std::string QUERY_OPT_CONTEXT{"c"};   // tagspace context
+
 class driver;
+
+// Parse-lifetime backing for token text that must outlive scanner buffer refill.
+class token_store {
+	protected:
+		std::deque<std::string> _tokens;
+
+	public:
+		const std::string& store(const char *z, size_t n) {
+			_tokens.emplace_back(z, n);
+			return _tokens.back();
+		}
+
+		const std::string& store(const std::string& s) {
+			_tokens.push_back(s);
+			return _tokens.back();
+		}
+
+		TokenText store_text(const char *z, size_t n) {
+			const std::string& s = store(z, n);
+			return TokenText{s.c_str(), (int)s.size()};
+		}
+
+		TokenText store_text(const std::string& s) {
+			const std::string& stored = store(s);
+			return TokenText{stored.c_str(), (int)stored.size()};
+		}
+
+		void clear() { _tokens.clear(); }
+		bool empty() const { return _tokens.empty(); }
+		size_t size() const { return _tokens.size(); }
+	};
 
 class scanner {
 	friend class TAGL::driver;
@@ -28,17 +64,20 @@ class scanner {
 		int32_t _state = -1;
 		char *_buf = nullptr;
 		std::string _val;  // holds _buf overflow
+		token_store _token_store;  // parse-lifetime backing for emitted token slices
 		evbuffer *_evbuf = nullptr;
 		bool _do_fill = false;
 
 		void begin_scan(const char*, size_t);
 		void clear_value();
 		void advance_begin();
-		std::string* new_value();
+		TokenText store_token_text();
+		const std::string& store_value();
+		TokenText new_value();
 		void next_line(size_t=1);
 
 		// emit parser token with unknown semantic value.
-		void emit(int tok, std::string *val=nullptr);
+		void emit(int tok, TokenText val=EMPTY_VALUE);
 
 		// emit parser token with given value (not _val)
 		void emit_literal_value(int tok, const char *);

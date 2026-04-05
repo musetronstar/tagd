@@ -20,6 +20,7 @@ void scanner::reset() {
 
 	_beg = _mark = _cur = _lim = _eof = nullptr;
 	_val.clear();
+	_token_store.clear();
 	_evbuf = nullptr;
 	_state = -1;
 	_tok = -1;
@@ -61,18 +62,21 @@ const char* scanner::fill() {
 	assert(sz <= BUF_SZ);
 
 	if (sz >= BUF_SZ) {
-		// buffer is full, so overflow into a std::string _val (TODO perhaps an evbuffer)
-		// _cur is at the end of the buffer, so append everything up to _cur into _val
-		// and copy _cur to the beginning of the buffer for scanning
-		size_t apnd_sz = BUF_SZ - 1;
-		_val.append(_buf, apnd_sz);
+		// buffer is full, so overflow the consumed span into _val and
+		// carry forward only the unread tail for continued scanning
+		size_t apnd_sz = _cur - _beg;
+		size_t tail_sz = _lim - _cur;
+		_val.append(_beg, apnd_sz);
 		if (TAGL_TRACE_ON) {
 			LOG_DEBUG( "fill _val.append(" << apnd_sz << "): `" << std::string(_buf, apnd_sz) << "'" << std::endl )
 			LOG_DEBUG( "fill    new _val(" << _val.size() << "): `" << _val << "'" << std::endl )
 		}
-		_buf[0] = *_cur;
-		_beg = _cur = &_buf[0];
-		sz = offset = 1;
+		if (tail_sz > 0)
+			memmove(&_buf[0], _cur, tail_sz);
+		_beg = &_buf[0];
+		// resume scanning at the start of the unread tail we just carried forward
+		_cur = &_buf[0];
+		sz = offset = tail_sz;
 	} else {
 		memmove(&_buf[0], _beg, sz);
 		_cur = &_buf[_cur-_beg];
@@ -148,13 +152,22 @@ size_t scanner::line_number() {
 	return _line_number;
 }
 
-std::string* scanner::new_value() {
-	return (_val.empty()
-		? new std::string(_beg, (_cur - _beg))
-		: new std::string(_val.append(_beg, (_cur - _beg))));
+TokenText scanner::store_token_text() {
+	const std::string& s = store_value();
+	return TokenText{s.c_str(), (int)s.size()};
 }
 
-void scanner::emit(int tok, std::string *val) {
+const std::string& scanner::store_value() {
+	return (_val.empty()
+		? _token_store.store(_beg, (_cur - _beg))
+		: _token_store.store(_val.append(_beg, (_cur - _beg))));
+}
+
+TokenText scanner::new_value() {
+	return store_token_text();
+}
+
+void scanner::emit(int tok, TokenText val) {
 	_tok = tok;
 	_driver->parse_tok(_tok, val);
 	advance_begin();
@@ -162,18 +175,18 @@ void scanner::emit(int tok, std::string *val) {
 }
 
 void scanner::emit_tagd_pos_lookup() {
-	std::string *val = new_value();
-	emit(_driver->lookup_pos(*val), val);
+	const std::string& val = store_value();
+	emit(_driver->lookup_pos(val), TokenText{val.c_str(), (int)val.size()});
 }
 
 void scanner::emit_literal_value(int tok, const char *cval) {
-	emit(tok, new std::string(cval));
+	emit(tok, _token_store.store_text(cval, strlen(cval)));
 }
 
 void scanner::emit_lookup_uri_token() {
-	std::string *val = new_value();
-	auto pos = _driver->lookup_pos(*val);
-	emit((pos == TOK_URL ? TOK_HDURI : pos), val);
+	const std::string& val = store_value();
+	auto pos = _driver->lookup_pos(val);
+	emit((pos == TOK_URL ? TOK_HDURI : pos), TokenText{val.c_str(), (int)val.size()});
 }
 
 void scanner::emit_tagl_file_token() {
@@ -182,7 +195,7 @@ void scanner::emit_tagl_file_token() {
 
 void scanner::emit_quoted_string_token() {
 	size_t sz = (_cur - _beg);
-	_val.append(_beg, sz);
+	const std::string& s = store_value();
 
 	int tok;
 	switch(_driver->_token) {
@@ -191,10 +204,10 @@ void scanner::emit_quoted_string_token() {
 			tok = TOK_QUOTED_STR;
 			break;
 		default:
-			tok = _driver->lookup_pos(_val.substr(1, sz - 2));
+			tok = _driver->lookup_pos(s.substr(1, sz - 2));
 	}
 
-	emit(tok, new std::string(_val.substr(1, sz - 2)));
+	emit(tok, _token_store.store_text(s.substr(1, sz - 2)));
 }
 
 void scanner::emit_error() {

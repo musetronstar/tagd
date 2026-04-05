@@ -68,6 +68,8 @@ tagdb_tester::tagdb_tester() {
 	put_test_tag("title", HARD_TAG_ENTITY, tagd::POS_TAG);
 	put_test_tag("internet_security", "information", tagd::POS_TAG);
 	put_test_tag("child", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("simple_english", HARD_TAG_ENTITY, tagd::POS_TAG);
+	put_test_tag("japanese", HARD_TAG_ENTITY, tagd::POS_TAG);
 	put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
 	put_test_tag("fun", "action", tagd::POS_TAG);
 	put_test_tag("_is_a", HARD_TAG_ENTITY, tagd::POS_SUB_RELATOR);
@@ -361,6 +363,28 @@ class Tester : public CxxTest::TestSuite {
 		evbuffer_free(input);
 	}
 
+	void test_post_tagdurl_referent_context(void) {
+		INIT_TDB_TAGL();
+		tagl.tagdurl_put(httagd::request(tagd::HTTP_POST, "/doggy"));
+		tagl.execute("_refers_to dog _context simple_english");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "doggy" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "dog" )
+		TS_ASSERT_EQUALS( dynamic_cast<const tagd::referent&>(tagl.tag()).context(), "simple_english" )
+	}
+
+	void test_post_tagdurl_utf8_referent_context(void) {
+		INIT_TDB_TAGL();
+		tagl.tagdurl_put(httagd::request(tagd::HTTP_POST, "/イヌ"));
+		tagl.execute("_refers_to dog _context japanese");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "イヌ" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "dog" )
+		TS_ASSERT_EQUALS( dynamic_cast<const tagd::referent&>(tagl.tag()).context(), "japanese" )
+	}
+
 	void test_post_tagdurl_evbuffer_body_constrained_tag_id_error(void) {
 		INIT_TDB_TAGL();
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_POST, "/dog"));
@@ -378,6 +402,24 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related("_can", "bark") )
 
 		evbuffer_free(input);
+	}
+
+	void test_put_tagdurl_constrained_tag_id(void) {
+		INIT_TDB_TAGL();
+		tagl.tagdurl_put(httagd::request(tagd::HTTP_PUT, "/dog"));
+		tagl.execute(">> dog _is_a animal _has legs");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
+		TS_ASSERT( tagl.tag().related("_has", "legs") )
+	}
+
+	void test_put_tagdurl_constrained_tag_id_error(void) {
+		INIT_TDB_TAGL();
+		tagl.tagdurl_put(httagd::request(tagd::HTTP_PUT, "/dog"));
+		tagl.execute(">> cat _is_a animal");
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_ERR" )
 	}
 
     void test_get_tagdurl_hduri(void) {

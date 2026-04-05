@@ -17,6 +17,34 @@
 
 #include <stdio.h>
 
+void *ParseAlloc(void *(*)(size_t), TAGL::driver *);
+void Parse(void *, int, TAGL::TokenText);
+void ParseFree(void *, void (*)(void *));
+void ParseTrace(FILE *, char *);
+
+/*
+ * TODO when available in lemon, replace %extra_argument with %extra_context
+ * add extra argument to ParseAlloc() and remove from Parse()
+ */
+
+bool TAGL_TRACE_ON = false;
+
+void TAGL_SET_TRACE_ON() {
+	TAGL_TRACE_ON = true;
+
+#ifndef NDEBUG
+	ParseTrace(stderr, (char *)"tagl_trace: ");
+#endif
+}
+
+void TAGL_SET_TRACE_OFF() {
+	TAGL_TRACE_ON = false;
+
+#ifndef NDEBUG
+	ParseTrace(NULL, NULL);
+#endif
+}
+
 namespace TAGL {
 
 const char* token_str(int tok) {
@@ -65,6 +93,70 @@ driver::~driver() {
 		delete _session;
 	if (_tag != nullptr)
 		delete _tag;
+}
+
+// sets up scanner and parser, wont init if already setup
+void driver::init() {
+	// set _code for new parse, _errors will still contain prev errors
+	if (_code != tagd::TAGD_OK)
+		_code = tagd::TAGD_OK;
+
+	if (_parser != nullptr)
+		return;
+
+    // set up parser
+    _parser = ParseAlloc(::operator new, this);
+    // this also works: _parser = ParseAlloc(malloc, this);
+}
+
+void driver::free_parser() {
+	if (_parser != nullptr) {
+		if (_token != TOK_TERMINATOR && !this->has_errors())
+			Parse(_parser, TOK_TERMINATOR, EMPTY_VALUE);
+		if (_token > 0 && !this->has_errors())
+			Parse(_parser, 0, EMPTY_VALUE);
+		ParseFree(_parser, ::operator delete);
+		// this also works: ParseFree(_parser, free);
+		_parser = nullptr;
+	}
+}
+
+void driver::parse_tok(int tok, TokenText s) {
+		_token = tok;
+		TAGL_LOG_TRACE( "line " << _scanner->_line_number
+				<< ", token " << token_str(_token) << ": " << (s.empty() ? "NULL" : s.str())
+				<< std::endl )
+
+		Parse(_parser, _token, s);
+}
+
+void driver::parse_tok(int tok, const std::string& s) {
+	this->parse_tok(tok, this->store_token_text(s));
+}
+
+void driver::parse_tok(int tok, const char *s) {
+	this->parse_tok(tok, this->store_token_text(std::string(s)));
+}
+
+/* parses an entire string, replace end of input with a newline
+ * init() should be called before calls to parseln and
+ * finish() should be called afterwards
+ * empty line will result in passing a TOK_TERMINATOR token to the parser
+ */
+tagd::code driver::parseln(const std::string& line) {
+	this->init();
+
+	// end of input
+	if (line.empty()) {
+		Parse(_parser, TOK_TERMINATOR, EMPTY_VALUE);
+		_token = 0;
+		Parse(_parser, _token, EMPTY_VALUE);
+		return this->code();
+	}
+
+	_scanner->scan(line);
+
+	return this->code();
 }
 
 void driver::own_session(tagdb::session *ssn) {
@@ -173,6 +265,10 @@ tagd::code driver::scan_tagdurl(tagd::http_method method, const std::string& pat
 	scanner::tagdurl sc(this);
 	sc.scan(method, path);
 	return this->code();
+}
+
+TokenText driver::store_token_text(const std::string& s) {
+	return _scanner->_token_store.store_text(s);
 }
 
 tagd::code driver::execute(const std::string& statement) {

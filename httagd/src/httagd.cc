@@ -138,164 +138,6 @@ evhtp_res set_my_connection_handlers(evhtp_connection_t * conn, void * arg) {
 
 namespace httagd {
 
-void htscanner::scan_tagdurl_path(int cmd, const request& req) {
-	std::string path = req.path();
-	// path separator defs
-	const size_t max_seps = 2;
-	size_t seps[max_seps] = {0, 0};  // offsets of '/' chars
-
-	std::string opt_search = req.query_opt_search();
-	auto f_parse_search_terms = [this, &opt_search]() {
-		this->_driver->parse_tok(TOK_RELATOR, new std::string(HARD_TAG_HAS));
-		this->_driver->parse_tok(TOK_TAG, new std::string(HARD_TAG_TERMS));
-		this->_driver->parse_tok(TOK_EQ, NULL);
-		this->_driver->parse_tok(TOK_QUOTED_STR, new std::string(opt_search));
-	};
-
-	if ((path == "" || path == "/") && cmd == TOK_CMD_GET) {
-		if (opt_search.empty()) {
-			// home page or welcome message
-			dynamic_cast<httagd::callback*>(_driver->callback_ptr())->empty();
-		}
-		else {	// FTS query
-			_driver->parse_tok(TOK_CMD_QUERY, NULL);
-			_driver->parse_tok(TOK_QUOTED_STR, new std::string(opt_search));
-		}
-		return;
-	}
-
-	if (path[0] != '/') {
-			_driver->error(tagd::TAGL_ERR, "malformed path: no leading '/'");
-			return;
-	}
-
-	size_t num_seps = 1;
-	{
-		size_t i = 1;
-		/* HDURI if path is:
-		 *   /hd:rpub!priv_label!rsub!path!query!fragment!port!user!pass!scheme
-		 * we have to advance past the path seps in the HDURI
-		 */
-		if (path.substr(i, tagd::HDURI_SCHEME.size()) == tagd::HDURI_SCHEME) {
-			i = i + tagd::HDURI_SCHEME.size();
-			size_t hduri_delim_count = 0;
-			for (; i < path.size(); ++i) {
-				if (path[i] == tagd::HDURI_DELIM) {
-					if (++hduri_delim_count == tagd::HDURI_DELIM_COUNT) {
-						i++;
-						break;
-					}
-				}
-			}
-		}
-
-		// find the offsets of remain path separators
-		for(; i < path.size(); ++i) {
-			if (path[i] == '/') {
-				if (num_seps == max_seps) {
-					// TODO use error tag
-					_driver->error(tagd::TAGL_ERR, "max_seps exceeded");
-					return;
-				}
-				seps[num_seps++] = i;
-			}
-		}
-	}
-
-	if (cmd == TOK_CMD_PUT && num_seps > 1) {
-		_driver->error(tagd::TAGL_ERR, "malformed path: trailing '/'");
-		return;
-	}
-
-	// path segment
-	std::string segment;
-
-	// first segment tag id - what is it?
-	size_t sep_i = 0;
-	if (seps[sep_i+1]) { // extract id between the separators: /id/
-		size_t sz = seps[sep_i+1] - seps[sep_i] - 1;
-		segment = path.substr((seps[sep_i]+1), sz);
-	}
-	else {
-		// GET, PUT, or DEL
-		segment = path.substr(seps[sep_i]+1);
-	}
-
-	auto f_parse_cmd_query = [this, &cmd]() {
-		cmd = TOK_CMD_QUERY;
-		this->_driver->parse_tok(cmd, NULL);
-		this->_driver->parse_tok(TOK_INTERROGATOR,
-			(new std::string(HARD_TAG_INTERROGATOR)) );  // parser deletes
-	};
-
-	if (cmd == TOK_CMD_GET) {
-		if (num_seps > 1) {
-			f_parse_cmd_query();
-
-			// first segment of "*" is a placeholder for sub relation, so ignore it
-			if (segment != "*") {  // how is it related
-				_driver->parse_tok(TOK_SUB_RELATOR, (new std::string(HARD_TAG_SUB)));
-				this->scan(tagd::uri_decode(segment));
-			}
-		} else {
-			if (!opt_search.empty()) {  // GET tag should not have a FTS query
-				_driver->error(tagd::TS_MISUSE, "illegal use of search terms with GET command");
-				return;
-			} else {
-				_driver->parse_tok(cmd, NULL);
-				this->scan(tagd::uri_decode(segment));
-			}
-		}
-	} else {
-		if(cmd != TOK_CMD_PUT && cmd != TOK_CMD_DEL) {
-			_driver->error(tagd::TS_MISUSE, "illegal command");
-			return;
-		}
-
-		if (!opt_search.empty()) {
-			_driver->error(tagd::TS_MISUSE, "illegal use of search terms with method");
-			return;
-		}
-
-		/*\
-		|*|	parse the cmd and tag_id for POSTs and DELETEs
-		|*| (prepended to the TAGL statement in the body of the http request)
-		|*| e.g.:
-		|*|   POST /dog
-		|*|
-		|*|   has legs, can bark
-		|*|
-		|*|	whereas PUTs only constrain the tag id in the TAGL statement(s)
-		|*| e.g.:
-		|*|   PUT /dog
-		|*|
-		|*|   >> dog is_a animal has legs, can bark
-		\*/
-
-		const auto id = tagd::uri_decode(segment);
-		_driver->constrain_tag_id = id;
-
-		if (req.method != tagd::HTTP_PUT) {
-			_driver->parse_tok(cmd, NULL);
-			this->scan(id);
-		}
-	}
-
-	if (++sep_i >= num_seps)
-		return;
-
-	// second segment - how is it related?
-	segment = path.substr(seps[sep_i]+1);
-
-	if (!segment.empty()) {
-		_driver->parse_tok(TOK_WILDCARD, NULL);
-		this->scan(tagd::uri_decode(segment));
-	}
-
-	if (cmd == TOK_CMD_QUERY && !opt_search.empty())
-		f_parse_search_terms();
-}
-
 // translate an HTTP request into a TAGL statement and execute
 tagd::code httagl::execute(transaction& tx) {
 	// translate evhtp_method into tagd::http_method
@@ -312,7 +154,7 @@ tagd::code httagl::execute(transaction& tx) {
 			break;
 		case htp_method_PUT:
 			tx.req->method = tagd::HTTP_PUT;
-			if (tx.req->path().empty() || tx.req->path() == "/") {
+			if (tx.req->has_root_path()) {
 				tx.error(tagd::HTTP_ERR, "tag id in path required for HTTP PUT");
 			} else {
 				this->tagdurl_put(*tx.req);
@@ -321,8 +163,9 @@ tagd::code httagl::execute(transaction& tx) {
 			break;
 		case htp_method_POST:
 			tx.req->method = tagd::HTTP_POST;
-			// if not empty, parse the tagdurl path
-			if (!(tx.req->path().empty() || tx.req->path() == "/")) {
+			// Keep HTTP path/body composition here; tagdurl translation remains
+			// one standalone tagdurl to one TAGL statement.
+			if (!tx.req->has_root_path()) {
 				this->tagdurl_put(*tx.req);	// put matches tagdb semantics, not http
 			}
 			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
@@ -359,25 +202,73 @@ tagd::code httagl::execute(transaction& tx) {
 }
 
 tagd::code httagl::tagdurl_get(const request& req) {
+	return this->scan_request_tagdurl(req);
+}
+
+tagd::code httagl::tagdurl_put(const request& req) {
+	if ((req.method == tagd::HTTP_POST || req.method == tagd::HTTP_PUT) &&
+	    !req.has_root_path()) {
+		return this->prepare_constrained_body_subject(req);
+	}
+
+	return this->scan_request_tagdurl(req);
+}
+
+tagd::code httagl::validate_request_tag_id_path(const request& req) {
 	this->init();
 
-	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_GET, req);
+	if (req.has_search_query()) {
+		this->error(tagd::TS_MISUSE, "unhandled command");
+		return this->code();
+	}
+
+	if (req.has_root_path()) {
+		this->error(tagd::TAGL_ERR, "tag id required in path");
+		return this->code();
+	}
+
+	if (req.path()[0] != '/') {
+		this->error(tagd::TAGL_ERR, "malformed path: no leading '/'");
+		return this->code();
+	}
+
+	const std::string id = req.path_tag_id();
+	if (id.empty()) {
+		this->error(tagd::TAGL_ERR, "tag id required in path");
+		return this->code();
+	}
+
+	if (id.substr(0, tagd::HDURI_SCHEME.size()) != tagd::HDURI_SCHEME &&
+	    id.find('/') != std::string::npos) {
+		this->error(tagd::TAGL_ERR, "malformed path: trailing '/'");
+		return this->code();
+	}
 
 	return this->code();
 }
 
-tagd::code httagl::tagdurl_put(const request& req) {
-	this->init();
+tagd::code httagl::prepare_constrained_body_subject(const request& req) {
+	this->validate_request_tag_id_path(req);
+	if (this->has_errors())
+		return this->code();
 
-	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_PUT, req);
+	this->constrain_tag_id = req.path_tag_id();
+	if (req.method == tagd::HTTP_POST) {
+		this->parse_tok(TOK_CMD_PUT, TAGL::EMPTY_VALUE);
+		this->parse_tok(this->lookup_pos(this->constrain_tag_id), this->constrain_tag_id);
+	}
 
 	return this->code();
 }
 
 tagd::code httagl::tagdurl_del(const request& req) {
+	return this->scan_request_tagdurl(req);
+}
+
+tagd::code httagl::scan_request_tagdurl(const request& req) {
 	this->init();
 
-	dynamic_cast<htscanner*>(_scanner)->scan_tagdurl_path(TOK_CMD_DEL, req);
+	TAGL::driver::scan_tagdurl(req.method, req.tagdurl());
 
 	return this->code();
 }
@@ -585,7 +476,7 @@ std::string request::abs_url_view(const std::string& view_name) const {
 }
 
 std::string transaction::effective_opt_view() const {
-	std::string view_opt = this->req->query_opt(QUERY_OPT_VIEW);
+	std::string view_opt = this->req->query_opt(TAGL::QUERY_OPT_VIEW);
 	if (view_opt.empty()) {
 		if (!this->svr->args()->default_view.empty())
 			return this->svr->args()->default_view;  // user supplied default
@@ -837,19 +728,19 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 	std::string opt_str;
 
 	std::string view_name;
-	tagd::url::query_find(query_map, view_name, QUERY_OPT_VIEW);
+	tagd::url::query_find(query_map, view_name, TAGL::QUERY_OPT_VIEW);
 	if (!view_name.empty()) {
 		opt_str.push_back(opt_str.empty() ? '?' : '&');
-		opt_str.append(QUERY_OPT_VIEW);
+		opt_str.append(TAGL::QUERY_OPT_VIEW);
 		opt_str.push_back(('='));
 		opt_str.append(tagd::uri_encode(view_name));
 	}
 
 	std::string context;
-	tagd::url::query_find(query_map, context, QUERY_OPT_CONTEXT);
+	tagd::url::query_find(query_map, context, TAGL::QUERY_OPT_CONTEXT);
 	if (!context.empty()) {
 		opt_str.push_back(opt_str.empty() ? '?' : '&');
-		opt_str.append(QUERY_OPT_CONTEXT);
+		opt_str.append(TAGL::QUERY_OPT_CONTEXT);
 		opt_str.push_back(('='));
 		opt_str.append(tagd::uri_encode(context));
 	}
@@ -1060,4 +951,3 @@ tagd::code server::start() {
 }
 
 } // namespace httagd
-

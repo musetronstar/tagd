@@ -309,7 +309,7 @@ int tagsh::interpret(const std::string &line) {
 		// hanging on the end of the stack
 		// i.e. cmd_statement TERMINATOR
 		if (!_driver.has_errors() && _driver.token() == TOK_TERMINATOR)
-			_driver.parse_tok(TOK_TERMINATOR, NULL);
+			_driver.parse_tok(TOK_TERMINATOR, TAGL::EMPTY_VALUE);
 
 		if (_driver.has_errors()) {
 			_driver.finish();
@@ -544,5 +544,4 @@ int cmd_args::interpret(tagsh& shell) {
 
 	return 0;
 }
-
 
