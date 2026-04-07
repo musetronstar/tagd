@@ -131,22 +131,6 @@ class scanner::tagdurl : public scanner {
 
 #endif  // TAGL_SCANNER_H
 
-/*\
-|*|  TODO
-|*|  a tagdurl comes after the commend. 
-|*|  add patterns for three tagdurl patterns
-|*|  example of the two command patterns we can support (for now)
-|*|
-|*|  -- 1. GET tag `<< dog;`
-|*|  << /dog;
-|*|
-|*|  -- 2. QUERY `?? _sub mammal`
-|*|  ?? /mammal/;
-|*|
-|*| TODO query opts later...
-\*/ 
-
-
 /*!rules:re2c:tagl_defs
 	NL			= "\r"? "\n" ;
 	ANY			= [^] ;

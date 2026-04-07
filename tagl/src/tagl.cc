@@ -68,19 +68,17 @@ driver::driver(tagdb::tagdb *tdb, scanner *s, tagdb::session *ssn) :
 }
 
 driver::driver(tagdb::tagdb *tdb, scanner *s, callback *cb, tagdb::session *ssn) :
-		_scanner{s}, _tdb{tdb}, _session{ssn}, _callback{cb}
+		_scanner{s}, _tdb{tdb}, _session{ssn}
 {
-	// TODO this can produce nasty side effects.  There must be a better way...
-	cb->_driver = this;
+	this->bind_callback(cb);
 	this->init();
 }
 
 driver::driver(tagdb::tagdb *tdb, callback *cb, tagdb::session *ssn) :
 		_own_scanner{true}, _scanner{new scanner(this)},
-		_tdb{tdb}, _session{ssn}, _callback{cb}
+		_tdb{tdb}, _session{ssn}
 {
-	// TODO this can produce nasty side effects.  There must be a better way...
-	cb->_driver = this;
+	this->bind_callback(cb);
 	this->init();
 }
 
@@ -136,6 +134,12 @@ void driver::parse_tok(int tok, const std::string& s) {
 
 void driver::parse_tok(int tok, const char *s) {
 	this->parse_tok(tok, this->store_token_text(std::string(s)));
+}
+
+void driver::bind_callback(callback *cb) {
+	_callback = cb;
+	if (cb != nullptr)
+		cb->_driver = this;
 }
 
 /* parses an entire string, replace end of input with a newline
@@ -439,7 +443,7 @@ tagd::code driver::include_file(const std::string& path) {
 		// create object of this type of driver to execute include file
 		// TODO figure out how to make this work create new polymorphic object
 		// auto *inc_driver = new decltype(this)(_tdb, _callback);
-		driver inc_driver(_tdb, _callback);  // WTF - sets _callback->_driver = this (&inc_driver)
+		driver inc_driver(_tdb, _callback);
 		inc_driver.path(path);
 		rc = inc_driver.execute(input);
 		if (inc_driver.has_errors())
@@ -448,7 +452,7 @@ tagd::code driver::include_file(const std::string& path) {
 		rc = this->ferror(tagd::TAGL_ERR, "evbuffer_add_file failed: %s", path.c_str());
 	}
 
-	this->callback_ptr(_callback);  // WTF - reset _callback->_driver = this
+	this->bind_callback(_callback);
 
 	evbuffer_free(input);
 	return rc;

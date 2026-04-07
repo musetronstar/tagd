@@ -14,8 +14,8 @@
 lib/
 bin/
 
-# project files
-.vscode/
+# hidden files/dirs
+.*
 
 # CxxTest output - note the ucase in test filenames (e.g. Tester.h)
 *tester*
@@ -43,5 +43,4 @@ scanner.tagdurl.cc
 lemon
 
 # vim Coc generated
-.cache/
 compile_commands.json

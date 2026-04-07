@@ -267,6 +267,10 @@ class callback_tester : public TAGL::callback {
 				delete last_tag;
 		}
 
+		const TAGL::driver *bound_driver() const {
+			return _driver;
+		}
+
 		void cmd_get(const tagd::abstract_tag& t) {
 			cmd = TOK_CMD_GET;
 			if(t.pos() == tagd::POS_URL) {
@@ -1988,6 +1992,30 @@ class Tester : public CxxTest::TestSuite {
 		remove(path.c_str());
 
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+	}
+
+	void test_include_file_restores_callback_binding(void) {
+		std::string path = "tagl_include_callback_" + std::to_string(getpid()) + ".tagl";
+		FILE *fp = fopen(path.c_str(), "w");
+		TS_ASSERT(fp != nullptr)
+		if (fp == nullptr)
+			return;
+		fputs(">> dog ", fp);
+		fputs(HARD_TAG_IS_A, fp);
+		fputs(" mammal;\n", fp);
+		fclose(fp);
+
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb);
+
+		TS_ASSERT_EQUALS(cb.bound_driver(), &tagl)
+
+		tagd::code tc = tagl.include_file(path);
+		remove(path.c_str());
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS(cb.bound_driver(), &tagl)
 	}
 
 	void test_tag_token_survives_later_scanner_activity(void) {

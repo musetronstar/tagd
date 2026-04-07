@@ -10,7 +10,6 @@ class TagdUrlTester : public CxxTest::TestSuite {
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
 
-		// TODO implement this
 		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_GET, "/dog");
 		tagl.finish();
 

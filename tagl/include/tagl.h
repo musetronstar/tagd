@@ -40,7 +40,7 @@ class callback {
 	friend class TAGL::driver;
 
 	protected:
-		driver *_driver;
+		driver *_driver = nullptr;
 
     public:
         callback() {}
@@ -84,6 +84,7 @@ class driver : public tagd::errorable {
 		void free_parser();
 		int parse_tokens();
 		TokenText store_token_text(const std::string&);
+		void bind_callback(callback *);
 
 	public:
 		driver(tagdb::tagdb*, tagdb::session* = nullptr);
@@ -106,9 +107,7 @@ class driver : public tagd::errorable {
 		tagd::code push_context(const tagd::id_type&);
 
 		void callback_ptr(callback *c) {
-			_callback = c;
-			// TODO this can produce nasty side effects.  There must be a better way...
-			c->_driver = this;
+			this->bind_callback(c);
 		}
 		callback *callback_ptr() { return _callback; }
 

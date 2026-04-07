@@ -270,22 +270,6 @@ get_statement ::= CMD_GET TAGDURL(U) .
 {
 	scan_tagdurl(tagl, U.str());
 }
-get_statement ::= CMD_GET TAGDURL(U) .
-{
-	// Use a separate driver+parser so the tagdurl scanner can call parse_tok
-	// without re-entering the outer parser mid-reduction.
-	TAGL::driver inner(tagl->tdb(), tagl->session_ptr());
-	inner.scan_tagdurl(TOK_CMD_GET, *U);
-	inner.finish();  // flush reductions before inspecting tag_ptr
-	if (inner.has_errors()) {
-		tagl->copy_errors(inner);
-	} else if (inner.tag_ptr() != nullptr) {
-		tagl->delete_tag();
-		tagl->tag_ptr(inner.tag_ptr());
-		inner.tag_ptr(nullptr);  // transfer ownership to outer driver
-	}
-	MDELETE(U)
-}
 
 put_statement ::= CMD_PUT subject_sub_relation relations .
 put_statement ::= CMD_PUT subject_sub_relation .
