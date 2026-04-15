@@ -1,7 +1,10 @@
 #pragma once
 
 #include <functional>
+#include <iostream>
+#include <ostream>
 
+#include "tagd/logger.h"
 #include "tagl.h"
 #include "tagdb/sqlite.h"
 
@@ -36,11 +39,13 @@ class tagsh {
 		tagsh_callback *_callback;
 		bool _own_callback = false;  // true if this alloced the callback pointer
 		TAGL::driver _driver;
+		tagd::code _last_code = tagd::TAGD_OK;
 
 	public:
 		static constexpr const char* DEFAULT_PROMPT = "tagd> ";
 		std::string prompt = DEFAULT_PROMPT;
 		bool echo_result_code = true;
+		std::ostream *out = &std::cout;
 
 		tagsh(tagdb_type *tdb, tagsh_callback *cb) :
 			_tdb{tdb}, _callback{cb}, _driver(tdb, cb)
@@ -65,6 +70,9 @@ class tagsh {
 		int interpret(std::istream&);
 		int interpret(const std::string&);  // tagl statement
 		int interpret_fname(const std::string&);  // filename
+		tagd::code last_code() const { return (_last_code == tagd::TAGD_OK ? _tdb->code() : _last_code); }
+		void last_code(tagd::code code) { _last_code = code; }
+		void set_output(std::ostream& os) { out = &os; }
 		void dump() { _tdb->dump(); }
 		void dump_file(const std::string&, bool = true);
 		static int error(const char *errfmt, ...);
@@ -86,9 +94,9 @@ class cmd_args : public tagd::errorable {
 		std::vector<std::string> tagl_statements;
 		std::string db_fname;
 		bool opt_db_create = false;
-		bool opt_trace = false;
 		bool opt_noshell = false;
 		bool opt_dump = false;
+		tagd::logger opt_logger;
 
 		cmd_args();
 		void parse(int, char **); 

@@ -26,10 +26,10 @@ INC = -I$(TAGD_DIR)/include \
 
 # WTF why must httagd.a be linked first, or else 'undefined reference' errors?
 LFLAGS = -L $(HTTAGD_DIR)/lib -lhttagd \
-		 -L $(TAGD_DIR)/lib -ltagd \
 		 -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite \
 		 -L $(TAGL_DIR)/lib -ltagl \
 		 -L $(TAGSH_DIR)/lib -ltagsh \
+		 -L $(TAGD_DIR)/lib -ltagd \
 		 -lsqlite3 -levent -lreadline -lctemplate_nothreads
 
 ifdef EVHTP_SRC_DIR

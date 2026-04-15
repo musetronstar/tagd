@@ -16,6 +16,13 @@ hard tags), every hard tag (and every subsequent extended user-defined tag)
 is assigned a `tagd::part_of_speech`.  Instead of keywords, TAGL is made up of
 members of classes of TAGL parts of speech.
 
+### URI Style Naming
+
+Hard tags having a super object having the same name embedded or same type,
+should use a URI ':' separator in the form: '_super:sub'
+
+For example, `_error:ts_not_found` not `_ts_not_found_error`
+
 ### Adding Hard Tags
 
 1. Add an entry to the `tagd::part_of_speech` enum in `tagd/include/tagd.h`

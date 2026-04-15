@@ -186,6 +186,7 @@ set_statement ::= CMD_SET set_include .
 %type relator_symbol { TAGL::TokenText }
 %type lhs_object { TAGL::TokenText }
 %type rhs_object { TAGL::TokenText }
+%type quantifier { TAGL::TokenText }
 
 set_flag ::= FLAG(F) boolean_value(b) .
 {
@@ -202,9 +203,18 @@ set_flag ::= FLAG(F) boolean_value(b) .
 		tagl->ferror(tagd::TAGL_ERR, "bad flag: %s", flag.c_str());
 	}
 }
-boolean_value(b) ::= QUANTIFIER(Q) .
+boolean_value(b) ::= quantifier(Q) .
 {
 	b = (Q.str() != "0");
+}
+
+quantifier(q) ::= INTEGER(I) .
+{
+	q = I;
+}
+quantifier(q) ::= FLOAT(F) .
+{
+	q = F;
 }
 
 set_context ::= new_context context_list .
@@ -281,7 +291,7 @@ put_statement ::= CMD_PUT TAGDURL(U) .
 }
 
 del_statement ::= CMD_DEL subject .
-get_statement ::= CMD_DEL UNKNOWN(U) .
+del_statement ::= CMD_DEL UNKNOWN(U) .
 {
 	tagl->error(tagd::TS_NOT_FOUND,
 		tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, U.str()));
@@ -386,6 +396,20 @@ subject ::= URL(U) .
 subject ::= HDURI(U) .
 {
 	tagl->new_url(U.str());
+}
+subject ::= EVURI(U) .
+{
+	const auto u = U.str();
+	NEW_TAG(tagd::event, u);
+	if (tagl->tag_ptr() != nullptr && !tagl->tag_ptr()->ok())
+		tagl->ferror(tagl->tag_ptr()->code(), "bad evuri: %s", u.c_str());
+}
+subject ::= ERRURI(U) .
+{
+	const auto u = U.str();
+	NEW_TAG(tagd::error, u);
+	if (tagl->tag_ptr() != nullptr && !tagl->tag_ptr()->ok())
+		tagl->ferror(tagl->tag_ptr()->code(), "bad erruri: %s", u.c_str());
 }
 subject ::= REFERENT(R) .
 {
@@ -584,18 +608,24 @@ modified_object ::= lhs_object(l) op(o) rhs_object(r) .
 	(void)tagl->tag_ptr()->relation(tagl->relator, l.str(), r.str(), o);
 }
 
-lhs_object(o) ::= TAG(T) . 
+lhs_object(o) ::= TAG(T) .
 { o = T; }
 
-rhs_object(o) ::= QUANTIFIER(Q) .
-{ o = Q; }
-rhs_object(o) ::= MODIFIER(M) . 
+rhs_object(o) ::= quantifier(q) .
+{ o = q; }
+rhs_object(o) ::= MODIFIER(M) .
 { o = M; }
 rhs_object(o) ::= QUOTED_STR(Q) . 
 { o = Q; }
+rhs_object(o) ::= UNKNOWN(U) .
+{ o = U; }
 rhs_object(o) ::= URL(U) . 
 { o = U; }
 rhs_object(o) ::= HDURI(U) . 
+{ o = U; }
+rhs_object(o) ::= EVURI(U) . 
+{ o = U; }
+rhs_object(o) ::= ERRURI(U) . 
 { o = U; }
 
 bare_object ::= TAG(T) .
@@ -620,6 +650,26 @@ bare_object ::= HDURI(U) .
 	} else {
 		const auto text = U.str();
 		tagl->ferror(hduri.code(), "bad hduri: %s", text.c_str());
+	}
+}
+bare_object ::= EVURI(U) .
+{
+	tagd::event ev(U.str());
+	if (ev.code() == tagd::TAGD_OK) {
+		(void)tagl->tag_ptr()->relation(tagl->relator, ev.evuri());
+	} else {
+		const auto text = U.str();
+		tagl->ferror(ev.code(), "bad evuri: %s", text.c_str());
+	}
+}
+bare_object ::= ERRURI(U) .
+{
+	tagd::error err(U.str());
+	if (err.code() == tagd::TAGD_OK) {
+		(void)tagl->tag_ptr()->relation(tagl->relator, err.evuri());
+	} else {
+		const auto text = U.str();
+		tagl->ferror(err.code(), "bad erruri: %s", text.c_str());
 	}
 }
 bare_object ::= REFERENT(R) .

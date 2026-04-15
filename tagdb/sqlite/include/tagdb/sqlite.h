@@ -127,9 +127,6 @@ class sqlite: public tagdb {
         tagd::code dump_uridb(std::ostream& = std::cout);
         tagd::code dump_uridb_relations(std::ostream& = std::cout);
 
-		void trace_on();
-		void trace_off();
-
     protected:
 		// returns the part of speech that was inserted or updated, or a duplicate, POS_UNKNOWN on error
 		tagd::part_of_speech put_term(const tagd::id_type&, const tagd::part_of_speech);

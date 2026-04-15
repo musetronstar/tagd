@@ -480,7 +480,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT( c < d );
         TS_ASSERT( a < d );
 
-        tagd::tag e("caca");
+        tagd::tag e("haha");
 
 		// assertions fail when comparing tags with rank vs w/o ranks
         // TS_ASSERT( e < d );
@@ -954,7 +954,7 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_predicate_compare(void) {
-		// TYPE_TEXT
+		// TYPE_STRING
 		tagd::predicate p_empty;
 		tagd::predicate pt_can_fly("can", "fly");
 		tagd::predicate pt_can_fly_far("can", "fly", "far");
@@ -965,15 +965,15 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( pt_can_fly_far < pt_has_legs_eq_4_cons_no_type )
 
 
-		tagd::predicate pt_has_legs_eq_4{"has", "legs", "4", tagd::OP_EQ, tagd::TYPE_TEXT}; // init list style
+		tagd::predicate pt_has_legs_eq_4{"has", "legs", "4", tagd::OP_EQ, tagd::TYPE_STRING}; // init list style
 		TS_ASSERT( pt_has_legs_eq_4_cons_no_type == pt_has_legs_eq_4 )
 		TS_ASSERT( !(pt_has_legs_eq_4_cons_no_type < pt_has_legs_eq_4) )
 		TS_ASSERT( !(pt_has_legs_eq_4 < pt_has_legs_eq_4_cons_no_type) )
 
-		tagd::predicate pt_has_legs_eq_44("has", "legs", "44", tagd::OP_EQ, tagd::TYPE_TEXT);
+		tagd::predicate pt_has_legs_eq_44("has", "legs", "44", tagd::OP_EQ, tagd::TYPE_STRING);
 		TS_ASSERT( pt_has_legs_eq_4 < pt_has_legs_eq_44 ) // "4" < "44"
 
-		tagd::predicate pt_has_legs_eq_6("has", "legs", "6", tagd::OP_EQ, tagd::TYPE_TEXT);
+		tagd::predicate pt_has_legs_eq_6("has", "legs", "6", tagd::OP_EQ, tagd::TYPE_STRING);
 		TS_ASSERT( pt_has_legs_eq_4 != pt_has_legs_eq_6 ) // "4" != "6"
 		TS_ASSERT( pt_has_legs_eq_4 < pt_has_legs_eq_6 )  // "4" < "6"
 		TS_ASSERT( pt_has_legs_eq_44 < pt_has_legs_eq_6 ) // "44" < "6"
@@ -1055,21 +1055,47 @@ class Tester : public CxxTest::TestSuite {
 
     void test_error(void) {
         tagd::error err(tagd::TAGD_ERR);
-		TS_ASSERT_EQUALS( err.id(), "TAGD_ERR" ) 
-		TS_ASSERT_EQUALS( err.super_object(), HARD_TAG_ERROR ) 
+		TS_ASSERT( err.id().find("err:") == 0 )
+		TS_ASSERT_EQUALS( err.evuri(), err.id() )
+		TS_ASSERT_EQUALS( err.event_type_tag(), HARD_TAG_ERROR_TAGD_ERR )
+		TS_ASSERT_EQUALS( err.super_object(), HARD_TAG_ERROR_TAGD_ERR )
     }
+
+    void test_error_erruri(void) {
+		const std::string erruri = "err:2026-04-09T04:00:56.739Z!host!principal!tagsh!01KNS1F5S0CHPPQQNCVRQKVZM4!2!_error:ts_not_found";
+        tagd::error err(erruri);
+		TS_ASSERT_EQUALS( err.id(), erruri )
+		TS_ASSERT_EQUALS( err.evuri(), erruri )
+		TS_ASSERT_EQUALS( err.event_type_tag(), HARD_TAG_ERROR_TS_NOT_FOUND )
+		TS_ASSERT_EQUALS( err.super_object(), HARD_TAG_ERROR_TS_NOT_FOUND )
+		TS_ASSERT_EQUALS( err.pos(), tagd::POS_ERROR )
+    }
+
+	void test_code_error_tag(void) {
+		TS_ASSERT_EQUALS(std::string(tagd::code_error_tag(tagd::TAGD_ERR)), HARD_TAG_ERROR_TAGD_ERR)
+		TS_ASSERT_EQUALS(std::string(tagd::code_error_tag(tagd::TS_NOT_FOUND)), HARD_TAG_ERROR_TS_NOT_FOUND)
+		TS_ASSERT_EQUALS(std::string(tagd::code_error_tag(tagd::TAGL_ERR)), HARD_TAG_ERROR_TAGL_ERR)
+	}
 
     void test_error_msg(void) {
         tagd::error err(tagd::TAGD_ERR, "bad tag: oops");
-		TS_ASSERT_EQUALS( err.id(), "TAGD_ERR" ) 
-		TS_ASSERT_EQUALS( err.super_object(), HARD_TAG_ERROR ) 
+		TS_ASSERT( err.id().find("err:") == 0 )
+		TS_ASSERT_EQUALS( err.event_type_tag(), HARD_TAG_ERROR_TAGD_ERR )
+		TS_ASSERT_EQUALS( err.super_object(), HARD_TAG_ERROR_TAGD_ERR )
 		TS_ASSERT_EQUALS( err.message(), "bad tag: oops" ) 
+
+		std::stringstream ss;
+		ss << err;
+		TS_ASSERT( ss.str().find("err:") == 0 )
+		TS_ASSERT_EQUALS( ss.str().find(" _type_of "), std::string::npos )
+		TS_ASSERT( ss.str().find(HARD_TAG_MESSAGE) != std::string::npos )
     }
 
     void test_ferror_msg(void) {
         tagd::error err = tagd::error::ferror(tagd::TAGD_ERR, "bad tag: %s", "oops");
-		TS_ASSERT_EQUALS( err.id(), "TAGD_ERR" ) 
-		TS_ASSERT_EQUALS( err.super_object(), HARD_TAG_ERROR ) 
+		TS_ASSERT( err.id().find("err:") == 0 )
+		TS_ASSERT_EQUALS( err.event_type_tag(), HARD_TAG_ERROR_TAGD_ERR )
+		TS_ASSERT_EQUALS( err.super_object(), HARD_TAG_ERROR_TAGD_ERR )
 		TS_ASSERT_EQUALS( err.message(), "bad tag: oops" ) 
     }
 
@@ -1095,8 +1121,9 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
 		TS_ASSERT( !R.ok() )
 		TS_ASSERT( R.has_errors() )
-		TS_ASSERT_EQUALS( R.last_error().id(), "TAGD_ERR" )
-		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR )
+		TS_ASSERT( R.last_error().id().find("err:") == 0 )
+		TS_ASSERT_EQUALS( R.last_error().event_type_tag(), HARD_TAG_ERROR_TAGD_ERR )
+		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR_TAGD_ERR )
 		TS_ASSERT_EQUALS( R.last_error().message(), std::string("bad tag: oops") )
 
 		R.report_errors = false;
@@ -1104,7 +1131,7 @@ class Tester : public CxxTest::TestSuite {
 		// same error as  last reported
 		TS_ASSERT_EQUALS( R.size() , 1 );
 		TS_ASSERT_EQUALS( R.code() , tagd::TAGD_ERR )
-		TS_ASSERT_EQUALS( R.last_error().id(), "TAGD_ERR" )
+		TS_ASSERT_EQUALS( R.last_error().event_type_tag(), HARD_TAG_ERROR_TAGD_ERR )
 		R.report_errors = true;
 
         tagd::error err(tagd::TS_MISUSE);
@@ -1116,8 +1143,9 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( !R.ok() )
 		TS_ASSERT( R.has_errors() )
         TS_ASSERT_EQUALS (TAGD_CODE_STRING(R.code()) , "TS_MISUSE");
-		TS_ASSERT_EQUALS( R.last_error().id(), "TS_MISUSE" )
-		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR )
+		TS_ASSERT( R.last_error().id().find("err:") == 0 )
+		TS_ASSERT_EQUALS( R.last_error().event_type_tag(), HARD_TAG_ERROR_TS_MISUSE )
+		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR_TS_MISUSE )
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah") )
 
 		R.error( tagd::TAGD_ERR,
@@ -1128,14 +1156,15 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( !R.ok() )
 		TS_ASSERT( R.has_errors() )
         TS_ASSERT_EQUALS (TAGD_CODE_STRING(R.code()) , "TAGD_ERR");
-		TS_ASSERT_EQUALS( R.last_error().id() , "TAGD_ERR" )
-		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR )
+		TS_ASSERT( R.last_error().id().find("err:") == 0 )
+		TS_ASSERT_EQUALS( R.last_error().event_type_tag() , HARD_TAG_ERROR_TAGD_ERR )
+		TS_ASSERT_EQUALS( R.last_error().super_object(), HARD_TAG_ERROR_TAGD_ERR )
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") )
 
 		R.last_error_relation(tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23"));
 		num_relations++;
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23") )
-		TS_ASSERT_EQUALS( R.last_error().id() , "TAGD_ERR" )
+		TS_ASSERT_EQUALS( R.last_error().event_type_tag() , HARD_TAG_ERROR_TAGD_ERR )
         TS_ASSERT_EQUALS (TAGD_CODE_STRING(R.code()) , "TAGD_ERR");
 
 		R.ferror( tagd::TS_NOT_FOUND, "no such tag: %s", "blah");
@@ -1144,7 +1173,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS (TAGD_CODE_STRING(R.code()) , "TS_NOT_FOUND");
 		R.last_error_relation(tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah"));
 		num_relations++;
-		TS_ASSERT_EQUALS( R.last_error().id() , "TS_NOT_FOUND" )
+		TS_ASSERT_EQUALS( R.last_error().event_type_tag() , HARD_TAG_ERROR_TS_NOT_FOUND )
 		TS_ASSERT( R.last_error().related(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah") )
         TS_ASSERT_EQUALS (TAGD_CODE_STRING(R.code()) , "TS_NOT_FOUND");
 
@@ -1162,17 +1191,17 @@ class Tester : public CxxTest::TestSuite {
 
 		auto it = R1.errors().begin();
 		TS_ASSERT( it != R1.errors().end() );
-		TS_ASSERT_EQUALS( it->id() , "TAGD_ERR" );
+		TS_ASSERT_EQUALS( it->event_type_tag() , HARD_TAG_ERROR_TAGD_ERR );
 		TS_ASSERT( it->related(HARD_TAG_HAS, HARD_TAG_MESSAGE, "bad tag: oops") );
 		it++;
-		TS_ASSERT_EQUALS( it->id() , "TS_MISUSE" );
+		TS_ASSERT_EQUALS( it->event_type_tag() , HARD_TAG_ERROR_TS_MISUSE );
 		TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah") );
 		it++;
-		TS_ASSERT_EQUALS( it->id() , "TAGD_ERR" );
+		TS_ASSERT_EQUALS( it->event_type_tag() , HARD_TAG_ERROR_TAGD_ERR );
 		TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, "imsobad") );
 		TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, HARD_TAG_LINE_NUMBER, "23") );
 		it++;
-		TS_ASSERT_EQUALS( it->id() , "TS_NOT_FOUND" )
+		TS_ASSERT_EQUALS( it->event_type_tag() , HARD_TAG_ERROR_TS_NOT_FOUND )
 		TS_ASSERT( it->related(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "blah") )
 		it++;
 		TS_ASSERT( it == R1.errors().end() );
@@ -1187,7 +1216,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( R2.size() , 0 );
 
 		TS_ASSERT_EQUALS( R1.ferror(tagd::TAG_ILLEGAL, "bad tag: %s", "oops") , tagd::TAG_ILLEGAL );
-		TS_ASSERT_EQUALS( R1.last_error().id(), "TAG_ILLEGAL" )
+		TS_ASSERT_EQUALS( R1.last_error().event_type_tag(), HARD_TAG_ERROR_TAG_ILLEGAL )
 		TS_ASSERT_EQUALS( R1.size() , 1 );
 		TS_ASSERT_EQUALS( R2.size() , 1 );
 
@@ -1203,7 +1232,7 @@ class Tester : public CxxTest::TestSuite {
 
 		tagd::errorable R3, R4;
 		TS_ASSERT_EQUALS( R3.ferror(tagd::TAG_UNKNOWN, "bad tag: %s", "oops") , tagd::TAG_UNKNOWN );
-		TS_ASSERT_EQUALS( R3.last_error().id(), "TAG_UNKNOWN" )
+		TS_ASSERT_EQUALS( R3.last_error().event_type_tag(), HARD_TAG_ERROR_TAG_UNKNOWN )
 		TS_ASSERT_EQUALS( R3.size() , 1 );
 		TS_ASSERT_EQUALS( R4.size() , 0 );
 
@@ -1216,11 +1245,11 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( R.ferror(tagd::TAGD_ERR, "another bad tag: %s", "oops_again") , tagd::TAGD_ERR );
 
 		TS_ASSERT_EQUALS( R.size() , 6 );
-		TS_ASSERT_EQUALS( R.last_error().id(), "TAGD_ERR" )
+		TS_ASSERT_EQUALS( R.last_error().event_type_tag(), HARD_TAG_ERROR_TAGD_ERR )
 		TS_ASSERT_EQUALS( R3.size() , 6 );
-		TS_ASSERT_EQUALS( R3.last_error().id(), "TAGD_ERR" )
+		TS_ASSERT_EQUALS( R3.last_error().event_type_tag(), HARD_TAG_ERROR_TAGD_ERR )
 		TS_ASSERT_EQUALS( R4.size() , 6 );
-		TS_ASSERT_EQUALS( R4.last_error().id(), "TAGD_ERR" )
+		TS_ASSERT_EQUALS( R4.last_error().event_type_tag(), HARD_TAG_ERROR_TAGD_ERR )
     }
 
     void test_modifier_comma_quotes(void) {

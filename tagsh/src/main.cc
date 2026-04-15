@@ -2,6 +2,8 @@
 #include "tagsh.h"
 
 int main(int argc, char **argv) {
+	tagdb::hard_tag::install_logger_validator();
+
 	cmd_args args;
 	args.parse(argc, argv);
 

@@ -146,6 +146,8 @@ void scanner::tagdurl::scan(const char *cur, size_t sz) {
 	TAG_SEG = [^\000 \t\r\n/?&,=]+;
 
 	HDURI                 { emit_subject(std::string(_beg, _cur - _beg), TOK_HDURI); return; }
+	EVURI                 { emit_subject(std::string(_beg, _cur - _beg), TOK_EVURI); return; }
+	ERRURI                { emit_subject(std::string(_beg, _cur - _beg), TOK_ERRURI); return; }
 	URL                   { emit_subject(std::string(_beg, _cur - _beg), TOK_URL); return; }
 	"?"                  { advance_begin(); goto query_opts; }
 	TAG_SEG               {

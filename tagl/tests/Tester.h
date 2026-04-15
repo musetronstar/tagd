@@ -57,10 +57,15 @@ class tagdb_tester : public tagdb::tagdb {
 			put_test_tag("about", HARD_TAG_ENTITY, tagd::POS_RELATOR);
 			put_test_tag(HARD_TAG_HAS, HARD_TAG_ENTITY, tagd::POS_RELATOR);
 			put_test_tag(HARD_TAG_CAN, HARD_TAG_ENTITY, tagd::POS_RELATOR);
+			put_test_tag(HARD_TAG_CAUSED_BY, HARD_TAG_RELATOR, tagd::POS_RELATOR);
 			put_test_tag(HARD_TAG_INTERROGATOR, HARD_TAG_ENTITY, tagd::POS_INTERROGATOR);
 			put_test_tag(HARD_TAG_WHAT, HARD_TAG_ENTITY, tagd::POS_INTERROGATOR);
 			put_test_tag(HARD_TAG_TERMS, HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag(HARD_TAG_MESSAGE, HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag(HARD_TAG_EVENT, HARD_TAG_ENTITY, tagd::POS_TAG);
+			put_test_tag(HARD_TAG_ERROR, HARD_TAG_EVENT, tagd::POS_TAG);
+			put_test_tag(HARD_TAG_ERROR_TS_NOT_FOUND, HARD_TAG_ERROR, tagd::POS_TAG);
+			put_test_tag(HARD_TAG_UNKNOWN_TAG, HARD_TAG_ERROR, tagd::POS_TAG);
 			put_test_tag(HARD_TAG_REFERENT, HARD_TAG_SUB, tagd::POS_REFERENT);
 			put_test_tag(HARD_TAG_REFERS, HARD_TAG_ENTITY, tagd::POS_REFERS);
 			put_test_tag(HARD_TAG_REFERS_TO, HARD_TAG_ENTITY, tagd::POS_REFERS_TO);
@@ -256,9 +261,10 @@ class callback_tester : public TAGL::callback {
 		tagd::abstract_tag *last_tag;
 		tagd::tag_set last_tag_set;
 		int cmd;
+		int cmd_error_calls;
 
 		callback_tester(tagdb::tagdb *tdb) :
-			last_code(), last_tag(nullptr)  {
+			last_code(), last_tag(nullptr), cmd_error_calls(0)  {
 			_tdb = tdb;
 		}
 
@@ -334,6 +340,8 @@ class callback_tester : public TAGL::callback {
 
 		void cmd_error() {
 			cmd = _driver->cmd();
+			++cmd_error_calls;
+			last_code = _driver->code();
 
 			renew_last_tag();
 			if (!_driver->tag().empty())
@@ -670,6 +678,19 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
 	}
 
+	void test_delete_missing_calls_cmd_error_once(void) {
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb);
+
+		tagd::code tc = tagl.execute("!! badger;");
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
+		TS_ASSERT_EQUALS( cb.cmd_error_calls, 1 )
+		TS_ASSERT_DIFFERS( cb.last_tag, nullptr )
+	}
+
     void test_url(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
@@ -704,6 +725,53 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , HARD_TAG_URL )
 		TS_ASSERT_EQUALS( tagl.tag().pos() , tagd::POS_URL )
 		TS_ASSERT( tagl.tag().related("about", "internet_security") )
+	}
+
+    void test_event_error_uri(void) {
+		const char *evuri = "ev:2026-04-09T04:00:56.738Z!host!principal!tagsh!01KNS1F5S0CHPPQQNCVRQKVZM4!1!_event";
+		const char *erruri = "err:2026-04-09T04:00:56.739Z!host!principal!tagsh!01KNS1F5S0CHPPQQNCVRQKVZM4!2!_error:ts_not_found";
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(
+				std::string(">> ").append(evuri).append("\n")
+				.append("about dog, ").append(erruri)
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.tag().id() , evuri )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , HARD_TAG_EVENT )
+		TS_ASSERT_EQUALS( tagl.tag().pos() , tagd::POS_TAG )
+		TS_ASSERT( tagl.tag().related("about", "dog") )
+		TS_ASSERT( tagl.tag().related("about", erruri) )
+
+		tc = tagl.execute(
+				std::string(">> ").append(erruri).append("\n")
+				.append("about dog, ").append(evuri)
+			);
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.tag().id() , erruri )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , HARD_TAG_ERROR_TS_NOT_FOUND )
+		TS_ASSERT_EQUALS( tagl.tag().pos() , tagd::POS_ERROR )
+		TS_ASSERT( tagl.tag().related("about", "dog") )
+		TS_ASSERT( tagl.tag().related("about", evuri) )
+	}
+
+    void test_printed_error_is_tagl(void) {
+		tagd::errorable R;
+		R.ferror(tagd::TS_NOT_FOUND, "unknown tag: %s", "doggy");
+		R.last_error_relation(tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "doggy"));
+
+		std::stringstream ss;
+		R.print_errors(ss);
+
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+		tagd::code tc = tagl.execute(ss.str());
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT( tagl.tag().id().find("err:") == 0 )
+		TS_ASSERT_EQUALS( tagl.tag().super_object() , HARD_TAG_ERROR_TS_NOT_FOUND )
+		TS_ASSERT( tagl.tag().related(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, "doggy") )
 	}
 
     void test_multiple_statements_whitespace(void) {
@@ -1244,6 +1312,26 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( t.related(HARD_TAG_CAN, "bite") )
 	}
 
+	void test_scanner_and_parser_debug_logging_in_process(void) {
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb);
+		std::stringstream log_ss;
+		tagd::logger log(log_ss);
+
+		log.level(tagd::log_level::EMERGENCY);
+		log.level(HARD_TAG_ROLE_SCANNER, tagd::log_level::DEBUG);
+		log.level(HARD_TAG_ROLE_PARSER, tagd::log_level::DEBUG);
+		TAGL_SET_LOGGER(&log);
+
+		tagd::code tc = tagl.execute("<< dog;");
+		TAGL_SET_LOGGER(nullptr);
+
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK")
+		TS_ASSERT_DIFFERS(log_ss.str().find("-- scanner begin"), std::string::npos)
+		TS_ASSERT_DIFFERS(log_ss.str().find("-- parser input"), std::string::npos)
+	}
+
 	void test_put_referent_no_context(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
@@ -1339,6 +1427,76 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
 		if ( ssn.context().size() > 0 )
 			TS_ASSERT_EQUALS( ssn.context()[0] , "child" )
+	}
+
+	void test_set_context_missing_calls_cmd_error_once(void) {
+		tagdb_tester tdb;
+		auto ssn = tdb.get_session();
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb, &ssn);
+
+		tagd::code tc = tagl.execute("%% " HARD_TAG_CONTEXT " haha");
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
+		TS_ASSERT_EQUALS( cb.cmd_error_calls, 1 )
+		TS_ASSERT_EQUALS( ssn.context().size(), 0 )
+	}
+
+	void test_set_context_existing_tag(void) {
+		tagdb_tester tdb;
+		auto ssn = tdb.get_session();
+		TAGL::driver tagl(&tdb, &ssn);
+
+		tagd::code tc = tagl.parseln("%% " HARD_TAG_CONTEXT " simple_english;");
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( ssn.context().size(), 1 )
+		if ( ssn.context().size() == 1 )
+			TS_ASSERT_EQUALS( ssn.context()[0], "simple_english" )
+	}
+
+	void test_set_context_existing_tag_shell_style(void) {
+		tagdb_tester tdb;
+		auto ssn = tdb.get_session();
+		TAGL::driver tagl(&tdb, &ssn);
+		tagd::code tc = tagl.parseln("%% " HARD_TAG_CONTEXT " simple_english");
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+
+		tc = tagl.parseln();  // end of input
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( ssn.context().size(), 1 )
+		if ( ssn.context().size() == 1 )
+			TS_ASSERT_EQUALS( ssn.context()[0], "simple_english" )
+	}
+
+	void test_set_context_existing_tag_list(void) {
+		tagdb_tester tdb;
+		auto ssn = tdb.get_session();
+		TAGL::driver tagl(&tdb, &ssn);
+
+		tagd::code tc = tagl.parseln("%% " HARD_TAG_CONTEXT " simple_english, japanese;");
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
+		TS_ASSERT_EQUALS( ssn.context().size(), 2 )
+		if ( ssn.context().size() == 2 ) {
+			TS_ASSERT_EQUALS( ssn.context()[0], "simple_english" )
+			TS_ASSERT_EQUALS( ssn.context()[1], "japanese" )
+		}
+	}
+
+	void test_set_context_without_hard_tag_is_unknown_tag(void) {
+		tagdb_tester tdb;
+		callback_tester cb(&tdb);
+		TAGL::driver tagl(&tdb, &cb);
+
+		tagd::code tc = tagl.execute("%% context animal");
+
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )
+		TS_ASSERT_EQUALS( cb.cmd_error_calls, 1 )
 	}
 
 	void test_set_blank_context(void) {

@@ -6,6 +6,7 @@
 #include "tagsh.h"
 
 #include <cstring>
+#include <iostream>
 #include <map>
 #include <vector>
 #include <evhtp.h>
@@ -13,27 +14,9 @@
 
 const char* evhtp_res_str(int);
 
-extern bool HTTAGD_TRACE_ON;
+void HTTAGD_SET_LOGGER(tagd::logger *);
 
 namespace httagd {
-
-inline void HTTAGD_SET_TRACE_ON() {
-	HTTAGD_TRACE_ON = true;
-	/*
-	static bool trace_init = false;
-	if (!trace_init) { // init once ...
-		trace_init = true;
-		// init ...
-	}
-	*/
-}
-
-inline void HTTAGD_SET_TRACE_OFF() {
-	HTTAGD_TRACE_ON = false;
-}
-
-#define HTTAGD_LOG_TRACE(MSG) if(HTTAGD_TRACE_ON) \
-	{ std::cerr <<  __FILE__  << ':' << __LINE__ << '\t' << MSG ; }
 
 class httagd_args : public cmd_args {
 	public:
@@ -45,6 +28,14 @@ class httagd_args : public cmd_args {
 		uint16_t bind_port;
 
 		httagd_args () : bind_port{0} {
+			_cmds["--trace"] = {
+				[this](char *) {
+					this->ferror(tagd::TAGD_ERR,
+						"httagd: --trace has been retired; use --log-level with _role:httagd:debug");
+				},
+				false
+			};
+
 			_cmds["--tpl-dir"] = {
 				[this](char *val) {
 						if (!tagd::io::dir_exists(val)) {
@@ -91,6 +82,38 @@ class httagd_args : public cmd_args {
 				},
 				true
 			};
+
+			cmd_handler help_handler = {
+				[this](char *) {
+					std::cout
+					<< "httagd" 																<< std::endl
+					<< "httagd [options]" 													<< std::endl
+					<< "---------------" 													<< std::endl
+					<< "  --db <database path | :memory:>"									<< std::endl
+					<< "		specify tagdb, :memory: by default" 						<< std::endl
+					<< "  --create" 														<< std::endl
+					<< "		create the file specified by --db (if not already existing)" 	<< std::endl
+					<< "  -f <tagl file>" 													<< std::endl
+					<< "  --file" 															<< std::endl
+					<< "		execute tagl file, multiple flags will be processed in order" 	<< std::endl
+					<< "  -n" 																<< std::endl
+					<< "  --noshell" 														<< std::endl
+					<< "		execute then exit with no shell" 							<< std::endl
+					<< "  --dump" 															<< std::endl
+					<< "		dump tagspace" 												<< std::endl
+					<< "  --log-level <level>"												<< std::endl
+					<< "		set log level or role overrides, e.g. warning,_role:httagd:debug" << std::endl
+					<< "  --tpl-dir <dir>" 													<< std::endl
+					<< "  --www-dir <dir>" 													<< std::endl
+					<< "  --default-view <view>" 											<< std::endl
+					<< "  --bind-addr <addr>" 												<< std::endl
+					<< "  --bind-port <port>" 												<< std::endl
+					<< std::endl;
+					std::exit(EXIT_SUCCESS);
+				}, false
+			};
+			_cmds["--help"] = help_handler;
+			_cmds["-h"] = help_handler;
 		}
 };
 
@@ -1009,9 +1032,9 @@ class tagd_template : public tagd::errorable {
 			_owner{true} {}
 
 		// deal with undefined default constructors
-		tagd_template(tagd_template *caca) :
-			_dict{caca->_dict},
-			_output{caca->_output},
+		tagd_template(tagd_template *haha) :
+			_dict{haha->_dict},
+			_output{haha->_output},
 			_owner{false} {}
 
 		virtual ~tagd_template() {

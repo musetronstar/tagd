@@ -9,7 +9,62 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-bool HTTAGD_TRACE_ON = false;
+static tagd::logger *HTTAGD_LOGGER = nullptr;
+
+const char* evhtp_method_str(int method);
+
+void HTTAGD_SET_LOGGER(tagd::logger *log) {
+	HTTAGD_LOGGER = log;
+}
+
+static bool HTTAGD_LOG_ENABLED(tagd::log_level lvl) {
+	if (HTTAGD_LOGGER == nullptr)
+		return false;
+
+	return static_cast<int>(lvl) <= static_cast<int>(HTTAGD_LOGGER->level(HARD_TAG_ROLE_HTTAGD));
+}
+
+static void HTTAGD_LOG(tagd::log_level lvl, const std::string& msg) {
+	if (HTTAGD_LOGGER == nullptr)
+		return;
+
+	HTTAGD_LOGGER->log(HARD_TAG_ROLE_HTTAGD, lvl, std::string("-- ").append(msg));
+}
+
+static void HTTAGD_LOG_ERRORS(tagd::log_level lvl, const tagd::errorable& err) {
+	if (!HTTAGD_LOG_ENABLED(lvl) || !err.has_errors())
+		return;
+
+	std::stringstream ss;
+	err.print_errors(ss);
+	auto msg = ss.str();
+	while (!msg.empty() && (msg.back() == '\n' || msg.back() == '\r'))
+		msg.pop_back();
+
+	if (!msg.empty())
+		HTTAGD_LOG(lvl, msg);
+}
+
+static void HTTAGD_LOG_REQUEST(tagd::log_level lvl, int method, const std::string& path, tagd::code tc) {
+	if (!HTTAGD_LOG_ENABLED(lvl))
+		return;
+
+	std::stringstream ss;
+	ss << "httagd request method="
+	   << evhtp_method_str(method)
+	   << " path=" << path;
+	HTTAGD_LOG(lvl, ss.str());
+	HTTAGD_LOG(lvl, std::string("httagd code=").append(tagd::code_str(tc)));
+}
+
+#define HTTAGD_LOG_DEBUG(MSG) \
+	do { \
+		if (HTTAGD_LOG_ENABLED(tagd::log_level::DEBUG)) { \
+			std::ostringstream _httagd_debug_os; \
+			_httagd_debug_os << MSG; \
+			HTTAGD_LOG(tagd::log_level::DEBUG, _httagd_debug_os.str()); \
+		} \
+	} while (0)
 
 const char* evhtp_res_str(int tok) {
 	switch (tok) {
@@ -352,7 +407,7 @@ evhtp_res tagd_code_evhtp_res(tagd::code tc) {
 }
 
 void response::send_reply(tagd::code tc) {
-	HTTAGD_LOG_TRACE( "send_reply => " << tagd::code_str(tc) << std::endl )
+	HTTAGD_LOG_DEBUG("httagd send_reply code=" << tagd::code_str(tc));
 	this->send_ev_reply(_res_code >= 0 ? _res_code : tagd_code_evhtp_res(tc));
 }
 
@@ -363,7 +418,7 @@ void response::send_ev_reply(evhtp_res res) {
 		return;
 	}
 
-	HTTAGD_LOG_TRACE( "send_reply(" << res << "): " << evhtp_res_str(res) << std::endl )
+	HTTAGD_LOG_DEBUG("httagd send_ev_reply res=" << res << " name=" << evhtp_res_str(res));
 
 	evhtp_send_reply(_ev_req, res);
 	_res_code = res;
@@ -371,7 +426,7 @@ void response::send_ev_reply(evhtp_res res) {
 }
 
 void response::add_header(const std::string &k, const std::string &v) {
-	HTTAGD_LOG_TRACE( "add_header(" << '"' << k << '"' << ", " << '"' << v << '"' << ")" << std::endl )
+	HTTAGD_LOG_DEBUG("httagd add_header key=\"" << k << "\" value=\"" << v << "\"");
 
 /* from evhtp.h
 * evhtp_header_new
@@ -490,8 +545,7 @@ void callback::output_errors(tagd::code ret_tc) {
 	if (!_tx->size())
 		_tx->ferror(tagd::TS_INTERNAL_ERR, "no errors to output, returned: %s", tagd::code_str(ret_tc));
 
-	if (HTTAGD_TRACE_ON)
-		_tx->print_errors();
+	HTTAGD_LOG_ERRORS(tagd::log_level::ERROR, *_tx);
 
 	// get the error_function view
 	view vw;
@@ -559,7 +613,7 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 	}
 
 void callback::cmd_get(const tagd::abstract_tag& t) {
-	HTTAGD_LOG_TRACE( "cmd_get()" << std::endl )
+	HTTAGD_LOG_DEBUG("httagd cmd_get");
 
 	std::string view_name = _tx->effective_opt_view();
 	if (view_name == DEFAULT_VIEW)
@@ -615,7 +669,7 @@ void callback::cmd_del(const tagd::abstract_tag& t) {
 
 
 void callback::cmd_query(const tagd::interrogator& q) {
-	HTTAGD_LOG_TRACE( "cmd_query()" << std::endl )
+	HTTAGD_LOG_DEBUG("httagd cmd_query");
 
 	std::string view_name = _tx->effective_opt_view();
 	if (view_name == DEFAULT_VIEW)
@@ -645,7 +699,7 @@ void callback::cmd_query(const tagd::interrogator& q) {
 }
 
 void callback::cmd_error() {
-	HTTAGD_LOG_TRACE( "cmd_error()" << std::endl )
+	HTTAGD_LOG_DEBUG("httagd cmd_error");
 
 	if (_tx->effective_opt_view() == DEFAULT_VIEW)
 		return this->default_cmd_error();
@@ -655,7 +709,7 @@ void callback::cmd_error() {
 
 
 void callback::empty() {
-	HTTAGD_LOG_TRACE( "empty()" <<  std::endl )
+	HTTAGD_LOG_DEBUG("httagd empty");
 
 	std::string view_name = _tx->effective_opt_view();
 	if (view_name == DEFAULT_VIEW)
@@ -768,8 +822,6 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagd::server *svr = (httagd::server*)arg;
 
-	// if (HTTAGD_TRACE_ON) print_evbuf(ev_req->buffer_in);
-
 	// for now, this request uses the servers tagdb reference
 	// TODO allow requests to use other tagdbs (given the request)
 	auto tdb = svr->tdb();
@@ -802,10 +854,12 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	if (!res.reply_sent())
 		tagl.finish();
 
-	if (HTTAGD_TRACE_ON && tx.has_errors()) {
-		// TODO write to log
-		tx.print_errors();
-	}
+	tagd::code tc = tx.most_severe(tx.drvr->session_ptr()->code());
+	HTTAGD_LOG_REQUEST(
+			tc == tagd::TAGD_OK ? tagd::log_level::INFO : tagd::log_level::ERROR,
+			evhtp_request_get_method(ev_req), req.path(), tc);
+
+	HTTAGD_LOG_ERRORS(tagd::log_level::ERROR, tx);
 
 	/*
 	 * TODO tbd, server and other long running objects
@@ -813,9 +867,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	 */
 	// tdb will accumulate errors between requests, so clear
 	if (tdb->has_errors()) {
-		// TODO write to log
-		if (HTTAGD_TRACE_ON)
-			tdb->print_errors();
+		HTTAGD_LOG_ERRORS(tagd::log_level::ERROR, *tdb);
 		tdb->clear_errors();
 	}
 }
@@ -824,8 +876,6 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 tagd::code response::add_file(const std::string& path, tagd::errorable* err) {
 	auto f_ferror =
 		[err](tagd::code tc, const char* msg, const char *arg) -> tagd::code {
-			if(HTTAGD_TRACE_ON)
-				printf(msg, arg);
 			return err == nullptr ? tc : err->ferror(tc, msg, arg);
 		};
 
@@ -868,16 +918,15 @@ file_cb(evhtp_request_t * evreq, void * arg) {
 	assert(pos != std::string::npos);
 	if (pos == std::string::npos) {
 		tc = tx.ferror(tagd::TAGD_ERR, "dir_shift_pos failed: %s", req.path().c_str());
-		if (HTTAGD_TRACE_ON)
-			tx.print_errors(); // TODO log errors
+		HTTAGD_LOG_ERRORS(tagd::log_level::ERROR, tx);
 		res.send_reply(tc);
 		return;
 	}
 
 	auto path = tagd::io::concat_dir(svr->args()->www_dir, req.path().substr(pos));
 
-	HTTAGD_LOG_TRACE( "req path: " << req.path() << std::endl )
-	HTTAGD_LOG_TRACE( "sys path: " << path << std::endl )
+	HTTAGD_LOG_DEBUG("httagd file request path=" << req.path());
+	HTTAGD_LOG_DEBUG("httagd file system path=" << path);
 
 	// add content_type given file extension if possible
 	pos = tagd::file::ext_pos(path);
@@ -887,14 +936,15 @@ file_cb(evhtp_request_t * evreq, void * arg) {
 		if(media_type != nullptr)
 			res.add_header_content_type(media_type);
 
-		HTTAGD_LOG_TRACE( "media_type: " << media_type << std::endl )
+		HTTAGD_LOG_DEBUG("httagd file media_type=" << media_type);
 	}
 
 	tc = res.add_file(path, &tx);
 
 	if (tc != tagd::TAGD_OK) {
-		if (HTTAGD_TRACE_ON)
-			tx.print_errors(); // TODO log errors
+		HTTAGD_LOG_REQUEST(tagd::log_level::ERROR,
+				evhtp_request_get_method(evreq), req.path(), tc);
+		HTTAGD_LOG_ERRORS(tagd::log_level::ERROR, tx);
 
 		// prevent fuzzing - don't print internal details
 		tx.clear_errors();
@@ -904,6 +954,9 @@ file_cb(evhtp_request_t * evreq, void * arg) {
 		tx.print_errors(ss);
 		res.add(ss.str());
 	}
+	else
+		HTTAGD_LOG_REQUEST(tagd::log_level::INFO,
+				evhtp_request_get_method(evreq), req.path(), tc);
 
 	res.send_reply(tc);
 }
@@ -919,20 +972,15 @@ favicon_cb(evhtp_request_t * evreq, void * arg) {
 	res.add_header_content_type("image/x-icon");
 	tagd::code tc = res.add_file(svr->args()->favicon, &tx);
 	if (tc != tagd::TAGD_OK) {
-		// TODO log errors
-		if (HTTAGD_TRACE_ON)
-			tx.print_errors();
+		HTTAGD_LOG_REQUEST(tagd::log_level::ERROR,
+				evhtp_request_get_method(evreq), req.path(), tc);
+		HTTAGD_LOG_ERRORS(tagd::log_level::ERROR, tx);
 	}
 
 	res.send_reply(tc);
 }
 
 tagd::code server::start() {
-
-	if (_args->opt_trace) {
-		_tdb->trace_on();
-	}
-
 	// for debug printing request data
 	// evhtp_set_post_accept_cb(_htp, set_my_connection_handlers, nullptr);
 	evhtp_set_cb(_htp, "/_file", file_cb, this);
@@ -943,6 +991,15 @@ tagd::code server::start() {
     if (evhtp_bind_socket(_htp, bind_addr, _bind_port, 128) < 0) {
 		return this->ferror( tagd::TAGD_ERR,
 				"failed to bind socket(%s): %s:%d", strerror(errno), bind_addr, _bind_port );
+	}
+
+	if (HTTAGD_LOG_ENABLED(tagd::log_level::NOTICE)) {
+		std::stringstream ss;
+		ss << "httagd start bind_addr=" << _bind_addr
+		   << " bind_port=" << _bind_port;
+		HTTAGD_LOG(tagd::log_level::NOTICE, ss.str());
+		HTTAGD_LOG(tagd::log_level::NOTICE,
+				std::string("httagd code=").append(tagd::code_str(tagd::TAGD_OK)));
 	}
 
     event_base_loop(_evbase, 0);

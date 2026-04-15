@@ -1,7 +1,10 @@
 #pragma once
 
+#include <sstream>
 #include <string>
 #include "tagd.h"
+#include "tagd/hard-tags.h"
+#include "tagd/logger.h"
 #include "tagdb.h"
 #include "parser.h"
 
@@ -11,8 +14,27 @@ struct yyParser;
 extern bool TAGL_TRACE_ON;
 void TAGL_SET_TRACE_ON();
 void TAGL_SET_TRACE_OFF();
+void TAGL_SET_LOGGER(tagd::logger *);
+bool TAGL_LOG_ENABLED(const std::string&, tagd::log_level);
+void TAGL_LOG(const std::string&, tagd::log_level, const std::string&);
 #define TAGL_LOG_TRACE(MSG) if(TAGL_TRACE_ON) \
 	{ std::cerr <<  __FILE__  << ':' << __LINE__ << '\t' << MSG ; }
+#define TAGL_LOG_SCANNER_DEBUG(MSG) \
+	do { \
+		if (TAGL_LOG_ENABLED(HARD_TAG_ROLE_SCANNER, tagd::log_level::DEBUG)) { \
+			std::ostringstream _tagl_scanner_debug_os; \
+			_tagl_scanner_debug_os << MSG; \
+			TAGL_LOG(HARD_TAG_ROLE_SCANNER, tagd::log_level::DEBUG, _tagl_scanner_debug_os.str()); \
+		} \
+	} while (0)
+#define TAGL_LOG_DRIVER_DEBUG(MSG) \
+	do { \
+		if (TAGL_LOG_ENABLED(HARD_TAG_ROLE_DRIVER, tagd::log_level::DEBUG)) { \
+			std::ostringstream _tagl_driver_debug_os; \
+			_tagl_driver_debug_os << MSG; \
+			TAGL_LOG(HARD_TAG_ROLE_DRIVER, tagd::log_level::DEBUG, _tagl_driver_debug_os.str()); \
+		} \
+	} while (0)
 
 namespace TAGL {
 struct TokenText {
@@ -63,6 +85,7 @@ class driver : public tagd::errorable {
 	protected:
 		bool _own_scanner = false;
 		bool _own_session = false;
+		bool _error_callback_delivered = false;
 
 		// number of items pushed on the stack by this parser
 		size_t _context_level = 0;

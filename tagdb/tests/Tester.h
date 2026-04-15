@@ -2,7 +2,11 @@
 
 #include <cxxtest/TestSuite.h>
 
+#include <sstream>
+
 #include "tagd.h"
+#include "tagd/event.h"
+#include "tagd/logger.h"
 #include "tagdb/sqlite.h"
 
 //const std::string db_fname = "tagd-test.db";
@@ -174,7 +178,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd::part_of_speech pos = tagdb::hard_tag::pos(id);
 		TS_ASSERT_EQUALS(pos, tagd::POS_TAG);
 
-		id = "caca";
+		id = "haha";
 		pos = tagdb::hard_tag::pos(id);
 		TS_ASSERT_EQUALS(pos, tagd::POS_UNKNOWN);
 	}
@@ -207,7 +211,31 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_RELATOR);
 
 		t.clear();
-		id = "caca";
+		id = HARD_TAG_ERROR;
+		tc = tagdb::hard_tag::get(t, id);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(t.id(), HARD_TAG_ERROR);
+		TS_ASSERT_EQUALS(t.sub_relator(), HARD_TAG_SUB);
+		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_EVENT);
+
+		t.clear();
+		id = HARD_TAG_ERROR_TS_NOT_FOUND;
+		tc = tagdb::hard_tag::get(t, id);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(t.id(), HARD_TAG_ERROR_TS_NOT_FOUND);
+		TS_ASSERT_EQUALS(t.sub_relator(), HARD_TAG_SUB);
+		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_ERROR);
+
+		t.clear();
+		id = HARD_TAG_TAGDB_PUT_EVENT;
+		tc = tagdb::hard_tag::get(t, id);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(t.id(), HARD_TAG_TAGDB_PUT_EVENT);
+		TS_ASSERT_EQUALS(t.sub_relator(), HARD_TAG_SUB);
+		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_TAGDB_EVENT);
+
+		t.clear();
+		id = "haha";
 		tc = tagdb::hard_tag::get(t, id);
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
 	}
@@ -224,6 +252,37 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(t.id(), HARD_TAG_ENTITY);
         TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_ENTITY);
     }
+
+	void test_put_emits_consumable_tagdb_event(void) {
+		std::stringstream log_ss;
+		tagd::logger log(log_ss);
+		log.level(tagd::log_level::EMERGENCY);
+		log.level(HARD_TAG_ROLE_TAGDB, tagd::log_level::NOTICE);
+		TAGDB_SET_LOGGER(&log);
+
+		tagdb_type tdb;
+		TS_ASSERT_EQUALS(tdb.init(db_fname), tagd::TAGD_OK)
+
+		tagdb::session ssn = tdb.get_session();
+		tagd::tag t("physical_object", HARD_TAG_ENTITY);
+
+		TS_ASSERT_EQUALS(tdb.put(t, &ssn), tagd::TAGD_OK)
+
+		const std::string logged = log_ss.str();
+		const std::string::size_type ev_pos = logged.find(tagd::EVURI_SCHEME);
+		TS_ASSERT_DIFFERS(ev_pos, std::string::npos)
+		const std::string::size_type newline = logged.find('\n', ev_pos);
+		TS_ASSERT_DIFFERS(newline, std::string::npos)
+
+		tagd::event ev(logged.substr(ev_pos, newline - ev_pos));
+		TS_ASSERT_EQUALS(ev.code(), tagd::TAGD_OK)
+		TS_ASSERT_EQUALS(ev.event_type_tag(), HARD_TAG_TAGDB_PUT_EVENT)
+		TS_ASSERT_EQUALS(ev.super_object(), HARD_TAG_TAGDB_PUT_EVENT)
+		TS_ASSERT_EQUALS(ev.program(), "tagdb")
+		TS_ASSERT_EQUALS(ev.session_id(), ssn.id())
+
+		TAGDB_SET_LOGGER(nullptr);
+	}
 
     void test_put_get_rank(void) {
         tagdb_type tdb;
@@ -284,7 +343,7 @@ class Tester : public CxxTest::TestSuite {
 
 		tagd::abstract_tag t2;
 
-        tc = tdb.get(t2, "caca", &ssn);
+        tc = tdb.get(t2, "haha", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TS_NOT_FOUND");
         TS_ASSERT(ssn.has_errors());
@@ -318,7 +377,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TS_DUPLICATE");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tdb.code()), "TAGD_OK");
 
-        tagd::referent b("doodoo", "caca", "simple_english");  // unknown refers_to
+        tagd::referent b("doodoo", "haha", "simple_english");  // unknown refers_to
         tc = tdb.put(b, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_REFERS_TO_UNK");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tdb.code()), "TAGD_OK");
@@ -404,7 +463,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT(e.related(HARD_TAG_HAS, "teeth"));
 
 		// delete non-existing tag
-		tagd::tag noexists("caca");
+		tagd::tag noexists("haha");
 		ssn.clear_errors();
         tc = tdb.del(noexists, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
@@ -1565,7 +1624,7 @@ class Tester : public CxxTest::TestSuite {
     void test_put_hard_tag(void) {
 		TDB_CONS_INIT();
 
-        tagd::tag t("_caca", HARD_TAG_ENTITY);
+        tagd::tag t("_haha", HARD_TAG_ENTITY);
         tagd::code tc = tdb.put(t, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_MISUSE");
 	}

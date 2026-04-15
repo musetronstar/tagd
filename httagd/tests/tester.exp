@@ -2,7 +2,7 @@
 
 # exp_internal 1   ;# diagnostics
 
-set spawn_httagd "spawn ../bin/httagd --file ../../tagsh/bootstrap.tagl --www-dir ./www"
+set spawn_httagd "spawn ../bin/httagd --log-level emergency,_role:httagd:debug --file ../../tagsh/bootstrap.tagl --www-dir ./www"
 
 set MAX_ERRORS 3
 set ERRORS 0
@@ -12,6 +12,14 @@ set STARTUP_TIMEOUT 10
 
 set timeout $TIMEOUT
 set log_user 1  ;# log output to stdout, 0 disables
+
+proc test_pass {n} {
+	puts "\n****** $n passed ******\n"
+}
+
+proc test_fail {n} {
+	puts "\n^^^^^^ $n failed ^^^^^^\n"
+}
 
 # launches curl using args and expects
 # n = <test_name>, m = method, u = url, d = <body_data>, e = <expect_args>
@@ -30,14 +38,14 @@ proc test {n m u d e} {
 
 	expect {
 		-regexp $e  {
-				puts "\n##########   $n passed   ##########\n"
+				test_pass $n
 				set match 1
 			}
 	}
 
 	if {$match} { return }
 
-	puts "\n!!!!!!!!!!   $n failed   !!!!!!!!!!\n"
+	test_fail $n
 	incr errors
 
 	if {$errors >= $max_errors} {
@@ -63,14 +71,74 @@ proc test_file {n m u f e} {
 
 	expect {
 		-regexp $e  {
-				puts "\n##########   $n passed   ##########\n"
+				test_pass $n
 				set match 1
 			}
 	}
 
 	if {$match} { return }
 
-	puts "\n**********   $n failed   **********\n"
+	test_fail $n
+	incr errors
+
+	if {$errors >= $max_errors} {
+		puts "$errors errors. Exiting..."
+		exit $errors
+	}
+}
+
+proc test_exec {n cmd e} {
+	upvar 1 ERRORS errors
+	upvar 1 MAX_ERRORS max_errors
+
+	set rc [catch {eval exec $cmd} output]
+	if {$rc == 0 && [regexp $e $output]} {
+		test_pass $n
+		return
+	}
+
+	test_fail $n
+	incr errors
+
+	if {$errors >= $max_errors} {
+		puts "$errors errors. Exiting..."
+		exit $errors
+	}
+}
+
+proc test_exec_fail {n cmd e} {
+	upvar 1 ERRORS errors
+	upvar 1 MAX_ERRORS max_errors
+
+	set rc [catch {eval exec $cmd} output]
+	if {$rc != 0 && [regexp $e $output]} {
+		test_pass $n
+		return
+	}
+
+	test_fail $n
+	incr errors
+
+	if {$errors >= $max_errors} {
+		puts "$errors errors. Exiting..."
+		exit $errors
+	}
+}
+
+proc test_server_log {n e} {
+	upvar 1 ERRORS errors
+	upvar 1 MAX_ERRORS max_errors
+	upvar 1 server_spawn_id server_spawn_id
+
+	set spawn_id $server_spawn_id
+	expect {
+		-regexp $e  {
+				test_pass $n
+				return
+			}
+	}
+
+	test_fail $n
 	incr errors
 
 	if {$errors >= $max_errors} {
@@ -89,17 +157,38 @@ proc wait_for_server {timeout_secs} {
 		sleep 1
 	}
 
-	puts "\n!!!!!!!!!!   httagd startup failed   !!!!!!!!!!\n"
+	test_fail "httagd startup"
 	exit 1
 }
 
+test_exec_fail "httagd_trace_removed" \
+	 "../bin/httagd --trace" \
+	 {httagd: --trace has been retired; use --log-level with _role:httagd:debug}
+
 eval $spawn_httagd
+set server_spawn_id $spawn_id
+
+expect {
+	-regexp {-- httagd start bind_addr=localhost bind_port=2112} {
+		test_pass "log_level_httagd_notice_start"
+	}
+	timeout {
+		test_fail "log_level_httagd_notice_start"
+		exit 1
+	}
+}
 
 wait_for_server $STARTUP_TIMEOUT
 
-test "get_dog" \
-	 "GET" "/dog" "" \
+test_exec "get_dog" \
+	 "curl -sSf http://localhost:2112/dog" \
 	 "dog kind_of mammal"
+
+test_server_log "log_level_httagd_info_request_method" \
+	 {-- httagd request method=GET path=/dog}
+
+test_server_log "log_level_httagd_info_request_code" \
+	 {-- httagd code=TAGD_OK}
 
 test "put_dolphin" \
 	 "PUT" "/dolphin" ">> dolphin kind_of whale" \
@@ -132,6 +221,12 @@ test "put_illegal_search" \
 test "get_doggy_not_exists" \
 	 "GET" "/doggy" "" \
 	 "404 Not Found"
+
+test_server_log "log_level_httagd_error_request_method" \
+	 {-- httagd request method=GET path=/doggy}
+
+test_server_log "log_level_httagd_error_request_code" \
+	 {-- httagd code=TS_NOT_FOUND}
 
 test "put_refer_doggy_no_context" \
 	 "POST" "/doggy" "_refers_to dog" \
@@ -216,7 +311,7 @@ test "refer_japanese_dog" \
 
 test "get_japanese_dog_ambiguous" \
 	 "GET" "/イヌ" "" \
-	 "TS_AMBIGUOUS"
+	 "_error:ts_ambiguous"
 
 # contextual get
 test "get_japanese_dog" \
@@ -226,6 +321,31 @@ test "get_japanese_dog" \
 test "get_txt_file" \
 	 "GET" "/_file/test.txt" "" \
 	 "FILE_TEXT"
+
+test_server_log "log_level_httagd_debug_file_request_path" \
+	{-- httagd file request path=/_file/test.txt}
+
+test_server_log "log_level_httagd_debug_file_system_path" \
+	{-- httagd file system path=\./www/test\.txt}
+
+test_server_log "log_level_httagd_debug_file_media_type" \
+	{-- httagd file media_type=text/plain}
+
+test_server_log "log_level_httagd_info_file_request_method" \
+	{-- httagd request method=GET path=/_file/test.txt}
+
+test_server_log "log_level_httagd_info_file_request_code" \
+	{-- httagd code=TAGD_OK}
+
+test "get_missing_txt_file" \
+	 "GET" "/_file/missing.txt" "" \
+	 "404 Not Found"
+
+test_server_log "log_level_httagd_error_file_request_method" \
+	 {-- httagd request method=GET path=/_file/missing.txt}
+
+test_server_log "log_level_httagd_error_file_request_code" \
+	 {-- httagd code=TS_NOT_FOUND}
 
 # TODO
 #test "refer_file" \

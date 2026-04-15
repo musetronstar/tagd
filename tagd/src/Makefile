@@ -1,10 +1,12 @@
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
+CFLAGS ?= -std=c99 -Wall -Wextra -O3
 
 INC =  -I../include
-SRCS = tagd.cc rank.cc utf8.cc url.cc io.cc file.cc
+SRCS = tagd.cc rank.cc utf8.cc url.cc io.cc file.cc event.cc logger.cc
+CSRCS = ulid.c
 CODES_H = ../include/tagd/codes.h
-OBJS=$(SRCS:.cc=.o)
+OBJS=$(SRCS:.cc=.o) $(CSRCS:.c=.o)
 DEPS=$(OBJS:.o=.d)
 
 all : build
@@ -22,6 +24,9 @@ part-of-speech.inc: $(CODES_H)
 
 .cc.o :
 	g++ $(CXXFLAGS) -MMD -MP -c -o $@ $< $(INC)
+
+.c.o :
+	gcc $(CFLAGS) -MMD -MP -c -o $@ $< $(INC)
 
 -include $(DEPS)
 

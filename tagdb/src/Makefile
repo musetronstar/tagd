@@ -27,7 +27,7 @@ hard-tag.o: hard-tag.cc $(HARD_TAG_GPERF_H)
 $(HARD_TAG_GPERF_H): $(HARD_TAG_GPERF)
 	gperf $? > $@
 
-$(HARD_TAG_GPERF):
+$(HARD_TAG_GPERF): $(HARD_TAGS_H)
 	./gen-hard-tags.gperf.pl $(HARD_TAGS_H) > $@
 
 -include $(DEPS)

@@ -7,6 +7,35 @@
 
 namespace TAGL {
 
+static std::string scanner_debug_quote(const std::string& s) {
+	std::string out;
+	out.reserve(s.size() + 2);
+	out.push_back('"');
+	for (char c : s) {
+		switch (c) {
+			case '\\':
+				out.append("\\\\");
+				break;
+			case '"':
+				out.append("\\\"");
+				break;
+			case '\n':
+				out.append("\\n");
+				break;
+			case '\r':
+				out.append("\\r");
+				break;
+			case '\t':
+				out.append("\\t");
+				break;
+			default:
+				out.push_back(c);
+		}
+	}
+	out.push_back('"');
+	return out;
+}
+
 scanner::scanner(driver *d) : _driver(d), _buf(new char[BUF_SZ]) {
 	_buf[0] = '\0';
 }
@@ -26,30 +55,57 @@ void scanner::reset() {
 	_tok = -1;
 }
 
-void scanner::print_buf() {
-	LOG_DEBUG( "print_buf:" << std::endl )
-	size_t sz = _lim - _buf;
-	for(size_t i=0; i<=sz; ++i) {
-		LOG_DEBUG( _buf[i] )
-	}
-	LOG_DEBUG( std::endl )
-	LOG_DEBUG( "print_buf _beg(" << (_beg-_buf) << "): " << ((int)*_beg) << ", " << *_beg << std::endl )
-	LOG_DEBUG( "print_buf _cur(" << (_cur-_buf) << "): " << ((int)*_cur) << ", " << *_cur << std::endl )
-	LOG_DEBUG( "print_buf _lim(" << (_lim-_buf) << "): " << ((int)*_lim) << ", " << *_lim << std::endl )
-	if (_eof == nullptr)
-		LOG_DEBUG( "print_buf _eof: NULL" << std::endl )
-	else
-		LOG_DEBUG( "print_buf _eof(" << (_eof-_buf) << "): " << ((int)*_eof) << ", " << *_eof << std::endl )
-	LOG_DEBUG( "print_buf _val(" << _val.size() << "): `" << _val << "'" << std::endl )
+void scanner::log_begin(size_t sz) {
+	if (!TAGL_LOG_ENABLED(HARD_TAG_ROLE_SCANNER, tagd::log_level::DEBUG))
+		return;
+
+	TAGL_LOG_SCANNER_DEBUG(
+		"scanner begin"
+		<< " file=" << scanner_debug_quote(_driver->path().empty() ? "<input>" : _driver->path())
+		<< " line=" << _line_number
+		<< " bytes=" << sz
+	);
+}
+
+void scanner::log_token(int tok, TokenText val) {
+	if (!TAGL_LOG_ENABLED(HARD_TAG_ROLE_SCANNER, tagd::log_level::DEBUG))
+		return;
+
+	TAGL_LOG_SCANNER_DEBUG(
+		"scanner token"
+		<< " line=" << _line_number
+		<< " tok=" << token_str(tok)
+		<< " lexeme=" << scanner_debug_quote(val.empty() ? std::string() : val.str())
+	);
+}
+
+void scanner::log_refill(size_t carried, size_t tail, size_t read_sz, bool eof) {
+	if (!TAGL_LOG_ENABLED(HARD_TAG_ROLE_SCANNER, tagd::log_level::DEBUG))
+		return;
+
+	TAGL_LOG_SCANNER_DEBUG(
+		"scanner refill"
+		<< " line=" << _line_number
+		<< " carried=" << carried
+		<< " tail=" << tail
+		<< " read=" << read_sz
+		<< " eof=" << (eof ? "true" : "false")
+	);
+}
+
+void scanner::log_error(const std::string& lexeme) {
+	if (!TAGL_LOG_ENABLED(HARD_TAG_ROLE_SCANNER, tagd::log_level::DEBUG))
+		return;
+
+	TAGL_LOG_SCANNER_DEBUG(
+		"scanner error"
+		<< " line=" << _line_number
+		<< " lexeme=" << scanner_debug_quote(lexeme)
+		<< " reason=\"unrecognized token\""
+	);
 }
 
 const char* scanner::fill() {
-	if (TAGL_TRACE_ON) {
-		LOG_DEBUG( "fill ln: " << _line_number << std::endl )
-		LOG_DEBUG( "fill _cur(" << (_cur-_buf) << "): " << ((int)*_cur) << ", " << *_cur << std::endl )
-		print_buf();
-	}
-
 // YYFILL(n)  should adjust YYCURSOR, YYLIMIT, YYMARKER and YYCTXMARKER as needed.
 	if (_cur == nullptr) {
 		_eof = _cur;
@@ -60,17 +116,15 @@ const char* scanner::fill() {
 	assert(_lim >= _beg);
 	sz = _lim - _beg;
 	assert(sz <= BUF_SZ);
+	size_t carried = 0;
+	size_t tail_sz = 0;
 
 	if (sz >= BUF_SZ) {
 		// buffer is full, so overflow the consumed span into _val and
 		// carry forward only the unread tail for continued scanning
-		size_t apnd_sz = _cur - _beg;
-		size_t tail_sz = _lim - _cur;
-		_val.append(_beg, apnd_sz);
-		if (TAGL_TRACE_ON) {
-			LOG_DEBUG( "fill _val.append(" << apnd_sz << "): `" << std::string(_buf, apnd_sz) << "'" << std::endl )
-			LOG_DEBUG( "fill    new _val(" << _val.size() << "): `" << _val << "'" << std::endl )
-		}
+		carried = _cur - _beg;
+		tail_sz = _lim - _cur;
+		_val.append(_beg, carried);
 		if (tail_sz > 0)
 			memmove(&_buf[0], _cur, tail_sz);
 		_beg = &_buf[0];
@@ -78,6 +132,7 @@ const char* scanner::fill() {
 		_cur = &_buf[0];
 		sz = offset = tail_sz;
 	} else {
+		tail_sz = sz;
 		memmove(&_buf[0], _beg, sz);
 		_cur = &_buf[_cur-_beg];
 		_beg = &_buf[0];
@@ -86,18 +141,7 @@ const char* scanner::fill() {
 	_buf[sz] = '\0';
 	_mark = _cur;
 
-	if (TAGL_TRACE_ON) {
-		if (!_val.empty())
-			LOG_DEBUG( "fill val: `" << _val << "'" << std::endl )
-		LOG_DEBUG( "fill buf(" << sz << "): `" << std::string(_buf, sz) << "'" << std::endl )
-	}
-
 	size_t read_sz = BUF_SZ - offset;
-	if (TAGL_TRACE_ON) {
-		LOG_DEBUG( "fill sz: " << sz << std::endl )
-		LOG_DEBUG( "fill offset: " << offset << std::endl )
-		LOG_DEBUG( "fill read_sz: " << read_sz << std::endl )
-	}
 
 	if ((sz = evbuffer_remove(_evbuf, &_buf[offset], read_sz)) != 0) {
 		if (sz < read_sz) {
@@ -109,22 +153,16 @@ const char* scanner::fill() {
 			sz += offset;
 		}
 		_lim = &_buf[sz];
-		if (TAGL_TRACE_ON)
-			LOG_DEBUG( "filled(" << sz << "): `" << std::string(_beg, sz) << "'" << std::endl )
+		log_refill(carried, tail_sz, read_sz, _eof != nullptr);
 	} else {
 		_eof = _lim = &_buf[offset];
+		log_refill(carried, tail_sz, read_sz, true);
 	}
-
-	if (TAGL_TRACE_ON)
-		print_buf();
 
 	return _cur;
 }
 
 void scanner::begin_scan(const char *cur, size_t sz) {
-	if (TAGL_TRACE_ON)
-		LOG_DEBUG( "scan(" << &cur << "): " << std::string(cur, sz) << std::endl )
-
 	if (sz >= BUF_SZ) {
 		_driver->ferror(tagd::TAGL_ERR, "scan size (%d) >= buffer(%d)", sz, BUF_SZ);
 		return;
@@ -133,6 +171,7 @@ void scanner::begin_scan(const char *cur, size_t sz) {
 	_line_number = sz ? 1 : 0; // empty content, zero lines
 	_beg = _mark = _cur = cur;
 	_lim = &_cur[sz];
+	log_begin(sz);
 }
 
 void scanner::clear_value() {
@@ -169,6 +208,7 @@ TokenText scanner::new_value() {
 
 void scanner::emit(int tok, TokenText val) {
 	_tok = tok;
+	log_token(_tok, val);
 	_driver->parse_tok(_tok, val);
 	advance_begin();
 	clear_value();
@@ -211,6 +251,7 @@ void scanner::emit_quoted_string_token() {
 }
 
 void scanner::emit_error() {
+	log_error(std::string(_beg, (_cur - _beg)));
 	_driver->error(tagd::TAGL_ERR,
 		tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, std::string(_beg, (_cur - _beg))));
 	if (!_driver->path().empty()) {

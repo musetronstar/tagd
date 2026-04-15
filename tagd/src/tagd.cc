@@ -4,10 +4,88 @@
 #include <cstring>
 #include <cassert>
 #include <cstdio>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <mutex>
 
 #include "tagd.h"
+#include "tagd/ulid.h"
 
 namespace tagd {
+
+static std::string utc_now_ms() {
+	using namespace std::chrono;
+	auto now = system_clock::now();
+	auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
+	auto t = system_clock::to_time_t(now);
+	std::tm tm;
+	gmtime_r(&t, &tm);
+
+	std::stringstream ss;
+	ss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%S")
+	   << '.' << std::setw(3) << std::setfill('0') << ms.count() << 'Z';
+	return ss.str();
+}
+
+static session_factory& default_session_factory() {
+	static session_factory factory;
+	return factory;
+}
+
+session::session() :
+	session(default_session_factory().create())
+{}
+
+session::session(const id_type& id, const id_type& started_at) :
+	errorable(),
+	_id{id},
+	_started_at{started_at},
+	_sequence{0}
+{}
+
+class session_factory::impl {
+	public:
+		// One generator per factory preserves same-millisecond ULID monotonicity.
+		std::mutex lock;
+		ulid_generator generator;
+		bool initialized = false;
+};
+
+session_factory::session_factory() :
+	_impl{std::make_shared<impl>()}
+{}
+
+session session_factory::create()
+{
+	// TODO let applications own and pass explicit session_factory instances.
+	char ulid[27];
+	// Skeeto's generator is stateful; protect it when sessions are created concurrently.
+	std::lock_guard<std::mutex> guard(_impl->lock);
+	if (!_impl->initialized) {
+		ulid_generator_init(&_impl->generator, 0);
+		_impl->initialized = true;
+	}
+	ulid_generate(&_impl->generator, ulid);
+	return session(ulid, utc_now_ms());
+}
+
+session::session(const session& s) :
+	errorable(s),
+	_id{s._id},
+	_started_at{s._started_at},
+	_sequence{s._sequence.load()}
+{}
+
+session& session::operator=(const session& s) {
+	if (this != &s) {
+		errorable::operator=(s);
+		_id = s._id;
+		_started_at = s._started_at;
+		_sequence.store(s._sequence.load());
+	}
+	return *this;
+}
 
 bool predicate::cmp_modifier_lt(const predicate& lhs, const predicate& rhs) {
 	if(lhs.modifier.empty())
@@ -38,7 +116,7 @@ bool predicate::cmp_modifier_lt(const predicate& lhs, const predicate& rhs) {
 							  std::strtold(lhs.modifier.c_str(), nullptr)
 							< std::strtold(rhs.modifier.c_str(), nullptr) )
 						);
-				case TYPE_TEXT:
+				case TYPE_STRING:
 					return lt_type_opr8r;
 				default:
 					assert(0);
@@ -54,14 +132,14 @@ bool predicate::cmp_modifier_lt(const predicate& lhs, const predicate& rhs) {
 							  std::strtold(lhs.modifier.c_str(), nullptr)
 							< std::strtold(rhs.modifier.c_str(), nullptr) )
 						);
-				case TYPE_TEXT:
+				case TYPE_STRING:
 					return lt_type_opr8r;
 				default:
 					assert(0);
 					return lt_type_opr8r;
 			} break;
 
-		case TYPE_TEXT:
+		case TYPE_STRING:
 			return (
 			   lhs.modifier_type < rhs.modifier_type ||
 				(
@@ -86,7 +164,7 @@ bool predicate::cmp_modifier_lt(const predicate& lhs, const predicate& rhs) {
 // returns whether rhs == lhs
 bool predicate::cmp_modifier_eq(const predicate& rhs, const predicate& lhs) {
 	switch(lhs.modifier_type) {
-		case TYPE_TEXT:
+		case TYPE_STRING:
 			return (
 				   lhs.modifier_type == rhs.modifier_type
 				&& lhs.opr8r == rhs.opr8r
@@ -95,11 +173,11 @@ bool predicate::cmp_modifier_eq(const predicate& rhs, const predicate& lhs) {
 
 		case TYPE_INTEGER:
 			switch (rhs.modifier_type) {
-				case TYPE_TEXT:
+				case TYPE_STRING:
 					return false;
 				case TYPE_INTEGER:
 					return lhs.opr8r == rhs.opr8r && (
-						   std::strtoll(lhs.modifier.c_str(), nullptr, 10) 
+						   std::strtoll(lhs.modifier.c_str(), nullptr, 10)
 						== std::strtoll(rhs.modifier.c_str(), nullptr, 10)
 						// TODO check format, limits, set err code when adding tag predicates
 					);
@@ -115,7 +193,7 @@ bool predicate::cmp_modifier_eq(const predicate& rhs, const predicate& lhs) {
 
 		case TYPE_FLOAT:
 			switch (rhs.modifier_type) {
-				case TYPE_TEXT:
+				case TYPE_STRING:
 					return false;
 				case TYPE_INTEGER:
 				case TYPE_FLOAT:
@@ -183,7 +261,7 @@ bool predicate::empty() const {
 		&& object.empty()
 		&& modifier.empty()
 		&& opr8r == OP_EQ
-		&& modifier_type == TYPE_TEXT
+		&& modifier_type == TYPE_STRING
 	);
 }
 
@@ -566,6 +644,9 @@ std::ostream& operator<<(std::ostream& os, const predicate& p) {
 
 // note it is a tag friend function, not abstract_tag::operator<<
 std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
+	if (t.id().find(EVURI_SCHEME) == 0 || t.id().find(ERRURI_SCHEME) == 0) {
+		os << t.id();
+	} else
 	if (!t.super_object().empty() && t.pos() != POS_URL) {  // urls' sub determined by nature of being a url
 		print_quotable(os, t.id());
 		os << ' ';
@@ -644,6 +725,39 @@ const id_type& error::message() const {
 	}
 
 	return EMPTY_ID;
+}
+
+static session& default_error_session() {
+	static session ssn(default_session_factory().create());
+	return ssn;
+}
+
+error::error(const tagd::code c) :
+	event(default_error_session(), "tagd", code_error_tag(c))
+{
+	if (_id.find(EVURI_SCHEME) == 0)
+		_id.replace(0, EVURI_SCHEME.size(), ERRURI_SCHEME);
+	_pos = POS_ERROR;
+	_code = c;
+}
+
+error::error(const std::string& erruri) :
+	event((erruri.find(ERRURI_SCHEME) == 0)
+			? EVURI_SCHEME + erruri.substr(ERRURI_SCHEME.size())
+			: erruri)
+{
+	if (erruri.find(ERRURI_SCHEME) != 0) {
+		code(URI_ERR_SCHEME);
+	}
+	if (_id.find(EVURI_SCHEME) == 0)
+		_id.replace(0, EVURI_SCHEME.size(), ERRURI_SCHEME);
+	_pos = POS_ERROR;
+}
+
+error::error(const tagd::code c, const std::string& msg) :
+	error(c)
+{
+	(void)this->relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, msg);
 }
 
 error error::ferror(tagd::code c, const char *errfmt, ...) {
@@ -765,12 +879,12 @@ void errorable::print_errors(std::ostream& os) const {
 
 	errors_t::const_iterator it = _errors.get()->begin();
 	if (it != _errors.get()->end()) {
-		os << *it << std::endl;
+		os << ">> " << *it << std::endl;
 		++it;
 	}
 
 	for(; it != _errors.get()->end(); ++it)
-		os << std::endl << *it << std::endl;
+		os << std::endl << ">> " << *it << std::endl;
 }
 
 // code strings
@@ -779,6 +893,44 @@ const char* code_str(tagd::code c) {
 // case statement for each tagd::code generated by gen-codes-inc.pl
 #include "tagd-codes.inc"
 		default: assert(0); return "STR_EMPTY";
+	}
+}
+
+const char* code_error_tag(tagd::code c) {
+	switch (c) {
+		case tagd::TAGD_ERR: return HARD_TAG_ERROR_TAGD_ERR;
+		case tagd::TAG_UNKNOWN: return HARD_TAG_ERROR_TAG_UNKNOWN;
+		case tagd::TAG_DUPLICATE: return HARD_TAG_ERROR_TAG_DUPLICATE;
+		case tagd::TAG_ILLEGAL: return HARD_TAG_ERROR_TAG_ILLEGAL;
+		case tagd::RANK_ERR: return HARD_TAG_ERROR_RANK_ERR;
+		case tagd::RANK_EMPTY: return HARD_TAG_ERROR_RANK_EMPTY;
+		case tagd::RANK_MAX_VALUE: return HARD_TAG_ERROR_RANK_MAX_VALUE;
+		case tagd::RANK_MAX_LEN: return HARD_TAG_ERROR_RANK_MAX_LEN;
+		case tagd::URI_ERR_SCHEME: return HARD_TAG_ERROR_URI_ERR_SCHEME;
+		case tagd::URL_EMPTY: return HARD_TAG_ERROR_URL_EMPTY;
+		case tagd::URL_MAX_LEN: return HARD_TAG_ERROR_URL_MAX_LEN;
+		case tagd::URL_ERR_SCHEME: return HARD_TAG_ERROR_URL_ERR_SCHEME;
+		case tagd::URL_ERR_HOST: return HARD_TAG_ERROR_URL_ERR_HOST;
+		case tagd::URL_ERR_PORT: return HARD_TAG_ERROR_URL_ERR_PORT;
+		case tagd::URL_ERR_PATH: return HARD_TAG_ERROR_URL_ERR_PATH;
+		case tagd::URL_ERR_USER: return HARD_TAG_ERROR_URL_ERR_USER;
+		case tagd::TS_NOT_FOUND: return HARD_TAG_ERROR_TS_NOT_FOUND;
+		case tagd::TS_DUPLICATE: return HARD_TAG_ERROR_TS_DUPLICATE;
+		case tagd::TS_SUB_UNK: return HARD_TAG_ERROR_TS_SUB_UNK;
+		case tagd::TS_RELATOR_UNK: return HARD_TAG_ERROR_TS_RELATOR_UNK;
+		case tagd::TS_OBJECT_UNK: return HARD_TAG_ERROR_TS_OBJECT_UNK;
+		case tagd::TS_REFERS_TO_UNK: return HARD_TAG_ERROR_TS_REFERS_TO_UNK;
+		case tagd::TS_CONTEXT_UNK: return HARD_TAG_ERROR_TS_CONTEXT_UNK;
+		case tagd::TS_AMBIGUOUS: return HARD_TAG_ERROR_TS_AMBIGUOUS;
+		case tagd::TS_RELATION_DEPENDENCY: return HARD_TAG_ERROR_TS_RELATION_DEPENDENCY;
+		case tagd::TS_ERR_MAX_TAG_LEN: return HARD_TAG_ERROR_TS_ERR_MAX_TAG_LEN;
+		case tagd::TS_ERR: return HARD_TAG_ERROR_TS_ERR;
+		case tagd::TS_MISUSE: return HARD_TAG_ERROR_TS_MISUSE;
+		case tagd::TS_INTERNAL_ERR: return HARD_TAG_ERROR_TS_INTERNAL_ERR;
+		case tagd::TS_NOT_IMPLEMENTED: return HARD_TAG_ERROR_TS_NOT_IMPLEMENTED;
+		case tagd::TAGL_ERR: return HARD_TAG_ERROR_TAGL_ERR;
+		case tagd::HTTP_ERR: return HARD_TAG_ERROR_HTTP_ERR;
+		default: return HARD_TAG_ERROR;
 	}
 }
 

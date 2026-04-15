@@ -71,6 +71,31 @@ class TagdUrlTester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS(tagl.tag().super_object(), HARD_TAG_URL)
 	}
 
+	void test_cmd_get_event_error_uri_tag(void) {
+		tagdb_tester tdb;
+		TAGL::driver tagl(&tdb);
+
+		const char *evuri = "/ev:2026-04-09T04:00:56.738Z!host!principal!tagsh!01KNS1F5S0CHPPQQNCVRQKVZM4!1!_event";
+		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_GET, evuri);
+		tagl.finish();
+
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK")
+		TS_ASSERT_EQUALS(tagl.cmd(), TOK_CMD_GET)
+		TS_ASSERT_EQUALS(tagl.tag().id(), evuri + 1)
+		TS_ASSERT_EQUALS(tagl.tag().super_object(), HARD_TAG_EVENT)
+		TS_ASSERT_EQUALS(tagl.tag().pos(), tagd::POS_TAG)
+
+		const char *erruri = "/err:2026-04-09T04:00:56.739Z!host!principal!tagsh!01KNS1F5S0CHPPQQNCVRQKVZM4!2!_error:ts_not_found";
+		tc = tagl.scan_tagdurl(TOK_CMD_GET, erruri);
+		tagl.finish();
+
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK")
+		TS_ASSERT_EQUALS(tagl.cmd(), TOK_CMD_GET)
+		TS_ASSERT_EQUALS(tagl.tag().id(), erruri + 1)
+		TS_ASSERT_EQUALS(tagl.tag().super_object(), HARD_TAG_ERROR_TS_NOT_FOUND)
+		TS_ASSERT_EQUALS(tagl.tag().pos(), tagd::POS_ERROR)
+	}
+
 	// mirrors Tester.h `test_subject(void)`, but uses a tagdurl subject
 	void test_get_statement_subject(void) {
 		tagdb_tester tdb;

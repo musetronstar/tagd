@@ -5,9 +5,19 @@
 #include <string>  // find_last_of
 
 #include "tagd.h"
+#include "tagd/logger.h"
 #include "hard-tags.gperf.h"
 
 namespace tagdb {
+
+static bool valid_log_role_hard_tag(const std::string& role) {
+	tagd::abstract_tag tag;
+	if (hard_tag::get(tag, role) != tagd::TAGD_OK)
+		return false;
+
+	return tag.super_object() == HARD_TAG_ROLE
+		|| tag.super_object() == HARD_TAG_ROLE_SYSTEM;
+}
 
 // looks up hard tag and returns part_of_speech
 tagd::part_of_speech hard_tag::pos(const tagd::id_type &id) {
@@ -64,6 +74,17 @@ tagd::code hard_tag::get(tagd::abstract_tag& t, const tagd::id_type &id) {
 	
         return t.code();
 	}
+}
+
+void hard_tag::install_logger_validator() {
+	/*
+	 * TODO hard_tagdb:
+	 * This is a bootstrap adapter. Hard-tag lookup currently belongs to
+	 * tagdb::hard_tag because row ids intentionally match tagdb/SQLite row
+	 * semantics. When hard_tagdb exists, logger/event/error validation should
+	 * use that explicit hard-coded tagspace seam instead.
+	 */
+	tagd::set_log_role_validator(valid_log_role_hard_tag);
 }
 
 const char ** hard_tag::rows() {

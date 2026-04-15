@@ -905,7 +905,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( val , "2" );
 		TS_ASSERT( tagd::url::query_find(qm, val, "yo") );
 		TS_ASSERT_EQUALS( val , "hey" );
-		TS_ASSERT( !tagd::url::query_find(qm, val, "caca") );
+		TS_ASSERT( !tagd::url::query_find(qm, val, "haha") );
 	}
 
 	void test_looks_like(void) {

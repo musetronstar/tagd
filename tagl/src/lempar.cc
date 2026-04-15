@@ -231,6 +231,19 @@ typedef struct yyParser yyParser;
 #include <stdio.h>
 static FILE *yyTraceFILE = 0;
 static char *yyTracePrompt = 0;
+
+static int yyTraceEnabled(void){
+  return yyTraceFILE!=0
+      || TAGL_LOG_ENABLED(HARD_TAG_ROLE_PARSER, tagd::log_level::DEBUG);
+}
+
+static void yyTraceLog(const std::string& msg){
+  if( TAGL_LOG_ENABLED(HARD_TAG_ROLE_PARSER, tagd::log_level::DEBUG) ){
+    TAGL_LOG(HARD_TAG_ROLE_PARSER, tagd::log_level::DEBUG, msg);
+  }else if( yyTraceFILE ){
+    fprintf(yyTraceFILE, "%s%s\n", yyTracePrompt, msg.c_str());
+  }
+}
 #endif /* NDEBUG */
 
 #ifndef NDEBUG
@@ -273,6 +286,13 @@ static const char *const yyTokenName[] = {
 static const char *const yyRuleName[] = {
 %%
 };
+
+static void yyTraceRuleSuffix(std::ostringstream& ss, int yyruleno){
+  if( yyruleno>=0
+   && yyruleno<(int)(sizeof(yyRuleName)/sizeof(yyRuleName[0])) ){
+    ss << " [" << yyRuleName[yyruleno] << "]";
+  }
+}
 #endif /* NDEBUG */
 
 
@@ -411,14 +431,19 @@ static void yy_destructor(
 */
 static void yy_pop_parser_stack(yyParser *pParser){
   yyStackEntry *yytos;
+  yyParser *yypParser = pParser;
   assert( pParser->yytos!=0 );
   assert( pParser->yytos > pParser->yystack );
   yytos = pParser->yytos--;
 #ifndef NDEBUG
-  if( yyTraceFILE ){
-    fprintf(yyTraceFILE,"%sPopping %s\n",
-      yyTracePrompt,
-      yyTokenName[yytos->major]);
+  ParseCTX_FETCH
+  if( yyTraceEnabled() ){
+    std::ostringstream ss;
+    ss << "parser pop tok=" << yyTokenName[yytos->major];
+    if( tagl != nullptr ){
+      ss << " line=" << tagl->line_number();
+    }
+    yyTraceLog(ss.str());
   }
 #endif
   yy_destructor(pParser, yytos->major, &yytos->minor);
@@ -624,16 +649,26 @@ static void yyStackOverflow(yyParser *yypParser){
 */
 #ifndef NDEBUG
 static void yyTraceShift(yyParser *yypParser, int yyNewState, const char *zTag){
-  if( yyTraceFILE ){
-    if( yyNewState<YYNSTATE ){
-      fprintf(yyTraceFILE,"%s%s '%s', go to state %d\n",
-         yyTracePrompt, zTag, yyTokenName[yypParser->yytos->major],
-         yyNewState);
+  ParseCTX_FETCH
+  if( yyTraceEnabled() ){
+    std::ostringstream ss;
+    ss << "parser ";
+    if( strcmp(zTag, "Shift")==0 ){
+      ss << "shift";
     }else{
-      fprintf(yyTraceFILE,"%s%s '%s', pending reduce %d\n",
-         yyTracePrompt, zTag, yyTokenName[yypParser->yytos->major],
-         yyNewState - YY_MIN_REDUCE);
+      ss << "goto";
     }
+    ss << " tok=" << yyTokenName[yypParser->yytos->major];
+    if( tagl != nullptr ){
+      ss << " line=" << tagl->line_number();
+    }
+    if( yyNewState<YYNSTATE ){
+      ss << " state=" << yyNewState;
+    }else{
+      ss << " pending_reduce=" << (yyNewState - YY_MIN_REDUCE);
+      yyTraceRuleSuffix(ss, yyNewState - YY_MIN_REDUCE);
+    }
+    yyTraceLog(ss.str());
   }
 }
 #else
@@ -722,19 +757,21 @@ static YYACTIONTYPE yy_reduce(
   (void)yyLookaheadToken;
   yymsp = yypParser->yytos;
 #ifndef NDEBUG
-  if( yyTraceFILE && yyruleno<(int)(sizeof(yyRuleName)/sizeof(yyRuleName[0])) ){
+  if( yyTraceEnabled() && yyruleno<(int)(sizeof(yyRuleName)/sizeof(yyRuleName[0])) ){
+    std::ostringstream ss;
     yysize = yyRuleInfoNRhs[yyruleno];
-    if( yysize ){
-      fprintf(yyTraceFILE, "%sReduce %d [%s]%s, pop back to state %d.\n",
-        yyTracePrompt,
-        yyruleno, yyRuleName[yyruleno],
-        yyruleno<YYNRULE_WITH_ACTION ? "" : " without external action",
-        yymsp[yysize].stateno);
-    }else{
-      fprintf(yyTraceFILE, "%sReduce %d [%s]%s.\n",
-        yyTracePrompt, yyruleno, yyRuleName[yyruleno],
-        yyruleno<YYNRULE_WITH_ACTION ? "" : " without external action");
+    ss << "parser reduce rule=" << yyruleno
+       << " name=" << yyRuleName[yyruleno];
+    if( tagl != nullptr ){
+      ss << " line=" << tagl->line_number();
     }
+    if( yysize ){
+      ss << " pop_to_state=" << yymsp[yysize].stateno;
+    }
+    if( yyruleno>=YYNRULE_WITH_ACTION ){
+      ss << " action=internal";
+    }
+    yyTraceLog(ss.str());
   }
 #endif /* NDEBUG */
 
@@ -813,8 +850,8 @@ static void yy_parse_failed(
   ParseARG_FETCH
   ParseCTX_FETCH
 #ifndef NDEBUG
-  if( yyTraceFILE ){
-    fprintf(yyTraceFILE,"%sFail!\n",yyTracePrompt);
+  if( yyTraceEnabled() ){
+    yyTraceLog("parser fail");
   }
 #endif
   while( yypParser->yytos>yypParser->yystack ) yy_pop_parser_stack(yypParser);
@@ -855,8 +892,8 @@ static void yy_accept(
   ParseARG_FETCH
   ParseCTX_FETCH
 #ifndef NDEBUG
-  if( yyTraceFILE ){
-    fprintf(yyTraceFILE,"%sAccept!\n",yyTracePrompt);
+  if( yyTraceEnabled() ){
+    yyTraceLog("parser accept");
   }
 #endif
 #ifndef YYNOERRORRECOVERY
@@ -916,14 +953,19 @@ void Parse(
 
   yyact = yypParser->yytos->stateno;
 #ifndef NDEBUG
-  if( yyTraceFILE ){
-    if( yyact < YY_MIN_REDUCE ){
-      fprintf(yyTraceFILE,"%sInput '%s' in state %d\n",
-              yyTracePrompt,yyTokenName[yymajor],yyact);
-    }else{
-      fprintf(yyTraceFILE,"%sInput '%s' with pending reduce %d\n",
-              yyTracePrompt,yyTokenName[yymajor],yyact-YY_MIN_REDUCE);
+  if( yyTraceEnabled() ){
+    std::ostringstream ss;
+    ss << "parser input tok=" << yyTokenName[yymajor];
+    if( tagl != nullptr ){
+      ss << " line=" << tagl->line_number();
     }
+    if( yyact < YY_MIN_REDUCE ){
+      ss << " state=" << yyact;
+    }else{
+      ss << " pending_reduce=" << (yyact-YY_MIN_REDUCE);
+      yyTraceRuleSuffix(ss, yyact-YY_MIN_REDUCE);
+    }
+    yyTraceLog(ss.str());
   }
 #endif
 
@@ -950,8 +992,13 @@ void Parse(
       int yymx;
 #endif
 #ifndef NDEBUG
-      if( yyTraceFILE ){
-        fprintf(yyTraceFILE,"%sSyntax Error!\n",yyTracePrompt);
+      if( yyTraceEnabled() ){
+        std::ostringstream ss;
+        ss << "parser syntax_error tok=" << yyTokenName[yymajor];
+        if( tagl != nullptr ){
+          ss << " line=" << tagl->line_number();
+        }
+        yyTraceLog(ss.str());
       }
 #endif
 #ifdef YYERRORSYMBOL
@@ -980,9 +1027,13 @@ void Parse(
       yymx = yypParser->yytos->major;
       if( yymx==YYERRORSYMBOL || yyerrorhit ){
 #ifndef NDEBUG
-        if( yyTraceFILE ){
-          fprintf(yyTraceFILE,"%sDiscard input token %s\n",
-             yyTracePrompt,yyTokenName[yymajor]);
+        if( yyTraceEnabled() ){
+          std::ostringstream ss;
+          ss << "parser discard tok=" << yyTokenName[yymajor];
+          if( tagl != nullptr ){
+            ss << " line=" << tagl->line_number();
+          }
+          yyTraceLog(ss.str());
         }
 #endif
         yy_destructor(yypParser, (YYCODETYPE)yymajor, &yyminorunion);
@@ -1047,15 +1098,10 @@ void Parse(
     }
   }while( yypParser->yytos>yypParser->yystack );
 #ifndef NDEBUG
-  if( yyTraceFILE ){
-    yyStackEntry *i;
-    char cDiv = '[';
-    fprintf(yyTraceFILE,"%sReturn. Stack=",yyTracePrompt);
-    for(i=&yypParser->yystack[1]; i<=yypParser->yytos; i++){
-      fprintf(yyTraceFILE,"%c%s", cDiv, yyTokenName[i->major]);
-      cDiv = ' ';
-    }
-    fprintf(yyTraceFILE,"]\n");
+  if( yyTraceEnabled() ){
+    std::ostringstream ss;
+    ss << "parser return depth=" << (int)(yypParser->yytos - yypParser->yystack);
+    yyTraceLog(ss.str());
   }
 #endif
   return;

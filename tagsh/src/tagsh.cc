@@ -14,14 +14,50 @@
 #include "tagl.h"
 #include "tagdb/sqlite.h"
 
-void ALL_SET_TRACE_ON() {
-	TAGDB_SET_TRACE_ON();
-	TAGL_SET_TRACE_ON();
+static tagd::logger *TAGSH_LOGGER = nullptr;
+
+static void TAGSH_SET_LOGGER(tagd::logger *log) {
+	TAGSH_LOGGER = log;
 }
 
-void ALL_SET_TRACE_OFF() {
-	TAGDB_SET_TRACE_OFF();
-	TAGL_SET_TRACE_OFF();
+static bool TAGSH_LOG_ENABLED(tagd::log_level lvl) {
+	if (TAGSH_LOGGER == nullptr)
+		return false;
+
+	return static_cast<int>(lvl) <= static_cast<int>(TAGSH_LOGGER->level(HARD_TAG_ROLE_TAGSH));
+}
+
+static void TAGSH_LOG(tagd::log_level lvl, const std::string& msg) {
+	if (TAGSH_LOGGER == nullptr)
+		return;
+
+	TAGSH_LOGGER->log(HARD_TAG_ROLE_TAGSH, lvl, std::string("-- ").append(msg));
+}
+
+static void log_tagsh_notice(const char *fmt, const char *arg) {
+	if (!TAGSH_LOG_ENABLED(tagd::log_level::NOTICE))
+		return;
+
+	char *msg = tagd::util::csprintf(fmt, arg);
+	TAGSH_LOG(tagd::log_level::NOTICE,
+			(msg == NULL ? "tagsh log formatting failed" : msg));
+}
+
+static void log_tagsh_notice(const char *fmt, const std::string& arg) {
+	log_tagsh_notice(fmt, arg.c_str());
+}
+
+static void log_driver_debug(const char *fmt, const char *arg) {
+	if (!TAGL_LOG_ENABLED(HARD_TAG_ROLE_DRIVER, tagd::log_level::DEBUG))
+		return;
+
+	char *msg = tagd::util::csprintf(fmt, arg);
+	TAGL_LOG(HARD_TAG_ROLE_DRIVER, tagd::log_level::DEBUG,
+			(msg == NULL ? "driver log formatting failed" : msg));
+}
+
+static void log_driver_debug(const char *fmt, const std::string& arg) {
+	log_driver_debug(fmt, arg.c_str());
 }
 
 // TODO put in a utility library
@@ -33,8 +69,14 @@ int tagsh::error(const char *errfmt, ...) {
 
 	if (err == NULL)
 		std::perror("error: ");
-	else
+	else {
+		if (TAGSH_LOG_ENABLED(tagd::log_level::ERROR)) {
+			TAGSH_LOG(tagd::log_level::ERROR, err);
+			TAGSH_LOG(tagd::log_level::ERROR,
+					std::string("tagsh code=").append(tagd::code_str(tagd::TAGD_ERR)));
+		}
 		TAGD_CERR << err << std::endl;
+	}
 
 	return 1;
 }
@@ -56,12 +98,14 @@ void tagsh_callback::handle_cmd_error() {
 	auto ssn = _driver->session_ptr();
 	if (ssn && !ssn->ok()) {
 		_driver->code(ssn->code()); // stops the scanner
+		_tsh->last_code(_driver->code());
 		ssn->print_errors();
 		ssn->clear_errors();
 	}
 	
 	if (!_tdb->ok()) {
 		_driver->code(_tdb->code()); // stops the scanner
+		_tsh->last_code(_driver->code());
 		_tdb->print_errors();
 		_tdb->clear_errors();
 	}
@@ -72,6 +116,8 @@ void tagsh_callback::handle_cmd_error() {
 void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag *T;
 	auto ssn = _driver->session_ptr();
+	log_driver_debug("driver statement command=CMD_GET subject=%s", t.id());
+	log_driver_debug("driver callback=cmd_get subject=%s", t.id());
 
 	if (t.pos() == tagd::POS_URL) {
 		T = new tagd::url();
@@ -82,9 +128,11 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 
 	if(CMD_OK())
-		TAGD_COUT << *T << std::endl;
+		(*_tsh->out) << *T << std::endl;
 	else
 		this->handle_cmd_error();
+	_tsh->last_code(_driver->code());
+	log_driver_debug("driver code=%s", tagd::code_str(_driver->code()));
 
 	delete T;
 
@@ -93,31 +141,39 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 
 void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 	auto ssn = _driver->session_ptr();
+	log_driver_debug("driver statement command=CMD_PUT subject=%s", t.id());
+	log_driver_debug("driver callback=cmd_put subject=%s", t.id());
 	tagd::code tc = _tdb->put(t, ssn, _driver->flags);
 
 	if (CMD_OK()) {
 		if (_tsh->echo_result_code)
-			TAGD_COUT << "-- " << tagd::code_str(tc) << std::endl;
+			(*_tsh->out) << "-- " << tagd::code_str(tc) << std::endl;
 	} else {
 		this->handle_cmd_error();
 	}
+	_tsh->last_code(CMD_OK() ? tc : _driver->code());
+	log_driver_debug("driver code=%s", tagd::code_str(_driver->code()));
 
 	add_history_lines_clear(_lines);
 }
 
 void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 	auto ssn = _driver->session_ptr();
+	log_driver_debug("driver statement command=CMD_DEL subject=%s", t.id());
+	log_driver_debug("driver callback=cmd_del subject=%s", t.id());
 	tagd::code tc = _tdb->del(t, ssn, _driver->flags);
 
 	if (CMD_OK()) {
 		if (_tsh->echo_result_code)
-			TAGD_COUT << "-- " << tagd::code_str(tc) << std::endl;
+			(*_tsh->out) << "-- " << tagd::code_str(tc) << std::endl;
 	} else if (_tdb->code() == tagd::TS_NOT_FOUND) {
 		if (_tsh->echo_result_code)
-			TAGD_COUT << "-- " << tagd::code_str(tc) << std::endl;
+			(*_tsh->out) << "-- " << tagd::code_str(tc) << std::endl;
 	} else {
 		this->handle_cmd_error();
 	}
+	_tsh->last_code((CMD_OK() || _tdb->code() == tagd::TS_NOT_FOUND) ? tc : _driver->code());
+	log_driver_debug("driver code=%s", tagd::code_str(_driver->code()));
 
 	add_history_lines_clear(_lines);
 }
@@ -125,10 +181,13 @@ void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 	tagd::tag_set T;
 	auto ssn = _driver->session_ptr();
+	log_driver_debug("driver statement command=CMD_QUERY subject=%s", q.id());
+	log_driver_debug("driver callback=cmd_query subject=%s", q.id());
 
 	auto tc = _tdb->query(T, q, ssn, _driver->flags|tagdb::F_NO_NOT_FOUND_ERROR);
 	if (!CMD_OK()) {
 		this->handle_cmd_error();
+		log_driver_debug("driver code=%s", tagd::code_str(_driver->code()));
 		add_history_lines_clear(_lines);
 		return;
 	}
@@ -136,22 +195,26 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 	switch(tc) {
 		case tagd::TAGD_OK:
 			if (q.super_object() == HARD_TAG_REFERENT)
-				tagd::print_tags(T);
+				tagd::print_tags(T, *_tsh->out);
 			else
-				tagd::print_tag_ids(T);
+				tagd::print_tag_ids(T, *_tsh->out);
 			break;
 		case tagd::TS_NOT_FOUND:  // TS_NOT_FOUND not an error for queries
 			if (_tsh->echo_result_code)
-				TAGD_COUT << "-- " << tagd::code_str(tc) << std::endl;
+				(*_tsh->out) << "-- " << tagd::code_str(tc) << std::endl;
 			break;
 		default:	
 			this->handle_cmd_error();
 	}
+	_tsh->last_code((!CMD_OK()) ? _driver->code() : tc);
+	log_driver_debug("driver code=%s", tagd::code_str(_driver->code()));
 
 	add_history_lines_clear(_lines);
 }
 
 void tagsh_callback::cmd_error() {
+	_tsh->last_code(_driver->code());
+	log_driver_debug("driver callback=cmd_error code=%s", tagd::code_str(_driver->code()));
 	_driver->print_errors();
 	add_history_lines_clear(_lines);
 }
@@ -212,8 +275,10 @@ void tagsh::command(const std::string& cmdline) {
 			return;
 		}
 
+		auto echo_result_code = this->echo_result_code;
+		this->echo_result_code = false;
 		this->interpret_fname(V[1]);
-
+		this->echo_result_code = echo_result_code;
 		return;
 	}
 
@@ -263,16 +328,6 @@ void tagsh::command(const std::string& cmdline) {
 		return;
 	}
 
-	if (cmd == ".trace_on") {
-		ALL_SET_TRACE_ON();
-		return;
-	}
-
-	if (cmd == ".trace_off") {
-		ALL_SET_TRACE_OFF();
-		return;
-	}
-
 	if (cmd == ".exit" || cmd == ".quit")
 		std::exit(EXIT_SUCCESS);
 
@@ -299,10 +354,12 @@ int tagsh::interpret_readline() {
 
 int tagsh::interpret(const std::string &line) {
 	if (line[0] == '.') {
+		this->last_code(tagd::TAGD_OK);
 		command(line);
 		add_history_lines_clear(_callback->_lines);
 		return 0;
 	} else {
+		this->last_code(tagd::TAGD_OK);
 		_driver.parseln(line);
 
 		// force a reduce action when a terminator
@@ -312,9 +369,11 @@ int tagsh::interpret(const std::string &line) {
 			_driver.parse_tok(TOK_TERMINATOR, TAGL::EMPTY_VALUE);
 
 		if (_driver.has_errors()) {
+			auto code = _driver.code();
 			_driver.finish();
 			_driver.clear_errors();
-			return _driver.code();
+			this->last_code(code);
+			return code;
 		}
 	}
 
@@ -340,9 +399,10 @@ int tagsh::interpret(std::istream& ins) {
 }
 
 int tagsh::interpret_fname(const  std::string& fname) {
-	int ret = _driver.include_file(fname);
+	log_tagsh_notice("tagsh load file=%s", fname);
+	_driver.include_file(fname);
 	_driver.finish();
-	return ret;
+	return this->last_code();
 }
 
 void tagsh::cmd_show() {
@@ -353,8 +413,6 @@ void tagsh::cmd_show() {
 	TAGD_COUT << ".dump_terms\t# dump tagspace terms and part_of_speech lists to stdout" << std::endl;
 	TAGD_COUT << ".dump_search\t# dump full text content of tag search terms" << std::endl;
 	TAGD_COUT << ".print_flags\t# print TAGL flags set" << std::endl;
-	TAGD_COUT << ".trace_on\t# trace tagl lexer and parser execution path and sql statements" << std::endl;
-	TAGD_COUT << ".trace_off\t# turn trace off" << std::endl;
 	TAGD_COUT << ".exit\t# exit this shell" << std::endl;
 	TAGD_COUT << ".quit\t# same as .exit" << std::endl;
 	TAGD_COUT << ".show\t# show commands" << std::endl;
@@ -362,6 +420,8 @@ void tagsh::cmd_show() {
 
 cmd_args::cmd_args()
 {
+	opt_logger.level(tagd::log_level::ERROR);
+
 	_cmds["--db"] = {
 		[this](char *val) {
 			if (val[0] == '-')
@@ -410,9 +470,12 @@ cmd_args::cmd_args()
 	_cmds["--file"] = file_handler;
 	_cmds["-f"] = file_handler;
 
-	_cmds["--trace"] = {
-		[this](char *) { opt_trace = true; },
-		false
+	_cmds["--log-level"] = {
+		[this](char *val) {
+			if (!tagd::parse_log_level_spec(val, opt_logger))
+				this->ferror(tagd::TAGD_ERR, "invalid log level: %s", val);
+		},
+		true
 	};
 
 	_cmds["--dump"] = {
@@ -445,8 +508,8 @@ cmd_args::cmd_args()
 			<< "		execute then exit with no shell" 									<< std::endl
 			<< "  --dump" 																	<< std::endl
 			<< "		dump tagspace" 														<< std::endl
-			<< "  --trace" 																	<< std::endl
-			<< "		debug tracing" 														<< std::endl
+			<< "  --log-level <level>"														<< std::endl
+			<< "		set log level or role overrides, e.g. warning,_role:scanner:debug"	<< std::endl
 			<< std::endl;
 			std::exit(EXIT_SUCCESS);
 		}, false
@@ -488,19 +551,21 @@ void cmd_args::parse(int argc, char **argv) {
 }
 
 int cmd_args::interpret(tagsh& shell) {
+	TAGL_SET_LOGGER(&opt_logger);
+	TAGDB_SET_LOGGER(&opt_logger);
+	TAGSH_SET_LOGGER(&opt_logger);
+
 	auto f_tagl_statement = [&](const std::string &s) -> int {
 		int err;
 		shell.prompt.clear();
 		err = shell.interpret(s);
-		if (err) return err;
+		if (err)
+			return err;
 		err = shell.interpret(";"); // just in case it wasn't provided
 		return err;
 	};
 
-	if (this->opt_trace)
-		ALL_SET_TRACE_ON();
-	else
-		shell.echo_result_code = false;
+	shell.echo_result_code = false;
 
 	int err;
 	// input files and tagl statements process in order,
@@ -544,4 +609,3 @@ int cmd_args::interpret(tagsh& shell) {
 
 	return 0;
 }
-

@@ -6,8 +6,10 @@ namespace TAGL {
 
 void scanner::scan(const char *cur, size_t sz) {
 	begin_scan(cur, sz);
-	if (_driver->has_errors())
+	if (_driver->has_errors()) {
+		_driver->do_callback();
 		return;
+	}
 
 	(void)cur;
 	(void)sz;
@@ -16,13 +18,15 @@ void scanner::scan(const char *cur, size_t sz) {
 #define YYLIMIT	_lim
 #define YYGETSTATE()    _state
 #define YYSETSTATE(x)   { _state = (x);  }
-#define	YYFILL(n)	{ if(_do_fill && _evbuf && !_eof){ this->fill(); if(_driver->has_errors()) return; } }
+#define	YYFILL(n)	{ if(_do_fill && _evbuf && !_eof){ this->fill(); if(_driver->has_errors()){ _driver->do_callback(); return; } } }
 #define YYMARKER        _mark
 #define YYDEBUG(s,c) { if(TAGL_TRACE_ON) LOG_DEBUG("yydebug: s = " << s << ", c = " << c << std::endl) }
 
 next:
-	if (_driver->has_errors())
+	if (_driver->has_errors()) {
+		_driver->do_callback();
 		return;
+	}
 
 /*!re2c
 	re2c:define:YYCTYPE  = "char";

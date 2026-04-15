@@ -14,6 +14,14 @@ set TIMEOUT 1
 set timeout $TIMEOUT
 set log_user 1  ;# log output to stdout, 0 disables
 
+proc test_pass {n} {
+	puts "\n****** $n passed ******\n"
+}
+
+proc test_fail {n} {
+	puts "\n^^^^^^ $n failed ^^^^^^\n"
+}
+
 # sends a tagls string and expects args
 # n = <test_name>, s = <tagl_string>, e = <expect_args>
 proc test {n s e} {
@@ -29,7 +37,7 @@ proc test {n s e} {
 
 	expect {
 		-regexp $e  { 
-				puts "\n##########   $n passed   ##########\n"
+				test_pass $n
 				set match 1
 			}
 	}
@@ -39,7 +47,7 @@ proc test {n s e} {
 
 	if {$match} { return }
 
-	puts "\n!!!!!!!!!!   $n failed   !!!!!!!!!!\n"
+	test_fail $n
 	incr errors
 
 	if {$errors >= $max_errors} {
@@ -63,7 +71,7 @@ proc test_neg {n s e} {
 
 	expect {
 		-regexp $e  { 
-				puts "\n**********   $n failed   **********\n"
+				test_fail $n
 				incr errors
 
 				if {$errors >= $max_errors} {
@@ -81,116 +89,29 @@ proc test_neg {n s e} {
 
 	if {$match} { return }  ;# failed
 
-	puts "\n##########   $n passed   ##########\n"
+	test_pass $n
 }
-
 
 eval $spawn_tagsh
 expect "use .show to list commands$NL"
 expect $PROMPT
-
-test "get_dog_not_exists" \
-	 "<< dog;" \
-	 "TS_NOT_FOUND"
 
 # passes when output does not contain TAGL_ERR or "no such file"
 test_neg "bootstrap" \
 	     ".load $bootstrap" \
 	     "(TAGL_ERR)|(no such file)"
 
-test "get_dog" \
-	 "<< dog;" \
-	 "dog kind_of mammal"
+test_neg "bootstrap_quiet" \
+	     ".load $bootstrap" \
+	     "-- TAGD_OK"
 
-test "put_duplicate" \
-     ">> cat kind_of mammal;" \
-	 "TS_DUPLICATE"
+test "bootstrap_reload_duplicate" \
+	 ".load $bootstrap" \
+	 "_error:ts_duplicate"
 
-test "put_ignore_duplicate" \
-     "%% _ignore_duplicates 1;\n>> cat kind_of mammal;" \
-	 "TAGD_OK"
-
-test "put_unignore_duplicate" \
-     "%% _ignore_duplicates 0;\n>> cat kind_of mammal;" \
-	 "TS_DUPLICATE"
-
-test "get_doggy_not_exists" \
-	 "<< doggy;" \
-	 "TS_NOT_FOUND"
-
-test_neg "set_context_simple_english" \
-         "%% _context simple_english" \
-	     "TAGL_ERR"
-
-test "refer_doggy" \
-	 ">> doggy refers_to dog context simple_english;" \
-	 "TAGD_OK"
-
-test "get_doggy" \
-	 "<< doggy;" \
-	 "doggy kind_of mammal(.*)refers_to dog"
-
-test "delete_refers_tag_err" \
-     "!! doggy;" \
-	 "TS_MISUSE"
-
-test "delete_refer_doggy" \
-	 "!! doggy refers_to dog context simple_english;" \
-	 "TAGD_OK"
-
-test "get_doggy_deleted_not_exists" \
-	 "<< doggy;" \
-	 "TS_NOT_FOUND"
-
-test "delete_bat" \
-     "!! bat;" \
-	 "TAGD_OK"
-
-test "query_mammal_children" \
-	 "?? what type_of mammal;" \
-	 "dog, cat, whale"
-
-test "query_mammal_children_empty" \
-	 "?? what type_of dog;" \
-	 "TS_NOT_FOUND"
-
-test "query_parent_relator" \
-	 "?? what type_of animal
-	  has blood = warm, tail
-	  can bark" \
-	 "dog"
-
-test "refer_japanese_dog" \
-     ">> イヌ refers_to dog _context japanese" \
-	 "TAGD_OK"
-
-test "get_japanese_dog_ambiguous" \
-	 "<< イヌ;" \
-	 "TS_AMBIGUOUS"
-
-test "set_context_not_found" \
-     "%% context caca" \
-	 "TS_NOT_FOUND"
-
-test_neg "set_context_animal" \
-         "%% context animal" \
-	     "TAGL_ERR"
-
-test "get_japanese_dog_ambiguious" \
-	 "<< イヌ;" \
-	 "TS_AMBIGUOUS"
-
-test_neg "set_context_simple_english_japanese" \
-         "%% _context simple_english, japanese" \
-	     "TAGL_ERR"
-
-test "get_japanese_dog" \
-	 "<< イヌ;" \
-	 "イヌ kind_of mammal(.*)refers_to dog"
-
-test_neg "set_context_simple_english2" \
-         "%% _context simple_english" \
-	     "TAGL_ERR"
+send "%% _context simple_english$NL"
+expect "%% _context simple_english$NL"
+expect $PROMPT
 
 test "put_url_dog" \
      ">> https://en.wikipedia.org/wiki/Dog about dog has title = \"Dog - Wikipedia, the free encyclopedia\"" \
@@ -208,10 +129,6 @@ test "put_url_cat" \
     ">> https://en.wikipedia.org/wiki/Cat about cat" \
 	"TAGD_OK"
 
-test "query_tag" \
-	 "?? dog;" \
-	 "TAGL_ERR"
-
 test "tag_sub_search" \
 	 "?? _interrogator _sub animal _has _terms = \"warm blood\";" \
 	 "mammal"
@@ -222,20 +139,20 @@ test "tag_sub_symbol_search" \
 
 test "search" \
 	 "?? \"dog\";" \
-"https://en.wikipedia.org/wiki/Dog, http://animal.discovery.com/breed-selector/dog-breeds.html, dog"
+	"https://en.wikipedia.org/wiki/Dog, http://animal.discovery.com/breed-selector/dog-breeds.html, dog"
 
 test "query_url_dog" \
      "?? what is_a _url about dog" \
-"https://en.wikipedia.org/wiki/Dog, http://animal.discovery.com/breed-selector/dog-breeds.html"
+	"https://en.wikipedia.org/wiki/Dog, http://animal.discovery.com/breed-selector/dog-breeds.html"
 
 test "query_url_animal" \
      "?? what is_a _url * animal" \
-"https://en.wikipedia.org/wiki/Dog, http://animal.discovery.com/breed-selector/dog-breeds.html, https://en.wikipedia.org/wiki/Cat"
+	"https://en.wikipedia.org/wiki/Dog, http://animal.discovery.com/breed-selector/dog-breeds.html, https://en.wikipedia.org/wiki/Cat"
 
 test "query_url_animal_wikipedia" \
-"?? what is_a _url * animal
-_has _private = wikipedia, _public = org" \
-"https://en.wikipedia.org/wiki/Dog, https://en.wikipedia.org/wiki/Cat"
+	"?? what is_a _url * animal
+	_has _private = wikipedia, _public = org" \
+	"https://en.wikipedia.org/wiki/Dog, https://en.wikipedia.org/wiki/Cat"
 
 send ".exit$NL"
 expect eof

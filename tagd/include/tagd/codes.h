@@ -37,11 +37,11 @@ typedef enum {
     TS_NOT_FOUND,
     TS_DUPLICATE,
     TS_SUB_UNK,
-    TS_SUBJECT_UNK,
+    // TS_SUBJECT_UNK, // reserved; no current code path distinguishes subject unknown from tagspace not found
     TS_RELATOR_UNK,
     TS_OBJECT_UNK,
 
-    TS_REFERS_UNK,
+    // TS_REFERS_UNK, // reserved; current referent errors report refers_to/context causes instead
     TS_REFERS_TO_UNK,
     TS_CONTEXT_UNK,
 	TS_AMBIGUOUS,
@@ -66,8 +66,15 @@ typedef enum {
 typedef enum {
 	TYPE_INTEGER,
 	TYPE_FLOAT,
-	TYPE_TEXT
+	TYPE_STRING
 } data_t;
+
+typedef enum {
+	CMD_GET,
+	CMD_PUT,
+	CMD_DEL,
+	CMD_QUERY
+} command_t;
 
 // when comparing two values L and R
 typedef enum {
@@ -151,6 +158,7 @@ const int POS_END     = 1 << 17;
 
 // string literal of each tagd::code
 const char* code_str(tagd::code);
+const char* code_error_tag(tagd::code);
 
 // string literal of each part_of_speech
 const char* pos_str(tagd::part_of_speech);

@@ -1,4 +1,5 @@
 #pragma once
+#define TAGD_H_INCLUDED
 
 #include "tagd/codes.h"
 #include "tagd/config.h"
@@ -10,6 +11,8 @@
 #include <set>
 #include <vector>
 #include <memory> // for shared_ptr
+#include <atomic>
+#include <cstdint>
 #include <iostream>
 #include <sstream>
 #include <cstdarg>  // for va_list
@@ -28,13 +31,13 @@ struct predicate {
 	operator_t opr8r; // operates on the modifier
 	data_t modifier_type;
 
-	predicate() : opr8r{OP_EQ}, modifier_type{TYPE_TEXT} {}
+	predicate() : opr8r{OP_EQ}, modifier_type{TYPE_STRING} {}
 	predicate(const id_type &r, const id_type &o) :
-		relator(r), object(o), opr8r{OP_EQ}, modifier_type{TYPE_TEXT} {}
+		relator(r), object(o), opr8r{OP_EQ}, modifier_type{TYPE_STRING} {}
 	predicate(const id_type &r, const id_type &o, const id_type &m) :
-		relator(r), object(o), modifier(m), opr8r{OP_EQ}, modifier_type{TYPE_TEXT} {}
+		relator(r), object(o), modifier(m), opr8r{OP_EQ}, modifier_type{TYPE_STRING} {}
 	predicate(const id_type &r, const id_type &o, const id_type &m, operator_t op) :
-		relator(r), object(o), modifier(m), opr8r{op}, modifier_type{TYPE_TEXT} {}
+		relator(r), object(o), modifier(m), opr8r{op}, modifier_type{TYPE_STRING} {}
 	predicate(const id_type &r, const id_type &o, const id_type &m, operator_t op, data_t d) :
 		relator(r), object(o), modifier(m), opr8r{op}, modifier_type{d} {}
 
@@ -360,6 +363,8 @@ class referent : public abstract_tag {
 };
 
 
+#include "tagd/event.h"
+
 // TODO modifier maybe
 /*
    measures the object of a predicate (i.e. answers "how many?")
@@ -369,23 +374,21 @@ class referent : public abstract_tag {
 */
 // class modifier : public tag {
 
-class error : public abstract_tag {
+class error : public event {
 	public:
-        error() : abstract_tag(POS_ERROR)
-		{}
-
-        error(const tagd::code c) :
-			abstract_tag(code_str(c), HARD_TAG_TYPE_OF, HARD_TAG_ERROR, POS_ERROR)
+        error() : event()
 		{
-			_code = c;
+			_pos = POS_ERROR;
 		}
 
-		error(const tagd::code c, const std::string& msg) :
-			abstract_tag(code_str(c), HARD_TAG_TYPE_OF, HARD_TAG_ERROR, POS_ERROR)
-		{
-			_code = c;
-			(void)this->relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, msg);
-		}
+        // Create a new error instance for a tagd status code.
+        error(const tagd::code);
+
+		// Parse an existing err: identity into an error object.
+		error(const std::string&);
+
+		// Create a new error instance with a message relation.
+		error(const tagd::code, const std::string&);
 
         const id_type& message() const;
 
@@ -458,6 +461,35 @@ class errorable {
 
 		// TODO WTF cant we return a const reference instead of a copy?
 		const errors_t& errors() const;
+};
+
+class session : public errorable {
+	protected:
+		id_type _id;
+		id_type _started_at;
+		std::atomic<uint64_t> _sequence;
+
+	public:
+		session();
+		session(const id_type&, const id_type&);
+		session(const session&);
+		session& operator=(const session&);
+		virtual ~session() {}
+
+		const id_type& id() const { return _id; }
+		const id_type& started_at() const { return _started_at; }
+		uint64_t sequence() const { return _sequence.load(); }
+		uint64_t next_sequence() { return ++_sequence; }
+};
+
+class session_factory {
+	private:
+		class impl;
+		std::shared_ptr<impl> _impl;
+
+	public:
+		session_factory();
+		session create();
 };
 
 struct util {

@@ -28,6 +28,7 @@ void ParseTrace(FILE *, char *);
  */
 
 bool TAGL_TRACE_ON = false;
+static tagd::logger *TAGL_LOGGER = nullptr;
 
 void TAGL_SET_TRACE_ON() {
 	TAGL_TRACE_ON = true;
@@ -43,6 +44,40 @@ void TAGL_SET_TRACE_OFF() {
 #ifndef NDEBUG
 	ParseTrace(NULL, NULL);
 #endif
+}
+
+void TAGL_SET_LOGGER(tagd::logger *log) {
+	TAGL_LOGGER = log;
+}
+
+bool TAGL_LOG_ENABLED(const std::string& role, tagd::log_level lvl) {
+	if (TAGL_LOGGER == nullptr)
+		return false;
+
+	return static_cast<int>(lvl) <= static_cast<int>(TAGL_LOGGER->level(role));
+}
+
+void TAGL_LOG(const std::string& role, tagd::log_level lvl, const std::string& msg) {
+	if (TAGL_LOGGER == nullptr)
+		return;
+
+	if ((role == HARD_TAG_ROLE_SCANNER || role == HARD_TAG_ROLE_PARSER
+			|| role == HARD_TAG_ROLE_DRIVER)
+			&& lvl == tagd::log_level::DEBUG) {
+		std::stringstream ss(msg);
+		std::string line;
+
+		while (std::getline(ss, line)) {
+			TAGL_LOGGER->log(role, lvl, std::string("-- ").append(line));
+		}
+
+		if (!msg.empty() && msg.back() == '\n')
+			TAGL_LOGGER->log(role, lvl, "-- ");
+
+		return;
+	}
+
+	TAGL_LOGGER->log(role, lvl, msg);
 }
 
 namespace TAGL {
@@ -101,6 +136,8 @@ void driver::init() {
 
 	if (_parser != nullptr)
 		return;
+
+	_error_callback_delivered = false;
 
     // set up parser
     _parser = ParseAlloc(::operator new, this);
@@ -309,6 +346,10 @@ void driver::do_callback() {
 	if (_callback == nullptr)  return;
 
 	if (this->has_errors()) {
+		if (_error_callback_delivered)
+			return;
+
+		_error_callback_delivered = true;
 		_callback->cmd_error();
 		return;
 	}

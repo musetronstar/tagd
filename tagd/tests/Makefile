@@ -7,7 +7,7 @@ LIBTAGD = ../lib/libtagd.a
 LFLAGS = -L../lib -ltagd
 CXXTEST = cxxtestgen --error-printer
 
-all: tag_tests domain_tests url_tests file_tests
+all: tag_tests domain_tests url_tests event_tests file_tests logger_tests
 
 debug: CXXFLAGS += -g -O0
 debug: all
@@ -15,13 +15,17 @@ debug: all
 TESTER = ./tester
 DOMAIN_TESTER = ./domain-tester
 URL_TESTER = ./url-tester
+EVENT_TESTER = ./event-tester
 FILE_TESTER = ./file-tester
+LOGGER_TESTER = ./logger-tester
 
 VALGRIND = valgrind --leak-check=full --error-exitcode=1
 valgrind: TESTER = $(VALGRIND) ./tester
 valgrind: DOMAIN_TESTER = $(VALGRIND) ./domain-tester
 valgrind: URL_TESTER = $(VALGRIND) ./url-tester
+valgrind: EVENT_TESTER = $(VALGRIND) ./event-tester
 valgrind: FILE_TESTER = $(VALGRIND) ./file-tester
+valgrind: LOGGER_TESTER = $(VALGRIND) ./logger-tester
 valgrind: debug
 
 tag_tests: $(LIBTAGD) Tester.h
@@ -39,13 +43,25 @@ url_tests: $(LIBTAGD) UrlTester.h
 	g++ $(CXXFLAGS) url-tester.cpp -o url-tester $(INC) $(LFLAGS)
 	$(URL_TESTER)
 
+event_tests: $(LIBTAGD) EventTester.h
+	$(CXXTEST) EventTester.h -o event-tester.cpp
+	g++ $(CXXFLAGS) event-tester.cpp -o event-tester $(INC) $(LFLAGS)
+	$(EVENT_TESTER)
+
 file_tests: $(LIBTAGD) FileTester.h
 	$(CXXTEST) FileTester.h -o file-tester.cpp
 	g++ $(CXXFLAGS) file-tester.cpp -o file-tester $(INC) $(LFLAGS)
 	$(FILE_TESTER)
 
+logger_tests: $(LIBTAGD) LoggerTester.h
+	$(CXXTEST) LoggerTester.h -o logger-tester.cpp
+	g++ $(CXXFLAGS) logger-tester.cpp -o logger-tester $(INC) $(LFLAGS)
+	$(LOGGER_TESTER)
+
 clean:
 	rm -f tester.cpp tester
 	rm -f url-tester.cpp url-tester
+	rm -f event-tester.cpp event-tester
 	rm -f domain-tester.cpp  domain-tester
 	rm -f file-tester.cpp file-tester
+	rm -f logger-tester.cpp logger-tester

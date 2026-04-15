@@ -1,28 +1,25 @@
 #pragma once
 
 #include <cassert>
+#include <sstream>
 #include <stdint.h>
 #include "tagd.h"
+#include "tagd/hard-tags.h"
+#include "tagd/logger.h"
 
-extern bool TAGDB_TRACE_ON;
-inline void TAGDB_SET_TRACE_ON() {
-	TAGDB_TRACE_ON = true;
-	/*
-	static bool TRACE_INIT = false;
-	if (!TRACE_INIT) { // init once ...
-		TRACE_INIT = true;
-		// init code ...
-	}
-	*/
-}
+void TAGDB_SET_LOGGER(tagd::logger *);
+bool TAGDB_LOG_ENABLED(const std::string&, tagd::log_level);
+void TAGDB_LOG(const std::string&, tagd::log_level, const std::string&);
+void TAGDB_LOG_EVENT(tagd::session *, tagd::log_level, const std::string&);
 
-inline void TAGDB_SET_TRACE_OFF() {
-	TAGDB_TRACE_ON = false;
-}
-
-// _trace_on set to TAGDB_TRACE_ON in constructor
-#define TAGDB_LOG_TRACE(MSG) if(tagdb::tagdb::_trace_on) \
-	{ std::cerr <<  __FILE__  << ':' << __LINE__ << '\t' << MSG ; }
+#define TAGDB_LOG_DEBUG(MSG) \
+	do { \
+		if (TAGDB_LOG_ENABLED(HARD_TAG_ROLE_TAGDB, tagd::log_level::DEBUG)) { \
+			std::ostringstream _tagdb_debug_os; \
+			_tagdb_debug_os << MSG; \
+			TAGDB_LOG(HARD_TAG_ROLE_TAGDB, tagd::log_level::DEBUG, _tagdb_debug_os.str()); \
+		} \
+	} while (0)
 
 namespace tagdb {
 
@@ -77,7 +74,7 @@ struct flag_util {
 
 class tagdb;	// forward declare
 
-class session : public tagd::errorable {
+class session : public tagd::session {
 	// no pub cons, only tagdb can access
 	friend tagdb;
 
@@ -87,7 +84,7 @@ class session : public tagd::errorable {
 		tagdb *_tdb;
 
 		session() = delete;  // *tagdb reqd
-		session(tagdb *tdb) : _tdb{tdb} {}
+		session(tagdb *tdb) : tagd::session(), _tdb{tdb} {}
 
 	public:
 		tagd::code push_context(const tagd::id_type&);
@@ -105,17 +102,16 @@ class hard_tag {
 		static tagd::part_of_speech pos(const tagd::id_type &id);
 		static tagd::code get(tagd::abstract_tag&, const tagd::id_type &id);
 		static tagd::part_of_speech term_pos(const tagd::id_type&, rowid_t* = nullptr);
-		static tagd::part_of_speech term_id_pos(rowid_t, tagd::id_type* = nullptr);
+			static tagd::part_of_speech term_id_pos(rowid_t, tagd::id_type* = nullptr);
+			static void install_logger_validator();
 
-		static const char ** rows();
+			static const char ** rows();
 		static size_t rows_end();
 };
 
 // pure virtual interface
 class tagdb : public tagd::errorable {
 	protected:
-		bool _trace_on = TAGDB_TRACE_ON;
-
 		// rest tagdb and session to OK state
 		void reset(session *ssn) {
 			_code = tagd::TAGD_OK;
@@ -125,9 +121,6 @@ class tagdb : public tagd::errorable {
 	public:
 		tagdb() : tagd::errorable(tagd::TS_INIT) {}
 		virtual ~tagdb() {}
-
-		virtual void trace_on() { _trace_on = true; }
-		virtual void trace_off() { _trace_on = false; }
 
 		// session factory
 		session get_session() {

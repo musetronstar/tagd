@@ -75,6 +75,10 @@ class scanner {
 		const std::string& store_value();
 		TokenText new_value();
 		void next_line(size_t=1);
+		void log_begin(size_t);
+		void log_token(int, TokenText);
+		void log_refill(size_t, size_t, size_t, bool);
+		void log_error(const std::string&);
 
 		// emit parser token with unknown semantic value.
 		void emit(int tok, TokenText val=EMPTY_VALUE);
@@ -109,7 +113,6 @@ class scanner {
 		virtual void scan(const char*, size_t);
 		void scan(const char*) = delete; // don't allow implicit conversion to std::string
 		void evbuf(evbuffer *ev) { _evbuf = ev; _do_fill = true; }
-		void print_buf();
 
 		size_t line_number();
 
@@ -144,6 +147,8 @@ class scanner::tagdurl : public scanner {
 	URI = URI_SCHEME SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
 	URL = URI_SCHEME "//" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
 	HDURI = "hd:" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
+	EVURI = "ev:" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
+	ERRURI = "err:" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
 
 	TAGL_FILE  = [^\000 \t\r\n'"]* ".tagl";
 */
@@ -181,12 +186,15 @@ class scanner::tagdurl : public scanner {
 	"-^"                 { emit_literal_value(TOK_SUB_RELATOR_SYMBOL, HARD_TAG_SUB); goto next; }
 	"->"                 { emit_literal_value(TOK_RELATOR_SYMBOL, HARD_TAG_RELATOR); goto next; }
 
-	"-"? [0-9]+ ("." [0-9]+)?
-	                     { emit(TOK_QUANTIFIER, new_value()); goto next; }
+	"-"? [0-9]+ "." [0-9]+
+	                     { emit(TOK_FLOAT, new_value()); goto next; }
+	"-"? [0-9]+          { emit(TOK_INTEGER, new_value()); goto next; }
 
 	TAGDURL              { emit(TOK_TAGDURL, new_value()); goto next; }
 	URL                  { emit(TOK_URL, new_value()); goto next; }
 	HDURI                { emit(TOK_HDURI, new_value()); goto next; }
+	EVURI                { emit(TOK_EVURI, new_value()); goto next; }
+	ERRURI               { emit(TOK_ERRURI, new_value()); goto next; }
 	URI                  { emit_lookup_uri_token(); goto next; }
 	TAGL_FILE            { emit_tagl_file_token(); goto next; }
 	[^\000 \t\r\n;,=><'"-]+
