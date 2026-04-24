@@ -4,7 +4,10 @@
 
 #include <sstream>
 
+#include "tagdb/sqlite.h"
 #include "tagsh.h"
+
+typedef tagdb::sqlite tagdb_type;
 
 class DriverTester : public CxxTest::TestSuite {
 	void load_bootstrap(tagsh& shell) {

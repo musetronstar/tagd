@@ -34,6 +34,90 @@
 		tagl->ferror(tagd::TAGL_ERR, "tag id constrained as: %s", tagl->constrain_tag_id.c_str());	\
 	}
 
+namespace TAGL {
+enum class subject_kind {
+	abstract_tag,
+	tag,
+	relator,
+	interrogator
+};
+
+struct subject_seed {
+	subject_kind kind;
+	text_token id;
+};
+}
+
+static tagd::abstract_tag *make_subject(
+		const TAGL::subject_seed& seed,
+		const std::string& sub_relator,
+		const std::string& super_object,
+		bool has_identity) {
+	const auto id = seed.id.str();
+
+	switch (seed.kind) {
+		case TAGL::subject_kind::tag:
+			if (!has_identity)
+				return new tagd::tag(id);
+			if (sub_relator == HARD_TAG_IS_A)
+				return new tagd::tag(id, super_object);
+			return new tagd::tag(id, sub_relator, super_object);
+
+		case TAGL::subject_kind::relator:
+			if (!has_identity)
+				return new tagd::relator(id);
+			if (sub_relator == HARD_TAG_TYPE_OF)
+				return new tagd::relator(id, super_object);
+			return new tagd::relator(id, sub_relator, super_object);
+
+		case TAGL::subject_kind::interrogator:
+			if (!has_identity)
+				return seed.id.empty() ? static_cast<tagd::abstract_tag *>(new tagd::interrogator())
+									   : static_cast<tagd::abstract_tag *>(new tagd::interrogator(id));
+			if (sub_relator == HARD_TAG_TYPE_OF)
+				return new tagd::interrogator(id, super_object);
+			return new tagd::interrogator(id, sub_relator, super_object);
+
+		case TAGL::subject_kind::abstract_tag:
+			if (!has_identity)
+				return new tagd::abstract_tag(id);
+			return new tagd::abstract_tag(id, sub_relator, super_object, tagd::POS_UNKNOWN);
+	}
+
+	assert(0);
+	return nullptr;
+}
+
+static void emit_subject(TAGL::driver *tagl, const TAGL::subject_seed& seed) {
+	const auto id = seed.id.str();
+	if (!tagl->constrain_tag_id.empty() && tagl->constrain_tag_id != id) {
+		tagl->ferror(tagd::TAGL_ERR, "tag id constrained as: %s", tagl->constrain_tag_id.c_str());
+		return;
+	}
+
+	if (tagl->tag_ptr() != nullptr)
+		tagl->delete_tag();
+	tagl->tag_ptr(make_subject(seed, std::string(), std::string(), false));
+}
+
+static void emit_subject(
+		TAGL::driver *tagl,
+		const TAGL::subject_seed& seed,
+		const TAGL::text_token& sub_relator,
+		const TAGL::text_token& super_object) {
+	const auto id = seed.id.str();
+	if (!tagl->constrain_tag_id.empty() && tagl->constrain_tag_id != id) {
+		tagl->ferror(tagd::TAGL_ERR, "tag id constrained as: %s", tagl->constrain_tag_id.c_str());
+		return;
+	}
+
+	// Parser reductions carry identity pieces until the whole tuple is known so
+	// tags are emitted once, not patched after construction.
+	if (tagl->tag_ptr() != nullptr)
+		tagl->delete_tag();
+	tagl->tag_ptr(make_subject(seed, sub_relator.str(), super_object.str(), true));
+}
+
 void last_error_add_file_line_number(TAGL::driver *tagl) {
 	if (!tagl->path().empty()) {
 		tagl->last_error_relation(
@@ -64,13 +148,13 @@ void scan_tagdurl(TAGL::driver *tagl, const std::string &tagdurl ) {
 
 
 %extra_context { TAGL::driver *tagl }
-%token_type {TAGL::TokenText}
+%token_type {TAGL::text_token}
 %token_destructor { /* NOOP */ }
 /*
  * Most TAGL nonterminals are parser-control helpers with side effects, not
  * semantic values that own memory. Use safe no-value defaults, then opt into
  * explicit types only for real data carriers such as pointers, scalars, and
- * TokenText slices.
+ * text_token slices.
  */
 %default_type { TAGL::NoValue }
 %default_destructor { /* NOOP */ }
@@ -177,16 +261,20 @@ set_statement ::= CMD_SET set_flag .
 set_statement ::= CMD_SET set_include .
 
 %type boolean_value { bool }
-%type context_object { TAGL::TokenText }
-%type tagl_file { TAGL::TokenText }
-%type quoted_str { TAGL::TokenText }
-%type refers_subject { TAGL::TokenText }
-%type refers_to_object { TAGL::TokenText }
-%type sub_relator_symbol { TAGL::TokenText }
-%type relator_symbol { TAGL::TokenText }
-%type lhs_object { TAGL::TokenText }
-%type rhs_object { TAGL::TokenText }
-%type quantifier { TAGL::TokenText }
+%type context_object { TAGL::text_token }
+%type tagl_file { TAGL::text_token }
+%type quoted_str { TAGL::text_token }
+%type refers_subject { TAGL::text_token }
+%type refers_to_object { TAGL::text_token }
+%type sub_relator_symbol { TAGL::text_token }
+%type relator_symbol { TAGL::text_token }
+%type lhs_object { TAGL::text_token }
+%type rhs_object { TAGL::text_token }
+%type quantifier { TAGL::text_token }
+%type subject_seed { TAGL::subject_seed }
+%type unknown { TAGL::subject_seed }
+%type interrogator_seed { TAGL::subject_seed }
+%type super_object_token { TAGL::text_token }
 
 set_flag ::= FLAG(F) boolean_value(b) .
 {
@@ -262,7 +350,10 @@ tagl_file(f) ::= QUOTED_STR(S) .
 include ::= INCLUDE .
 
 get_statement ::= CMD_GET subject .
-get_statement ::= CMD_GET unknown .
+get_statement ::= CMD_GET unknown(u) .
+{
+	emit_subject(tagl, u);
+}
 /* not_found_context_dichotomy
 // We can't set TS_NOT_FOUND as an error here
 // because lookup_pos will return pos:UNKNOWN for
@@ -320,15 +411,8 @@ query_statement ::= tagdurl_query .
 interrogator_query ::= CMD_QUERY interrogator_sub_relation relations .
 interrogator_query ::= CMD_QUERY interrogator_sub_relation .
 interrogator_query ::= CMD_QUERY interrogator relations .
-interrogator_query ::= CMD_QUERY interrogator sub_relator REFERENT(R) query_referent_relations .
-{
-	tagl->tag_ptr()->super_object(R.str());
-}
-interrogator_query ::= CMD_QUERY interrogator query_referent_relations .
-{
-	tagl->tag_ptr()->super_object(HARD_TAG_REFERENT);
-}
-
+interrogator_query ::= CMD_QUERY explicit_referent_query query_referent_relations .
+interrogator_query ::= CMD_QUERY default_referent_query query_referent_relations .
 search_query ::= CMD_QUERY search_query_list .
 {
 }
@@ -336,6 +420,16 @@ search_query ::= CMD_QUERY search_query_list .
 tagdurl_query ::= CMD_QUERY TAGDURL(U) .
 {
 	scan_tagdurl(tagl, U.str());
+}
+
+default_referent_query ::= interrogator_seed(i) .
+{
+	emit_subject(
+		tagl,
+		i,
+		TAGL::text_token{HARD_TAG_SUB.data(), static_cast<int>(HARD_TAG_SUB.size())},
+		TAGL::text_token{HARD_TAG_REFERENT.data(), static_cast<int>(HARD_TAG_REFERENT.size())}
+	);
 }
 
 search_query_list ::= search_query_list COMMA search_query_quoted_str .
@@ -351,43 +445,60 @@ search_query_quoted_str ::= quoted_str(s) .
 quoted_str(s) ::= QUOTED_STR(S) .
 { s = S; }
 
-interrogator_sub_relation ::= interrogator sub_relator super_object .
+interrogator_sub_relation ::= interrogator_seed(i) sub_relator_symbol(s) super_object_token(o) .
 {
+	emit_subject(tagl, i, s, o);
 }
 
-interrogator ::= INTERROGATOR(I) .
+explicit_referent_query ::= interrogator_seed(i) sub_relator_symbol(s) REFERENT(R) .
 {
-	const auto i = I.str();
-	NEW_TAG(tagd::interrogator, i)
+	emit_subject(tagl, i, s, R);
 }
 
-interrogator ::= .
+interrogator_seed(i) ::= INTERROGATOR(I) .
 {
-	NEW_TAG(tagd::interrogator, HARD_TAG_INTERROGATOR)
+	i = { TAGL::subject_kind::interrogator, I };
 }
 
-subject_sub_relation ::= subject sub_relator super_object .
-subject_sub_relation ::= unknown sub_relator super_object .
+interrogator_seed(i) ::= .
+{
+	i = { TAGL::subject_kind::interrogator, TAGL::EMPTY_VALUE };
+}
 
-subject ::= TAG(T) .
+interrogator ::= interrogator_seed(i) .
 {
-	const auto t = T.str();
-	NEW_TAG(tagd::tag, t);
+	emit_subject(tagl, i);
 }
-subject ::= SUB_RELATOR(S) .
+
+subject_sub_relation ::= subject_seed(s) sub_relator_symbol(r) super_object_token(o) .
 {
-	const auto s = S.str();
-	NEW_TAG(tagd::tag, s);
+	emit_subject(tagl, s, r, o);
 }
-subject ::= RELATOR(R) .
+subject_sub_relation ::= unknown(u) sub_relator_symbol(r) super_object_token(o) .
 {
-	const auto r = R.str();
-	NEW_TAG(tagd::relator, r);
+	emit_subject(tagl, u, r, o);
 }
-subject ::= INTERROGATOR(I) .
+
+subject ::= subject_seed(s) .
 {
-	const auto i = I.str();
-	NEW_TAG(tagd::interrogator, i);
+	emit_subject(tagl, s);
+}
+
+subject_seed(s) ::= TAG(T) .
+{
+	s = { TAGL::subject_kind::tag, T };
+}
+subject_seed(s) ::= SUB_RELATOR(S) .
+{
+	s = { TAGL::subject_kind::tag, S };
+}
+subject_seed(s) ::= RELATOR(R) .
+{
+	s = { TAGL::subject_kind::relator, R };
+}
+subject_seed(s) ::= INTERROGATOR(I) .
+{
+	s = { TAGL::subject_kind::interrogator, I };
 }
 subject ::= URL(U) .
 {
@@ -413,28 +524,23 @@ subject ::= ERRURI(U) .
 }
 subject ::= REFERENT(R) .
 {
-	const auto r = R.str();
-	NEW_TAG(tagd::abstract_tag, r);
+	emit_subject(tagl, TAGL::subject_seed{TAGL::subject_kind::abstract_tag, R});
 }
 subject ::= REFERS_TO(R) .
 {
-	const auto r = R.str();
-	NEW_TAG(tagd::abstract_tag, r);
+	emit_subject(tagl, TAGL::subject_seed{TAGL::subject_kind::abstract_tag, R});
 }
 subject ::= CONTEXT(R) .
 {
-	const auto r = R.str();
-	NEW_TAG(tagd::abstract_tag, r);
+	emit_subject(tagl, TAGL::subject_seed{TAGL::subject_kind::abstract_tag, R});
 }
 subject ::= FLAG(F) .
 {
-	const auto f = F.str();
-	NEW_TAG(tagd::abstract_tag, f);
+	emit_subject(tagl, TAGL::subject_seed{TAGL::subject_kind::abstract_tag, F});
 }
-unknown ::= UNKNOWN(U) .
+unknown(u) ::= UNKNOWN(U) .
 {
-	const auto u = U.str();
-	NEW_TAG(tagd::abstract_tag, u);
+	u = { TAGL::subject_kind::abstract_tag, U };
 }
 
 
@@ -447,7 +553,11 @@ referent_relation ::= refers_subject(r) refers_to refers_to_object(rto) context 
 refers_to ::= REFERS_TO .
 
 query_referent_relations ::= query_referent_relations query_referent_relation .
+{
+}
 query_referent_relations ::= query_referent_relation .
+{
+}
 
 query_referent_relation ::= REFERS refers_subject(r) .
 {
@@ -527,11 +637,6 @@ context_object(c) ::= TAG(C) .
 	c = C;
 }
 
-sub_relator ::= sub_relator_symbol(S) .
-{
-	tagl->tag_ptr()->sub_relator(S.str());
-}
-
 sub_relator_symbol(s) ::= SUB_RELATOR(S) .
 {
 	s = S; // actual sub relator tag
@@ -541,25 +646,25 @@ sub_relator_symbol(s) ::= SUB_RELATOR_SYMBOL(S) .
 	s = S; // hard tag substituted for  `-^` symbol
 }
 
-super_object ::= TAG(T) .
+super_object_token(o) ::= TAG(T) .
 {
-	tagl->tag_ptr()->super_object(T.str());
+	o = T;
 }
-super_object ::= SUB_RELATOR(S) .
+super_object_token(o) ::= SUB_RELATOR(S) .
 {
-	tagl->tag_ptr()->super_object(S.str());
+	o = S;
 }
-super_object ::= RELATOR(R) .
+super_object_token(o) ::= RELATOR(R) .
 {
-	tagl->tag_ptr()->super_object(R.str());
+	o = R;
 }
-super_object ::= INTERROGATOR(I) .
+super_object_token(o) ::= INTERROGATOR(I) .
 {
-	tagl->tag_ptr()->super_object(I.str());
+	o = I;
 }
-super_object ::= REFERENT(R) .
+super_object_token(o) ::= REFERENT(R) .
 {
-	tagl->tag_ptr()->super_object(R.str());
+	o = R;
 }
 
 /*

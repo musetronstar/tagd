@@ -56,7 +56,7 @@ void scanner::reset() {
 }
 
 void scanner::log_begin(size_t sz) {
-	if (!TAGL_LOG_ENABLED(HARD_TAG_ROLE_SCANNER, tagd::log_level::DEBUG))
+	if (!TAGL_LOG_ENABLED(std::string(HARD_TAG_ROLE_SCANNER), tagd::log_level::DEBUG))
 		return;
 
 	TAGL_LOG_SCANNER_DEBUG(
@@ -67,8 +67,8 @@ void scanner::log_begin(size_t sz) {
 	);
 }
 
-void scanner::log_token(int tok, TokenText val) {
-	if (!TAGL_LOG_ENABLED(HARD_TAG_ROLE_SCANNER, tagd::log_level::DEBUG))
+void scanner::log_token(int tok, text_token val) {
+	if (!TAGL_LOG_ENABLED(std::string(HARD_TAG_ROLE_SCANNER), tagd::log_level::DEBUG))
 		return;
 
 	TAGL_LOG_SCANNER_DEBUG(
@@ -80,7 +80,7 @@ void scanner::log_token(int tok, TokenText val) {
 }
 
 void scanner::log_refill(size_t carried, size_t tail, size_t read_sz, bool eof) {
-	if (!TAGL_LOG_ENABLED(HARD_TAG_ROLE_SCANNER, tagd::log_level::DEBUG))
+	if (!TAGL_LOG_ENABLED(std::string(HARD_TAG_ROLE_SCANNER), tagd::log_level::DEBUG))
 		return;
 
 	TAGL_LOG_SCANNER_DEBUG(
@@ -94,7 +94,7 @@ void scanner::log_refill(size_t carried, size_t tail, size_t read_sz, bool eof) 
 }
 
 void scanner::log_error(const std::string& lexeme) {
-	if (!TAGL_LOG_ENABLED(HARD_TAG_ROLE_SCANNER, tagd::log_level::DEBUG))
+	if (!TAGL_LOG_ENABLED(std::string(HARD_TAG_ROLE_SCANNER), tagd::log_level::DEBUG))
 		return;
 
 	TAGL_LOG_SCANNER_DEBUG(
@@ -191,9 +191,9 @@ size_t scanner::line_number() {
 	return _line_number;
 }
 
-TokenText scanner::store_token_text() {
+text_token scanner::store_token_text() {
 	const std::string& s = store_value();
-	return TokenText{s.c_str(), (int)s.size()};
+	return text_token{s.c_str(), (int)s.size()};
 }
 
 const std::string& scanner::store_value() {
@@ -202,11 +202,11 @@ const std::string& scanner::store_value() {
 		: _token_store.store(_val.append(_beg, (_cur - _beg))));
 }
 
-TokenText scanner::new_value() {
+text_token scanner::new_value() {
 	return store_token_text();
 }
 
-void scanner::emit(int tok, TokenText val) {
+void scanner::emit(int tok, text_token val) {
 	_tok = tok;
 	log_token(_tok, val);
 	_driver->parse_tok(_tok, val);
@@ -216,7 +216,7 @@ void scanner::emit(int tok, TokenText val) {
 
 void scanner::emit_tagd_pos_lookup() {
 	const std::string& val = store_value();
-	emit(_driver->lookup_pos(val), TokenText{val.c_str(), (int)val.size()});
+	emit(_driver->lookup_pos(val), text_token{val.c_str(), (int)val.size()});
 }
 
 void scanner::emit_literal_value(int tok, const char *cval) {
@@ -226,7 +226,7 @@ void scanner::emit_literal_value(int tok, const char *cval) {
 void scanner::emit_lookup_uri_token() {
 	const std::string& val = store_value();
 	auto pos = _driver->lookup_pos(val);
-	emit((pos == TOK_URL ? TOK_HDURI : pos), TokenText{val.c_str(), (int)val.size()});
+	emit((pos == TOK_URL ? TOK_HDURI : pos), text_token{val.c_str(), (int)val.size()});
 }
 
 void scanner::emit_tagl_file_token() {

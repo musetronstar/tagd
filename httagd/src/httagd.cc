@@ -2,6 +2,8 @@
 #include "tagl.h"
 #include "parser.h"  // for CMDs
 #include <evhtp.h>
+#include <event2/keyvalq_struct.h>
+#include <event2/buffer.h>
 
 // functions stat, open, close
 #include <sys/types.h>
@@ -11,24 +13,60 @@
 
 static tagd::logger *HTTAGD_LOGGER = nullptr;
 
+struct httagd_header_log_ctx {
+	std::ostringstream *ss;
+};
+
+static int HTTAGD_LOG_EVHTP_HEADER(evhtp_header_t *hdr, void *arg) {
+	auto *ctx = static_cast<httagd_header_log_ctx *>(arg);
+	if (ctx->ss->tellp() > 0)
+		*(ctx->ss) << "; ";
+	*(ctx->ss) << hdr->key << ": " << hdr->val;
+	return 0;
+}
+
 const char* evhtp_method_str(int method);
 
 void HTTAGD_SET_LOGGER(tagd::logger *log) {
 	HTTAGD_LOGGER = log;
 }
 
-static bool HTTAGD_LOG_ENABLED(tagd::log_level lvl) {
+bool HTTAGD_LOG_ENABLED(tagd::log_level lvl) {
 	if (HTTAGD_LOGGER == nullptr)
 		return false;
 
-	return static_cast<int>(lvl) <= static_cast<int>(HTTAGD_LOGGER->level(HARD_TAG_ROLE_HTTAGD));
+	return static_cast<int>(lvl) <= static_cast<int>(HTTAGD_LOGGER->level(std::string(HARD_TAG_ROLE_HTTAGD)));
 }
 
-static void HTTAGD_LOG(tagd::log_level lvl, const std::string& msg) {
+void HTTAGD_LOG(tagd::log_level lvl, const std::string& msg) {
 	if (HTTAGD_LOGGER == nullptr)
 		return;
 
-	HTTAGD_LOGGER->log(HARD_TAG_ROLE_HTTAGD, lvl, std::string("-- ").append(msg));
+	HTTAGD_LOGGER->log(std::string(HARD_TAG_ROLE_HTTAGD), lvl, std::string("-- ").append(msg));
+}
+
+std::string HTTAGD_HTTP_HEADERS_STR(const struct evkeyvalq *headers) {
+	std::ostringstream ss;
+	if (headers == nullptr)
+		return ss.str();
+
+	for (const evkeyval *hdr = headers->tqh_first; hdr != nullptr; hdr = hdr->next.tqe_next) {
+		if (ss.tellp() > 0)
+			ss << "; ";
+		ss << hdr->key << ": " << hdr->value;
+	}
+
+	return ss.str();
+}
+
+std::string HTTAGD_HTTP_HEADERS_STR(const evhtp_headers_t *headers) {
+	std::ostringstream ss;
+	if (headers == nullptr)
+		return ss.str();
+
+	httagd_header_log_ctx ctx{&ss};
+	evhtp_headers_for_each(const_cast<evhtp_headers_t *>(headers), HTTAGD_LOG_EVHTP_HEADER, &ctx);
+	return ss.str();
 }
 
 static void HTTAGD_LOG_ERRORS(tagd::log_level lvl, const tagd::errorable& err) {
@@ -45,14 +83,15 @@ static void HTTAGD_LOG_ERRORS(tagd::log_level lvl, const tagd::errorable& err) {
 		HTTAGD_LOG(lvl, msg);
 }
 
-static void HTTAGD_LOG_REQUEST(tagd::log_level lvl, int method, const std::string& path, tagd::code tc) {
+static void HTTAGD_LOG_REQUEST(tagd::log_level lvl, int method, const std::string& path, const evhtp_headers_t *headers, tagd::code tc) {
 	if (!HTTAGD_LOG_ENABLED(lvl))
 		return;
 
 	std::stringstream ss;
 	ss << "httagd request method="
 	   << evhtp_method_str(method)
-	   << " path=" << path;
+	   << " path=" << path
+	   << " headers=[" << HTTAGD_HTTP_HEADERS_STR(headers) << ']';
 	HTTAGD_LOG(lvl, ss.str());
 	HTTAGD_LOG(lvl, std::string("httagd code=").append(tagd::code_str(tc)));
 }
@@ -322,10 +361,7 @@ tagd::code httagl::tagdurl_del(const request& req) {
 
 tagd::code httagl::scan_request_tagdurl(const request& req) {
 	this->init();
-
-	TAGL::driver::scan_tagdurl(req.method, req.tagdurl());
-
-	return this->code();
+	return TAGL::driver::scan_tagdurl(req.method, req.tagdurl());
 }
 
 void callback::default_cmd_put(const tagd::abstract_tag& t) {
@@ -419,6 +455,14 @@ void response::send_ev_reply(evhtp_res res) {
 	}
 
 	HTTAGD_LOG_DEBUG("httagd send_ev_reply res=" << res << " name=" << evhtp_res_str(res));
+	{
+		std::ostringstream ss;
+		ss << "httagd response status=" << res
+		   << " name=" << evhtp_res_str(res)
+		   << " body_size=" << evbuffer_get_length(_ev_req->buffer_out)
+		   << " headers=[" << HTTAGD_HTTP_HEADERS_STR(_ev_req->headers_out) << ']';
+		HTTAGD_LOG(tagd::log_level::DEBUG, ss.str());
+	}
 
 	evhtp_send_reply(_ev_req, res);
 	_res_code = res;
@@ -829,6 +873,14 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 
 	request req(ev_req);
 	response res(ev_req);
+	{
+		std::ostringstream ss;
+		ss << "httagd request method="
+		   << evhtp_method_str(evhtp_request_get_method(ev_req))
+		   << " path=" << req.path()
+		   << " headers=[" << HTTAGD_HTTP_HEADERS_STR(ev_req->headers_in) << ']';
+		HTTAGD_LOG(tagd::log_level::DEBUG, ss.str());
+	}
 
 	// nullptr driver becuase circular depends httagl
 	transaction tx(svr, &req, &res, tdb, nullptr, vws);
@@ -857,7 +909,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	tagd::code tc = tx.most_severe(tx.drvr->session_ptr()->code());
 	HTTAGD_LOG_REQUEST(
 			tc == tagd::TAGD_OK ? tagd::log_level::INFO : tagd::log_level::ERROR,
-			evhtp_request_get_method(ev_req), req.path(), tc);
+			evhtp_request_get_method(ev_req), req.path(), ev_req->headers_in, tc);
 
 	HTTAGD_LOG_ERRORS(tagd::log_level::ERROR, tx);
 
@@ -908,6 +960,14 @@ file_cb(evhtp_request_t * evreq, void * arg) {
 	httagd::server *svr = (httagd::server*)arg;
 	request req(evreq);
 	response res(evreq);
+	{
+		std::ostringstream ss;
+		ss << "httagd request method="
+		   << evhtp_method_str(evhtp_request_get_method(evreq))
+		   << " path=" << req.path()
+		   << " headers=[" << HTTAGD_HTTP_HEADERS_STR(evreq->headers_in) << ']';
+		HTTAGD_LOG(tagd::log_level::DEBUG, ss.str());
+	}
 	base_transaction tx(svr, &req, &res);
 	tagd::code tc;
 	size_t pos;
@@ -943,7 +1003,7 @@ file_cb(evhtp_request_t * evreq, void * arg) {
 
 	if (tc != tagd::TAGD_OK) {
 		HTTAGD_LOG_REQUEST(tagd::log_level::ERROR,
-				evhtp_request_get_method(evreq), req.path(), tc);
+				evhtp_request_get_method(evreq), req.path(), evreq->headers_in, tc);
 		HTTAGD_LOG_ERRORS(tagd::log_level::ERROR, tx);
 
 		// prevent fuzzing - don't print internal details
@@ -956,7 +1016,7 @@ file_cb(evhtp_request_t * evreq, void * arg) {
 	}
 	else
 		HTTAGD_LOG_REQUEST(tagd::log_level::INFO,
-				evhtp_request_get_method(evreq), req.path(), tc);
+				evhtp_request_get_method(evreq), req.path(), evreq->headers_in, tc);
 
 	res.send_reply(tc);
 }
@@ -967,17 +1027,30 @@ favicon_cb(evhtp_request_t * evreq, void * arg) {
 
 	request req(evreq);
 	response res(evreq);
+	{
+		std::ostringstream ss;
+		ss << "httagd request method="
+		   << evhtp_method_str(evhtp_request_get_method(evreq))
+		   << " path=" << req.path()
+		   << " headers=[" << HTTAGD_HTTP_HEADERS_STR(evreq->headers_in) << ']';
+		HTTAGD_LOG(tagd::log_level::DEBUG, ss.str());
+	}
 	base_transaction tx(svr, &req, &res);
 
 	res.add_header_content_type("image/x-icon");
 	tagd::code tc = res.add_file(svr->args()->favicon, &tx);
 	if (tc != tagd::TAGD_OK) {
 		HTTAGD_LOG_REQUEST(tagd::log_level::ERROR,
-				evhtp_request_get_method(evreq), req.path(), tc);
+				evhtp_request_get_method(evreq), req.path(), evreq->headers_in, tc);
 		HTTAGD_LOG_ERRORS(tagd::log_level::ERROR, tx);
 	}
 
 	res.send_reply(tc);
+}
+
+server::~server() {
+	evhtp_free(_htp);
+	event_base_free(_evbase);
 }
 
 tagd::code server::start() {

@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
 		return args.code();
 	}
 
-	tagdb_type tdb;
+	tagdb::sqlite tdb;
 	if (tdb.init(args.db_fname) != tagd::TAGD_OK) {
 		tdb.print_errors();
 		return tdb.code();

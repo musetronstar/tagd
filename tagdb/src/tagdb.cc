@@ -24,7 +24,7 @@ void TAGDB_LOG(const std::string& role, tagd::log_level lvl, const std::string& 
 	if (TAGDB_LOGGER == nullptr)
 		return;
 
-	if (role == HARD_TAG_ROLE_TAGDB && lvl == tagd::log_level::DEBUG) {
+	if (role == std::string(HARD_TAG_ROLE_TAGDB) && lvl == tagd::log_level::DEBUG) {
 		std::stringstream ss(msg);
 		std::string line;
 
@@ -45,18 +45,18 @@ void TAGDB_LOG_EVENT(tagd::session *ssn, tagd::log_level lvl, const std::string&
 	if (TAGDB_LOGGER == nullptr)
 		return;
 
-	if (!TAGDB_LOG_ENABLED(HARD_TAG_ROLE_TAGDB, lvl))
+	if (!TAGDB_LOG_ENABLED(std::string(HARD_TAG_ROLE_TAGDB), lvl))
 		return;
 
 	tagd::session fallback_ssn;
 	tagd::session& event_ssn = ssn ? *ssn : fallback_ssn;
 	tagd::event ev(event_ssn, "tagdb", event_type_tag);
-	TAGDB_LOGGER->log(HARD_TAG_ROLE_TAGDB, lvl, ev);
+	TAGDB_LOGGER->log(std::string(HARD_TAG_ROLE_TAGDB), lvl, ev);
 }
 
 namespace tagdb {
 
-tagd::code session::push_context(const tagd::id_type& id) {
+tagd::code session::push_context(tagd::id_view id) {
 	if (id.empty())
 		return this->error(tagd::TS_MISUSE, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_CONTEXT, HARD_TAG_EMPTY));
 	else if (id == HARD_TAG_ENTITY)
@@ -64,11 +64,12 @@ tagd::code session::push_context(const tagd::id_type& id) {
 
 	tagd::abstract_tag t;
 	if (_tdb->exists(id)) {
-		_context.push_back(id);
+		_context.emplace_back(id);
 		return tagd::TAGD_OK;
 	}
 
-	return this->ferror(tagd::TS_INTERNAL_ERR, "push_context failed: %s", id.c_str());
+	return this->ferror(tagd::TS_INTERNAL_ERR, "push_context failed: %.*s",
+		static_cast<int>(id.size()), id.data());
 }
 
 const tagd::id_vec& session::context() const { return _context; }

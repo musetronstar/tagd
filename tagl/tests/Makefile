@@ -7,7 +7,7 @@ LIBTAGDB_SQLITE = $(TAGSPACE_DIR)/lib/libtagdb-sqlite.a
 
 CXXTEST = cxxtestgen --error-printer
 # Use flags from top-level, or defaults if called directly
-CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wno-unused-result -O3 -Wno-write-strings
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3 -Wno-write-strings
 LFLAGS =  -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite -L../lib -ltagl -L$(TAGD_DIR)/lib -ltagd -levent
 
 TESTER = ./tester

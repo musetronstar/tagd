@@ -18,6 +18,7 @@ class driver;
 // Parse-lifetime backing for token text that must outlive scanner buffer refill.
 class token_store {
 	protected:
+		// deque keeps string object addresses stable so emitted text_token views stay valid.
 		std::deque<std::string> _tokens;
 
 	public:
@@ -31,14 +32,14 @@ class token_store {
 			return _tokens.back();
 		}
 
-		TokenText store_text(const char *z, size_t n) {
+		text_token store_text(const char *z, size_t n) {
 			const std::string& s = store(z, n);
-			return TokenText{s.c_str(), (int)s.size()};
+			return text_token{s.c_str(), (int)s.size()};
 		}
 
-		TokenText store_text(const std::string& s) {
+		text_token store_text(const std::string& s) {
 			const std::string& stored = store(s);
-			return TokenText{stored.c_str(), (int)stored.size()};
+			return text_token{stored.c_str(), (int)stored.size()};
 		}
 
 		void clear() { _tokens.clear(); }
@@ -62,26 +63,27 @@ class scanner {
 		size_t _line_number = 0; // current line
 		int _tok = -1;
 		int32_t _state = -1;
+		// The scanner owns this refill buffer because re2c works on mutable contiguous memory.
 		char *_buf = nullptr;
 		std::string _val;  // holds _buf overflow
-		token_store _token_store;  // parse-lifetime backing for emitted token slices
+		token_store _token_store;  // parse-lifetime backing for emitted text_token slices
 		evbuffer *_evbuf = nullptr;
 		bool _do_fill = false;
 
 		void begin_scan(const char*, size_t);
 		void clear_value();
 		void advance_begin();
-		TokenText store_token_text();
+		text_token store_token_text();
 		const std::string& store_value();
-		TokenText new_value();
+		text_token new_value();
 		void next_line(size_t=1);
 		void log_begin(size_t);
-		void log_token(int, TokenText);
+		void log_token(int, text_token);
 		void log_refill(size_t, size_t, size_t, bool);
 		void log_error(const std::string&);
 
 		// emit parser token with unknown semantic value.
-		void emit(int tok, TokenText val=EMPTY_VALUE);
+		void emit(int tok, text_token val=EMPTY_VALUE);
 
 		// emit parser token with given value (not _val)
 		void emit_literal_value(int tok, const char *);
@@ -106,6 +108,10 @@ class scanner {
 
 		scanner(driver *d);
 		virtual ~scanner();
+		scanner(const scanner&) = delete;
+		scanner& operator=(const scanner&) = delete;
+		scanner(scanner&&) = delete;
+		scanner& operator=(scanner&&) = delete;
 
 		const char* fill();
 		void scan(const std::string& s) { this->scan(s.c_str(), s.size()); }
@@ -183,8 +189,8 @@ class scanner::tagdurl : public scanner {
 	"<="                 { emit(TOK_LT_EQ); goto next; }
 	";"                  { emit(TOK_TERMINATOR); goto next; }
 
-	"-^"                 { emit_literal_value(TOK_SUB_RELATOR_SYMBOL, HARD_TAG_SUB); goto next; }
-	"->"                 { emit_literal_value(TOK_RELATOR_SYMBOL, HARD_TAG_RELATOR); goto next; }
+	"-^"                 { emit_literal_value(TOK_SUB_RELATOR_SYMBOL, HARD_TAG_SUB.data()); goto next; }
+	"->"                 { emit_literal_value(TOK_RELATOR_SYMBOL, HARD_TAG_RELATOR.data()); goto next; }
 
 	"-"? [0-9]+ "." [0-9]+
 	                     { emit(TOK_FLOAT, new_value()); goto next; }

@@ -70,29 +70,25 @@ class url : public abstract_tag {
         url_size_t _fragment_offset = 0;
         url_size_t _fragment_len = 0;
 
-		// disable setting _id, becuase it would
-		// bypass url initialization.  require init()
-        void id(const id_type& A);
-
 	protected:
-        tagd::code init(const std::string &url);
-        tagd::code init_hduri(const std::string &hduri);
+        tagd::code init(id_view url);
+        tagd::code init_hduri(id_view hduri);
 
     public:
         url() :
-			abstract_tag(id_type(), HARD_TAG_IS_A, HARD_TAG_URL, POS_URL)
+			abstract_tag("", HARD_TAG_IS_A, HARD_TAG_URL, POS_URL)
 		{
 			_code = URL_EMPTY;
 		}
 
-        url(const std::string& u) :
-			abstract_tag(id_type(), HARD_TAG_IS_A, HARD_TAG_URL, POS_URL)
+        url(id_view u) :
+			abstract_tag("", HARD_TAG_IS_A, HARD_TAG_URL, POS_URL)
 		{
 			_code = URL_EMPTY;
 			this->init(u);
 		}
 
-		const id_type& id() const { return _id; }
+		const id_string& id() const { return _id; }
         std::string scheme() const { return url_substr(0, _scheme_len); }
         std::string user() const { return url_substr(_user_offset, _user_len); }
         std::string pass() const { return url_substr(_pass_offset, _pass_len); }
@@ -155,7 +151,7 @@ class url : public abstract_tag {
 // upper case class name because it conflicts with url::hduri()
 class HDURI : public url {
 	public:
-        HDURI(const std::string& h) : url() {
+        HDURI(id_view h) : url() {
 			this->init_hduri(h);
 		}
 };
@@ -165,4 +161,3 @@ std::string uri_decode(const std::string&);
 std::string uri_encode(const std::string&);
 
 } // namespace tagd
-

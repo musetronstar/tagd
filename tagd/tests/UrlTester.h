@@ -9,6 +9,10 @@
 
 #define TAGD_CODE_STRING(c)	std::string(tagd::code_str(c))
 
+inline tagd::id_string owned_id(std::string_view sv) {
+    return tagd::id_string(sv);
+}
+
 // returns true if each of the url components were parsed identically
 bool url_test(std::string u,
               std::string scheme,
@@ -962,45 +966,45 @@ class Tester : public CxxTest::TestSuite {
     void test_relations(void) {
 		tagd::url a("http://hypermega.com");
 		tagd::url::insert_url_part_relations(a.relations, a);
-		TS_ASSERT( a.related(HARD_TAG_HAS, HARD_TAG_HOST, "hypermega.com") )
-		TS_ASSERT( a.related(HARD_TAG_HAS, HARD_TAG_PRIV_LABEL, "hypermega") )
-		TS_ASSERT( a.related(HARD_TAG_HAS, HARD_TAG_PUBLIC, "com") )
-		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_SUBDOMAIN) )
-		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_PATH) )
-		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_QUERY) )
-		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT) )
-		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_PORT) )
-		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_USER) )
-		TS_ASSERT( !a.related(HARD_TAG_HAS, HARD_TAG_PASS) )
-		TS_ASSERT( a.related(HARD_TAG_HAS, HARD_TAG_SCHEME, "http") )
+		TS_ASSERT( a.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_HOST), "hypermega.com") )
+		TS_ASSERT( a.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PRIV_LABEL), "hypermega") )
+		TS_ASSERT( a.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PUBLIC), "com") )
+		TS_ASSERT( !a.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_SUBDOMAIN)) )
+		TS_ASSERT( !a.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PATH)) )
+		TS_ASSERT( !a.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_QUERY)) )
+		TS_ASSERT( !a.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_FRAGMENT)) )
+		TS_ASSERT( !a.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PORT)) )
+		TS_ASSERT( !a.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_USER)) )
+		TS_ASSERT( !a.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PASS)) )
+		TS_ASSERT( a.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_SCHEME), "http") )
 
 		tagd::url b("http://www.hypermega.com#here");
 		tagd::url::insert_url_part_relations(b.relations, b);
-		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_HOST, "www.hypermega.com") )
-		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_PRIV_LABEL, "hypermega") )
-		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_PUBLIC, "com") )
-		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_SUBDOMAIN, "www") )
-		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_PATH) )
-		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_QUERY) )
-		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "#here") )
-		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_PORT) )
-		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_USER) )
-		TS_ASSERT( !b.related(HARD_TAG_HAS, HARD_TAG_PASS) )
-		TS_ASSERT( b.related(HARD_TAG_HAS, HARD_TAG_SCHEME, "http") )
+		TS_ASSERT( b.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_HOST), "www.hypermega.com") )
+		TS_ASSERT( b.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PRIV_LABEL), "hypermega") )
+		TS_ASSERT( b.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PUBLIC), "com") )
+		TS_ASSERT( b.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_SUBDOMAIN), "www") )
+		TS_ASSERT( !b.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PATH)) )
+		TS_ASSERT( !b.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_QUERY)) )
+		TS_ASSERT( b.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_FRAGMENT), "#here") )
+		TS_ASSERT( !b.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PORT)) )
+		TS_ASSERT( !b.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_USER)) )
+		TS_ASSERT( !b.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PASS)) )
+		TS_ASSERT( b.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_SCHEME), "http") )
 
 		tagd::url c("http://en.wikipedia.org/wiki/Dog");
 		tagd::url::insert_url_part_relations(c.relations, c);
-		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_HOST, "en.wikipedia.org") )
-		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_PRIV_LABEL, "wikipedia") )
-		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_PUBLIC, "org") )
-		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_SUBDOMAIN, "en") )
-		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_PATH, "/wiki/Dog") )
-		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_QUERY) )
-		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT) )
-		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_PORT) )
-		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_USER) )
-		TS_ASSERT( !c.related(HARD_TAG_HAS, HARD_TAG_PASS) )
-		TS_ASSERT( c.related(HARD_TAG_HAS, HARD_TAG_SCHEME, "http") )
+		TS_ASSERT( c.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_HOST), "en.wikipedia.org") )
+		TS_ASSERT( c.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PRIV_LABEL), "wikipedia") )
+		TS_ASSERT( c.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PUBLIC), "org") )
+		TS_ASSERT( c.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_SUBDOMAIN), "en") )
+		TS_ASSERT( c.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PATH), "/wiki/Dog") )
+		TS_ASSERT( !c.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_QUERY)) )
+		TS_ASSERT( !c.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_FRAGMENT)) )
+		TS_ASSERT( !c.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PORT)) )
+		TS_ASSERT( !c.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_USER)) )
+		TS_ASSERT( !c.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PASS)) )
+		TS_ASSERT( c.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_SCHEME), "http") )
 	}
 
     void test_urls(void) {

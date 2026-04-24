@@ -5,7 +5,7 @@ PRG_DIR = ../sqlite
 INC = -I../include -I$(TAGD_DIR)/include -I$(PRG_DIR)/include
 
 # Use flags from top-level, or defaults if called directly
-CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wno-unused-result -O3
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 CXXTEST = cxxtestgen --error-printer
 LFLAGS = -L../lib -ltagdb-sqlite -L$(TAGD_DIR)/lib -ltagd -lsqlite3 
 
@@ -23,7 +23,7 @@ valgrind: TESTER = $(VALGRIND) $(BIN)
 valgrind: debug
 
 build: $(LIBTAGD) $(LIBTAGDB_SQLITE)
-	$(CXXTEST) Tester.h -o $(SRC)
+	$(CXXTEST) Tester.h SqliteTester.h -o $(SRC)
 	g++ $(CXXFLAGS) -o $(BIN) $(SRC) $(INC) $(LFLAGS)
 	$(TESTER)
 

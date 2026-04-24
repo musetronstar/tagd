@@ -10,6 +10,7 @@ use open qw(:std :utf8);
 
 my %tree;
 my %defines;
+my %define_forms;
 my @rows = ("");  # first row == 0 unused
 my $row = 0;
 
@@ -17,19 +18,23 @@ while (<>) {
     #chomp;
     s/\s+$//g;
 
-# hard-tags.h form:
+# hard-tags.h forms:
 #define HARD_TAG_TAGNAME "<_tagname>"	//gperf <SUB_RELATION>, <tagd::part_of_speech>
+#inline constexpr std::string_view HARD_TAG_TAGNAME{"<_tagname>"};	//gperf <SUB_RELATION>, <tagd::part_of_speech>
 # example:
 #define HARD_TAG_RELATOR	"_rel"		//gperf HARD_TAG_ENTITY, tagd::POS_RELATOR
+#inline constexpr std::string_view HARD_TAG_RELATOR{"_rel"};	//gperf HARD_TAG_ENTITY, tagd::POS_RELATOR
 
-    if (/^#define\s*(\S*)\s*\"(\S*)\"\s*\/\/gperf\s*([^, ]+), ?(.*)/) {
+    if (/^(?:#define\s*(\S*)\s*\"(\S*)\"|inline constexpr std::string_view\s+(\S+)\{\"(\S+)\"\};)\s*\/\/gperf\s*([^, ]+), ?(.*)/) {
 		$row++;
-		my $hard_tag_define = $1;
-		my $hard_tag_value  = $2;
-		my $sub_hard_tag_define  = $3;
-		my $pos  = $4;
+		my $hard_tag_define = defined($1) ? $1 : $3;
+		my $hard_tag_value  = defined($2) ? $2 : $4;
+		my $sub_hard_tag_define  = $5;
+		my $pos  = $6;
+		my $is_inline_constexpr = defined($3);
 
 		$defines{$hard_tag_define} = $hard_tag_value;
+		$define_forms{$hard_tag_define} = $is_inline_constexpr ? 'inline_constexpr' : 'macro';
 
 		$tree{$hard_tag_value} = {
 			hard_tag_define => $hard_tag_define,
@@ -73,6 +78,7 @@ while (<>) {
 
 # gperf declarations heading
 while (<DATA>) { print $_ }
+print "\n";
 
 print "const char * hard_tag_rows[".scalar(@rows)."] = { \"" . join("\", \"", @rows) . "\" };\n";
 print "const size_t hard_tag_rows_end = " . scalar(@rows) . ";\n";
@@ -83,9 +89,14 @@ shift @rows;  # first row unused
 foreach ( @rows ) {
 	my $hard_tag_value = $_;
 	my $val = $tree{$hard_tag_value};
+	my $sub_expr = $val->{sub_hard_tag_define};
+	if ($define_forms{$val->{sub_hard_tag_define}} && $define_forms{$val->{sub_hard_tag_define}} eq 'inline_constexpr') {
+		# gperf rows still initialize const char* storage, so typed hard tags need an explicit c-string seam here.
+		$sub_expr .= '.data()';
+	}
 
 	# <row_id>, <tag id>, <super_object>, <pos>, <rank_cstr>
-	print "$hard_tag_value, $val->{sub_hard_tag_define}, $val->{pos}, $val->{row}, ";
+	print "$hard_tag_value, $sub_expr, $val->{pos}, $val->{row}, ";
 
 	# rank as a 64bit hex string
 	my $b = 0;
@@ -119,4 +130,3 @@ struct hard_tag_hash_value {
 	tagdb::rowid_t row_id;
 	uint64_t rank;
 };
-

@@ -1,7 +1,7 @@
 INCLUDE = ../include
 
 # Use flags from top-level, or defaults if called directly
-CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wno-unused-result -O3
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 INC = -I$(INCLUDE)
 LIBTAGD = ../lib/libtagd.a
 LFLAGS = -L../lib -ltagd

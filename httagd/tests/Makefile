@@ -9,7 +9,7 @@ LIBHTTAGD = $(HTTAGD_DIR)/lib/libhttagd.a
 
 CXXTEST = cxxtestgen --error-printer
 # Use flags from top-level, or defaults if called directly
-CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wno-unused-result -O3 -Wno-write-strings
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3 -Wno-write-strings
 LFLAGS  =
 LFLAGS += -L$(HTTAGD_DIR)/lib -lhttagd
 LFLAGS += -L$(TAGSPACE_DIR)/lib -ltagdb-sqlite
@@ -35,6 +35,7 @@ debug: CXXFLAGS += -g -DDEBUG -O0 -Wno-write-strings
 debug: all
 
 TESTER = ./tester
+CLIENT_TESTER = ./client-tester
 VALGRIND = valgrind --leak-check=full --error-exitcode=1
 valgrind: TESTER = $(VALGRIND) ./tester
 valgrind: debug
@@ -45,6 +46,9 @@ cxx_tests: $(LIBHTTAGD)
 	$(CXXTEST) Tester.h -o tester.cpp
 	g++ $(CXXFLAGS) -o tester tester.cpp $(INC) $(LFLAGS)
 	$(TESTER)
+	$(CXXTEST) ClientTester.h -o client-tester.cpp
+	g++ $(CXXFLAGS) -o client-tester client-tester.cpp ../src/httagd-client.cc $(INC) $(LFLAGS)
+	$(CLIENT_TESTER)
 
 exp_tests:
 	./tester.exp
@@ -53,4 +57,4 @@ $(LIBHTTAGD):
 	make -C $(HTTAGD_DIR)
 
 clean:
-	rm -f *.o tester.cpp ./tester
+	rm -f *.o tester.cpp client-tester.cpp ./tester ./client-tester

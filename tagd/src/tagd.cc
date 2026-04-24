@@ -37,7 +37,7 @@ session::session() :
 	session(default_session_factory().create())
 {}
 
-session::session(const id_type& id, const id_type& started_at) :
+session::session(const id_string& id, const id_string& started_at) :
 	errorable(),
 	_id{id},
 	_started_at{started_at},
@@ -266,7 +266,7 @@ bool predicate::empty() const {
 }
 
 void insert_predicate(predicate_set& P,
-	const id_type &relator, const id_type &object, const id_type &modifier ) {
+	id_view relator, id_view object, id_view modifier ) {
 	if (object.empty())
 		return;
 
@@ -304,14 +304,13 @@ void merge_tags(tag_set& A, const tag_set& B) {
 	tagd::tag_set::iterator a = A.begin();
 	for (tagd::tag_set::iterator b = B.begin(); b != B.end(); ++b) {
 		a = A.insert(a, *b);
-		if ( a->id() == b->id() ) { // duplicate
-			// copy/erase/insert because sets are const iterators
-			tagd::abstract_tag t(*a);
-			t.predicates(b->relations);  // merge relations
-			tagd::tag_set::iterator it = a; // for speeding up insertion
-			if (it != A.begin()) --it;
-			A.erase(a);
-			a = A.insert(it, t);
+		if ( a->id() == b->id() ) { // duplicate — merge relations
+			// extract/mutate/reinsert: no copy of element, no iterator invalidation hazard.
+			// hint is the predecessor so reinsert is O(1); fall back to end() when a is begin().
+			auto hint = (a != A.begin()) ? std::prev(a) : A.end();
+			auto node = A.extract(a);  // a is now invalid
+			node.value().predicates(b->relations);
+			a = A.insert(hint, std::move(node));
 		}
 	}
 }
@@ -324,16 +323,15 @@ size_t merge_tags_erase_diffs(tag_set& A, const tag_set& B) {
 		return A.size();
 	}
 
-	// TODO find a more efficient way to erase/insert against A without a temp containter
-	tagd::tag_set T;  // tmp
+	tagd::tag_set T;  // accumulates matched, merged elements for reinsertion into A
 	tagd::tag_set::iterator a = A.begin();
 	tagd::tag_set::iterator b = B.begin();
-	tagd::tag_set::iterator it = T.begin();  
+	tagd::tag_set::iterator it = T.begin();
 
 	while (b != B.end()) {
 		if (a == A.end())
-			break; 
-		
+			break;
+
 		if (*a < *b) {
 			++a;
 			// TODO check if a contains b, and if so, merge
@@ -341,10 +339,12 @@ size_t merge_tags_erase_diffs(tag_set& A, const tag_set& B) {
 			++b;
 		} else {
 			assert( a->id() == b->id() );
-			tagd::abstract_tag t(*a);
-			t.predicates(b->relations);  // merge relations
-			it = T.insert(it, t);
-			++a;
+			// extract/mutate/reinsert into T: moves node without copying element.
+			auto next_a = std::next(a);
+			auto node = A.extract(a);  // a invalidated; remaining A elements intact
+			node.value().predicates(b->relations);
+			it = T.insert(it, std::move(node));
+			a = next_a;
 			++b;
 		}
 	}
@@ -386,7 +386,7 @@ size_t merge_containing_tags(tag_set& A, const tag_set& B) {
 	return A.size();
 } 
 
-bool tag_set_equal(const tag_set A, const tag_set B) {
+bool tag_set_equal(const tag_set& A, const tag_set& B) {
 	if (A.size() != B.size())
 		return false;
 
@@ -401,6 +401,32 @@ bool tag_set_equal(const tag_set A, const tag_set B) {
 	}
 
 	return true;
+}
+
+void abstract_tag::swap(abstract_tag& rhs) noexcept {
+	using std::swap;
+
+	swap(_id, rhs._id);
+	swap(_sub_relator, rhs._sub_relator);
+	swap(_super_object, rhs._super_object);
+	swap(_pos, rhs._pos);
+	swap(_rank, rhs._rank);
+	swap(_code, rhs._code);
+	swap(relations, rhs.relations);
+}
+
+void swap(abstract_tag& lhs, abstract_tag& rhs) noexcept {
+	lhs.swap(rhs);
+}
+
+abstract_tag& abstract_tag::operator=(const abstract_tag& rhs) {
+	if (this == &rhs)
+		return *this;
+
+	// copy-then-swap for whole-object replacement via the same noexcept exchange seam
+	abstract_tag copied(rhs);
+	swap(copied);
+	return *this;
 }
 
 bool abstract_tag::operator==(const abstract_tag& rhs) const {
@@ -455,7 +481,7 @@ tagd::code abstract_tag::relation(const tagd::predicate &p) {
 	return (pr.second ? TAGD_OK : TAG_DUPLICATE);
 }
 
-tagd::code abstract_tag::relation(const id_type &relator, const id_type &object) {
+tagd::code abstract_tag::relation(id_view relator, id_view object) {
 	if (relator.empty() && object.empty())
 		return TAG_ILLEGAL;
 
@@ -464,7 +490,7 @@ tagd::code abstract_tag::relation(const id_type &relator, const id_type &object)
 }
 
 tagd::code abstract_tag::relation(
-	const id_type &relator, const id_type &object, const id_type &modifier ) {
+	id_view relator, id_view object, id_view modifier ) {
 	if (relator.empty() && object.empty())
 		return TAG_ILLEGAL;
 
@@ -473,7 +499,7 @@ tagd::code abstract_tag::relation(
 }
 
 tagd::code abstract_tag::relation(
-	const id_type &relator, const id_type &object, const id_type &modifier, operator_t op ) {
+	id_view relator, id_view object, id_view modifier, operator_t op ) {
 	if (relator.empty() && object.empty())
 		return TAG_ILLEGAL;
 
@@ -482,7 +508,7 @@ tagd::code abstract_tag::relation(
 }
 
 tagd::code abstract_tag::relation(
-	const id_type &relator, const id_type &object, const id_type &modifier, operator_t op, data_t d) {
+	id_view relator, id_view object, id_view modifier, operator_t op, data_t d) {
 	if (relator.empty() && object.empty())
 		return TAG_ILLEGAL;
 
@@ -498,7 +524,7 @@ tagd::code abstract_tag::not_relation(const tagd::predicate &p) {
 	return (erased ? TAGD_OK : TAG_UNKNOWN);
 }
 
-tagd::code abstract_tag::not_relation(const id_type &relator, const id_type &object) {
+tagd::code abstract_tag::not_relation(id_view relator, id_view object) {
 	if (relator.empty() && object.empty())
 		return TAG_ILLEGAL;
 
@@ -510,7 +536,7 @@ void abstract_tag::predicates(const predicate_set &p) {
 	this->relations.insert(p.begin(), p.end());
 }
 
-bool abstract_tag::has_relator(const id_type &r) const {
+bool abstract_tag::has_relator(id_view r) const {
 	if (r.empty())
 		return false;
 
@@ -523,7 +549,7 @@ bool abstract_tag::has_relator(const id_type &r) const {
 	return false;
 }
 
-bool abstract_tag::has_relator(const id_type &r, predicate_set& P) const {
+bool abstract_tag::has_relator(id_view r, predicate_set& P) const {
 	if (r.empty())
 		return false;
 
@@ -538,7 +564,7 @@ bool abstract_tag::has_relator(const id_type &r, predicate_set& P) const {
 	return match;
 }
 
-bool abstract_tag::related(const id_type &object) const {
+bool abstract_tag::related(id_view object) const {
 	if (object.empty())
 		return false;
 
@@ -551,7 +577,7 @@ bool abstract_tag::related(const id_type &object) const {
 	return false;
 }
 
-bool abstract_tag::related(const id_type &relator, const id_type &object) const {
+bool abstract_tag::related(id_view relator, id_view object) const {
 	for (predicate_set::iterator it = relations.begin(); it != relations.end(); ++it) {
 		if (it->relator == relator && it->object == object)
 			return true;
@@ -560,7 +586,7 @@ bool abstract_tag::related(const id_type &relator, const id_type &object) const 
 	return false;
 }
 
-size_t abstract_tag::related(const id_type &object, predicate_set& how) const {
+size_t abstract_tag::related(id_view object, predicate_set& how) const {
 	if (object.empty())
 		return 0;
 
@@ -577,7 +603,7 @@ size_t abstract_tag::related(const id_type &object, predicate_set& how) const {
 }
 
 // referents
-const id_type& referent::context() const {
+const id_string& referent::context() const {
 	for (predicate_set::const_iterator it = relations.begin(); it != relations.end(); ++it) {
 		if (it->relator == HARD_TAG_CONTEXT)
 			return it->object;
@@ -589,7 +615,7 @@ const id_type& referent::context() const {
 // tag output functions
 
 // whether a label should be quoted
-std::string util::esc_and_quote(id_type s) {
+std::string util::esc_and_quote(id_string s) {
 	bool do_quotes = false;
 	for (size_t i=0; i<s.size(); i++) {
 		if (isspace(s[i]))
@@ -624,7 +650,7 @@ std::string util::esc_and_quote(id_type s) {
 	return (do_quotes ? std::string("\"").append(s).append("\"") : s);
 }
 
-inline void print_quotable(std::ostream& os, const id_type& s) {
+inline void print_quotable(std::ostream& os, const id_string& s) {
 			os << util::esc_and_quote(s);
 }
 
@@ -669,7 +695,7 @@ std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
 		return os;
 	} 
 
-	id_type last_relator;
+	id_string last_relator;
 	for (; it != t.relations.end(); ++it) {
 		if (last_relator == it->relator) {
 			os << ", ";
@@ -718,7 +744,7 @@ char* util::csprintf(const char *fmt, va_list& args) {
 	return CSPRINTF_BUF;
 }
 
-const id_type& error::message() const {
+const id_string& error::message() const {
 	for (predicate_set::const_iterator it = relations.begin(); it != relations.end(); ++it) {
 		if (it->object == HARD_TAG_MESSAGE)
 			return it->modifier;
@@ -779,14 +805,14 @@ const tagd::error& errorable::last_error() const {
 		return (*_errors.get())[_errors.get()->size()-1];
 }
 
-tagd::code errorable::last_error_relation(predicate p) {
+tagd::code errorable::last_error_relation(const predicate& p) {
 	if (_errors == nullptr || _errors.get()->size() == 0)
 		return tagd::TS_NOT_FOUND;
 
 	return (*_errors.get())[_errors.get()->size()-1].relation(p);
 }
 
-tagd::code errorable::most_severe(tagd::code c) {
+tagd::code errorable::most_severe(tagd::code c) const {
 	tagd::code most_severe = c;
 	if (_errors != nullptr) {
 		for (auto e : *_errors.get()) {
@@ -898,39 +924,39 @@ const char* code_str(tagd::code c) {
 
 const char* code_error_tag(tagd::code c) {
 	switch (c) {
-		case tagd::TAGD_ERR: return HARD_TAG_ERROR_TAGD_ERR;
-		case tagd::TAG_UNKNOWN: return HARD_TAG_ERROR_TAG_UNKNOWN;
-		case tagd::TAG_DUPLICATE: return HARD_TAG_ERROR_TAG_DUPLICATE;
-		case tagd::TAG_ILLEGAL: return HARD_TAG_ERROR_TAG_ILLEGAL;
-		case tagd::RANK_ERR: return HARD_TAG_ERROR_RANK_ERR;
-		case tagd::RANK_EMPTY: return HARD_TAG_ERROR_RANK_EMPTY;
-		case tagd::RANK_MAX_VALUE: return HARD_TAG_ERROR_RANK_MAX_VALUE;
-		case tagd::RANK_MAX_LEN: return HARD_TAG_ERROR_RANK_MAX_LEN;
-		case tagd::URI_ERR_SCHEME: return HARD_TAG_ERROR_URI_ERR_SCHEME;
-		case tagd::URL_EMPTY: return HARD_TAG_ERROR_URL_EMPTY;
-		case tagd::URL_MAX_LEN: return HARD_TAG_ERROR_URL_MAX_LEN;
-		case tagd::URL_ERR_SCHEME: return HARD_TAG_ERROR_URL_ERR_SCHEME;
-		case tagd::URL_ERR_HOST: return HARD_TAG_ERROR_URL_ERR_HOST;
-		case tagd::URL_ERR_PORT: return HARD_TAG_ERROR_URL_ERR_PORT;
-		case tagd::URL_ERR_PATH: return HARD_TAG_ERROR_URL_ERR_PATH;
-		case tagd::URL_ERR_USER: return HARD_TAG_ERROR_URL_ERR_USER;
-		case tagd::TS_NOT_FOUND: return HARD_TAG_ERROR_TS_NOT_FOUND;
-		case tagd::TS_DUPLICATE: return HARD_TAG_ERROR_TS_DUPLICATE;
-		case tagd::TS_SUB_UNK: return HARD_TAG_ERROR_TS_SUB_UNK;
-		case tagd::TS_RELATOR_UNK: return HARD_TAG_ERROR_TS_RELATOR_UNK;
-		case tagd::TS_OBJECT_UNK: return HARD_TAG_ERROR_TS_OBJECT_UNK;
-		case tagd::TS_REFERS_TO_UNK: return HARD_TAG_ERROR_TS_REFERS_TO_UNK;
-		case tagd::TS_CONTEXT_UNK: return HARD_TAG_ERROR_TS_CONTEXT_UNK;
-		case tagd::TS_AMBIGUOUS: return HARD_TAG_ERROR_TS_AMBIGUOUS;
-		case tagd::TS_RELATION_DEPENDENCY: return HARD_TAG_ERROR_TS_RELATION_DEPENDENCY;
-		case tagd::TS_ERR_MAX_TAG_LEN: return HARD_TAG_ERROR_TS_ERR_MAX_TAG_LEN;
-		case tagd::TS_ERR: return HARD_TAG_ERROR_TS_ERR;
-		case tagd::TS_MISUSE: return HARD_TAG_ERROR_TS_MISUSE;
-		case tagd::TS_INTERNAL_ERR: return HARD_TAG_ERROR_TS_INTERNAL_ERR;
-		case tagd::TS_NOT_IMPLEMENTED: return HARD_TAG_ERROR_TS_NOT_IMPLEMENTED;
-		case tagd::TAGL_ERR: return HARD_TAG_ERROR_TAGL_ERR;
-		case tagd::HTTP_ERR: return HARD_TAG_ERROR_HTTP_ERR;
-		default: return HARD_TAG_ERROR;
+		case tagd::TAGD_ERR: return HARD_TAG_ERROR_TAGD_ERR.data();
+		case tagd::TAG_UNKNOWN: return HARD_TAG_ERROR_TAG_UNKNOWN.data();
+		case tagd::TAG_DUPLICATE: return HARD_TAG_ERROR_TAG_DUPLICATE.data();
+		case tagd::TAG_ILLEGAL: return HARD_TAG_ERROR_TAG_ILLEGAL.data();
+		case tagd::RANK_ERR: return HARD_TAG_ERROR_RANK_ERR.data();
+		case tagd::RANK_EMPTY: return HARD_TAG_ERROR_RANK_EMPTY.data();
+		case tagd::RANK_MAX_VALUE: return HARD_TAG_ERROR_RANK_MAX_VALUE.data();
+		case tagd::RANK_MAX_LEN: return HARD_TAG_ERROR_RANK_MAX_LEN.data();
+		case tagd::URI_ERR_SCHEME: return HARD_TAG_ERROR_URI_ERR_SCHEME.data();
+		case tagd::URL_EMPTY: return HARD_TAG_ERROR_URL_EMPTY.data();
+		case tagd::URL_MAX_LEN: return HARD_TAG_ERROR_URL_MAX_LEN.data();
+		case tagd::URL_ERR_SCHEME: return HARD_TAG_ERROR_URL_ERR_SCHEME.data();
+		case tagd::URL_ERR_HOST: return HARD_TAG_ERROR_URL_ERR_HOST.data();
+		case tagd::URL_ERR_PORT: return HARD_TAG_ERROR_URL_ERR_PORT.data();
+		case tagd::URL_ERR_PATH: return HARD_TAG_ERROR_URL_ERR_PATH.data();
+		case tagd::URL_ERR_USER: return HARD_TAG_ERROR_URL_ERR_USER.data();
+		case tagd::TS_NOT_FOUND: return HARD_TAG_ERROR_TS_NOT_FOUND.data();
+		case tagd::TS_DUPLICATE: return HARD_TAG_ERROR_TS_DUPLICATE.data();
+		case tagd::TS_SUB_UNK: return HARD_TAG_ERROR_TS_SUB_UNK.data();
+		case tagd::TS_RELATOR_UNK: return HARD_TAG_ERROR_TS_RELATOR_UNK.data();
+		case tagd::TS_OBJECT_UNK: return HARD_TAG_ERROR_TS_OBJECT_UNK.data();
+		case tagd::TS_REFERS_TO_UNK: return HARD_TAG_ERROR_TS_REFERS_TO_UNK.data();
+		case tagd::TS_CONTEXT_UNK: return HARD_TAG_ERROR_TS_CONTEXT_UNK.data();
+		case tagd::TS_AMBIGUOUS: return HARD_TAG_ERROR_TS_AMBIGUOUS.data();
+		case tagd::TS_RELATION_DEPENDENCY: return HARD_TAG_ERROR_TS_RELATION_DEPENDENCY.data();
+		case tagd::TS_ERR_MAX_TAG_LEN: return HARD_TAG_ERROR_TS_ERR_MAX_TAG_LEN.data();
+		case tagd::TS_ERR: return HARD_TAG_ERROR_TS_ERR.data();
+		case tagd::TS_MISUSE: return HARD_TAG_ERROR_TS_MISUSE.data();
+		case tagd::TS_INTERNAL_ERR: return HARD_TAG_ERROR_TS_INTERNAL_ERR.data();
+		case tagd::TS_NOT_IMPLEMENTED: return HARD_TAG_ERROR_TS_NOT_IMPLEMENTED.data();
+		case tagd::TAGL_ERR: return HARD_TAG_ERROR_TAGL_ERR.data();
+		case tagd::HTTP_ERR: return HARD_TAG_ERROR_HTTP_ERR.data();
+		default: return HARD_TAG_ERROR.data();
 	}
 }
 

@@ -21,31 +21,32 @@ void TAGL_LOG(const std::string&, tagd::log_level, const std::string&);
 	{ std::cerr <<  __FILE__  << ':' << __LINE__ << '\t' << MSG ; }
 #define TAGL_LOG_SCANNER_DEBUG(MSG) \
 	do { \
-		if (TAGL_LOG_ENABLED(HARD_TAG_ROLE_SCANNER, tagd::log_level::DEBUG)) { \
+		if (TAGL_LOG_ENABLED(std::string(HARD_TAG_ROLE_SCANNER), tagd::log_level::DEBUG)) { \
 			std::ostringstream _tagl_scanner_debug_os; \
 			_tagl_scanner_debug_os << MSG; \
-			TAGL_LOG(HARD_TAG_ROLE_SCANNER, tagd::log_level::DEBUG, _tagl_scanner_debug_os.str()); \
+			TAGL_LOG(std::string(HARD_TAG_ROLE_SCANNER), tagd::log_level::DEBUG, _tagl_scanner_debug_os.str()); \
 		} \
 	} while (0)
 #define TAGL_LOG_DRIVER_DEBUG(MSG) \
 	do { \
-		if (TAGL_LOG_ENABLED(HARD_TAG_ROLE_DRIVER, tagd::log_level::DEBUG)) { \
+		if (TAGL_LOG_ENABLED(std::string(HARD_TAG_ROLE_DRIVER), tagd::log_level::DEBUG)) { \
 			std::ostringstream _tagl_driver_debug_os; \
 			_tagl_driver_debug_os << MSG; \
-			TAGL_LOG(HARD_TAG_ROLE_DRIVER, tagd::log_level::DEBUG, _tagl_driver_debug_os.str()); \
+			TAGL_LOG(std::string(HARD_TAG_ROLE_DRIVER), tagd::log_level::DEBUG, _tagl_driver_debug_os.str()); \
 		} \
 	} while (0)
 
 namespace TAGL {
-struct TokenText {
-	const char *z;  // start of token text
-	int n;          // token length in bytes
+struct text_token {
+	// Non-owning parser view; storage comes from token_store and must outlive this slice.
+	const char *z;
+	int n;
 
 	bool empty() const { return z == nullptr || n == 0; }
 	std::string str() const { return empty() ? std::string() : std::string(z, n); }
 };
 
-inline constexpr TokenText EMPTY_VALUE{nullptr, 0};
+inline constexpr text_token EMPTY_VALUE{nullptr, 0};
 }
 
 #include "scanner.h"
@@ -67,6 +68,10 @@ class callback {
     public:
         callback() {}
         virtual ~callback() {}
+        callback(const callback&) = delete;
+        callback& operator=(const callback&) = delete;
+        callback(callback&&) = delete;
+        callback& operator=(callback&&) = delete;
 
         // pure virtuals - consumers must override
         virtual void cmd_get(const tagd::abstract_tag&) = 0;
@@ -91,22 +96,29 @@ class driver : public tagd::errorable {
 		size_t _context_level = 0;
 		// pop off only what this instance pushed on (leaving previous items untouched)
 
+		// The driver may own the scanner, or borrow one supplied by a caller.
 		scanner *_scanner = nullptr;
-		void *_parser = nullptr;	// lemon parser context
+		// RAII owner of the lemon parser; ParseFree is called automatically on reset or destruction.
+		static void parser_deleter(void* p);  // defined in tagl.cc: calls ParseFree(p, ::operator delete)
+		std::unique_ptr<void, void(*)(void*)> _parser{nullptr, &driver::parser_deleter};
 		int _token = -1;		// last token scanned: 0 = <End of Input>, -1 = unitialized (ready for new parse tree)
 		int _cmd = -1;		// _token value representing a TAGL command
 
+		// The backing tagdb is borrowed from the caller for the driver's whole lifetime.
 		tagdb::tagdb *_tdb = nullptr;
+		// Sessions may be borrowed or owned depending on how the driver was constructed.
 		tagdb::session *_session = nullptr;
+		// Callbacks are always borrowed; driver only binds and invokes them.
 		callback *_callback = nullptr;
-		tagd::abstract_tag *_tag = nullptr;  // tag of the current statement
+		// The current statement tag is owned by this driver until transferred or deleted.
+		tagd::abstract_tag *_tag = nullptr;
 		std::string _path;
 
 		// sets up scanner and parser for a fresh start
 		void init();
 		void free_parser();
 		int parse_tokens();
-		TokenText store_token_text(const std::string&);
+		text_token store_token_text(const std::string&);
 		void bind_callback(callback *);
 
 	public:
@@ -115,35 +127,50 @@ class driver : public tagd::errorable {
 		driver(tagdb::tagdb*, scanner*, callback*, tagdb::session* = nullptr);
 		driver(tagdb::tagdb*, callback*, tagdb::session* = nullptr);
 		virtual ~driver();
+		driver(const driver&) = delete;
+		driver& operator=(const driver&) = delete;
+		driver(driver&&) = delete;
+		driver& operator=(driver&&) = delete;
 
 		tagdb::flags_t flags = 0;
-		tagd::id_type constrain_tag_id; // if set, the assigned _tag.id() must be equal to this
+		tagd::id_string constrain_tag_id; // if set, the assigned _tag.id() must be equal to this
 
 		// TODO remove from here, create/destroy relator in parser
-		tagd::id_type relator;    // current relator
+		tagd::id_string relator;    // current relator
 
 		tagdb::tagdb* tdb() { return _tdb; }
+		const tagdb::tagdb* tdb() const { return _tdb; }
 		void session_ptr(tagdb::session *ssn) { _session = ssn; }
 		tagdb::session* session_ptr() { return _session; }
+		const tagdb::session* session_ptr() const { return _session; }
 		// sets _session and _own_session, delete old session (if set and not the same)
 		void own_session(tagdb::session *);
-		tagd::code push_context(const tagd::id_type&);
+		// Not [[nodiscard]]: lemon-generated parser.cc calls this and discards; cannot change
+		// that file without regenerating from parser.y.
+		tagd::code push_context(tagd::id_view);
 
 		void callback_ptr(callback *c) {
 			this->bind_callback(c);
 		}
 		callback *callback_ptr() { return _callback; }
+		const callback *callback_ptr() const { return _callback; }
 
+		// Not [[nodiscard]]: errors surface through the cmd_error callback and the errorable
+		// mechanism; callers frequently drive parse/execute in callback-only mode.
 		tagd::code parseln(const std::string& = std::string());
 		tagd::code execute(const std::string&);
 		tagd::code execute(evbuffer*);
+		// Not [[nodiscard]]: lemon-generated parser.cc calls this and discards; cannot change
+		// that file without regenerating from parser.y.
 		tagd::code scan_tagdurl(int, const std::string& path);
-		tagd::code scan_tagdurl(tagd::http_method, const std::string& path);
+		[[nodiscard]] tagd::code scan_tagdurl(tagd::http_method, const std::string& path);
 		int token() const { return _token; }
+		// Not const: downstream POS lookup may mutate diagnostic state on error paths.
 		int lookup_pos(const std::string&);
-		virtual void parse_tok(int, TokenText);
+		virtual void parse_tok(int, text_token);
 		void parse_tok(int, const std::string&);
 		void parse_tok(int, const char *);
+		// Not [[nodiscard]]: lemon-generated parser.cc calls this and discards.
 		tagd::code include_file(const std::string&);
 		int open_rel(const std::string& path, int flags);
 
@@ -159,7 +186,7 @@ class driver : public tagd::errorable {
 		void path(const std::string& f) { _path = f; }
 		const std::string& path() const { return _path; }
 
-		bool is_setup();
+		bool is_setup() const;
 		void do_callback();
 
 		// adds end of input to parser and frees scanner and parser
@@ -180,6 +207,7 @@ class driver : public tagd::errorable {
 			_tag = nullptr;
 		}
 
+		// Not [[nodiscard]]: lemon-generated parser.cc calls this and discards.
 		// creates a new tagd::url and sets the _tag ptr
 		tagd::code new_url(const std::string&);
 };

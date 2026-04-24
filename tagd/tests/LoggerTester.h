@@ -9,6 +9,10 @@
 #include "tagd/logger.h"
 #include "tagd/event.h"
 
+inline tagd::id_string owned_id(std::string_view sv) {
+	return tagd::id_string(sv);
+}
+
 static bool test_log_role_validator(const std::string& role) {
 	return role == HARD_TAG_ROLE_SYSTEM
 		|| role == HARD_TAG_ROLE_SCANNER
@@ -171,9 +175,9 @@ class Tester : public CxxTest::TestSuite {
 	void test_valid_log_role(void) {
 		tagd::set_log_role_validator(test_log_role_validator);
 
-		TS_ASSERT(tagd::valid_log_role(HARD_TAG_ROLE_SYSTEM))
-		TS_ASSERT(tagd::valid_log_role(HARD_TAG_ROLE_SCANNER))
-		TS_ASSERT(tagd::valid_log_role(HARD_TAG_ROLE_SECURITY))
+		TS_ASSERT(tagd::valid_log_role(owned_id(HARD_TAG_ROLE_SYSTEM)))
+		TS_ASSERT(tagd::valid_log_role(owned_id(HARD_TAG_ROLE_SCANNER)))
+		TS_ASSERT(tagd::valid_log_role(owned_id(HARD_TAG_ROLE_SECURITY)))
 		TS_ASSERT(!tagd::valid_log_role("_role:bananas"))
 	}
 
@@ -181,7 +185,7 @@ class Tester : public CxxTest::TestSuite {
 		std::stringstream ss;
 		tagd::logger log(ss);
 		tagd::session ssn;
-		tagd::event ev(ssn, "tagsh", HARD_TAG_COMMAND_EVENT);
+		tagd::event ev(ssn, "tagsh", owned_id(HARD_TAG_COMMAND_EVENT));
 
 		log.log(tagd::log_level::NOTICE, ev);
 		TS_ASSERT_DIFFERS(ss.str().find(ev.evuri()), std::string::npos)
@@ -192,7 +196,7 @@ class Tester : public CxxTest::TestSuite {
 		std::stringstream tagdb_ss;
 		tagd::logger log(default_ss);
 		tagd::session ssn;
-		tagd::event ev(ssn, "tagdb", HARD_TAG_TAGDB_PUT_EVENT);
+		tagd::event ev(ssn, "tagdb", owned_id(HARD_TAG_TAGDB_PUT_EVENT));
 
 		log.stream(HARD_TAG_ROLE_TAGDB, tagdb_ss);
 		log.log(HARD_TAG_ROLE_TAGDB, tagd::log_level::NOTICE, ev);
@@ -206,7 +210,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd::logger log(ss);
 		log.level(tagd::log_level::WARNING);
 		tagd::session ssn;
-		tagd::event ev(ssn, "tagsh", HARD_TAG_COMMAND_EVENT);
+		tagd::event ev(ssn, "tagsh", owned_id(HARD_TAG_COMMAND_EVENT));
 
 		log.log(tagd::log_level::NOTICE, ev);
 		TS_ASSERT_EQUALS(ss.str().find(ev.evuri()), std::string::npos)

@@ -18,7 +18,7 @@
 #include <stdio.h>
 
 void *ParseAlloc(void *(*)(size_t), TAGL::driver *);
-void Parse(void *, int, TAGL::TokenText);
+void Parse(void *, int, TAGL::text_token);
 void ParseFree(void *, void (*)(void *));
 void ParseTrace(FILE *, char *);
 
@@ -61,8 +61,8 @@ void TAGL_LOG(const std::string& role, tagd::log_level lvl, const std::string& m
 	if (TAGL_LOGGER == nullptr)
 		return;
 
-	if ((role == HARD_TAG_ROLE_SCANNER || role == HARD_TAG_ROLE_PARSER
-			|| role == HARD_TAG_ROLE_DRIVER)
+	if ((role == std::string(HARD_TAG_ROLE_SCANNER) || role == std::string(HARD_TAG_ROLE_PARSER)
+			|| role == std::string(HARD_TAG_ROLE_DRIVER))
 			&& lvl == tagd::log_level::DEBUG) {
 		std::stringstream ss(msg);
 		std::string line;
@@ -129,40 +129,40 @@ driver::~driver() {
 }
 
 // sets up scanner and parser, wont init if already setup
+void driver::parser_deleter(void* p) {
+	ParseFree(p, ::operator delete);
+}
+
 void driver::init() {
 	// set _code for new parse, _errors will still contain prev errors
 	if (_code != tagd::TAGD_OK)
 		_code = tagd::TAGD_OK;
 
-	if (_parser != nullptr)
+	if (_parser)
 		return;
 
 	_error_callback_delivered = false;
 
-    // set up parser
-    _parser = ParseAlloc(::operator new, this);
-    // this also works: _parser = ParseAlloc(malloc, this);
+	_parser.reset(ParseAlloc(::operator new, this));
 }
 
 void driver::free_parser() {
-	if (_parser != nullptr) {
+	if (_parser) {
 		if (_token != TOK_TERMINATOR && !this->has_errors())
-			Parse(_parser, TOK_TERMINATOR, EMPTY_VALUE);
+			Parse(_parser.get(), TOK_TERMINATOR, EMPTY_VALUE);
 		if (_token > 0 && !this->has_errors())
-			Parse(_parser, 0, EMPTY_VALUE);
-		ParseFree(_parser, ::operator delete);
-		// this also works: ParseFree(_parser, free);
-		_parser = nullptr;
+			Parse(_parser.get(), 0, EMPTY_VALUE);
+		_parser.reset();  // calls parser_deleter → ParseFree(p, ::operator delete)
 	}
 }
 
-void driver::parse_tok(int tok, TokenText s) {
+void driver::parse_tok(int tok, text_token s) {
 		_token = tok;
 		TAGL_LOG_TRACE( "line " << _scanner->_line_number
 				<< ", token " << token_str(_token) << ": " << (s.empty() ? "NULL" : s.str())
 				<< std::endl )
 
-		Parse(_parser, _token, s);
+		Parse(_parser.get(), _token, s);
 }
 
 void driver::parse_tok(int tok, const std::string& s) {
@@ -189,9 +189,9 @@ tagd::code driver::parseln(const std::string& line) {
 
 	// end of input
 	if (line.empty()) {
-		Parse(_parser, TOK_TERMINATOR, EMPTY_VALUE);
+		Parse(_parser.get(), TOK_TERMINATOR, EMPTY_VALUE);
 		_token = 0;
-		Parse(_parser, _token, EMPTY_VALUE);
+		Parse(_parser.get(), _token, EMPTY_VALUE);
 		return this->code();
 	}
 
@@ -207,7 +207,7 @@ void driver::own_session(tagdb::session *ssn) {
 	_own_session = true;
 }
 
-tagd::code driver::push_context(const tagd::id_type& id) {
+tagd::code driver::push_context(tagd::id_view id) {
 	if (_session == nullptr)
 		own_session(_tdb->new_session());
 	auto tc = _session->push_context(id);
@@ -233,6 +233,10 @@ void driver::finish() {
 
 	if (_callback != nullptr)
 		_callback->finish();
+}
+
+bool driver::is_setup() const {
+	return _scanner != nullptr && _parser != nullptr;  // unique_ptr::operator!= with nullptr
 }
 
 // looks up a pos type for a tag and returns
@@ -308,7 +312,7 @@ tagd::code driver::scan_tagdurl(tagd::http_method method, const std::string& pat
 	return this->code();
 }
 
-TokenText driver::store_token_text(const std::string& s) {
+text_token driver::store_token_text(const std::string& s) {
 	return _scanner->_token_store.store_text(s);
 }
 

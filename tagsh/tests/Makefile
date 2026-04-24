@@ -4,7 +4,7 @@ DRIVER_UNIT_TESTER = ./driver-tester
 BIN = ../bin/tagsh --noshell --file ../bootstrap.tagl
 VALGRIND = valgrind --leak-check=full --error-exitcode=1
 CXXTEST = cxxtestgen --error-printer
-CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wno-unused-result -O3 -Wno-write-strings
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3 -Wno-write-strings
 INC = -I../include -I../../tagd/include -I../../tagl/include -I../../tagdb/include -I../../tagdb/sqlite/include
 LFLAGS = -L../lib -ltagsh -L../../tagdb/lib -ltagdb-sqlite -L../../tagl/lib -ltagl -L../../tagd/lib -ltagd -lsqlite3 -levent -lreadline
 

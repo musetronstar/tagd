@@ -9,6 +9,7 @@ TAGSH_DIR = $(PRG_DIR)/tagsh
 
 BUILD_DIR = ../bin
 BIN = $(BUILD_DIR)/httagd
+CLIENT_BIN = $(BUILD_DIR)/httagd-client
 
 INC = -I../include \
 	  -I$(TAGD_DIR)/include \
@@ -21,7 +22,7 @@ LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite \
 		 -L $(TAGL_DIR)/lib -ltagl \
 		 -L $(TAGD_DIR)/lib -ltagd \
 		 -L $(TAGSH_DIR)/lib -ltagsh \
-		 -lsqlite3 -levent -lreadline
+		 -lsqlite3 -levent -lreadline -lctemplate_nothreads
 
 ifdef EVHTP_SRC_DIR
 	INC += -I$(EVHTP_SRC_DIR)/include -I$(EVHTP_SRC_DIR)/build/include
@@ -36,9 +37,9 @@ all: build
 debug: CXXFLAGS += -g -O0
 debug: build
 
-DEPS = httagd.d
+DEPS = httagd.d httagd-client.d client-main.d
 
-build : httagd.o
+build : httagd.o httagd-client.o $(CLIENT_BIN)
 
 # token to string case statements
 evhtp-results.inc: $(EVHTP_H)
@@ -47,9 +48,19 @@ evhtp-results.inc: $(EVHTP_H)
 httagd.o : httagd.cc evhtp-results.inc
 	g++ $(CXXFLAGS) -MMD -MP -c -o $@ $< $(INC) $(LIBEVHTP_INC)
 
+httagd-client.o : httagd-client.cc
+	g++ $(CXXFLAGS) -MMD -MP -c -o $@ $< $(INC)
+
+client-main.o : client-main.cc
+	g++ $(CXXFLAGS) -MMD -MP -c -o $@ $< $(INC)
+
+$(CLIENT_BIN) : client-main.o httagd-client.o httagd.o
+	[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
+	g++ $(CXXFLAGS) -o $@ client-main.o httagd-client.o httagd.o $(LFLAGS) -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
+
 -include $(DEPS)
 
 clean :
 	rm -f *.o *.d
 	rm -f *.inc
-	rm -f $(BIN)
+	rm -f $(BIN) $(CLIENT_BIN)

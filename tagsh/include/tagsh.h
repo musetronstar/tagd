@@ -5,23 +5,21 @@
 #include <ostream>
 
 #include "tagd/logger.h"
+#include "tagdb.h"
 #include "tagl.h"
-#include "tagdb/sqlite.h"
 
-// TODO use a template
-typedef tagdb::sqlite tagdb_type;
 typedef std::vector<char *> cmdlines_t;
 
 class tagsh;
 
 class tagsh_callback : public TAGL::callback {
 		friend class tagsh;
-		tagdb_type *_tdb;
-		tagsh *_tsh;
+		tagdb::tagdb *_tdb;  // borrowed
+		tagsh *_tsh;         // borrowed
 		cmdlines_t _lines;
 
 	public:
-		tagsh_callback(tagdb_type *tdb, tagsh *tsh) : _tdb{tdb}, _tsh{tsh} {}
+		tagsh_callback(tagdb::tagdb *tdb, tagsh *tsh) : _tdb{tdb}, _tsh{tsh} {}
 		~tagsh_callback() { for(auto l : _lines) delete l; }
 
 		void cmd_get(const tagd::abstract_tag&);
@@ -35,9 +33,9 @@ class tagsh_callback : public TAGL::callback {
 
 class tagsh {
 	protected:
-		tagdb_type *_tdb;
+		tagdb::tagdb *_tdb;           // borrowed
 		tagsh_callback *_callback;
-		bool _own_callback = false;  // true if this alloced the callback pointer
+		bool _own_callback = false;   // true when this instance allocated _callback
 		TAGL::driver _driver;
 		tagd::code _last_code = tagd::TAGD_OK;
 
@@ -47,17 +45,17 @@ class tagsh {
 		bool echo_result_code = true;
 		std::ostream *out = &std::cout;
 
-		tagsh(tagdb_type *tdb, tagsh_callback *cb) :
+		tagsh(tagdb::tagdb *tdb, tagsh_callback *cb) :
 			_tdb{tdb}, _callback{cb}, _driver(tdb, cb)
 		{
-			_driver.own_session(tdb->new_session());
+			_driver.own_session(tdb->new_session());  // heap session; ownership transferred to _driver
 		}
 
-		tagsh(tagdb_type *tdb) :
+		tagsh(tagdb::tagdb *tdb) :
 			_tdb{tdb}, _callback{new tagsh_callback(_tdb, this)}, _own_callback{true},
 			_driver(_tdb, _callback)
 		{
-			_driver.own_session(tdb->new_session());
+			_driver.own_session(tdb->new_session());  // heap session; ownership transferred to _driver
 		}
 
 		~tagsh() {

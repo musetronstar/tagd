@@ -318,11 +318,12 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS( public_suffix("b.example.uk.com"), "example.uk.com" );
         TS_ASSERT_EQUALS( public_suffix("a.b.example.uk.com"), "example.uk.com" );
         TS_ASSERT_EQUALS( public_suffix("test.ac"), "test.ac" );
-        // TLD with only 1 (wildcard) rule.
+        // The in-tree PSL snapshot treats .bd as a normal registrable TLD
+        // with explicit second-level reservations, not a wildcard-only zone.
         TS_ASSERT_EQUALS( public_suffix("bd"), "NULL" );
-        TS_ASSERT_EQUALS( public_suffix("c.bd"), "NULL" );
-        TS_ASSERT_EQUALS( public_suffix("b.c.bd"), "b.c.bd" );
-        TS_ASSERT_EQUALS( public_suffix("a.b.c.bd"), "b.c.bd" );
+        TS_ASSERT_EQUALS( public_suffix("c.bd"), "c.bd" );
+        TS_ASSERT_EQUALS( public_suffix("b.c.bd"), "c.bd" );
+        TS_ASSERT_EQUALS( public_suffix("a.b.c.bd"), "c.bd" );
         // More complex TLD.
         TS_ASSERT_EQUALS( public_suffix("jp"), "NULL" );
         TS_ASSERT_EQUALS( public_suffix("test.jp"), "test.jp" );

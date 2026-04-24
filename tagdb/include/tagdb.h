@@ -14,10 +14,10 @@ void TAGDB_LOG_EVENT(tagd::session *, tagd::log_level, const std::string&);
 
 #define TAGDB_LOG_DEBUG(MSG) \
 	do { \
-		if (TAGDB_LOG_ENABLED(HARD_TAG_ROLE_TAGDB, tagd::log_level::DEBUG)) { \
+		if (TAGDB_LOG_ENABLED(std::string(HARD_TAG_ROLE_TAGDB), tagd::log_level::DEBUG)) { \
 			std::ostringstream _tagdb_debug_os; \
 			_tagdb_debug_os << MSG; \
-			TAGDB_LOG(HARD_TAG_ROLE_TAGDB, tagd::log_level::DEBUG, _tagdb_debug_os.str()); \
+			TAGDB_LOG(std::string(HARD_TAG_ROLE_TAGDB), tagd::log_level::DEBUG, _tagdb_debug_os.str()); \
 		} \
 	} while (0)
 
@@ -74,6 +74,7 @@ struct flag_util {
 
 class tagdb;	// forward declare
 
+// Extends tagd::session with a context stack; inherits its explicit copy semantics (std::atomic suppresses implicit copy/move).
 class session : public tagd::session {
 	// no pub cons, only tagdb can access
 	friend tagdb;
@@ -81,13 +82,13 @@ class session : public tagd::session {
 	private:
 		// stack of tags ids as context
 		tagd::id_vec _context;
-		tagdb *_tdb;
+		tagdb *_tdb;  // borrowed back-pointer; tagdb outlives this session
 
 		session() = delete;  // *tagdb reqd
 		session(tagdb *tdb) : tagd::session(), _tdb{tdb} {}
 
 	public:
-		tagd::code push_context(const tagd::id_type&);
+		tagd::code push_context(tagd::id_view);
 		tagd::code pop_context();
 		tagd::code clear_context();
 		void print_context();
@@ -99,10 +100,10 @@ typedef long long int rowid_t;
 
 class hard_tag {
 	public:
-		static tagd::part_of_speech pos(const tagd::id_type &id);
-		static tagd::code get(tagd::abstract_tag&, const tagd::id_type &id);
-		static tagd::part_of_speech term_pos(const tagd::id_type&, rowid_t* = nullptr);
-			static tagd::part_of_speech term_id_pos(rowid_t, tagd::id_type* = nullptr);
+		static tagd::part_of_speech pos(tagd::id_view id);
+		static tagd::code get(tagd::abstract_tag&, tagd::id_view id);
+		static tagd::part_of_speech term_pos(tagd::id_view, rowid_t* = nullptr);
+			static tagd::part_of_speech term_id_pos(rowid_t, tagd::id_string* = nullptr);
 			static void install_logger_validator();
 
 			static const char ** rows();
@@ -122,12 +123,18 @@ class tagdb : public tagd::errorable {
 		tagdb() : tagd::errorable(tagd::TS_INIT) {}
 		virtual ~tagdb() {}
 
-		// session factory
+		// execution-context type: abstract interface + virtual destructor + open db lifetime make copy/move unsafe
+		tagdb(const tagdb&)            = delete;
+		tagdb& operator=(const tagdb&) = delete;
+		tagdb(tagdb&&)                 = delete;
+		tagdb& operator=(tagdb&&)      = delete;
+
+		// Stack-lifetime session; no allocation. Prefer over new_session() for single-frame use.
 		session get_session() {
 			return session(this);
 		}
 
-		// session factory, user must delete
+		// Heap-allocated session; caller must delete. Use when the session must outlive its creating frame.
 		session* new_session() {
 			return new session(this);
 		}
@@ -139,22 +146,44 @@ class tagdb : public tagd::errorable {
 		 */
 
 		// get into tag from db, given id
-		virtual tagd::code get(tagd::abstract_tag&, const tagd::id_type&, session*, flags_t = 0) = 0;
+		[[nodiscard]] virtual tagd::code get(tagd::abstract_tag&, tagd::id_view, session*, flags_t = 0) = 0;
+
+		// Type-specific get overloads; default delegates to abstract_tag get().
+		// Backends with type-specific storage (e.g., sqlite URL column layout) override these.
+		[[nodiscard]] virtual tagd::code get(tagd::url& u, tagd::id_view id, session* ssn, flags_t f = 0) {
+			return this->get(static_cast<tagd::abstract_tag&>(u), id, ssn, f);
+		}
 
 		// put into db given tag
-		virtual tagd::code put(const tagd::abstract_tag&, session*, flags_t = 0) = 0;
+		[[nodiscard]] virtual tagd::code put(const tagd::abstract_tag&, session*, flags_t = 0) = 0;
+
+		// Type-specific put overloads; default delegates to abstract_tag put().
+		[[nodiscard]] virtual tagd::code put(const tagd::url& u, session* ssn, flags_t f = 0) {
+			return this->put(static_cast<const tagd::abstract_tag&>(u), ssn, f);
+		}
+		[[nodiscard]] virtual tagd::code put(const tagd::referent& r, session* ssn, flags_t f = 0) {
+			return this->put(static_cast<const tagd::abstract_tag&>(r), ssn, f);
+		}
 
 		// delete from db given tag
-		virtual tagd::code del(const tagd::abstract_tag&, session*, flags_t = 0) = 0;
+		[[nodiscard]] virtual tagd::code del(const tagd::abstract_tag&, session*, flags_t = 0) = 0;
+
+		// Type-specific del overloads; default delegates to abstract_tag del().
+		[[nodiscard]] virtual tagd::code del(const tagd::url& u, session* ssn, flags_t f = 0) {
+			return this->del(static_cast<const tagd::abstract_tag&>(u), ssn, f);
+		}
+		[[nodiscard]] virtual tagd::code del(const tagd::referent& r, session* ssn, flags_t f = 0) {
+			return this->del(static_cast<const tagd::abstract_tag&>(r), ssn, f);
+		}
 
 		// query db given interrogator, populate set of tag ids
-		virtual tagd::code query(tagd::tag_set&, const tagd::interrogator&, session*, flags_t = 0) = 0;
+		[[nodiscard]] virtual tagd::code query(tagd::tag_set&, const tagd::interrogator&, session*, flags_t = 0) = 0;
 
 		// return a tag::pos given a tag id
-		virtual tagd::part_of_speech pos(const tagd::id_type&, session*, flags_t = 0) = 0; 
+		virtual tagd::part_of_speech pos(tagd::id_view, session*, flags_t = 0) = 0; 
 
 		// returns whether a tag id exists
-		virtual bool exists(const tagd::id_type&, flags_t = 0) = 0;
+		virtual bool exists(tagd::id_view, flags_t = 0) = 0;
 
 		virtual tagd::code dump(std::ostream& os = std::cout) = 0;
 		virtual tagd::code dump_grid(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }

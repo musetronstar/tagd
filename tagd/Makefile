@@ -1,5 +1,5 @@
 MAKEFLAGS += --no-print-directory
-CXXFLAGS ?= -std=c++23 -Wall -Wextra -Wno-unused-result -O3
+CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 
 SRC_DIR = ./src
 BUILD_DIR = ./lib

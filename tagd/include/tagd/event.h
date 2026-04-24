@@ -28,13 +28,13 @@ class session;
 
 class event : public abstract_tag {
 	private:
-		id_type _time;
-		id_type _host;
-		id_type _principal;
-		id_type _program;
-		id_type _session_id;
-		id_type _sequence;
-		id_type _event_type_tag;
+		id_string _time;
+		id_string _host;
+		id_string _principal;
+		id_string _program;
+		id_string _session_id;
+		id_string _sequence;
+		id_string _event_type_tag;
 
 		tagd::code init_evuri(const std::string&);
 		void init_id();
@@ -42,15 +42,15 @@ class event : public abstract_tag {
 	public:
 		event();
 		event(const std::string&);
-		event(session&, const id_type&, const id_type&);
+		event(session&, const id_string&, const id_string&);
 
-		const id_type& time() const { return _time; }
-		const id_type& host() const { return _host; }
-		const id_type& principal() const { return _principal; }
-		const id_type& program() const { return _program; }
-		const id_type& session_id() const { return _session_id; }
-		const id_type& sequence() const { return _sequence; }
-		const id_type& event_type_tag() const { return _event_type_tag; }
+		const id_string& time() const { return _time; }
+		const id_string& host() const { return _host; }
+		const id_string& principal() const { return _principal; }
+		const id_string& program() const { return _program; }
+		const id_string& session_id() const { return _session_id; }
+		const id_string& sequence() const { return _sequence; }
+		const id_string& event_type_tag() const { return _event_type_tag; }
 
 		std::string evuri() const { return _id; }
 };

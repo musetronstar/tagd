@@ -20,8 +20,8 @@ static bool valid_log_role_hard_tag(const std::string& role) {
 }
 
 // looks up hard tag and returns part_of_speech
-tagd::part_of_speech hard_tag::pos(const tagd::id_type &id) {
-    hard_tag_hash_value *val = hard_tag_hash::lookup(id.c_str(), id.size());
+tagd::part_of_speech hard_tag::pos(tagd::id_view id) {
+    hard_tag_hash_value *val = hard_tag_hash::lookup(id.data(), id.size());
 
     if (val == nullptr)
         return tagd::POS_UNKNOWN;
@@ -30,8 +30,8 @@ tagd::part_of_speech hard_tag::pos(const tagd::id_type &id) {
 }
 
 // returns pos, given term - if non-null row_id passed in, it will be set if found
-tagd::part_of_speech hard_tag::term_pos(const tagd::id_type& id, rowid_t* row_id) {
-    hard_tag_hash_value *val = hard_tag_hash::lookup(id.c_str(), id.size());
+tagd::part_of_speech hard_tag::term_pos(tagd::id_view id, rowid_t* row_id) {
+    hard_tag_hash_value *val = hard_tag_hash::lookup(id.data(), id.size());
 
     if (val == nullptr) {
         return tagd::POS_UNKNOWN;
@@ -43,12 +43,12 @@ tagd::part_of_speech hard_tag::term_pos(const tagd::id_type& id, rowid_t* row_id
 }
 
 // returns pos, given term row_id - if non-null term passed in, it will be set if found
-tagd::part_of_speech hard_tag::term_id_pos(rowid_t row_id, tagd::id_type *term) {
+tagd::part_of_speech hard_tag::term_id_pos(rowid_t row_id, tagd::id_string *term) {
 	// row == 0 unused
 	if (row_id <= 0 || static_cast<std::size_t>(row_id) >= hard_tag_rows_end)
 		return tagd::POS_UNKNOWN;
 
-	tagd::id_type id{ hard_tag_rows[row_id] };
+	tagd::id_string id{ hard_tag_rows[row_id] };
     hard_tag_hash_value *val = hard_tag_hash::lookup(id.c_str(), id.size());
 
     if (val == nullptr) {
@@ -60,17 +60,18 @@ tagd::part_of_speech hard_tag::term_id_pos(rowid_t row_id, tagd::id_type *term) 
 	}
 }
 
-tagd::code hard_tag::get(tagd::abstract_tag& t, const tagd::id_type &id) {
-    hard_tag_hash_value *val = hard_tag_hash::lookup(id.c_str(), id.size());
+tagd::code hard_tag::get(tagd::abstract_tag& t, tagd::id_view id) {
+    hard_tag_hash_value *val = hard_tag_hash::lookup(id.data(), id.size());
 
     if (val == nullptr) {
         return tagd::TS_NOT_FOUND;
 	} else {
-		t.id(id);
-		t.sub_relator(HARD_TAG_SUB);
-		t.super_object(val->sub);
-		t.pos(val->pos);
-		t.rank(tagd::rank(val->rank));
+		{
+			// TODO: remove bridge when hard_tag::get() returns by value
+			tagd::abstract_tag sem(id, HARD_TAG_SUB, val->sub, val->pos);
+			tagd::rank r(val->rank);
+			t = r.empty() ? std::move(sem) : tagd::abstract_tag(sem, r);
+		}
 	
         return t.code();
 	}

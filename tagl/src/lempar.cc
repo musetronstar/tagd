@@ -234,12 +234,12 @@ static char *yyTracePrompt = 0;
 
 static int yyTraceEnabled(void){
   return yyTraceFILE!=0
-      || TAGL_LOG_ENABLED(HARD_TAG_ROLE_PARSER, tagd::log_level::DEBUG);
+      || TAGL_LOG_ENABLED(std::string(HARD_TAG_ROLE_PARSER), tagd::log_level::DEBUG);
 }
 
 static void yyTraceLog(const std::string& msg){
-  if( TAGL_LOG_ENABLED(HARD_TAG_ROLE_PARSER, tagd::log_level::DEBUG) ){
-    TAGL_LOG(HARD_TAG_ROLE_PARSER, tagd::log_level::DEBUG, msg);
+  if( TAGL_LOG_ENABLED(std::string(HARD_TAG_ROLE_PARSER), tagd::log_level::DEBUG) ){
+    TAGL_LOG(std::string(HARD_TAG_ROLE_PARSER), tagd::log_level::DEBUG, msg);
   }else if( yyTraceFILE ){
     fprintf(yyTraceFILE, "%s%s\n", yyTracePrompt, msg.c_str());
   }

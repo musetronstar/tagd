@@ -106,7 +106,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 	tagd::tag_set img_urls;
 	if (this_tag.relations.size() > 0) {
 		tpl.show_section("relations");
-		tagd::id_type last_relator;
+		tagd::id_string last_relator;
 		tagd_template *relator_dict = nullptr;
 		for (auto pred : this_tag.relations) {
 			if (pred.relator == "img_src" && tagd::url::looks_like_hduri(pred.object)) {
@@ -166,7 +166,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 	}
 
 	S.clear();
-	tagd::interrogator q_related(HARD_TAG_INTERROGATOR);
+	tagd::interrogator q_related{HARD_TAG_INTERROGATOR};
 	q_related.relation("", t.id());
 	tc = tx.tdb->query(S, q_related);
 
@@ -386,7 +386,7 @@ get_handler_t browse_handler(
 		if (tc != tagd::TAGD_OK) return tc;
 
 		tagd::tag_set results;
-		tagd::interrogator q_related(HARD_TAG_INTERROGATOR);
+		tagd::interrogator q_related{HARD_TAG_INTERROGATOR};
 		if (this_tag.pos() == tagd::POS_RELATOR)
 			(void)q_related.relation(this_tag.id(), "");
 		else

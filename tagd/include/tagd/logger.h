@@ -79,17 +79,23 @@ class logger {
 
 		void stream(std::ostream&);
 		void stream(const std::string&, std::ostream&);
+		void stream(std::string_view role, std::ostream& os) { this->stream(std::string(role), os); }
 		std::ostream& stream() const;
 		std::ostream& stream(const std::string&) const;
+		std::ostream& stream(std::string_view role) const { return this->stream(std::string(role)); }
 
 		void level(log_level);
 		void level(const std::string&, log_level);
+		void level(std::string_view role, log_level lvl) { this->level(std::string(role), lvl); }
 		log_level level() const;
 		log_level level(const std::string&) const;
+		log_level level(std::string_view role) const { return this->level(std::string(role)); }
 
 		void log(log_level, const std::string&);
 		void log(const std::string&, log_level, const std::string&);
+		void log(std::string_view role, log_level lvl, const std::string& msg) { this->log(std::string(role), lvl, msg); }
 		void log(const std::string&, log_level, const event&);
+		void log(std::string_view role, log_level lvl, const event& ev) { this->log(std::string(role), lvl, ev); }
 		void log(log_level, const event&);
 		void log(log_level, const errorable&);
 };

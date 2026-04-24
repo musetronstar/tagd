@@ -8,11 +8,11 @@
 
 namespace tagd {
 
-tagd::code url::init(const std::string &u) {
+tagd::code url::init(id_view u) {
     if (u.size() == 0) return _code;  // URL_EMPTY
     if (u.size() > URL_MAX_LEN) return code(URL_MAX_LEN);
 
-	auto url_str = u;  // copy becuase we lower scheme
+	auto url_str = std::string(u);  // copy becuase we lower scheme
 	auto sz = url_str.size();
     url_size_t i = 0;
 
@@ -276,12 +276,12 @@ url_ok:
     return this->code(TAGD_OK);
 }
 
-tagd::code url::init_hduri(const std::string &uri) {
+tagd::code url::init_hduri(id_view uri) {
 	if (uri.substr(0, HDURI_SCHEME.size()) != HDURI_SCHEME)
 		return code(URI_ERR_SCHEME);
 
 	// payload after uri scheme
-	const std::string& hduri = uri.substr(HDURI_SCHEME.size());
+	const auto hduri = uri.substr(HDURI_SCHEME.size());
     auto sz = hduri.size();
     if (sz == 0) return _code;  // URL_EMPTY
 
@@ -299,7 +299,7 @@ tagd::code url::init_hduri(const std::string &uri) {
 
 	// scheme is after the last delim
     std::stringstream ss_url;
-	ss_url << decode_hduri_delim(hduri.substr(i+1));
+	ss_url << decode_hduri_delim(std::string(hduri.substr(i + 1)));
 
 	_scheme_len = sz - (i+1);
 	sz = _scheme_len;  // reuse sz for url now
@@ -308,7 +308,7 @@ tagd::code url::init_hduri(const std::string &uri) {
 
 	{
 		// we will split on the hduri before !scheme
-		const std::string& s = hduri.substr(0, i);
+		const auto s = hduri.substr(0, i);
 
 		size_t idx, j;
 		idx = j = i = 0;

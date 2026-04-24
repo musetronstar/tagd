@@ -24,14 +24,14 @@ static bool TAGSH_LOG_ENABLED(tagd::log_level lvl) {
 	if (TAGSH_LOGGER == nullptr)
 		return false;
 
-	return static_cast<int>(lvl) <= static_cast<int>(TAGSH_LOGGER->level(HARD_TAG_ROLE_TAGSH));
+	return static_cast<int>(lvl) <= static_cast<int>(TAGSH_LOGGER->level(std::string(HARD_TAG_ROLE_TAGSH)));
 }
 
 static void TAGSH_LOG(tagd::log_level lvl, const std::string& msg) {
 	if (TAGSH_LOGGER == nullptr)
 		return;
 
-	TAGSH_LOGGER->log(HARD_TAG_ROLE_TAGSH, lvl, std::string("-- ").append(msg));
+	TAGSH_LOGGER->log(std::string(HARD_TAG_ROLE_TAGSH), lvl, std::string("-- ").append(msg));
 }
 
 static void log_tagsh_notice(const char *fmt, const char *arg) {
@@ -48,11 +48,11 @@ static void log_tagsh_notice(const char *fmt, const std::string& arg) {
 }
 
 static void log_driver_debug(const char *fmt, const char *arg) {
-	if (!TAGL_LOG_ENABLED(HARD_TAG_ROLE_DRIVER, tagd::log_level::DEBUG))
+	if (!TAGL_LOG_ENABLED(std::string(HARD_TAG_ROLE_DRIVER), tagd::log_level::DEBUG))
 		return;
 
 	char *msg = tagd::util::csprintf(fmt, arg);
-	TAGL_LOG(HARD_TAG_ROLE_DRIVER, tagd::log_level::DEBUG,
+	TAGL_LOG(std::string(HARD_TAG_ROLE_DRIVER), tagd::log_level::DEBUG,
 			(msg == NULL ? "driver log formatting failed" : msg));
 }
 
@@ -121,10 +121,10 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 
 	if (t.pos() == tagd::POS_URL) {
 		T = new tagd::url();
-		_tdb->get((tagd::url&)*T, t.id(), ssn, _driver->flags);
+		(void)_tdb->get((tagd::url&)*T, t.id(), ssn, _driver->flags);
 	} else {
 		T = new tagd::abstract_tag();
-		_tdb->get(*T, t.id(), ssn, _driver->flags);
+		(void)_tdb->get(*T, t.id(), ssn, _driver->flags);
 	}
 
 	if(CMD_OK())

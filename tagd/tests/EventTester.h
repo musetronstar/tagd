@@ -9,6 +9,10 @@
 #include "tagd/event.h"
 #include "tagd/ulid.h"
 
+inline tagd::id_string owned_id(std::string_view sv) {
+	return tagd::id_string(sv);
+}
+
 class Tester : public CxxTest::TestSuite {
 	public:
 
@@ -95,7 +99,7 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_event_from_session(void) {
 		tagd::session ssn;
-		tagd::event ev(ssn, "tagsh", HARD_TAG_EVENT);
+		tagd::event ev(ssn, "tagsh", owned_id(HARD_TAG_EVENT));
 
 		TS_ASSERT(ev.ok());
 		TS_ASSERT_EQUALS(ev.id(), ev.evuri());

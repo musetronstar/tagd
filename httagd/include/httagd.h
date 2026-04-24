@@ -15,6 +15,10 @@
 const char* evhtp_res_str(int);
 
 void HTTAGD_SET_LOGGER(tagd::logger *);
+bool HTTAGD_LOG_ENABLED(tagd::log_level);
+void HTTAGD_LOG(tagd::log_level, const std::string&);
+std::string HTTAGD_HTTP_HEADERS_STR(const evhtp_headers_t *);
+std::string HTTAGD_HTTP_HEADERS_STR(const struct evkeyvalq *);
 
 namespace httagd {
 
@@ -121,19 +125,21 @@ struct viewspace;
 
 class server : public tagsh, public tagd::errorable {
 	protected:
-		viewspace *_vws;
-		httagd_args *_args;
+		viewspace *_vws;     // borrowed
+		httagd_args *_args;  // borrowed
 		std::string _bind_addr;
 		uint16_t _bind_port;
-		evbase_t *_evbase;
-		evhtp_t  *_htp;
+		evbase_t *_evbase;  // owned here; freed in ~server()
+		evhtp_t  *_htp;     // owned here; freed in ~server()
 
 		void init() {
 			_evbase = event_base_new();
 			_htp = evhtp_new(_evbase, NULL);
 		}
 	public:
-		server(tagdb::sqlite *tdb, viewspace *vs, httagd_args *args)
+		~server();
+
+		server(tagdb::tagdb *tdb, viewspace *vs, httagd_args *args)
 			: tagsh(tdb), _vws{vs}, _args{args}
 		{
 			_bind_addr = (!args->bind_addr.empty() ? args->bind_addr : "localhost");
@@ -149,8 +155,7 @@ class server : public tagsh, public tagd::errorable {
 			return _bind_port;
 		}
 
-		// WTF, why sqlite? This should be a regular tagdb::tagdb
-		tagdb::sqlite* tdb() {
+		tagdb::tagdb* tdb() {
 			return _tdb;
 		}
 
@@ -297,7 +302,7 @@ class request {
 			return _path.empty() || _path == "/";
 		}
 
-		tagd::id_type path_tag_id() const {
+		tagd::id_string path_tag_id() const {
 			return has_root_path() ? tagd::EMPTY_ID : tagd::uri_decode(_path.substr(1));
 		}
 
@@ -1004,11 +1009,11 @@ class  evbuffer_emitter : public ctemplate::ExpandEmitter {
 |*| We are currently wrapping ctemplate::TemplateDictionary so,
 |*| that in case we decide to replace it, all the logic will be encapsulated here.
 \*/
-class tagd_template : public tagd::errorable {
+	class tagd_template : public tagd::errorable {
 	protected:
-		ctemplate::TemplateDictionary* _dict;
-		ctemplate::ExpandEmitter* _output;
-		bool _owner;  // this owns _dict and _output resources
+		ctemplate::TemplateDictionary* _dict;  // conditionally owned: borrowed by wrapper instances, deleted by root-owned templates
+		ctemplate::ExpandEmitter* _output;     // conditionally owned: mirrors _dict so borrowed emitters are not reclaimed here
+		bool _owner;  // gates destruction of _dict and _output: true for self-allocated roots, false for borrowed seams
 		std::string _output_str;
 
 		// reference to dynamically created objects own by this

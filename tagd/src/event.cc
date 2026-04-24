@@ -45,17 +45,17 @@ std::string system_principal() {
 }
 
 event::event() :
-	abstract_tag(POS_TAG)
+	abstract_tag("", POS_TAG)
 {}
 
 event::event(const std::string& evuri) :
-	abstract_tag(id_type(), HARD_TAG_TYPE_OF, HARD_TAG_EVENT, POS_TAG)
+	abstract_tag("", HARD_TAG_TYPE_OF, HARD_TAG_EVENT, POS_TAG)
 {
 	init_evuri(evuri);
 }
 
-event::event(session& ssn, const id_type& program, const id_type& event_type_tag) :
-	abstract_tag(id_type(), HARD_TAG_TYPE_OF, event_type_tag, POS_TAG),
+event::event(session& ssn, const id_string& program, const id_string& event_type_tag) :
+	abstract_tag("", HARD_TAG_TYPE_OF, event_type_tag, POS_TAG),
 	_time(ssn.started_at()),
 	_host(system_hostname()),
 	_principal(system_principal()),
@@ -88,7 +88,7 @@ tagd::code event::init_evuri(const std::string& evuri) {
 
 	const std::string& s = evuri.substr(EVURI_SCHEME.size());
 	size_t i = 0;
-	std::vector<id_type> elems;
+	std::vector<id_string> elems;
 	while (i <= s.size()) {
 		size_t j = s.find(EVURI_DELIM, i);
 		if (j == std::string::npos) {

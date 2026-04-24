@@ -90,9 +90,9 @@ void scanner::tagdurl::scan(const char *cur, size_t sz) {
 	auto emit_query_subject = [&, this](const std::string& s) {
 		query_started = true;
 		_driver->parse_tok(TOK_CMD_QUERY, EMPTY_VALUE);
-		_driver->parse_tok(TOK_INTERROGATOR, HARD_TAG_INTERROGATOR);
+		_driver->parse_tok(TOK_INTERROGATOR, HARD_TAG_INTERROGATOR.data());
 		if (s != "*") {
-			_driver->parse_tok(TOK_SUB_RELATOR, HARD_TAG_SUB);
+			_driver->parse_tok(TOK_SUB_RELATOR, HARD_TAG_SUB.data());
 			emit_lookup_token(s);
 		}
 	};
@@ -111,8 +111,8 @@ void scanner::tagdurl::scan(const char *cur, size_t sz) {
 	};
 
 	auto emit_query_option_search = [&, this](const std::string& s) {
-		_driver->parse_tok(TOK_RELATOR, HARD_TAG_HAS);
-		_driver->parse_tok(TOK_TAG, HARD_TAG_TERMS);
+		_driver->parse_tok(TOK_RELATOR, HARD_TAG_HAS.data());
+		_driver->parse_tok(TOK_TAG, HARD_TAG_TERMS.data());
 		_driver->parse_tok(TOK_EQ, EMPTY_VALUE);
 		_driver->parse_tok(TOK_QUOTED_STR, decode_query_value(s));
 	};

@@ -6,9 +6,11 @@
 
 #include <event2/buffer.h>
 
-typedef std::map<tagd::id_type, tagd::abstract_tag> tag_map;
+typedef std::map<tagd::id_string, tagd::abstract_tag> tag_map;
 typedef tagdb::flags_t tdb_flags_t;
 typedef tagdb::session tdb_sess_t;
+
+#define TS_ASSERT_TAGD_OK(EXPR) TS_ASSERT_EQUALS((EXPR), tagd::TAGD_OK)
 
 // pure virtual interface
 class tagdb_tester : public tagdb::tagdb {
@@ -16,11 +18,11 @@ class tagdb_tester : public tagdb::tagdb {
 		tag_map db;
 
 		void put_test_tag(
-			const tagd::id_type& id,
-			const tagd::id_type& sub,
+			tagd::id_view id,
+			tagd::id_view sub,
 			const tagd::part_of_speech& pos)
 		{
-			tagd::abstract_tag t(id, sub, pos);
+			tagd::abstract_tag t(id, HARD_TAG_SUB, sub, pos);
 			db[t.id()] = t;
 		}
 
@@ -30,12 +32,12 @@ class tagdb_tester : public tagdb::tagdb {
 
 	public:
 		tagdb_tester();
-		tagd::part_of_speech pos(const tagd::id_type&, tdb_sess_t*, tdb_flags_t=tdb_flags_t());
-		tagd::code get(tagd::abstract_tag&, const tagd::id_type&, tdb_sess_t*, tdb_flags_t=tdb_flags_t());
+		tagd::part_of_speech pos(tagd::id_view, tdb_sess_t*, tdb_flags_t=tdb_flags_t()) override;
+		tagd::code get(tagd::abstract_tag&, tagd::id_view, tdb_sess_t*, tdb_flags_t=tdb_flags_t()) override;
 		tagd::code put(const tagd::abstract_tag&, tdb_sess_t*, tdb_flags_t=tdb_flags_t());
 		tagd::code del(const tagd::abstract_tag&, tdb_sess_t*, tdb_flags_t=tdb_flags_t());
-		bool exists(const tagd::id_type&, tdb_flags_t=tdb_flags_t());
-		tagd::code query(tagd::tag_set&, const tagd::interrogator&, tdb_sess_t*, tdb_flags_t=tdb_flags_t());
+		bool exists(tagd::id_view, tdb_flags_t=tdb_flags_t()) override;
+		tagd::code query(tagd::tag_set&, const tagd::interrogator&, tdb_sess_t*, tdb_flags_t=tdb_flags_t()) override;
 
 		tagd::code dump(std::ostream& os = std::cout) {
 			os << "not implemented!" << std::endl;
@@ -72,33 +74,33 @@ tagdb_tester::tagdb_tester() {
 	put_test_tag("japanese", HARD_TAG_ENTITY, tagd::POS_TAG);
 	put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
 	put_test_tag("fun", "action", tagd::POS_TAG);
-	put_test_tag("_is_a", HARD_TAG_ENTITY, tagd::POS_SUB_RELATOR);
+	put_test_tag(HARD_TAG_IS_A, HARD_TAG_ENTITY, tagd::POS_SUB_RELATOR);
 	put_test_tag("about", HARD_TAG_ENTITY, tagd::POS_RELATOR);
-	put_test_tag("_has", HARD_TAG_ENTITY, tagd::POS_RELATOR);
-	put_test_tag("_can", HARD_TAG_ENTITY, tagd::POS_RELATOR);
-	put_test_tag("_what", HARD_TAG_ENTITY, tagd::POS_INTERROGATOR);
-	put_test_tag("_referent", "_sub", tagd::POS_REFERENT);
-	put_test_tag("_refers", HARD_TAG_ENTITY, tagd::POS_REFERS);
-	put_test_tag("_refers_to", HARD_TAG_ENTITY, tagd::POS_REFERS_TO);
-	put_test_tag("_context", HARD_TAG_ENTITY, tagd::POS_CONTEXT);
+	put_test_tag(HARD_TAG_HAS, HARD_TAG_ENTITY, tagd::POS_RELATOR);
+	put_test_tag(HARD_TAG_CAN, HARD_TAG_ENTITY, tagd::POS_RELATOR);
+	put_test_tag(HARD_TAG_WHAT, HARD_TAG_ENTITY, tagd::POS_INTERROGATOR);
+	put_test_tag(HARD_TAG_REFERENT, HARD_TAG_SUB, tagd::POS_REFERENT);
+	put_test_tag(HARD_TAG_REFERS, HARD_TAG_ENTITY, tagd::POS_REFERS);
+	put_test_tag(HARD_TAG_REFERS_TO, HARD_TAG_ENTITY, tagd::POS_REFERS_TO);
+	put_test_tag(HARD_TAG_CONTEXT, HARD_TAG_ENTITY, tagd::POS_CONTEXT);
 	put_test_tag(HARD_TAG_FLAG, HARD_TAG_ENTITY, tagd::POS_FLAG);
-	put_test_tag("_ignore_duplicates", HARD_TAG_FLAG, tagd::POS_FLAG);
+	put_test_tag(HARD_TAG_IGNORE_DUPLICATES, HARD_TAG_FLAG, tagd::POS_FLAG);
 
-	tagd::abstract_tag dog("dog", "animal", tagd::POS_TAG);
-	dog.relation("_has", "legs");
-	dog.relation("_has", "tail");
-	dog.relation("_has", "fur");
-	dog.relation("_can", "bark");
-	dog.relation("_can", "bite");
+	tagd::tag dog("dog", "animal");
+	TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "legs"));
+	TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "tail"));
+	TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "fur"));
+	TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_CAN, "bark"));
+	TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_CAN, "bite"));
 	db[dog.id()] = dog;
 	_dog = dog;
 
-	tagd::abstract_tag cat("cat", "animal", tagd::POS_TAG);
-	cat.relation("_has", "legs");
-	cat.relation("_has", "tail");
-	cat.relation("_has", "fur");
-	cat.relation("_can", "meow");
-	cat.relation("_can", "bite");
+	tagd::tag cat("cat", "animal");
+	TS_ASSERT_TAGD_OK(cat.relation(HARD_TAG_HAS, "legs"));
+	TS_ASSERT_TAGD_OK(cat.relation(HARD_TAG_HAS, "tail"));
+	TS_ASSERT_TAGD_OK(cat.relation(HARD_TAG_HAS, "fur"));
+	TS_ASSERT_TAGD_OK(cat.relation(HARD_TAG_CAN, "meow"));
+	TS_ASSERT_TAGD_OK(cat.relation(HARD_TAG_CAN, "bite"));
 	db[cat.id()] = cat;
 	_cat = cat;
 
@@ -106,22 +108,22 @@ tagdb_tester::tagdb_tester() {
 
 	const std::string url_str = "https://en.wikipedia.org/wiki/Dog";
 	tagd::url u(url_str);
-	u.relation("about", "dog");
+	TS_ASSERT_TAGD_OK(u.relation("about", "dog"));
 	assert(u.code() == tagd::TAGD_OK);
 	assert(u.related("about", "dog"));
 	db[url_str] = u;
 }
 
-tagd::part_of_speech tagdb_tester::pos(const tagd::id_type& id, tdb_sess_t*, tdb_flags_t) {
-	tag_map::iterator it = db.find(id);
+tagd::part_of_speech tagdb_tester::pos(tagd::id_view id, tdb_sess_t*, tdb_flags_t) {
+	tag_map::iterator it = db.find(tagd::id_string(id));
 	if (it == db.end()) return tagd::POS_UNKNOWN;
 
 	return it->second.pos();
 }
 
-tagd::code tagdb_tester::get(tagd::abstract_tag& t, const tagd::id_type& id, tdb_sess_t*, tdb_flags_t) {
-	tag_map::iterator it = db.find(id);
-	if (it == db.end()) return this->ferror(tagd::TS_NOT_FOUND, "unknown tag: %s", id.c_str());
+tagd::code tagdb_tester::get(tagd::abstract_tag& t, tagd::id_view id, tdb_sess_t*, tdb_flags_t) {
+	tag_map::iterator it = db.find(tagd::id_string(id));
+	if (it == db.end()) return this->ferror(tagd::TS_NOT_FOUND, "unknown tag: %s", std::string(id).c_str());
 
 	t = it->second;
 	return this->code(tagd::TAGD_OK);
@@ -185,8 +187,8 @@ tagd::code tagdb_tester::del(const tagd::abstract_tag& t, tdb_sess_t*, tdb_flags
 	return this->error(tagd::TS_INTERNAL_ERR, "fix del() method");
 }
 
-bool tagdb_tester::exists(const tagd::id_type& id, tdb_flags_t) {
-	return (db.find(id) != db.end());
+bool tagdb_tester::exists(tagd::id_view id, tdb_flags_t) {
+	return (db.find(tagd::id_string(id)) != db.end());
 }
 
 tagd::code tagdb_tester::query(tagd::tag_set& T, const tagd::interrogator& q, tdb_sess_t*, tdb_flags_t) {
@@ -206,13 +208,13 @@ tagd::code tagdb_tester::query(tagd::tag_set& T, const tagd::interrogator& q, td
 class callback_tester : public TAGL::callback {
 		tagdb::tagdb *_tdb;
 
-		void renew_last_tag(const tagd::id_type id, const tagd::part_of_speech& pos = tagd::POS_TAG) {
+		void renew_last_tag(tagd::id_view id, const tagd::part_of_speech& pos = tagd::POS_TAG) {
 			if (last_tag != nullptr)
 				delete last_tag;
 
 			if (pos == tagd::POS_URL) {
 				assert(!id.empty());
-				last_tag = new tagd::url(id);
+				last_tag = new tagd::url(tagd::id_string(id));
 			} else {
 				last_tag = ( id.empty()
 							 ? new tagd::abstract_tag()
@@ -260,8 +262,12 @@ class callback_tester : public TAGL::callback {
 				return;
 			}
 			cmd = TOK_CMD_DEL;
-			renew_last_tag(t.id(), t.pos());
-			*last_tag = t;
+			if (t.pos() == tagd::POS_URL) {
+				renew_last_tag(t.id(), t.pos());
+			} else {
+				renew_last_tag(t.id(), t.pos());
+				*last_tag = t;
+			}
 			last_code = _tdb->del(*last_tag, nullptr);
 		}
 
@@ -547,5 +553,17 @@ class Tester : public CxxTest::TestSuite {
 		auto pos = tagd::file::dir_shift_pos(req.path());
 		auto sub = req.path().substr(pos);
 		TS_ASSERT_EQUALS( sub , "path/to/style.css" )
+	}
+
+	// Contract 3: server owns _evbase and _htp; ~server() frees them without crash
+	void test_server_destructor_frees_evbase_and_htp(void) {
+		tagdb_tester tdb;
+		httagd::viewspace vws(".");
+		httagd::httagd_args args;
+		{
+			httagd::server svr(&tdb, &vws, &args);
+			// _evbase and _htp allocated in server::init(); freed in ~server() at }
+		}
+		TS_ASSERT(true);
 	}
 };

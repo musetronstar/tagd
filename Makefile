@@ -1,6 +1,6 @@
 MAKE_DIRS = tagd tagdb tagl tagsh httagd
 TARGET=
-CXXFLAGS = -std=c++23 -Wall -Wextra -Wno-unused-result -O3
+CXXFLAGS = -std=c++23 -Wall -Wextra -O3
 MAKEFLAGS += --no-print-directory --output-sync=target
 
 all: build
