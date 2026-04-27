@@ -1548,6 +1548,121 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS(t2.sub_relator() , HARD_TAG_TYPE_OF);
 	}
 
+	void test_sqlite_round_trip_preserves_identity_and_referent_transforms(void) {
+		TDB_CONS_INIT();
+
+		tagd::tag husky("husky", HARD_TAG_TYPE_OF, "dog");
+		TS_ASSERT_TAGD_OK(husky.relation(HARD_TAG_HAS, "tail"));
+		TS_ASSERT_TAGD_OK(husky.relation("can", "bark"));
+		TS_ASSERT_TAGD_OK(tdb.put(husky, &ssn));
+
+		tagd::abstract_tag populated_husky;
+		TS_ASSERT_TAGD_OK(tdb.get(populated_husky, "husky", &ssn));
+		TS_ASSERT_EQUALS(populated_husky.id(), "husky");
+		TS_ASSERT_EQUALS(populated_husky.sub_relator(), HARD_TAG_TYPE_OF);
+		TS_ASSERT_EQUALS(populated_husky.super_object(), "dog");
+		TS_ASSERT(!populated_husky.rank().empty());
+		TS_ASSERT(populated_husky.related(HARD_TAG_HAS, "tail"));
+		TS_ASSERT(populated_husky.related("can", "bark"));
+
+		tagd::tag collie("collie", "dog");
+		TS_ASSERT_TAGD_OK(tdb.put(collie, &ssn));
+		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("puppy", "collie", "simple_english"), &ssn));
+		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("fluff", "tail", "simple_english"), &ssn));
+
+		tagdb::session english_ssn = tdb.get_session();
+		TS_ASSERT_TAGD_OK(english_ssn.push_context("simple_english"));
+
+		tagd::tag puppy("puppy", "is_a", "dog");
+		TS_ASSERT_TAGD_OK(puppy.relation("has", "fluff"));
+		TS_ASSERT_TAGD_OK(puppy.relation("can", "bark"));
+		TS_ASSERT_TAGD_OK(tdb.put(puppy, &english_ssn));
+
+		tagd::abstract_tag canonical_collie;
+		TS_ASSERT_TAGD_OK(tdb.get(canonical_collie, "collie", &ssn, tagdb::F_NO_TRANSFORM_REFERENTS));
+		TS_ASSERT_EQUALS(canonical_collie.id(), "collie");
+		TS_ASSERT_EQUALS(canonical_collie.sub_relator(), HARD_TAG_IS_A);
+		TS_ASSERT_EQUALS(canonical_collie.super_object(), "dog");
+		TS_ASSERT(!canonical_collie.rank().empty());
+		TS_ASSERT(canonical_collie.related(HARD_TAG_HAS, "tail"));
+		TS_ASSERT(canonical_collie.related("can", "bark"));
+
+		tagd::abstract_tag populated_puppy;
+		TS_ASSERT_TAGD_OK(tdb.get(populated_puppy, "puppy", &english_ssn));
+		TS_ASSERT_EQUALS(populated_puppy.id(), "puppy");
+		TS_ASSERT_EQUALS(populated_puppy.sub_relator(), "is_a");
+		TS_ASSERT_EQUALS(populated_puppy.super_object(), "dog");
+		TS_ASSERT_EQUALS(populated_puppy.rank().dotted_str(), canonical_collie.rank().dotted_str());
+		TS_ASSERT(populated_puppy.related("has", "fluff"));
+		TS_ASSERT(populated_puppy.related("can", "bark"));
+		TS_ASSERT(populated_puppy.related(HARD_TAG_REFERS_TO, "collie"));
+	}
+
+	void test_related_query_preserves_ranked_transformed_hydration(void) {
+		TDB_CONS_INIT();
+
+		tagd::tag collie("collie", "dog");
+		TS_ASSERT_TAGD_OK(collie.relation(HARD_TAG_HAS, "tail"));
+		TS_ASSERT_TAGD_OK(collie.relation("can", "bark"));
+		TS_ASSERT_TAGD_OK(tdb.put(collie, &ssn));
+		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("puppy", "collie", "simple_english"), &ssn));
+		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("fluff", "tail", "simple_english"), &ssn));
+
+		tagd::abstract_tag canonical_collie;
+		TS_ASSERT_TAGD_OK(tdb.get(canonical_collie, "collie", &ssn, tagdb::F_NO_TRANSFORM_REFERENTS));
+
+		tagdb::session english_ssn = tdb.get_session();
+		TS_ASSERT_TAGD_OK(english_ssn.push_context("simple_english"));
+
+		tagd::tag_set related_tags;
+		tagd::interrogator q(HARD_TAG_WHAT, "puppy");
+		TS_ASSERT_TAGD_OK(q.relation("has", "fluff"));
+		TS_ASSERT_TAGD_OK(tdb.query(related_tags, q, &english_ssn));
+		TS_ASSERT_EQUALS(related_tags.size(), 1);
+
+		auto it = related_tags.begin();
+		TS_ASSERT_DIFFERS(it, related_tags.end());
+		if (it != related_tags.end()) {
+			TS_ASSERT_EQUALS(it->id(), "puppy");
+			TS_ASSERT_EQUALS(it->sub_relator(), "is_a");
+			TS_ASSERT_EQUALS(it->super_object(), "dog");
+			TS_ASSERT_EQUALS(it->rank().dotted_str(), canonical_collie.rank().dotted_str());
+			TS_ASSERT(it->related("has", "fluff"));
+		}
+	}
+
+	void test_children_query_preserves_ranked_transformed_hydration(void) {
+		TDB_CONS_INIT();
+
+		tagd::tag collie("collie", "dog");
+		TS_ASSERT_TAGD_OK(tdb.put(collie, &ssn));
+		tagd::tag rough_collie("rough_collie", "collie");
+		TS_ASSERT_TAGD_OK(rough_collie.relation(HARD_TAG_HAS, "tail"));
+		TS_ASSERT_TAGD_OK(tdb.put(rough_collie, &ssn));
+		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("puppy", "collie", "simple_english"), &ssn));
+		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("lassie", "rough_collie", "simple_english"), &ssn));
+
+		tagd::abstract_tag canonical_child;
+		TS_ASSERT_TAGD_OK(tdb.get(canonical_child, "rough_collie", &ssn, tagdb::F_NO_TRANSFORM_REFERENTS));
+
+		tagdb::session english_ssn = tdb.get_session();
+		TS_ASSERT_TAGD_OK(english_ssn.push_context("simple_english"));
+
+		tagd::tag_set children;
+		tagd::interrogator q(HARD_TAG_WHAT, "puppy");
+		TS_ASSERT_TAGD_OK(tdb.query(children, q, &english_ssn));
+		TS_ASSERT_EQUALS(children.size(), 1);
+
+		auto it = children.begin();
+		TS_ASSERT_DIFFERS(it, children.end());
+		if (it != children.end()) {
+			TS_ASSERT_EQUALS(it->id(), "lassie");
+			TS_ASSERT_EQUALS(it->sub_relator(), "is_a");
+			TS_ASSERT_EQUALS(it->super_object(), "puppy");
+			TS_ASSERT_EQUALS(it->rank().dotted_str(), canonical_child.rank().dotted_str());
+		}
+	}
+
     void test_relations(void) {
 		TDB_CONS_INIT();
 

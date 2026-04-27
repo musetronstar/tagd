@@ -170,11 +170,12 @@ class sqlite: public tagdb {
 
 		void encode_referent(tagd::id_string&, const tagd::id_string&, session*);
 		void encode_referents(tagd::predicate_set&, const tagd::predicate_set&, session*);
-		void encode_referents(tagd::abstract_tag&, const tagd::abstract_tag&, session*);
+		tagd::abstract_tag encode_referents(const tagd::abstract_tag&, session*);
 
 		void decode_referent(tagd::id_string&, const tagd::id_string&, session*);
 		void decode_referents(tagd::predicate_set&, const tagd::predicate_set&, session*);
-		void decode_referents(tagd::abstract_tag&, const tagd::abstract_tag&, session*);
+		tagd::abstract_tag decode_referents(const tagd::abstract_tag&, session*);
+		tagd::interrogator decode_referents(const tagd::interrogator&, session*);
 
 		tagd::code delete_tag(const tagd::id_string&, session*);
 

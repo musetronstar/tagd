@@ -71,25 +71,29 @@ struct tagdb_debug_scope {
 	}
 };
 
-static void replace_identity(
-	tagd::abstract_tag& tag,
-	const tagd::id_string& id,
-	const tagd::id_string& sub_relator,
-	const tagd::id_string& super_object,
-	tagd::part_of_speech pos,
-	const tagd::rank& rank
-) {
-	// TODO: remove bridge when get() signature transitions to return-by-value
-	auto relations = std::move(tag.relations);
-	tagd::abstract_tag sem(id, sub_relator, super_object, pos);
-	tag = rank.empty() ? std::move(sem) : tagd::abstract_tag(sem, rank);
-	tag.relations = std::move(relations);
-}
-
 static tagd::rank make_rank(const char *bytes) {
 	tagd::rank rank;
 	(void)rank.init(bytes);
 	return rank;
+}
+
+static tagd::code populate_row_id(
+	tagd::id_string& populated_id,
+	const char *raw_id,
+	tagd::part_of_speech pos,
+	const tagdb::id_transform_func_t& f_transform
+) {
+	if (pos == tagd::POS_URL) {
+		tagd::HDURI hduri(raw_id);
+		if (!hduri.ok())
+			return hduri.code();
+
+		populated_id = hduri.id();
+		return tagd::TAGD_OK;
+	}
+
+	populated_id = f_transform(raw_id);
+	return tagd::TAGD_OK;
 }
 
 static const char *tagdb_command_prefix(tagd::command_t cmd) {
@@ -928,16 +932,17 @@ tagd::code sqlite::get(tagd::abstract_tag& t, tagd::id_view term, session* ssn, 
 			rebuilt_id = f_transform(tag_id);
 		}
 
-		replace_identity(
-			t,
+		tagd::abstract_tag semantic(
 			rebuilt_id,
 			f_transform((const char*) sqlite3_column_text(stmt, F_SUB_REL)),
 			f_transform((const char*) sqlite3_column_text(stmt, F_SUB_OBJ)),
-			pos,
-			make_rank((const char*) sqlite3_column_text(stmt, F_RANK))
+			pos
 		);
+		tagd::rank rank = make_rank((const char*) sqlite3_column_text(stmt, F_RANK));
+		tagd::abstract_tag populated =
+			rank.empty() ? std::move(semantic) : tagd::abstract_tag(semantic, rank);
 
-		this->get_relations(t.relations, id, ssn, flags);
+		this->get_relations(populated.relations, id, ssn, flags);
 		OK_OR_RET_SSN_INT_ERR_ACTION("tagdb:get:get_relations");
 
 		// if id was transformed via referent, add a _refers_to the orignal id
@@ -948,9 +953,11 @@ tagd::code sqlite::get(tagd::abstract_tag& t, tagd::id_view term, session* ssn, 
 			// TODO(cpp23-return-contracts): stop discarding this mutation result if
 			// the transformed referent contract ever depends on it; either check the
 			// return immediately or wrap the discard as documented best-effort.
-			if (id != t.id())
-				(void)t.relation(HARD_TAG_REFERS_TO, id);
+			if (id != populated.id())
+				(void)populated.relation(HARD_TAG_REFERS_TO, id);
 		} 
+
+		t = std::move(populated);
 
 	} else if (s_rc == SQLITE_ERROR) {
 		this->ferror(tagd::TS_INTERNAL_ERR, "tagdb:get:get_tag_step failed: %s", sqlite3_errmsg(_db));
@@ -1292,11 +1299,10 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t 
 		}
 	}
 
-	tagd::abstract_tag t;
-	if (!ssn || (flags & F_NO_TRANSFORM_REFERENTS))
-		t = put_tag;
-	else
-		this->decode_referents(t, put_tag, ssn);
+	tagd::abstract_tag t =
+		(!ssn || (flags & F_NO_TRANSFORM_REFERENTS))
+			? tagd::abstract_tag(put_tag)
+			: this->decode_referents(put_tag, ssn);
 	OK_OR_RET_SSN_INT_ERR_ACTION("tadb:put:decode_referents");
 
 	if (t.id() == t.super_object() && t.id() != HARD_TAG_ENTITY)
@@ -1361,14 +1367,17 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t 
 
 		// use existing because it has the rank
 		if (existing.sub_relator() != t.sub_relator()) {
-			replace_identity(
-				existing,
+			auto relations = std::move(existing.relations);
+			tagd::abstract_tag semantic(
 				existing.id(),
 				t.sub_relator(),
 				existing.super_object(),
-				existing.pos(),
-				existing.rank()
+				existing.pos()
 			);
+			existing = existing.rank().empty()
+				? std::move(semantic)
+				: tagd::abstract_tag(semantic, existing.rank());
+			existing.relations = std::move(relations);
 		}
 		// move existing to new location or relator
 		ins_upd_rc = this->update(existing, destination);
@@ -1460,11 +1469,10 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags)
 			"sub must not be specified when deleting tag: %s", t.id().c_str());
 	}
 
-	tagd::abstract_tag del_tag;
-	if (!ssn || (flags & F_NO_TRANSFORM_REFERENTS))
-		del_tag = t;
-	else
-		this->decode_referents(del_tag, t, ssn);
+	tagd::abstract_tag del_tag =
+		(!ssn || (flags & F_NO_TRANSFORM_REFERENTS))
+			? tagd::abstract_tag(t)
+			: this->decode_referents(t, ssn);
 
 	tagd::abstract_tag existing;
 	auto tc = this->get(existing, del_tag.id(), ssn, 
@@ -2477,14 +2485,25 @@ tagd::code sqlite::insert_relations(const tagd::abstract_tag& t, flags_t flags) 
 }
 
 tagd::code sqlite::insert_referent(const tagd::referent& put_ref, session *ssn, flags_t flags) {
-	tagd::referent t;
-	if (!ssn || (flags & F_NO_TRANSFORM_REFERENTS)) {
-		t = put_ref;
-	} else {
-		this->decode_referents(t, put_ref, ssn);
-		if (t.id() != put_ref.id())
-			replace_identity(t, put_ref.id(), t.sub_relator(), t.super_object(), t.pos(), t.rank());  // don't transform the refers
-	}
+	tagd::referent t =
+		(!ssn || (flags & F_NO_TRANSFORM_REFERENTS))
+			? tagd::referent(put_ref)
+			: [&]() {
+				tagd::abstract_tag decoded = this->decode_referents(put_ref, ssn);
+				if (decoded.id() == put_ref.id())
+					return tagd::referent(decoded);
+
+				// Referent insertion decodes refers_to/context, but the refers symbol
+				// itself must remain the caller-facing lexeme.
+				tagd::abstract_tag semantic(
+					put_ref.id(),
+					decoded.sub_relator(),
+					decoded.super_object(),
+					decoded.pos()
+				);
+				semantic.relations = decoded.relations;
+				return tagd::referent(semantic);
+			}();
 
 	if (t.refers() == t.refers_to())
 		RET_SSN_ERROR(tagd::TS_MISUSE, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_REFERS, HARD_TAG_REFERS_TO));
@@ -2604,19 +2623,26 @@ void sqlite::encode_referents(tagd::predicate_set&to, const tagd::predicate_set&
 	}
 }
 
-void sqlite::encode_referents(tagd::abstract_tag& to, const tagd::abstract_tag& from, session* ssn) {
-		// transform referents in put_tag to their "refers_to" given context
-		tagd::id_string encoded_id;
-		tagd::id_string encoded_super_object;
+tagd::abstract_tag sqlite::encode_referents(const tagd::abstract_tag& from, session* ssn) {
+	// transform referents in put_tag to their "refers_to" given context
+	tagd::id_string encoded_id;
+	tagd::id_string encoded_super_object;
 
-		if (!from.id().empty())
-			this->encode_referent(encoded_id, from.id(), ssn);
-		if (!from.super_object().empty())
-			this->encode_referent(encoded_super_object, from.super_object(), ssn);
+	if (!from.id().empty())
+		this->encode_referent(encoded_id, from.id(), ssn);
+	if (!from.super_object().empty())
+		this->encode_referent(encoded_super_object, from.super_object(), ssn);
 
-		replace_identity(to, encoded_id, from.sub_relator(), encoded_super_object, from.pos(), from.rank());
-		to.relations.clear();
-		this->encode_referents(to.relations, from.relations, ssn);
+	tagd::abstract_tag semantic(
+		encoded_id,
+		from.sub_relator(),
+		encoded_super_object,
+		from.pos()
+	);
+	tagd::abstract_tag encoded =
+		from.rank().empty() ? std::move(semantic) : tagd::abstract_tag(semantic, from.rank());
+	this->encode_referents(encoded.relations, from.relations, ssn);
+	return encoded;
 }
 
 
@@ -2646,22 +2672,46 @@ void sqlite::decode_referents(tagd::predicate_set& to, const tagd::predicate_set
 	}
 }
 
-void sqlite::decode_referents(tagd::abstract_tag& to, const tagd::abstract_tag& from, session *ssn) {
-		// transform referents in put_tag to their "refers_to" given context
-		tagd::id_string decoded_id;
-		tagd::id_string decoded_sub_relator;
-		tagd::id_string decoded_super_object;
+tagd::abstract_tag sqlite::decode_referents(const tagd::abstract_tag& from, session *ssn) {
+	// transform referents in put_tag to their "refers_to" given context
+	tagd::id_string decoded_id;
+	tagd::id_string decoded_sub_relator;
+	tagd::id_string decoded_super_object;
 
-		if (!from.id().empty())
-			this->decode_referent(decoded_id, from.id(), ssn);
-		if (!from.sub_relator().empty())
-			this->decode_referent(decoded_sub_relator, from.sub_relator(), ssn);
-		if (!from.super_object().empty())
-			this->decode_referent(decoded_super_object, from.super_object(), ssn);
+	if (!from.id().empty())
+		this->decode_referent(decoded_id, from.id(), ssn);
+	if (!from.sub_relator().empty())
+		this->decode_referent(decoded_sub_relator, from.sub_relator(), ssn);
+	if (!from.super_object().empty())
+		this->decode_referent(decoded_super_object, from.super_object(), ssn);
 
-		replace_identity(to, decoded_id, decoded_sub_relator, decoded_super_object, from.pos(), from.rank());
-		to.relations.clear();
-		this->decode_referents(to.relations, from.relations, ssn);
+	tagd::abstract_tag semantic(
+		decoded_id,
+		decoded_sub_relator,
+		decoded_super_object,
+		from.pos()
+	);
+	tagd::abstract_tag decoded =
+		from.rank().empty() ? std::move(semantic) : tagd::abstract_tag(semantic, from.rank());
+	this->decode_referents(decoded.relations, from.relations, ssn);
+	return decoded;
+}
+
+tagd::interrogator sqlite::decode_referents(const tagd::interrogator& from, session *ssn) {
+	tagd::id_string decoded_id;
+	tagd::id_string decoded_sub_relator;
+	tagd::id_string decoded_super_object;
+
+	if (!from.id().empty())
+		this->decode_referent(decoded_id, from.id(), ssn);
+	if (!from.sub_relator().empty())
+		this->decode_referent(decoded_sub_relator, from.sub_relator(), ssn);
+	if (!from.super_object().empty())
+		this->decode_referent(decoded_super_object, from.super_object(), ssn);
+
+	tagd::interrogator decoded(decoded_id, decoded_sub_relator, decoded_super_object);
+	this->decode_referents(decoded.relations, from.relations, ssn);
+	return decoded;
 }
 
 tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const tagd::id_string& sup, session* ssn, flags_t flags) {
@@ -2772,38 +2822,29 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 
 	R.clear();
 	tagd::tag_set::iterator it = R.begin();
-	tagd::rank rank;
 	int s_rc;
 
 	sqlite3_stmt *stmt = get_stmt(stmt_t::RELATED);
 	while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-		rank.init( (const char*) sqlite3_column_text(stmt, F_RANK));
 		tagd::part_of_speech pos = (tagd::part_of_speech) sqlite3_column_int(stmt, F_POS);
-
-		tagd::abstract_tag *t;
-		if (pos != tagd::POS_URL) {
-			t = new tagd::abstract_tag( f_transform((const char*) sqlite3_column_text(stmt, F_SUBJECT)) );
-		} else {
-			t = new tagd::HDURI( (const char*) sqlite3_column_text(stmt, F_SUBJECT) );
-			if (t->code() != tagd::TAGD_OK) {
-				auto tc = t->code();
-				if (ssn) {
-					ssn->ferror(tc, "failed to init related url: %s",
-							(const char*) sqlite3_column_text(stmt, F_SUBJECT) );
-				}
-				delete t;
-				return tc;
-			}
+		const char *raw_subject = (const char*) sqlite3_column_text(stmt, F_SUBJECT);
+		tagd::id_string populated_id;
+		auto tc = populate_row_id(populated_id, raw_subject, pos, f_transform);
+		if (tc != tagd::TAGD_OK) {
+			if (ssn)
+				ssn->ferror(tc, "failed to populate related tag: %s", raw_subject);
+			return tc;
 		}
 
-		replace_identity(
-			*t,
-			t->id(),
+		tagd::abstract_tag semantic(
+			populated_id,
 			f_transform((const char*) sqlite3_column_text(stmt, F_SUB_REL)),
 			f_transform((const char*) sqlite3_column_text(stmt, F_SUB_OBJ)),
-			pos,
-			rank
+			pos
 		);
+		tagd::rank rank = make_rank((const char*) sqlite3_column_text(stmt, F_RANK));
+		tagd::abstract_tag populated =
+			rank.empty() ? std::move(semantic) : tagd::abstract_tag(semantic, rank);
 
 		auto pred = tagd::predicate(
 			f_transform( (const char*) sqlite3_column_text(stmt, F_RELATOR) ),
@@ -2817,12 +2858,11 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 		// callers are supposed to inspect failure. This loader path still
 		// discards it; either check immediately or document a named best-effort
 		// loader helper if malformed relation rows are intentionally tolerated.
-		(void)t->relation(pred);
+		(void)populated.relation(pred);
 
-		TAGDB_LOG_DEBUG( "related R.insert: " << *t << std::endl );
+		TAGDB_LOG_DEBUG( "related R.insert: " << populated << std::endl );
 
-		it = R.insert(it, *t);
-		delete t;
+		it = R.insert(it, populated);
 	}
 
 	if (s_rc == SQLITE_ERROR) {
@@ -2862,32 +2902,26 @@ tagd::code sqlite::get_children(tagd::tag_set& R, const tagd::id_string& super_o
 
 	sqlite3_stmt *stmt = get_stmt(stmt_t::GET_CHILDREN);
 	while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-		tagd::abstract_tag *t;
 		tagd::part_of_speech pos = (tagd::part_of_speech) sqlite3_column_int(stmt, F_POS);
-		if (pos != tagd::POS_URL) {
-			t = new tagd::abstract_tag(
-				f_transform((const char*) sqlite3_column_text(stmt, F_ID))
-			);
-		} else {
-			t = new tagd::HDURI( (const char*) sqlite3_column_text(stmt, F_ID) );
-			if (t->code() != tagd::TAGD_OK) {
-				this->ferror( t->code(), "failed to init related url: %s",
-						(const char*) sqlite3_column_text(stmt, F_ID) );
-				delete t;
-				return this->code();
-			}
+		const char *raw_id = (const char*) sqlite3_column_text(stmt, F_ID);
+		tagd::id_string populated_id;
+		auto tc = populate_row_id(populated_id, raw_id, pos, f_transform);
+		if (tc != tagd::TAGD_OK) {
+			this->ferror(tc, "failed to populate child tag: %s", raw_id);
+			return this->code();
 		}
-		replace_identity(
-			*t,
-			t->id(),
+
+		tagd::abstract_tag semantic(
+			populated_id,
 			f_transform((const char*) sqlite3_column_text(stmt, F_SUB_REL)),
 			f_transform((const char*) sqlite3_column_text(stmt, F_SUB_OBJ)),
-			pos,
-			make_rank((const char*) sqlite3_column_text(stmt, F_RANK))
+			pos
 		);
+		tagd::rank rank = make_rank((const char*) sqlite3_column_text(stmt, F_RANK));
+		tagd::abstract_tag populated =
+			rank.empty() ? std::move(semantic) : tagd::abstract_tag(semantic, rank);
 
-		it = R.insert(it, *t);
-		delete t;
+		it = R.insert(it, populated);
 	}
 
 	if (s_rc == SQLITE_ERROR) {
@@ -3092,11 +3126,10 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& q, session 
 	TAGDB_LOG_DEBUG("tagdb query subject=" << q.id());
 	TAGDB_LOG_EVENT(ssn, tagd::log_level::INFO, std::string(HARD_TAG_TAGDB_QUERY_EVENT));
 
-	tagd::interrogator intr;
-	if (!ssn || (flags & F_NO_TRANSFORM_REFERENTS))
-		intr = q;
-	else
-		this->decode_referents(intr, q, ssn);
+	tagd::interrogator intr =
+		(!ssn || (flags & F_NO_TRANSFORM_REFERENTS))
+			? q
+			: this->decode_referents(q, ssn);
 	OK_OR_RET_SSN_INT_ERR_ACTION("tadb:query:decode_referents");
 
 	if (intr.super_object() == HARD_TAG_REFERENT)
