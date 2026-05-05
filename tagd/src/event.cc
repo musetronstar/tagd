@@ -49,13 +49,13 @@ event::event() :
 {}
 
 event::event(const std::string& evuri) :
-	abstract_tag("", HARD_TAG_TYPE_OF, HARD_TAG_EVENT, POS_TAG)
+	abstract_tag("", HARD_TAG_SUB, HARD_TAG_EVENT, POS_TAG)
 {
 	init_evuri(evuri);
 }
 
 event::event(session& ssn, const id_string& program, const id_string& event_type_tag) :
-	abstract_tag("", HARD_TAG_TYPE_OF, event_type_tag, POS_TAG),
+	abstract_tag("", HARD_TAG_SUB, event_type_tag, POS_TAG),
 	_time(ssn.started_at()),
 	_host(system_hostname()),
 	_principal(system_principal()),
@@ -78,7 +78,7 @@ void event::init_id() {
 	   << encode_evuri_delim(_sequence) << EVURI_DELIM
 	   << encode_evuri_delim(_event_type_tag);
 	_id = ss.str();
-	_sub_relator = HARD_TAG_TYPE_OF;
+	_sub_relator = HARD_TAG_SUB;
 	_super_object = _event_type_tag.empty() ? HARD_TAG_EVENT : _event_type_tag;
 }
 

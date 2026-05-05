@@ -8,30 +8,22 @@ OBJS=$(SRCS:.cc=.o)
 DEPS=$(OBJS:.o=.d)
 
 HARD_TAGS_H = ../../tagd/include/tagd/hard-tags.h
-HARD_TAG_GPERF=hard-tags.gperf
-HARD_TAG_GPERF_H=hard-tags.gperf.h
 
 all: build
 
 debug: CXXFLAGS += -g -DDEBUG -O0
 debug: build
 
-build: $(OBJS) $(HARD_TAG_GPERF_H) hard-tag.o
+build: $(OBJS) hard-tag.o
 
 .cc.o :
 	g++ $(CXXFLAGS) -MMD -MP -c -o $@ $< $(INC)
 
-hard-tag.o: hard-tag.cc $(HARD_TAG_GPERF_H)
+hard-tag.o: hard-tag.cc $(HARD_TAGS_H)
 	g++ $(CXXFLAGS) -MMD -MP -Wno-missing-field-initializers -c -o $@ $< $(INC)
-
-$(HARD_TAG_GPERF_H): $(HARD_TAG_GPERF)
-	gperf $? > $@
-
-$(HARD_TAG_GPERF): $(HARD_TAGS_H)
-	./gen-hard-tags.gperf.pl $(HARD_TAGS_H) > $@
 
 -include $(DEPS)
 -include hard-tag.d
 
 clean:
-	rm -f *.o *.d $(HARD_TAG_GPERF) $(HARD_TAG_GPERF_H)
+	rm -f *.o *.d

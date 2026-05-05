@@ -1,14 +1,38 @@
-#include <cstring>  // tolower, strcmp (for gperf)
 #include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <vector>
 #include <string>  // find_last_of
 
-#include "tagd.h"
+#include "tagdb.h"
+#include "tagd/hard-tags.h"
 #include "tagd/logger.h"
-#include "hard-tags.gperf.h"
 
 namespace tagdb {
+
+namespace {
+
+std::vector<const char *>& hard_tag_rows_storage() {
+	static std::vector<const char *> rows = []() {
+		std::vector<const char *> values;
+		values.reserve(tagd::HARD_TAG_AXIOMS.size() + 1);
+		// Row 0 stays empty so hard-tag row ids match the historical sqlite ids
+		// starting at 1 without rewriting the bootstrap callers.
+		values.push_back("");
+		for (const tagd::hard_tag_axiom& axiom : tagd::HARD_TAG_AXIOMS)
+			values.push_back(axiom.id.data());
+		return values;
+	}();
+
+	return rows;
+}
+
+rowid_t hard_tag_row_id(const tagd::hard_tag_axiom& axiom) {
+	// Axiom-table order is the bootstrap row-id contract for hard tags.
+	return static_cast<rowid_t>((&axiom - tagd::HARD_TAG_AXIOMS.data()) + 1);
+}
+
+}
 
 static bool valid_log_role_hard_tag(const std::string& role) {
 	tagd::abstract_tag tag;
@@ -21,79 +45,66 @@ static bool valid_log_role_hard_tag(const std::string& role) {
 
 // looks up hard tag and returns part_of_speech
 tagd::part_of_speech hard_tag::pos(tagd::id_view id) {
-    hard_tag_hash_value *val = hard_tag_hash::lookup(id.data(), id.size());
-
-    if (val == nullptr)
-        return tagd::POS_UNKNOWN;
-    else
-        return val->pos;
+	const tagd::hard_tag_axiom *axiom = tagd::hard_tag_axiom_for(id);
+	return axiom == nullptr ? tagd::POS_UNKNOWN : axiom->pos;
 }
 
 // returns pos, given term - if non-null row_id passed in, it will be set if found
 tagd::part_of_speech hard_tag::term_pos(tagd::id_view id, rowid_t* row_id) {
-    hard_tag_hash_value *val = hard_tag_hash::lookup(id.data(), id.size());
+	const tagd::hard_tag_axiom *axiom = tagd::hard_tag_axiom_for(id);
+	if (axiom == nullptr)
+		return tagd::POS_UNKNOWN;
 
-    if (val == nullptr) {
-        return tagd::POS_UNKNOWN;
-	} else {
-		if (row_id != nullptr)
-			*row_id = val->row_id;
-        return val->pos;
-	}
+	if (row_id != nullptr)
+		*row_id = hard_tag_row_id(*axiom);
+
+	return axiom->pos;
 }
 
 // returns pos, given term row_id - if non-null term passed in, it will be set if found
 tagd::part_of_speech hard_tag::term_id_pos(rowid_t row_id, tagd::id_string *term) {
+	const auto& rows = hard_tag_rows_storage();
 	// row == 0 unused
-	if (row_id <= 0 || static_cast<std::size_t>(row_id) >= hard_tag_rows_end)
+	if (row_id <= 0 || static_cast<std::size_t>(row_id) >= rows.size())
 		return tagd::POS_UNKNOWN;
 
-	tagd::id_string id{ hard_tag_rows[row_id] };
-    hard_tag_hash_value *val = hard_tag_hash::lookup(id.c_str(), id.size());
+	const char *id = rows[row_id];
+	const tagd::hard_tag_axiom *axiom = tagd::hard_tag_axiom_for(id);
+	if (axiom == nullptr)
+		return tagd::POS_UNKNOWN;
 
-    if (val == nullptr) {
-        return tagd::POS_UNKNOWN;
-	} else {
-		if (term != nullptr)
-			*term = id;
-        return val->pos;
-	}
+	if (term != nullptr)
+		*term = id;
+
+	return axiom->pos;
 }
 
 tagd::code hard_tag::get(tagd::abstract_tag& t, tagd::id_view id) {
-    hard_tag_hash_value *val = hard_tag_hash::lookup(id.data(), id.size());
+	const tagd::hard_tag_axiom *axiom = tagd::hard_tag_axiom_for(id);
+	if (axiom == nullptr)
+		return tagd::TS_NOT_FOUND;
 
-    if (val == nullptr) {
-        return tagd::TS_NOT_FOUND;
-	} else {
-		{
-			// TODO: remove bridge when hard_tag::get() returns by value
-			tagd::abstract_tag sem(id, HARD_TAG_SUB, val->sub, val->pos);
-			tagd::rank r(val->rank);
-			t = r.empty() ? std::move(sem) : tagd::abstract_tag(sem, r);
-		}
-	
-        return t.code();
-	}
+	// TODO: remove bridge when hard_tag::get() returns by value
+	tagd::abstract_tag sem(id, axiom->sub_relator, axiom->super_object, axiom->pos);
+	tagd::rank r;
+	(void)r.init(axiom->packed_rank);
+	t = r.empty() ? std::move(sem) : tagd::abstract_tag(sem, r);
+
+	return t.code();
 }
 
 void hard_tag::install_logger_validator() {
-	/*
-	 * TODO hard_tagdb:
-	 * This is a bootstrap adapter. Hard-tag lookup currently belongs to
-	 * tagdb::hard_tag because row ids intentionally match tagdb/SQLite row
-	 * semantics. When hard_tagdb exists, logger/event/error validation should
-	 * use that explicit hard-coded tagspace seam instead.
-	 */
+	// Logger validation still uses tagdb::hard_tag because bootstrap row ids are
+	// defined by the tagdb/sqlite hard-tag surface, not just by tag semantics.
 	tagd::set_log_role_validator(valid_log_role_hard_tag);
 }
 
 const char ** hard_tag::rows() {
-	return hard_tag_rows;
+	return hard_tag_rows_storage().data();
 }
 
 size_t hard_tag::rows_end() {
-	return hard_tag_rows_end;
+	return hard_tag_rows_storage().size();
 }
 
 } // namespace tagdb

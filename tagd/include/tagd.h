@@ -281,26 +281,6 @@ std::string tag_ids_str(const T& t) {
 	return ss.str();
 }
 
-class tag : public abstract_tag {
-    public:
-        tag() : abstract_tag(id_view{}, POS_TAG) {};
-
-        // One-shot: sub_relator explicitly IS_A, no post-construction mutation
-        tag(id_view id) : abstract_tag(id, HARD_TAG_IS_A, id_view{}, POS_TAG) {};
-
-        tag(id_view id, id_view sub_obj) :
-			abstract_tag(id, HARD_TAG_IS_A, sub_obj, POS_TAG) {};
-
-        tag(id_view id, id_view sub_obj, const tagd::rank& r) :
-			abstract_tag(abstract_tag(id, HARD_TAG_IS_A, sub_obj, POS_TAG), r) {};
-
-        tag(id_view id, id_view sub_rel, id_view sub_obj) :
-			abstract_tag(id, sub_rel, sub_obj, POS_TAG) {};
-
-        tag(id_view id, id_view sub_rel, id_view sub_obj, const tagd::rank& r) :
-			abstract_tag(abstract_tag(id, sub_rel, sub_obj, POS_TAG), r) {};
-};
-
 // relates a subject to an object
 // known as the linguistic "Copula" - usually a linking verb,
 // but not necissarily so
@@ -308,10 +288,10 @@ class tag : public abstract_tag {
 class relator : public abstract_tag {
     public:
         relator(id_view id) :
-			abstract_tag(id, HARD_TAG_TYPE_OF, HARD_TAG_RELATOR, POS_RELATOR) {};
+			abstract_tag(id, HARD_TAG_SUB, HARD_TAG_RELATOR, POS_RELATOR) {};
 
         relator(id_view id, id_view sub_obj) :
-			abstract_tag(id, HARD_TAG_TYPE_OF, sub_obj, POS_RELATOR) {};
+			abstract_tag(id, HARD_TAG_SUB, sub_obj, POS_RELATOR) {};
 
         relator(id_view id, id_view sub_rel, id_view sub_obj) :
 			abstract_tag(id, sub_rel, sub_obj, POS_RELATOR) {};
@@ -333,7 +313,7 @@ class interrogator : public abstract_tag {
 			abstract_tag(id, POS_INTERROGATOR) {};
 
         interrogator(id_view id, id_view sub_obj) :
-			abstract_tag(id, HARD_TAG_TYPE_OF, sub_obj, POS_INTERROGATOR) {};
+			abstract_tag(id, HARD_TAG_SUB, sub_obj, POS_INTERROGATOR) {};
 
         interrogator(id_view id, id_view sub_rel, id_view sub_obj) :
 			abstract_tag(id, sub_rel, sub_obj, POS_INTERROGATOR) {};

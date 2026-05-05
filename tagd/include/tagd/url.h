@@ -76,13 +76,13 @@ class url : public abstract_tag {
 
     public:
         url() :
-			abstract_tag("", HARD_TAG_IS_A, HARD_TAG_URL, POS_URL)
+			abstract_tag("", HARD_TAG_SUB, HARD_TAG_URL, POS_URL)
 		{
 			_code = URL_EMPTY;
 		}
 
         url(id_view u) :
-			abstract_tag("", HARD_TAG_IS_A, HARD_TAG_URL, POS_URL)
+			abstract_tag("", HARD_TAG_SUB, HARD_TAG_URL, POS_URL)
 		{
 			_code = URL_EMPTY;
 			this->init(u);

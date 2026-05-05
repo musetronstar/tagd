@@ -19,120 +19,147 @@ typedef tagdb::sqlite tagdb_type;
 
 #define TS_ASSERT_TAGD_OK(EXPR) TS_ASSERT_EQUALS((EXPR), tagd::TAGD_OK)
 
+inline constexpr std::string_view TEST_TAG_IS_A{"is_a"};
+inline constexpr std::string_view TEST_TAG_TYPE_OF{"type_of"};
+
+inline tagd::abstract_tag test_tag(tagd::id_view id) {
+	return tagd::abstract_tag(id, TEST_TAG_IS_A, tagd::id_view{}, tagd::POS_TAG);
+}
+
+inline tagd::abstract_tag test_tag(tagd::id_view id, tagd::id_view super_object) {
+	return tagd::abstract_tag(id, TEST_TAG_IS_A, super_object, tagd::POS_TAG);
+}
+
+inline tagd::abstract_tag test_tag(tagd::id_view id, tagd::id_view sub_relator, tagd::id_view super_object) {
+	return tagd::abstract_tag(id, sub_relator, super_object, tagd::POS_TAG);
+}
+
+inline tagd::relator test_relator(tagd::id_view id) {
+	return tagd::relator(id);
+}
+
+inline tagd::relator test_relator(tagd::id_view id, tagd::id_view super_object) {
+	return tagd::relator(id, super_object);
+}
+
+inline void define_test_sub_relators(tagdb_type& tdb) {
+    TS_ASSERT_TAGD_OK(tdb.put(tagd::abstract_tag(TEST_TAG_IS_A, HARD_TAG_SUB, HARD_TAG_SUB, tagd::POS_SUB_RELATOR), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(tagd::abstract_tag(TEST_TAG_TYPE_OF, HARD_TAG_SUB, HARD_TAG_SUB, tagd::POS_SUB_RELATOR), nullptr));
+}
+
 // populate tags
 // return the number of referents inserted
 size_t populate_tags(tagdb_type& tdb) {
 	size_t num_referents = 0;
 
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("substance", HARD_TAG_ENTITY), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("physical_object", HARD_TAG_ENTITY), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("living_thing", "physical_object"), nullptr));
+    define_test_sub_relators(tdb);
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("substance", HARD_TAG_ENTITY), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("physical_object", HARD_TAG_ENTITY), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("living_thing", "physical_object"), nullptr));
     // TODO change plural referents when referents in place
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("body_part","physical_object"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("teeth","body_part"), nullptr));  // plural referent => tooth, for now, what the hell
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("fangs","teeth"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("fur","body_part"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("tail","body_part"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("legs","body_part"), nullptr));  // plural referent
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("beak","body_part"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("wings","body_part"), nullptr));  // plural referent
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("feathers","body_part"), nullptr));  // plural referent
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("fins","body_part"), nullptr));  // plural referent
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("body_part","physical_object"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("teeth","body_part"), nullptr));  // plural referent => tooth, for now, what the hell
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("fangs","teeth"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("fur","body_part"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("tail","body_part"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("legs","body_part"), nullptr));  // plural referent
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("beak","body_part"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("wings","body_part"), nullptr));  // plural referent
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("feathers","body_part"), nullptr));  // plural referent
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("fins","body_part"), nullptr));  // plural referent
 
-	TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("machine", "physical_object"), nullptr));
-	TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("computer", "machine"), nullptr));
+	TS_ASSERT_TAGD_OK(tdb.put(test_tag("machine", "physical_object"), nullptr));
+	TS_ASSERT_TAGD_OK(tdb.put(test_tag("computer", "machine"), nullptr));
 
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("mind", HARD_TAG_ENTITY), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("mind", HARD_TAG_ENTITY), nullptr));
 
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("communication", HARD_TAG_ENTITY), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("language", "communication"), nullptr));
-	TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("instruction", "language"), nullptr));
-	TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("program", "instruction"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("communication", HARD_TAG_ENTITY), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("language", "communication"), nullptr));
+	TS_ASSERT_TAGD_OK(tdb.put(test_tag("instruction", "language"), nullptr));
+	TS_ASSERT_TAGD_OK(tdb.put(test_tag("program", "instruction"), nullptr));
 
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("knowledge", "mind"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("concept", "knowledge"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("science", "knowledge"), nullptr));
-	TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("computer_security", "science"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("knowledge", "mind"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("concept", "knowledge"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("science", "knowledge"), nullptr));
+	TS_ASSERT_TAGD_OK(tdb.put(test_tag("computer_security", "science"), nullptr));
 
-	TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("creativity", "mind"), nullptr));
-	TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("art", "creativity"), nullptr));
-	TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("visual_art", "art"), nullptr));
-	TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("movie", "visual_art"), nullptr));
-	TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("tv_show", "visual_art"), nullptr));
+	TS_ASSERT_TAGD_OK(tdb.put(test_tag("creativity", "mind"), nullptr));
+	TS_ASSERT_TAGD_OK(tdb.put(test_tag("art", "creativity"), nullptr));
+	TS_ASSERT_TAGD_OK(tdb.put(test_tag("visual_art", "art"), nullptr));
+	TS_ASSERT_TAGD_OK(tdb.put(test_tag("movie", "visual_art"), nullptr));
+	TS_ASSERT_TAGD_OK(tdb.put(test_tag("tv_show", "visual_art"), nullptr));
 
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("event",HARD_TAG_ENTITY), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("sound","event"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("action","event"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("utterance","sound"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("bark","utterance"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("meow","utterance"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("event",HARD_TAG_ENTITY), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("sound","event"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("action","event"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("utterance","sound"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("bark","utterance"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("meow","utterance"), nullptr));
     // TODO these are verbs, how do we deal with them?
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("movement","action"), nullptr));  // to_move
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("fly","movement"), nullptr));    // to_fly
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("swim","movement"), nullptr));    // to_swim
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("movement","action"), nullptr));  // to_move
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("fly","movement"), nullptr));    // to_fly
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("swim","movement"), nullptr));    // to_swim
 
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::relator("verb", HARD_TAG_RELATOR), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::relator("can","verb"), nullptr));  // no hard_tagd == _can, so no referent
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::relator("preposition", HARD_TAG_RELATOR), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::relator("about","preposition"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_relator("verb", HARD_TAG_RELATOR), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_relator("can","verb"), nullptr));  // no hard_tagd == _can, so no referent
+    TS_ASSERT_TAGD_OK(tdb.put(test_relator("preposition", HARD_TAG_RELATOR), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_relator("about","preposition"), nullptr));
 
-	TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("simple_english", "language"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("is_a", HARD_TAG_IS_A, "simple_english"), nullptr));
-	num_referents++;
+	TS_ASSERT_TAGD_OK(tdb.put(test_tag("simple_english", "language"), nullptr));
     TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("has", HARD_TAG_HAS, "simple_english"), nullptr));
 	num_referents++;
 
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("body_fluid", "substance"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("blood", "body_fluid"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("animal", "living_thing"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("vertibrate", "animal"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("body_fluid", "substance"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("blood", "body_fluid"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("animal", "living_thing"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("vertibrate", "animal"), nullptr));
 
-    tagd::tag mammal("mammal","vertibrate");
+    tagd::abstract_tag mammal = test_tag("mammal","vertibrate");
     TS_ASSERT_TAGD_OK(mammal.relation(HARD_TAG_HAS, "blood", "warm"));
     TS_ASSERT_TAGD_OK(mammal.relation(HARD_TAG_HAS, "teeth"));
     TS_ASSERT_TAGD_OK(tdb.put(mammal, nullptr));
 
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("reptile","vertibrate"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("invertebrate","animal"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("arthropod","invertebrate"), nullptr));
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("insect","arthropod"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("reptile","vertibrate"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("invertebrate","animal"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("arthropod","invertebrate"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("insect","arthropod"), nullptr));
 
-    tagd::tag dog("dog", "mammal");
+    tagd::abstract_tag dog = test_tag("dog", "mammal");
     TS_ASSERT_TAGD_OK(dog.relation(tagd::predicate(HARD_TAG_HAS, "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER)));
     TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "tail"));
     TS_ASSERT_TAGD_OK(dog.relation("can", "bark"));
     TS_ASSERT_TAGD_OK(tdb.put(dog, nullptr));
 
-    tagd::tag cat("cat", "mammal");
+    tagd::abstract_tag cat = test_tag("cat", "mammal");
     TS_ASSERT_TAGD_OK(cat.relation(tagd::predicate(HARD_TAG_HAS, "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER)));
     TS_ASSERT_TAGD_OK(cat.relation(HARD_TAG_HAS, "tail"));
     TS_ASSERT_TAGD_OK(cat.relation("can", "meow"));
     TS_ASSERT_TAGD_OK(tdb.put(cat, nullptr));
 
-    tagd::tag whale("whale", "mammal");
+    tagd::abstract_tag whale = test_tag("whale", "mammal");
     TS_ASSERT_TAGD_OK(whale.relation(HARD_TAG_HAS, "fins"));
     TS_ASSERT_TAGD_OK(whale.relation("can", "swim"));
     TS_ASSERT_TAGD_OK(tdb.put(whale, nullptr));
 
-    tagd::tag bat("bat", "mammal");
+    tagd::abstract_tag bat = test_tag("bat", "mammal");
     TS_ASSERT_TAGD_OK(bat.relation(HARD_TAG_HAS, "wings"));
     TS_ASSERT_TAGD_OK(bat.relation("can", "fly"));
     TS_ASSERT_TAGD_OK(tdb.put(bat, nullptr));
 
-    tagd::tag bird("bird", "vertibrate");
+    tagd::abstract_tag bird = test_tag("bird", "vertibrate");
     TS_ASSERT_TAGD_OK(bird.relation(HARD_TAG_HAS, "wings"));
     TS_ASSERT_TAGD_OK(bird.relation(HARD_TAG_HAS, "feathers"));
     TS_ASSERT_TAGD_OK(bird.relation("can", "fly"));
     TS_ASSERT_TAGD_OK(tdb.put(bird, nullptr));
 
-    TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("canary","bird"), nullptr));
+    TS_ASSERT_TAGD_OK(tdb.put(test_tag("canary","bird"), nullptr));
 
-    tagd::tag spider("spider", "insect");
+    tagd::abstract_tag spider = test_tag("spider", "insect");
     TS_ASSERT_TAGD_OK(spider.relation(HARD_TAG_HAS, "fangs"));
     TS_ASSERT_TAGD_OK(spider.relation(tagd::predicate(HARD_TAG_HAS, "legs", "8", tagd::OP_EQ, tagd::TYPE_INTEGER)));
     TS_ASSERT_TAGD_OK(tdb.put(spider, nullptr));
 
-    tagd::tag snake("snake", "reptile");
+    tagd::abstract_tag snake = test_tag("snake", "reptile");
     TS_ASSERT_TAGD_OK(snake.relation(HARD_TAG_HAS, "fangs"));
     TS_ASSERT_TAGD_OK(tdb.put(snake, nullptr));
 

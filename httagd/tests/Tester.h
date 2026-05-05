@@ -12,6 +12,12 @@ typedef tagdb::session tdb_sess_t;
 
 #define TS_ASSERT_TAGD_OK(EXPR) TS_ASSERT_EQUALS((EXPR), tagd::TAGD_OK)
 
+inline constexpr std::string_view TEST_TAG_IS_A{"is_a"};
+
+inline tagd::abstract_tag test_tag(tagd::id_view id, tagd::id_view super_object) {
+	return tagd::abstract_tag(id, TEST_TAG_IS_A, super_object, tagd::POS_TAG);
+}
+
 // pure virtual interface
 class tagdb_tester : public tagdb::tagdb {
 	private:
@@ -74,7 +80,7 @@ tagdb_tester::tagdb_tester() {
 	put_test_tag("japanese", HARD_TAG_ENTITY, tagd::POS_TAG);
 	put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
 	put_test_tag("fun", "action", tagd::POS_TAG);
-	put_test_tag(HARD_TAG_IS_A, HARD_TAG_ENTITY, tagd::POS_SUB_RELATOR);
+	put_test_tag(TEST_TAG_IS_A, HARD_TAG_SUB, tagd::POS_SUB_RELATOR);
 	put_test_tag("about", HARD_TAG_ENTITY, tagd::POS_RELATOR);
 	put_test_tag(HARD_TAG_HAS, HARD_TAG_ENTITY, tagd::POS_RELATOR);
 	put_test_tag(HARD_TAG_CAN, HARD_TAG_ENTITY, tagd::POS_RELATOR);
@@ -86,7 +92,7 @@ tagdb_tester::tagdb_tester() {
 	put_test_tag(HARD_TAG_FLAG, HARD_TAG_ENTITY, tagd::POS_FLAG);
 	put_test_tag(HARD_TAG_IGNORE_DUPLICATES, HARD_TAG_FLAG, tagd::POS_FLAG);
 
-	tagd::tag dog("dog", "animal");
+	tagd::abstract_tag dog = test_tag("dog", "animal");
 	TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "legs"));
 	TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "tail"));
 	TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "fur"));
@@ -95,7 +101,7 @@ tagdb_tester::tagdb_tester() {
 	db[dog.id()] = dog;
 	_dog = dog;
 
-	tagd::tag cat("cat", "animal");
+	tagd::abstract_tag cat = test_tag("cat", "animal");
 	TS_ASSERT_TAGD_OK(cat.relation(HARD_TAG_HAS, "legs"));
 	TS_ASSERT_TAGD_OK(cat.relation(HARD_TAG_HAS, "tail"));
 	TS_ASSERT_TAGD_OK(cat.relation(HARD_TAG_HAS, "fur"));
@@ -324,7 +330,7 @@ class Tester : public CxxTest::TestSuite {
     void test_post_tagdurl(void) {
 		INIT_TDB_TAGL();
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_POST, "/dog"));
-		tagl.execute("_is_a animal _has legs _can bark");
+		tagl.execute("is_a animal _has legs _can bark");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
@@ -337,7 +343,7 @@ class Tester : public CxxTest::TestSuite {
 		INIT_TDB_TAGL();
 
 		tagl.tagdurl_del(httagd::request(tagd::HTTP_DELETE, "/dog"));
-		tagl.execute("_is_a animal _has legs _can bark");
+		tagl.execute("is_a animal _has legs _can bark");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TS_MISUSE" )
 
 		tagl.clear_errors();
@@ -356,7 +362,7 @@ class Tester : public CxxTest::TestSuite {
 
 		struct evbuffer *input = evbuffer_new();
 
-		std::string s("_is_a animal _has legs _can bark");
+		std::string s("is_a animal _has legs _can bark");
 		evbuffer_add(input, s.c_str(), s.size());
 		tagl.execute(input);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
@@ -397,7 +403,7 @@ class Tester : public CxxTest::TestSuite {
 
 		struct evbuffer *input = evbuffer_new();
 
-		std::string s("_is_a animal _has legs _can bark; >> cat _is_a animal _has legs _can meow");
+		std::string s("is_a animal _has legs _can bark; >> cat is_a animal _has legs _can meow");
 		evbuffer_add(input, s.c_str(), s.size());
 		tagl.execute(input);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_ERR" )
@@ -413,7 +419,7 @@ class Tester : public CxxTest::TestSuite {
 	void test_put_tagdurl_constrained_tag_id(void) {
 		INIT_TDB_TAGL();
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_PUT, "/dog"));
-		tagl.execute(">> dog _is_a animal _has legs");
+		tagl.execute(">> dog is_a animal _has legs");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
@@ -424,7 +430,7 @@ class Tester : public CxxTest::TestSuite {
 	void test_put_tagdurl_constrained_tag_id_error(void) {
 		INIT_TDB_TAGL();
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_PUT, "/dog"));
-		tagl.execute(">> cat _is_a animal");
+		tagl.execute(">> cat is_a animal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_ERR" )
 	}
 

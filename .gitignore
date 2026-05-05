@@ -33,6 +33,7 @@ bin/
 *.gperf*
 !public-suffix.gperf*
 *.inc
+*.inc.h
 *.out
 *.out.cc
 parser.h

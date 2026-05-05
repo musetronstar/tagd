@@ -648,7 +648,7 @@ tagd::code sqlite::create_tags_table() {
 	
 	// table exists
 	if (s_rc == SQLITE_ROW) {
-		tagd::tag t;
+		tagd::abstract_tag t;
 		(void)this->get(t, HARD_TAG_ENTITY, nullptr, F_NO_TRANSFORM_REFERENTS);
 		OK_OR_RET_ERR();
 

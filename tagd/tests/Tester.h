@@ -70,8 +70,34 @@ constexpr bool has_const_most_severe_v =
 	std::is_same_v<decltype(static_cast<tagd::code (tagd::errorable::*)(tagd::code) const>(&tagd::errorable::most_severe)),
 		tagd::code (tagd::errorable::*)(tagd::code) const>;
 
+inline constexpr std::string_view TEST_TAG_IS_A{"is_a"};
+
 inline tagd::id_string owned_id(std::string_view sv) {
 	return tagd::id_string(sv);
+}
+
+inline tagd::abstract_tag make_test_tag(tagd::id_view id) {
+	return tagd::abstract_tag(id, TEST_TAG_IS_A, tagd::id_view{}, tagd::POS_TAG);
+}
+
+inline tagd::abstract_tag make_test_tag(tagd::id_view id, tagd::id_view super_object) {
+	return tagd::abstract_tag(id, TEST_TAG_IS_A, super_object, tagd::POS_TAG);
+}
+
+inline tagd::abstract_tag make_test_tag(tagd::id_view id, tagd::id_view super_object, const tagd::rank& rank) {
+	return tagd::abstract_tag(make_test_tag(id, super_object), rank);
+}
+
+inline tagd::abstract_tag make_test_tag(tagd::id_view id, tagd::id_view sub_relator, tagd::id_view super_object) {
+	return tagd::abstract_tag(id, sub_relator, super_object, tagd::POS_TAG);
+}
+
+inline tagd::relator make_test_relator(tagd::id_view id) {
+	return tagd::relator(id);
+}
+
+inline tagd::relator make_test_relator(tagd::id_view id, tagd::id_view super_object) {
+	return tagd::relator(id, super_object);
 }
 
 }
@@ -417,7 +443,7 @@ class Tester : public CxxTest::TestSuite {
         tagd::rank r1;
         TS_ASSERT_TAGD_OK(r1.init(a1));
 
-        tagd::tag t("dog", "animal", r1);
+        tagd::abstract_tag t = tagd::abstract_tag(make_test_tag("dog", "animal"), r1);
         TS_ASSERT_EQUALS( t.rank().dotted_str() , "1.2.123" );
     }
 
@@ -509,32 +535,32 @@ class Tester : public CxxTest::TestSuite {
         tagd::rank r1;
 
         TS_ASSERT_TAGD_OK(r1.init(a1)); // 1
-        tagd::tag a("animal", HARD_TAG_ENTITY, r1);
+        tagd::abstract_tag a = tagd::abstract_tag(make_test_tag("animal", HARD_TAG_ENTITY), r1);
 
         a1[1] = 1;
         TS_ASSERT_TAGD_OK(r1.init(a1)); // 1.1
-        tagd::tag b("mammal", HARD_TAG_ENTITY, r1);
+        tagd::abstract_tag b = tagd::abstract_tag(make_test_tag("mammal", HARD_TAG_ENTITY), r1);
         TS_ASSERT( a < b );
 
         a1[2] = 1;
         TS_ASSERT_TAGD_OK(r1.init(a1)); // 1.1.1
-        tagd::tag c("dog", HARD_TAG_ENTITY, r1);
+        tagd::abstract_tag c = tagd::abstract_tag(make_test_tag("dog", HARD_TAG_ENTITY), r1);
         TS_ASSERT( b < c );
         TS_ASSERT( a < c );
 
         a1[2] = 2;
         TS_ASSERT_TAGD_OK(r1.init(a1)); // 1.1.2
-        tagd::tag d("cat", HARD_TAG_ENTITY, r1);
+        tagd::abstract_tag d = tagd::abstract_tag(make_test_tag("cat", HARD_TAG_ENTITY), r1);
         TS_ASSERT( c < d );
         TS_ASSERT( a < d );
 
-        tagd::tag e("haha");
+        tagd::abstract_tag e = make_test_tag("haha");
 
 		// assertions fail when comparing tags with rank vs w/o ranks
         // TS_ASSERT( e < d );
         // TS_ASSERT( a < e );
 
-        tagd::tag f("mierda");
+        tagd::abstract_tag f = make_test_tag("mierda");
         // no rank vs no rank, use id
         TS_ASSERT( ((e < f) && !(f < e)) );
     }
@@ -547,24 +573,24 @@ class Tester : public CxxTest::TestSuite {
 
         tagd::tag_set S;
 		std::pair<tagd::tag_set::iterator, bool> pr;
-        tagd::tag a("animal", HARD_TAG_ENTITY, r1);
+        tagd::abstract_tag a = tagd::abstract_tag(make_test_tag("animal", HARD_TAG_ENTITY), r1);
         S.insert(a);
 
         a1[1] = 1;
         TS_ASSERT_TAGD_OK(r1.init(a1));
-        tagd::tag b("mammal", HARD_TAG_ENTITY, r1);
+        tagd::abstract_tag b = tagd::abstract_tag(make_test_tag("mammal", HARD_TAG_ENTITY), r1);
         pr = S.insert(b);
         TS_ASSERT( pr.second == true );
         
         a1[2] = 1;
         TS_ASSERT_TAGD_OK(r1.init(a1));
-        tagd::tag c("dog", HARD_TAG_ENTITY, r1);
+        tagd::abstract_tag c = tagd::abstract_tag(make_test_tag("dog", HARD_TAG_ENTITY), r1);
         pr = S.insert(c);
         TS_ASSERT( pr.second == true );
 
         a1[2] = 2;
         TS_ASSERT_TAGD_OK(r1.init(a1));
-        tagd::tag d("cat", HARD_TAG_ENTITY, r1);
+        tagd::abstract_tag d = tagd::abstract_tag(make_test_tag("cat", HARD_TAG_ENTITY), r1);
         pr = S.insert(d);
         TS_ASSERT( pr.second == true );
 
@@ -582,18 +608,18 @@ class Tester : public CxxTest::TestSuite {
     void test_tag_set_no_ranks(void) {
         tagd::tag_set S;
 		std::pair<tagd::tag_set::iterator, bool> pr;
-        tagd::tag a("animal");
+        tagd::abstract_tag a = make_test_tag("animal");
         S.insert(a);
 
-        tagd::tag b("mammal");
+        tagd::abstract_tag b = make_test_tag("mammal");
         pr = S.insert(b);
         TS_ASSERT( pr.second == true );
         
-        tagd::tag c("dog");
+        tagd::abstract_tag c = make_test_tag("dog");
         pr = S.insert(c);
         TS_ASSERT( pr.second == true );
 
-        tagd::tag d("cat");
+        tagd::abstract_tag d = make_test_tag("cat");
         pr = S.insert(d);
         TS_ASSERT( pr.second == true );
 
@@ -817,15 +843,15 @@ class Tester : public CxxTest::TestSuite {
     }
 
 	void test_tag(void) {
-		tagd::tag dog("dog", "animal");
+		tagd::abstract_tag dog = make_test_tag("dog", "animal");
 		TS_ASSERT( dog.id() == "dog" )
-		TS_ASSERT( dog.sub_relator() == HARD_TAG_IS_A )
+		TS_ASSERT( dog.sub_relator() == TEST_TAG_IS_A )
 		TS_ASSERT( dog.super_object() == "animal" )
 		TS_ASSERT( dog.pos() == tagd::POS_TAG )
 	}
 	
 	void test_sub_relator(void) {
-		tagd::tag dog("perro", "es_un", "animal");
+		tagd::abstract_tag dog = make_test_tag("perro", "es_un", "animal");
 		TS_ASSERT( dog.id() == "perro" )
 		TS_ASSERT( dog.sub_relator() == "es_un" )
 		TS_ASSERT( dog.super_object() == "animal" )
@@ -833,7 +859,7 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_tag_clear(void) {
-		tagd::tag dog("dog", "animal");
+		tagd::abstract_tag dog = make_test_tag("dog", "animal");
 		TS_ASSERT_EQUALS(dog.relation("has", "teeth"), tagd::TAGD_OK)
 		TS_ASSERT( dog.id() == "dog" )
 		TS_ASSERT( dog.super_object() == "animal" )
@@ -849,16 +875,16 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_tag_eq(void) {
-		tagd::tag a("dog", "is_a", "animal");
-		tagd::tag b("dog", "is_a", "mammal");
+		tagd::abstract_tag a = make_test_tag("dog", "is_a", "animal");
+		tagd::abstract_tag b = make_test_tag("dog", "is_a", "mammal");
 
 		TS_ASSERT( a.id() == b.id() )
 		TS_ASSERT( a != b )
 
-		tagd::tag same_identity_as_b("dog", "is_a", "mammal");
+		tagd::abstract_tag same_identity_as_b = make_test_tag("dog", "is_a", "mammal");
 		TS_ASSERT( same_identity_as_b == b );
 
-		tagd::tag alt_sub_relator("dog", "es_un", "mammal");
+		tagd::abstract_tag alt_sub_relator = make_test_tag("dog", "es_un", "mammal");
 		TS_ASSERT( alt_sub_relator != b );
 
         TS_ASSERT_EQUALS(b.relation("has", "legs"), tagd::TAGD_OK)
@@ -904,10 +930,10 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_tag_ordering_diverges_from_deep_equality(void) {
-		tagd::tag lhs("dog", "is_a", "animal");
+		tagd::abstract_tag lhs = make_test_tag("dog", "is_a", "animal");
 		TS_ASSERT_EQUALS(lhs.relation("has", "tail"), tagd::TAGD_OK)
 
-		tagd::tag rhs("dog", "is_a", "mammal");
+		tagd::abstract_tag rhs = make_test_tag("dog", "is_a", "mammal");
 		TS_ASSERT_EQUALS(rhs.relation("has", "teeth"), tagd::TAGD_OK)
 
 		TS_ASSERT(!(lhs < rhs));
@@ -918,10 +944,10 @@ class Tester : public CxxTest::TestSuite {
 	void test_tag_set_uses_identity_ordering_not_deep_equality(void) {
 		tagd::tag_set tags;
 
-		tagd::tag lhs("dog", "is_a", "animal");
+		tagd::abstract_tag lhs = make_test_tag("dog", "is_a", "animal");
 		TS_ASSERT_EQUALS(lhs.relation("has", "tail"), tagd::TAGD_OK)
 
-		tagd::tag rhs("dog", "is_a", "mammal");
+		tagd::abstract_tag rhs = make_test_tag("dog", "is_a", "mammal");
 		TS_ASSERT_EQUALS(rhs.relation("has", "teeth"), tagd::TAGD_OK)
 
 		auto first = tags.insert(lhs);
@@ -951,7 +977,7 @@ class Tester : public CxxTest::TestSuite {
 	}
 
     void test_relation(void) {
-		tagd::tag dog("dog", "animal");
+		tagd::abstract_tag dog = make_test_tag("dog", "animal");
         TS_ASSERT_EQUALS(dog.relation("has","teeth"), tagd::TAGD_OK)
         TS_ASSERT_EQUALS(dog.relation("has","legs","4"), tagd::TAGD_OK)
 		TS_ASSERT( dog.id() == "dog" )
@@ -959,7 +985,7 @@ class Tester : public CxxTest::TestSuite {
 	}
 
     void test_related(void) {
-		tagd::tag dog("dog", "animal");
+		tagd::abstract_tag dog = make_test_tag("dog", "animal");
         TS_ASSERT_EQUALS( dog.relation("has","teeth"), tagd::TAGD_OK )
         TS_ASSERT_EQUALS( dog.relation("has","legs", "4"), tagd::TAGD_OK )
 		TS_ASSERT( dog.related("has", "teeth")  )
@@ -988,13 +1014,13 @@ class Tester : public CxxTest::TestSuite {
 	}
 
     void test_insert_relation(void) {
-        tagd::tag fish("fish", "animal");
+        tagd::abstract_tag fish = make_test_tag("fish", "animal");
         TS_ASSERT_EQUALS(fish.relation(tagd::predicate("has", "fins")), tagd::TAGD_OK)
 		TS_ASSERT( fish.related("has", "fins") )
     }
 
     void test_insert_predicate_set(void) {
-        tagd::tag fish("fish");
+        tagd::abstract_tag fish = make_test_tag("fish");
         tagd::predicate_set P;
         tagd::predicate_pair pr;
         pr = P.insert(tagd::predicate("has", "fins"));
@@ -1037,7 +1063,7 @@ class Tester : public CxxTest::TestSuite {
     }
 
     void test_tag_copy(void) {
-        tagd::tag fish("fish", "is_a", "animal");
+        tagd::abstract_tag fish = make_test_tag("fish", "is_a", "animal");
         TS_ASSERT_EQUALS(fish.relation(tagd::predicate("has", "fins")), tagd::TAGD_OK)
 
         tagd::abstract_tag a(fish);
@@ -1055,10 +1081,10 @@ class Tester : public CxxTest::TestSuite {
     }
 
 	void test_tag_move_constructor_contract(void) {
-		tagd::tag fish("fish", "is_a", "animal");
+		tagd::abstract_tag fish = make_test_tag("fish", "is_a", "animal");
 		TS_ASSERT_EQUALS(fish.relation(tagd::predicate("has", "fins")), tagd::TAGD_OK)
 
-		tagd::tag moved(std::move(fish));
+		tagd::abstract_tag moved(std::move(fish));
 
 		TS_ASSERT_EQUALS( moved.id(), "fish" );
 		TS_ASSERT_EQUALS( moved.sub_relator(), "is_a" );
@@ -1068,10 +1094,10 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_tag_move_assignment_contract(void) {
-		tagd::tag fish("fish", "is_a", "animal");
+		tagd::abstract_tag fish = make_test_tag("fish", "is_a", "animal");
 		TS_ASSERT_EQUALS(fish.relation(tagd::predicate("has", "fins")), tagd::TAGD_OK)
 
-		tagd::tag moved_to("bird", "is_a", "animal");
+		tagd::abstract_tag moved_to = make_test_tag("bird", "is_a", "animal");
 		moved_to = std::move(fish);
 
 		TS_ASSERT_EQUALS( moved_to.id(), "fish" );
@@ -1082,28 +1108,28 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_tag_member_swap_contract(void) {
-		tagd::tag lhs("dog", "is_a", "animal");
-		tagd::tag rhs("cat", "is_a", "mammal");
+		tagd::abstract_tag lhs = make_test_tag("dog", "is_a", "animal");
+		tagd::abstract_tag rhs = make_test_tag("cat", "is_a", "mammal");
 
 		TS_ASSERT(has_member_swap_v<tagd::abstract_tag>)
 	}
 
 	void test_tag_adl_swap_contract(void) {
-		tagd::tag lhs("dog", "is_a", "animal");
-		tagd::tag rhs("cat", "is_a", "mammal");
+		tagd::abstract_tag lhs = make_test_tag("dog", "is_a", "animal");
+		tagd::abstract_tag rhs = make_test_tag("cat", "is_a", "mammal");
 
 		TS_ASSERT(has_nothrow_adl_swap_v<tagd::abstract_tag>)
 	}
 
     void test_relator(void) {
-		tagd::relator r1("has");
+		tagd::abstract_tag r1 = make_test_relator("has");
 		TS_ASSERT( r1.id() == "has" )
 		TS_ASSERT( r1.id() == "has" )
-		TS_ASSERT( r1.sub_relator() == HARD_TAG_TYPE_OF )
+		TS_ASSERT( r1.sub_relator() == HARD_TAG_SUB )
 		TS_ASSERT( r1.super_object() == "_rel" )
 		TS_ASSERT( r1.pos() == tagd::POS_RELATOR )
 
-		tagd::relator r2("can", "verb");
+		tagd::abstract_tag r2 = make_test_relator("can", "verb");
 		TS_ASSERT( r2.id() == "can" )
 		TS_ASSERT( r2.super_object() == "verb" )
 		TS_ASSERT( r2.pos() == tagd::POS_RELATOR )
@@ -1181,7 +1207,7 @@ class Tester : public CxxTest::TestSuite {
 
 		tagd::interrogator b("what", "mammal");
 		TS_ASSERT( b.id() == "what" )
-		TS_ASSERT( b.sub_relator() == HARD_TAG_TYPE_OF )
+		TS_ASSERT( b.sub_relator() == HARD_TAG_SUB )
 		TS_ASSERT( b.super_object() == "mammal" )
 		TS_ASSERT( b.pos() == tagd::POS_INTERROGATOR )
 
@@ -1195,13 +1221,13 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_referent(void) {
-		tagd::referent a("is_a", "_is_a", "simple_english");
+		tagd::referent a("is_a", "is_a", "simple_english");
 		TS_ASSERT_EQUALS( a.refers() , "is_a" )
 		TS_ASSERT_EQUALS( a.sub_relator() , HARD_TAG_REFERS_TO )
-		TS_ASSERT_EQUALS( a.refers_to() , "_is_a" )
+		TS_ASSERT_EQUALS( a.refers_to() , "is_a" )
 		TS_ASSERT( a.pos() == tagd::POS_REFERENT )
 		TS_ASSERT_EQUALS( a.context(), "simple_english" )
-
+		
 		tagd::referent b("perro", "dog", "spanish");
 		TS_ASSERT_EQUALS( b.refers() , "perro" )
 		TS_ASSERT_EQUALS( a.sub_relator() , HARD_TAG_REFERS_TO )
@@ -1423,7 +1449,7 @@ class Tester : public CxxTest::TestSuite {
     }
 
     void test_modifier_comma_quotes(void) {
-		tagd::tag t("table");
+		tagd::abstract_tag t = make_test_tag("table");
 		TS_ASSERT_EQUALS(t.relation("has", "idlist", "47,72,43"), tagd::TAGD_OK)
 		std::stringstream ss;
 		ss << t;
@@ -1432,7 +1458,7 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_modifier_esc_quotes(void) {
-		tagd::tag t("my_message");
+		tagd::abstract_tag t = make_test_tag("my_message");
 		TS_ASSERT_EQUALS(t.relation("has", "message", "quoted \"string\" hey\" yo \\ "), tagd::TAGD_OK)
 		std::stringstream ss;
 		ss << t;

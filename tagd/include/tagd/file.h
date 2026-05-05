@@ -10,7 +10,7 @@ class file {
 	// file:///path/to/file.ext
 	public:
 		//file(const std::string& path) :
-		//	abstract_tag(path, HARD_TAG_IS_A, HARD_TAG_FILE, POS_FILE) {}
+		//	abstract_tag(path, HARD_TAG_SUB, HARD_TAG_FILE, POS_FILE) {}
 
 		// file exension position in path
 		static size_t ext_pos(const std::string& path);

@@ -46,15 +46,6 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT(t.rank().empty());
  
 		t.clear();
-		id = HARD_TAG_IS_A;
-		tc = tagdb::hard_tag::get(t, id);
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT_EQUALS(t.id(), HARD_TAG_IS_A);
-		TS_ASSERT_EQUALS(t.sub_relator(), HARD_TAG_SUB);
-		TS_ASSERT_EQUALS(t.super_object(), HARD_TAG_SUB);
-		TS_ASSERT_EQUALS(t.rank().dotted_str(), "1.1");
-
-		t.clear();
 		id = HARD_TAG_HAS;
 		tc = tagdb::hard_tag::get(t, id);
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
@@ -150,7 +141,7 @@ class Tester : public CxxTest::TestSuite {
 
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-        tagd::tag t;
+        tagd::abstract_tag t;
         tc = tdb.get(t, HARD_TAG_ENTITY, nullptr);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
         TS_ASSERT_EQUALS(t.id(), HARD_TAG_ENTITY);
@@ -158,17 +149,18 @@ class Tester : public CxxTest::TestSuite {
     }
 
 	void test_put_emits_consumable_tagdb_event(void) {
+		tagdb_type tdb;
+		TS_ASSERT_EQUALS(tdb.init(db_fname), tagd::TAGD_OK)
+		define_test_sub_relators(tdb);
+
 		std::stringstream log_ss;
 		tagd::logger log(log_ss);
 		log.level(tagd::log_level::EMERGENCY);
 		log.level(HARD_TAG_ROLE_TAGDB, tagd::log_level::NOTICE);
 		TAGDB_SET_LOGGER(&log);
 
-		tagdb_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(db_fname), tagd::TAGD_OK)
-
 		tagdb::session ssn = tdb.get_session();
-		tagd::tag t("physical_object", HARD_TAG_ENTITY);
+		tagd::abstract_tag t = test_tag("physical_object", HARD_TAG_ENTITY);
 
 		TS_ASSERT_EQUALS(tdb.put(t, &ssn), tagd::TAGD_OK)
 
@@ -191,12 +183,13 @@ class Tester : public CxxTest::TestSuite {
     void test_put_get_rank(void) {
         tagdb_type tdb;
         TS_ASSERT_TAGD_OK(tdb.init(db_fname));
+        define_test_sub_relators(tdb);
 
-        tagd::tag a("physical_object", HARD_TAG_ENTITY);
+        tagd::abstract_tag a = test_tag("physical_object", HARD_TAG_ENTITY);
         tagd::code tc = tdb.put(a, nullptr);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-        tagd::tag b;
+        tagd::abstract_tag b;
         tc = tdb.get(b, "physical_object", nullptr);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
         TS_ASSERT_EQUALS(b.id(), "physical_object");
@@ -206,7 +199,7 @@ class Tester : public CxxTest::TestSuite {
 		// living_thing will be first child
 		r_dotted.append(".1");
 
-        tagd::tag c("living_thing", "physical_object");
+        tagd::abstract_tag c = test_tag("living_thing", "physical_object");
         tc = tdb.put(c, nullptr); // rank not updated
         TS_ASSERT_EQUALS(tc, tagd::TAGD_OK);
 
@@ -219,7 +212,7 @@ class Tester : public CxxTest::TestSuite {
 	void test_put_id_equals_super_object(void) {
         TDB_CONS_INIT();
 
-        tagd::tag a("dog", "dog");
+        tagd::abstract_tag a = test_tag("dog", "dog");
 		tagd::code tc = tdb.put(a, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tdb.code()), "TAGD_OK");   // system error
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_MISUSE");         // user error
@@ -229,7 +222,7 @@ class Tester : public CxxTest::TestSuite {
     void test_get(void) {
         TDB_CONS_INIT();
 
-		tagd::tag dog("dog", "mammal");
+		tagd::abstract_tag dog = test_tag("dog", "mammal");
 		TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "legs", "4"))
 		TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "tail"))
 		TS_ASSERT_TAGD_OK(dog.relation("can", "bark"))
@@ -296,7 +289,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tdb.code()), "TAGD_OK");
 
-		tagd::tag photography("photography", "visual_art");
+		tagd::abstract_tag photography = test_tag("photography", "visual_art");
 		TS_ASSERT_TAGD_OK(tdb.put(photography, &ssn));
 
 		// same thing cannot refer to different tag in same context
@@ -325,21 +318,21 @@ class Tester : public CxxTest::TestSuite {
 	void test_delete_tag(void) {
         TDB_CONS_INIT();
 
-        tagd::tag a;
+        tagd::abstract_tag a;
         tagd::code tc = tdb.get(a, "dog", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-        tagd::tag b("dog");
+        tagd::abstract_tag b = test_tag("dog");
         tc = tdb.del(b, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-        tagd::tag c;
+        tagd::abstract_tag c;
         tc = tdb.get(c, "dog", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
 		ssn.clear_errors();
 
 		// delete tag that is a super_object and relations.object
-		tc = tdb.del(tagd::tag("teeth"), &ssn);
+		tc = tdb.del(test_tag("teeth"), &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_RELATION_DEPENDENCY");
 		TS_ASSERT_EQUALS(ssn.errors().size() , 2);
 		auto errs = ssn.errors();
@@ -352,16 +345,16 @@ class Tester : public CxxTest::TestSuite {
 		ssn.clear_errors();
 
 		// delete failed, so tag still exists
-		tagd::tag d;
+		tagd::abstract_tag d;
 		tc = tdb.get(d, "teeth", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
 		// delete tag that is a super_object and has relations
-		tc = tdb.del(tagd::tag("mammal"), &ssn);
+		tc = tdb.del(test_tag("mammal"), &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_RELATION_DEPENDENCY");
 
 		// delete failed, so tag and relations still exists
-		tagd::tag e;
+		tagd::abstract_tag e;
 		tc = tdb.get(e, "mammal", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS(e.super_object() , "vertibrate");
@@ -369,7 +362,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT(e.related(HARD_TAG_HAS, "teeth"));
 
 		// delete non-existing tag
-		tagd::tag noexists("haha");
+		tagd::abstract_tag noexists = test_tag("haha");
 		ssn.clear_errors();
         tc = tdb.del(noexists, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
@@ -388,18 +381,18 @@ class Tester : public CxxTest::TestSuite {
 	void test_delete_relations(void) {
         TDB_CONS_INIT();
 
-        tagd::tag a;
+        tagd::abstract_tag a;
         tagd::code tc = tdb.get(a, "dog", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-        tagd::tag b("dog");
+        tagd::abstract_tag b = test_tag("dog");
 		TS_ASSERT_TAGD_OK(b.relation(HARD_TAG_HAS, "tail"))
 		TS_ASSERT_TAGD_OK(b.relation("can", "bark"))
         tc = tdb.del(b, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		tdb.clear_errors();
 
-        tagd::tag c;
+        tagd::abstract_tag c;
         tc = tdb.get(c, "dog", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT(c.related(HARD_TAG_HAS, "legs", "4"));
@@ -407,7 +400,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT(!c.related("can", "bark"));
 
 		// delete relation it doesn't have
-		tagd::tag d("dog");
+		tagd::abstract_tag d = test_tag("dog");
 		TS_ASSERT_TAGD_OK(d.relation("can", "meow"))
         tc = tdb.del(d, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
@@ -415,7 +408,7 @@ class Tester : public CxxTest::TestSuite {
 		tdb.clear_errors();
 
 		// delete unknown tag
-		tagd::tag e("snarf");
+		tagd::abstract_tag e = test_tag("snarf");
         tc = tdb.del(e, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_NOT_FOUND");
     }
@@ -427,7 +420,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_TAGD_OK(tdb.put(thing, &ssn));
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tdb.code()), "TAGD_OK");
 
-		tagd::tag t;
+		tagd::abstract_tag t;
 		tagd::code tc;
 		tc = tdb.get(t, "thing", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_AMBIGUOUS");
@@ -489,7 +482,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_TAGD_OK(tdb.put(thing2, &ssn));
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tdb.code()), "TAGD_OK");
 
-		tagd::tag t;
+		tagd::abstract_tag t;
 		auto tc = tdb.get(t, "thing", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_AMBIGUOUS");
 
@@ -506,21 +499,21 @@ class Tester : public CxxTest::TestSuite {
         TDB_CONS_INIT();
 
 		tagd::code tc;
-		tagd::tag prg("cat_program", "program");
+		tagd::abstract_tag prg = test_tag("cat_program", "program");
 		TS_ASSERT_TAGD_OK(tdb.put(prg, &ssn));
 
         tagd::referent cat("cat", "cat_program", "computer");
 		tc = tdb.put(cat, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tdb.code()), "TAGD_OK");
 
-		tagd::tag t1;
+		tagd::abstract_tag t1;
 		tc = tdb.get(t1, "cat", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
         TS_ASSERT_EQUALS(t1.id(), "cat");
         TS_ASSERT_EQUALS(t1.super_object(), "mammal");
 
 		TS_ASSERT_TAGD_OK(ssn.push_context("computer"));
-		tagd::tag t2;
+		tagd::abstract_tag t2;
 		tc = tdb.get(t2, "cat", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
         TS_ASSERT_EQUALS(t2.id(), "cat");
@@ -529,7 +522,7 @@ class Tester : public CxxTest::TestSuite {
 
 		// ssn.push_context("animal"); // this might be intuitive but contexts only decode referents
 		ssn.pop_context();
-		tagd::tag t3;
+		tagd::abstract_tag t3;
 		tc = tdb.get(t3, "cat", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
         TS_ASSERT_EQUALS(t3.id(), "cat");
@@ -647,16 +640,16 @@ class Tester : public CxxTest::TestSuite {
     void test_insert_referent_relations(void) {
         TDB_CONS_INIT();
 
-		TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("bite", "action"), &ssn));
+		TS_ASSERT_TAGD_OK(tdb.put(test_tag("bite", "action"), &ssn));
 		TS_ASSERT_TAGD_OK(ssn.push_context("simple_english"));
-        tagd::tag a("dog");
+        tagd::abstract_tag a = test_tag("dog");
 		// has _refers_to _has _context simple_english
         TS_ASSERT_TAGD_OK(a.relation("has", "teeth"));  // new relations
         TS_ASSERT_TAGD_OK(a.relation("can", "bite"))
         tagd::code rc = tdb.put(a, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(rc), "TAGD_OK");
 
-		tagd::tag b;
+		tagd::abstract_tag b;
 		rc = tdb.get(b, "dog", &ssn);
 		TS_ASSERT(b.related("has", "legs", "4"))  // has _refers_to _has _context simple_english
 		TS_ASSERT(b.related("has", "tail"));
@@ -664,7 +657,7 @@ class Tester : public CxxTest::TestSuite {
 		ssn.pop_context();
 
 		// Universal context
-		tagd::tag c;
+		tagd::abstract_tag c;
 		rc = tdb.get(c, "dog", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(rc), "TAGD_OK");
 		TS_ASSERT(!c.related("has", "legs", "4"));
@@ -673,7 +666,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT(c.related(HARD_TAG_HAS, "tail"));
 		TS_ASSERT(c.related("can", "bite"));
 
-		tagd::tag penguin("penguin", "bird");
+		tagd::abstract_tag penguin = test_tag("penguin", "bird");
 		TS_ASSERT_TAGD_OK(penguin.relation("can", "swim"))
 		rc = tdb.put(penguin, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(rc), "TAGD_OK");
@@ -703,19 +696,19 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT(!r.related("has", "wings"));
 		TS_ASSERT(!r.related("has", "flippers"));
 
-		tagd::tag t1;
+		tagd::abstract_tag t1;
 		rc = tdb.get(t1, "bird", &ssn);  // context: simple_english, penguin
 		TS_ASSERT_EQUALS(t1.id(), "bird");
 		TS_ASSERT(t1.related("has", "flippers"));
 
 		ssn.pop_context(); // context: simple_english
-		tagd::tag t2;
+		tagd::abstract_tag t2;
 		rc = tdb.get(t2, "bird", &ssn);
 		TS_ASSERT_EQUALS(t2.id(), "bird");
 		TS_ASSERT(t2.related("has", "wings"));
 
 		ssn.pop_context(); // context: <empty>
-		tagd::tag t3;
+		tagd::abstract_tag t3;
 		rc = tdb.get(t3, "bird", &ssn);
 		TS_ASSERT_EQUALS(t3.id(), "bird");
 		TS_ASSERT(t3.related(HARD_TAG_HAS, "wings"));
@@ -735,7 +728,7 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("thing", "concept", "knowledge"), &ssn));
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
 
-		tagd::tag t1;
+		tagd::abstract_tag t1;
 		TS_ASSERT_TAGD_OK(ssn.push_context("simple_english"));
 		TS_ASSERT_EQUALS(ssn.context().size() , 1);
 		if (ssn.context().size() > 0)
@@ -747,28 +740,28 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT(t1.related(HARD_TAG_REFERS_TO, "physical_object"));
 
 		TS_ASSERT_TAGD_OK(ssn.push_context("living_thing"));
-		tagd::tag t2;
+		tagd::abstract_tag t2;
 		TS_ASSERT_TAGD_OK(tdb.get(t2, "thing", &ssn));
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
         TS_ASSERT_EQUALS(t2.id(), "thing");
         TS_ASSERT(t2.related(HARD_TAG_REFERS_TO, "animal"));
 
 		TS_ASSERT_TAGD_OK(ssn.push_context("mind"));  // knowledge is_a mind
-		tagd::tag t3;
+		tagd::abstract_tag t3;
 		TS_ASSERT_TAGD_OK(tdb.get(t3, "thing", &ssn));
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
         TS_ASSERT_EQUALS(t3.id(), "thing");
         TS_ASSERT(t3.related(HARD_TAG_REFERS_TO, "concept"));
 
 		ssn.pop_context();
-		tagd::tag t4;
+		tagd::abstract_tag t4;
 		TS_ASSERT_TAGD_OK(tdb.get(t4, "thing", &ssn));
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
         TS_ASSERT_EQUALS(t4.id(), "thing");
         TS_ASSERT(t4.related(HARD_TAG_REFERS_TO, "animal"));
 
 		ssn.clear_context();
-		tagd::tag t5;
+		tagd::abstract_tag t5;
 		auto tc = tdb.get(t5, "thing", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_AMBIGUOUS");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TS_AMBIGUOUS");
@@ -779,7 +772,7 @@ class Tester : public CxxTest::TestSuite {
     void test_utf8_japanese_referent(void) {
         TDB_CONS_INIT();
 
-		tagd::tag japanese("japanese", "language");
+		tagd::abstract_tag japanese = test_tag("japanese", "language");
 		TS_ASSERT_TAGD_OK(tdb.put(japanese, &ssn));
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
 
@@ -787,12 +780,12 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT_TAGD_OK(tdb.put(jp_dog, &ssn));
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
 
-		tagd::tag d;
+		tagd::abstract_tag d;
 		auto tc = tdb.get(d, "イヌ", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_AMBIGUOUS");
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TS_AMBIGUOUS");
 
-		tagd::tag t;
+		tagd::abstract_tag t;
 		TS_ASSERT_TAGD_OK(ssn.push_context("japanese"));
 		TS_ASSERT_TAGD_OK(tdb.get(t, "イヌ", &ssn));
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
@@ -975,7 +968,7 @@ class Tester : public CxxTest::TestSuite {
 		// no cons for empty context
 		// 	tc = tdb.del(tagd::referent("thing"), &ssn);
 		// using POS_TAG object
-		tc = tdb.del(tagd::tag("thing"), &ssn);
+		tc = tdb.del(test_tag("thing"), &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_AMBIGUOUS");
 
 		// test referent gets wiped out
@@ -1007,14 +1000,11 @@ class Tester : public CxxTest::TestSuite {
 		pos = tdb.pos(HARD_TAG_HAS, &ssn);
         TS_ASSERT_EQUALS(pos_str(pos), "POS_RELATOR");
 
-		pos = tdb.pos(HARD_TAG_IS_A, &ssn);
-        TS_ASSERT_EQUALS(pos_str(pos), "POS_SUB_RELATOR");
-
 		pos = tdb.pos("has", &ssn);  // referent relator, no context
         TS_ASSERT_EQUALS(pos_str(pos), "POS_UNKNOWN");
 
-		pos = tdb.pos("is_a", &ssn);  // referent relator, no context
-        TS_ASSERT_EQUALS(pos_str(pos), "POS_UNKNOWN");
+		pos = tdb.pos("is_a", &ssn);  // user-defined sub relator
+        TS_ASSERT_EQUALS(pos_str(pos), "POS_SUB_RELATOR");
 
 		TS_ASSERT_TAGD_OK(ssn.push_context("simple_english"));
 
@@ -1045,28 +1035,28 @@ class Tester : public CxxTest::TestSuite {
     void test_insert_relations(void) {
         TDB_CONS_INIT();
 
-        tagd::tag a("dog", "mammal");  // existing
+        tagd::abstract_tag a = test_tag("dog", "mammal");  // existing
         TS_ASSERT_TAGD_OK(a.relation(HARD_TAG_HAS, "teeth"))
         TS_ASSERT_TAGD_OK(a.relation(HARD_TAG_HAS, "tail"))
         TS_ASSERT_TAGD_OK(a.relation(HARD_TAG_HAS, "legs", "4"))
         tagd::code tc = tdb.put(a, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-        tagd::tag b("robin", "bird");  // non-existing
+        tagd::abstract_tag b = test_tag("robin", "bird");  // non-existing
         TS_ASSERT_TAGD_OK(b.relation(HARD_TAG_HAS, "beak"))
         TS_ASSERT_TAGD_OK(b.relation(HARD_TAG_HAS, "wings"))
         TS_ASSERT_TAGD_OK(b.relation(HARD_TAG_HAS, "feathers"))
         tc = tdb.put(b, &ssn);
         TS_ASSERT_EQUALS(tc, tagd::TAGD_OK);
 
-		TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("bite", "action"), &ssn));
+		TS_ASSERT_TAGD_OK(tdb.put(test_tag("bite", "action"), &ssn));
         // already existing, only put relations
-        tagd::tag c("dog");
+        tagd::abstract_tag c = test_tag("dog");
         TS_ASSERT_TAGD_OK(c.relation("can", "bite"))
         tc = tdb.put(c, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-		tagd::tag d;
+		tagd::abstract_tag d;
 		tc = tdb.get(d, "dog", &ssn);
 		TS_ASSERT(d.related(HARD_TAG_HAS, "legs", "4"));
 		TS_ASSERT(d.related(HARD_TAG_HAS, "tail"));
@@ -1076,7 +1066,7 @@ class Tester : public CxxTest::TestSuite {
     void test_duplicate(void) {
         TDB_CONS_INIT();
 
-        tagd::tag dog("dog", "mammal");
+        tagd::abstract_tag dog = test_tag("dog", "mammal");
         tagd::code tc = tdb.put(dog, &ssn); // duplicate tag, no relations
         TS_ASSERT_EQUALS(tc, tagd::TS_DUPLICATE);
 
@@ -1087,16 +1077,16 @@ class Tester : public CxxTest::TestSuite {
         tc = tdb.put(dog, &ssn); // tag duplicate, relations duplicate
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_DUPLICATE");
 
-		TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("bite", "action"), &ssn));
+		TS_ASSERT_TAGD_OK(tdb.put(test_tag("bite", "action"), &ssn));
         TS_ASSERT_TAGD_OK(dog.relation("can", "bite"))
         tc = tdb.put(dog, &ssn); // one duplicate (has tail), one insert (can bite)
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-		TS_ASSERT_TAGD_OK(tdb.put(tagd::relator("wags", "movement"), &ssn));
+		TS_ASSERT_TAGD_OK(tdb.put(test_relator("wags", "movement"), &ssn));
 		TS_ASSERT_TAGD_OK(dog.relation("wags", "tail"))
         tc = tdb.put(dog, &ssn); // relator makes unique
 
-        tagd::tag a("dog");
+        tagd::abstract_tag a = test_tag("dog");
         TS_ASSERT_TAGD_OK(a.relation(HARD_TAG_HAS, "tail"))
         tc = tdb.put(a, &ssn);  // existing tag, empty sub, existing relation
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_DUPLICATE");
@@ -1109,11 +1099,11 @@ class Tester : public CxxTest::TestSuite {
 	void test_ignore_duplicate_rank(void) {
         TDB_CONS_INIT();
 
-		tagd::tag dolphin("dolphin", "mammal");
+		tagd::abstract_tag dolphin = test_tag("dolphin", "mammal");
         tagd::code tc = tdb.put(dolphin, &ssn, tagdb::F_IGNORE_DUPLICATES); // new tag, no relations
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-		tagd::tag t1;
+		tagd::abstract_tag t1;
 		tc = tdb.get(t1, "dolphin", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		tagd::rank r1 = t1.rank();
@@ -1121,7 +1111,7 @@ class Tester : public CxxTest::TestSuite {
         tc = tdb.put(dolphin, &ssn, tagdb::F_IGNORE_DUPLICATES); // duplicate not inserted
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-		tagd::tag t2;
+		tagd::abstract_tag t2;
 		tc = tdb.get(t2, "dolphin", &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		tagd::rank r2 = t2.rank();
@@ -1132,7 +1122,7 @@ class Tester : public CxxTest::TestSuite {
     void test_ignore_duplicate(void) {
         TDB_CONS_INIT();
 
-        tagd::tag dog("dog", "mammal");
+        tagd::abstract_tag dog = test_tag("dog", "mammal");
         tagd::code tc = tdb.put(dog, &ssn, tagdb::F_IGNORE_DUPLICATES); // duplicate tag, no relations
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
@@ -1143,16 +1133,16 @@ class Tester : public CxxTest::TestSuite {
         tc = tdb.put(dog, &ssn, tagdb::F_IGNORE_DUPLICATES); // tag duplicate, relations duplicate
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-		TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("bite", "action"), &ssn));
+		TS_ASSERT_TAGD_OK(tdb.put(test_tag("bite", "action"), &ssn));
         TS_ASSERT_TAGD_OK(dog.relation("can", "bite"))
         tc = tdb.put(dog, &ssn, tagdb::F_IGNORE_DUPLICATES); // one duplicate (has tail), one insert (can bite)
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-		TS_ASSERT_TAGD_OK(tdb.put(tagd::relator("wags", "movement"), &ssn));
+		TS_ASSERT_TAGD_OK(tdb.put(test_relator("wags", "movement"), &ssn));
 		TS_ASSERT_TAGD_OK(dog.relation("wags", "tail"))
         tc = tdb.put(dog, &ssn, tagdb::F_IGNORE_DUPLICATES); // relator makes unique
 
-        tagd::tag a("dog");
+        tagd::abstract_tag a = test_tag("dog");
         TS_ASSERT_TAGD_OK(a.relation(HARD_TAG_HAS, "tail"))
         tc = tdb.put(a, &ssn, tagdb::F_IGNORE_DUPLICATES);  // existing tag, empty sub, existing relation
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
@@ -1165,15 +1155,15 @@ class Tester : public CxxTest::TestSuite {
     void test_move(void) {
         TDB_CONS_INIT();
 
-        tagd::tag a("sea_creature", "living_thing");
+        tagd::abstract_tag a = test_tag("sea_creature", "living_thing");
         tagd::code tc = tdb.put(a, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-        tagd::tag b("fish", "insect");
+        tagd::abstract_tag b = test_tag("fish", "insect");
         tc = tdb.put(b, &ssn);  // oops
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-		b = tagd::tag("fish", "sea_creature");
+		b = test_tag("fish", "sea_creature");
 	        tc = tdb.put(b, &ssn);  // move
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		size_t sz = a.rank().dotted_str().size();
@@ -1184,17 +1174,18 @@ class Tester : public CxxTest::TestSuite {
     void test_move_entity(void) {
         tagdb_type tdb;
         TS_ASSERT_TAGD_OK(tdb.init(db_fname));
+		define_test_sub_relators(tdb);
 		tagdb::session ssn = tdb.get_session();
 
-        tagd::tag a("animal", HARD_TAG_ENTITY);
+        tagd::abstract_tag a = test_tag("animal", HARD_TAG_ENTITY);
         tagd::code tc = tdb.put(a, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-        tagd::tag b("dog", HARD_TAG_ENTITY);
+        tagd::abstract_tag b = test_tag("dog", HARD_TAG_ENTITY);
         tc = tdb.put(b, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-        tagd::tag c("dog", "animal");
+        tagd::abstract_tag c = test_tag("dog", "animal");
         tc = tdb.put(c, &ssn);  // move
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		size_t sz = a.rank().dotted_str().size();
@@ -1205,11 +1196,11 @@ class Tester : public CxxTest::TestSuite {
     void test_undef_tag_refs(void) {
         TDB_CONS_INIT();
 
-        tagd::tag dog("dog", "nosuchthing");
+        tagd::abstract_tag dog = test_tag("dog", "nosuchthing");
         tagd::code tc = tdb.put(dog, &ssn);
         TS_ASSERT_EQUALS(tc, tagd::TS_SUB_UNK);
 
-	        dog = tagd::tag("dog", "mammal");
+	        dog = test_tag("dog", "mammal");
 	        TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "tailandwings"))
         tc = tdb.put(dog, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_OBJECT_UNK");
@@ -1219,7 +1210,7 @@ class Tester : public CxxTest::TestSuite {
         tc = tdb.put(dog, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_RELATOR_UNK");
 
-        tagd::tag a("dog");  // existing no sub, no relations
+        tagd::abstract_tag a = test_tag("dog");  // existing no sub, no relations
         tc = tdb.put(a, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_MISUSE");
     }
@@ -1228,7 +1219,7 @@ class Tester : public CxxTest::TestSuite {
         TDB_CONS_INIT();
 
 		tagd::code tc;
-		tagd::tag t;
+		tagd::abstract_tag t;
 
         tagd::tag_set S;
         tc = tdb_related(tdb, S, tagd::predicate(HARD_TAG_HAS, "legs")); 
@@ -1503,8 +1494,8 @@ class Tester : public CxxTest::TestSuite {
         TS_ASSERT(tag_set_exists(S, "dog"));
 
 		// test update search terms
-		TS_ASSERT_TAGD_OK(tdb.put(tagd::tag("bite", "action"), &ssn));
-        tagd::tag t("dog");
+		TS_ASSERT_TAGD_OK(tdb.put(test_tag("bite", "action"), &ssn));
+        tagd::abstract_tag t = test_tag("dog");
         TS_ASSERT_TAGD_OK(t.relation("can", "bite"))
         TS_ASSERT_TAGD_OK(tdb.put(t, &ssn));
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tdb.code()), "TAGD_OK");
@@ -1521,7 +1512,7 @@ class Tester : public CxxTest::TestSuite {
     void test_get_hard_tag(void) {
 		TDB_CONS_INIT();
 
-        tagd::tag t;
+        tagd::abstract_tag t;
         tagd::code tc = tdb.get(t, HARD_TAG_URL, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
         TS_ASSERT_EQUALS(t.id(), HARD_TAG_URL);
@@ -1530,7 +1521,7 @@ class Tester : public CxxTest::TestSuite {
     void test_put_hard_tag(void) {
 		TDB_CONS_INIT();
 
-        tagd::tag t("_haha", HARD_TAG_ENTITY);
+        tagd::abstract_tag t = test_tag("_haha", HARD_TAG_ENTITY);
         tagd::code tc = tdb.put(t, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_MISUSE");
 	}
@@ -1538,20 +1529,20 @@ class Tester : public CxxTest::TestSuite {
     void test_put_get_tag_sub_relator(void) {
 		TDB_CONS_INIT();
 
-		tagd::tag t1("husky", HARD_TAG_TYPE_OF, "dog");
+		tagd::abstract_tag t1 = test_tag("husky", TEST_TAG_TYPE_OF, "dog");
 		TS_ASSERT_TAGD_OK(tdb.put(t1, &ssn));
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tdb.code()), "TAGD_OK");
 
 		tagd::abstract_tag t2;
 		TS_ASSERT_TAGD_OK(tdb.get(t2, "husky", &ssn));
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tdb.code()), "TAGD_OK");
-		TS_ASSERT_EQUALS(t2.sub_relator() , HARD_TAG_TYPE_OF);
+		TS_ASSERT_EQUALS(t2.sub_relator() , TEST_TAG_TYPE_OF);
 	}
 
 	void test_sqlite_round_trip_preserves_identity_and_referent_transforms(void) {
 		TDB_CONS_INIT();
 
-		tagd::tag husky("husky", HARD_TAG_TYPE_OF, "dog");
+		tagd::abstract_tag husky = test_tag("husky", TEST_TAG_TYPE_OF, "dog");
 		TS_ASSERT_TAGD_OK(husky.relation(HARD_TAG_HAS, "tail"));
 		TS_ASSERT_TAGD_OK(husky.relation("can", "bark"));
 		TS_ASSERT_TAGD_OK(tdb.put(husky, &ssn));
@@ -1559,13 +1550,13 @@ class Tester : public CxxTest::TestSuite {
 		tagd::abstract_tag populated_husky;
 		TS_ASSERT_TAGD_OK(tdb.get(populated_husky, "husky", &ssn));
 		TS_ASSERT_EQUALS(populated_husky.id(), "husky");
-		TS_ASSERT_EQUALS(populated_husky.sub_relator(), HARD_TAG_TYPE_OF);
+		TS_ASSERT_EQUALS(populated_husky.sub_relator(), TEST_TAG_TYPE_OF);
 		TS_ASSERT_EQUALS(populated_husky.super_object(), "dog");
 		TS_ASSERT(!populated_husky.rank().empty());
 		TS_ASSERT(populated_husky.related(HARD_TAG_HAS, "tail"));
 		TS_ASSERT(populated_husky.related("can", "bark"));
 
-		tagd::tag collie("collie", "dog");
+		tagd::abstract_tag collie = test_tag("collie", "dog");
 		TS_ASSERT_TAGD_OK(tdb.put(collie, &ssn));
 		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("puppy", "collie", "simple_english"), &ssn));
 		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("fluff", "tail", "simple_english"), &ssn));
@@ -1573,7 +1564,7 @@ class Tester : public CxxTest::TestSuite {
 		tagdb::session english_ssn = tdb.get_session();
 		TS_ASSERT_TAGD_OK(english_ssn.push_context("simple_english"));
 
-		tagd::tag puppy("puppy", "is_a", "dog");
+		tagd::abstract_tag puppy = test_tag("puppy", "is_a", "dog");
 		TS_ASSERT_TAGD_OK(puppy.relation("has", "fluff"));
 		TS_ASSERT_TAGD_OK(puppy.relation("can", "bark"));
 		TS_ASSERT_TAGD_OK(tdb.put(puppy, &english_ssn));
@@ -1581,7 +1572,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd::abstract_tag canonical_collie;
 		TS_ASSERT_TAGD_OK(tdb.get(canonical_collie, "collie", &ssn, tagdb::F_NO_TRANSFORM_REFERENTS));
 		TS_ASSERT_EQUALS(canonical_collie.id(), "collie");
-		TS_ASSERT_EQUALS(canonical_collie.sub_relator(), HARD_TAG_IS_A);
+		TS_ASSERT_EQUALS(canonical_collie.sub_relator(), TEST_TAG_IS_A);
 		TS_ASSERT_EQUALS(canonical_collie.super_object(), "dog");
 		TS_ASSERT(!canonical_collie.rank().empty());
 		TS_ASSERT(canonical_collie.related(HARD_TAG_HAS, "tail"));
@@ -1598,10 +1589,10 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT(populated_puppy.related(HARD_TAG_REFERS_TO, "collie"));
 	}
 
-	void test_related_query_preserves_ranked_transformed_hydration(void) {
+	void test_related_query_preserves_ranked_transformed_population(void) {
 		TDB_CONS_INIT();
 
-		tagd::tag collie("collie", "dog");
+		tagd::abstract_tag collie = test_tag("collie", "dog");
 		TS_ASSERT_TAGD_OK(collie.relation(HARD_TAG_HAS, "tail"));
 		TS_ASSERT_TAGD_OK(collie.relation("can", "bark"));
 		TS_ASSERT_TAGD_OK(tdb.put(collie, &ssn));
@@ -1631,12 +1622,12 @@ class Tester : public CxxTest::TestSuite {
 		}
 	}
 
-	void test_children_query_preserves_ranked_transformed_hydration(void) {
+	void test_children_query_preserves_ranked_transformed_population(void) {
 		TDB_CONS_INIT();
 
-		tagd::tag collie("collie", "dog");
+		tagd::abstract_tag collie = test_tag("collie", "dog");
 		TS_ASSERT_TAGD_OK(tdb.put(collie, &ssn));
-		tagd::tag rough_collie("rough_collie", "collie");
+		tagd::abstract_tag rough_collie = test_tag("rough_collie", "collie");
 		TS_ASSERT_TAGD_OK(rough_collie.relation(HARD_TAG_HAS, "tail"));
 		TS_ASSERT_TAGD_OK(tdb.put(rough_collie, &ssn));
 		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("puppy", "collie", "simple_english"), &ssn));
@@ -1666,7 +1657,7 @@ class Tester : public CxxTest::TestSuite {
     void test_relations(void) {
 		TDB_CONS_INIT();
 
-        tagd::tag dog;
+        tagd::abstract_tag dog;
         TS_ASSERT_TAGD_OK(tdb.get(dog, "dog", &ssn));
         TS_ASSERT_EQUALS(dog.relations.size(), 3);
 		TS_ASSERT(dog.related(HARD_TAG_HAS, "legs", "4"));
@@ -1781,7 +1772,7 @@ class Tester : public CxxTest::TestSuite {
         tc = tdb.put(a, &ssn);
         TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
-		tagd::tag starwars("starwars", "movie");
+		tagd::abstract_tag starwars = test_tag("starwars", "movie");
 		TS_ASSERT_TAGD_OK(tdb.put(starwars, &ssn));
         tagd::url b("http://starwars.wikia.com/wiki/Dog");
         TS_ASSERT_TAGD_OK(b.relation("about", "starwars"))

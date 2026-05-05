@@ -35,50 +35,44 @@
 	}
 
 namespace TAGL {
-enum class subject_kind {
+enum class subject_type {
 	abstract_tag,
 	tag,
 	relator,
 	interrogator
 };
 
-struct subject_seed {
-	subject_kind kind;
+struct subject_type_id {
+	subject_type type;
 	text_token id;
 };
 }
 
 static tagd::abstract_tag *make_subject(
-		const TAGL::subject_seed& seed,
+		const TAGL::subject_type_id& subject,
 		const std::string& sub_relator,
 		const std::string& super_object,
 		bool has_identity) {
-	const auto id = seed.id.str();
+	const auto id = subject.id.str();
 
-	switch (seed.kind) {
-		case TAGL::subject_kind::tag:
+	switch (subject.type) {
+		case TAGL::subject_type::tag:
 			if (!has_identity)
-				return new tagd::tag(id);
-			if (sub_relator == HARD_TAG_IS_A)
-				return new tagd::tag(id, super_object);
-			return new tagd::tag(id, sub_relator, super_object);
+				return new tagd::abstract_tag(id, HARD_TAG_SUB, tagd::id_view{}, tagd::POS_TAG);
+			return new tagd::abstract_tag(id, sub_relator, super_object, tagd::POS_TAG);
 
-		case TAGL::subject_kind::relator:
+		case TAGL::subject_type::relator:
 			if (!has_identity)
 				return new tagd::relator(id);
-			if (sub_relator == HARD_TAG_TYPE_OF)
-				return new tagd::relator(id, super_object);
 			return new tagd::relator(id, sub_relator, super_object);
 
-		case TAGL::subject_kind::interrogator:
+		case TAGL::subject_type::interrogator:
 			if (!has_identity)
-				return seed.id.empty() ? static_cast<tagd::abstract_tag *>(new tagd::interrogator())
+				return subject.id.empty() ? static_cast<tagd::abstract_tag *>(new tagd::interrogator())
 									   : static_cast<tagd::abstract_tag *>(new tagd::interrogator(id));
-			if (sub_relator == HARD_TAG_TYPE_OF)
-				return new tagd::interrogator(id, super_object);
 			return new tagd::interrogator(id, sub_relator, super_object);
 
-		case TAGL::subject_kind::abstract_tag:
+		case TAGL::subject_type::abstract_tag:
 			if (!has_identity)
 				return new tagd::abstract_tag(id);
 			return new tagd::abstract_tag(id, sub_relator, super_object, tagd::POS_UNKNOWN);
@@ -88,8 +82,8 @@ static tagd::abstract_tag *make_subject(
 	return nullptr;
 }
 
-static void emit_subject(TAGL::driver *tagl, const TAGL::subject_seed& seed) {
-	const auto id = seed.id.str();
+static void emit_subject(TAGL::driver *tagl, const TAGL::subject_type_id& subject) {
+	const auto id = subject.id.str();
 	if (!tagl->constrain_tag_id.empty() && tagl->constrain_tag_id != id) {
 		tagl->ferror(tagd::TAGL_ERR, "tag id constrained as: %s", tagl->constrain_tag_id.c_str());
 		return;
@@ -97,15 +91,15 @@ static void emit_subject(TAGL::driver *tagl, const TAGL::subject_seed& seed) {
 
 	if (tagl->tag_ptr() != nullptr)
 		tagl->delete_tag();
-	tagl->tag_ptr(make_subject(seed, std::string(), std::string(), false));
+	tagl->tag_ptr(make_subject(subject, std::string(), std::string(), false));
 }
 
 static void emit_subject(
 		TAGL::driver *tagl,
-		const TAGL::subject_seed& seed,
+		const TAGL::subject_type_id& subject,
 		const TAGL::text_token& sub_relator,
 		const TAGL::text_token& super_object) {
-	const auto id = seed.id.str();
+	const auto id = subject.id.str();
 	if (!tagl->constrain_tag_id.empty() && tagl->constrain_tag_id != id) {
 		tagl->ferror(tagd::TAGL_ERR, "tag id constrained as: %s", tagl->constrain_tag_id.c_str());
 		return;
@@ -115,7 +109,7 @@ static void emit_subject(
 	// tags are emitted once, not patched after construction.
 	if (tagl->tag_ptr() != nullptr)
 		tagl->delete_tag();
-	tagl->tag_ptr(make_subject(seed, sub_relator.str(), super_object.str(), true));
+	tagl->tag_ptr(make_subject(subject, sub_relator.str(), super_object.str(), true));
 }
 
 void last_error_add_file_line_number(TAGL::driver *tagl) {
@@ -271,9 +265,9 @@ set_statement ::= CMD_SET set_include .
 %type lhs_object { TAGL::text_token }
 %type rhs_object { TAGL::text_token }
 %type quantifier { TAGL::text_token }
-%type subject_seed { TAGL::subject_seed }
-%type unknown { TAGL::subject_seed }
-%type interrogator_seed { TAGL::subject_seed }
+%type subject_type_id { TAGL::subject_type_id }
+%type unknown { TAGL::subject_type_id }
+%type interrogator_type_id { TAGL::subject_type_id }
 %type super_object_token { TAGL::text_token }
 
 set_flag ::= FLAG(F) boolean_value(b) .
@@ -422,7 +416,7 @@ tagdurl_query ::= CMD_QUERY TAGDURL(U) .
 	scan_tagdurl(tagl, U.str());
 }
 
-default_referent_query ::= interrogator_seed(i) .
+default_referent_query ::= interrogator_type_id(i) .
 {
 	emit_subject(
 		tagl,
@@ -445,32 +439,32 @@ search_query_quoted_str ::= quoted_str(s) .
 quoted_str(s) ::= QUOTED_STR(S) .
 { s = S; }
 
-interrogator_sub_relation ::= interrogator_seed(i) sub_relator_symbol(s) super_object_token(o) .
+interrogator_sub_relation ::= interrogator_type_id(i) sub_relator_symbol(s) super_object_token(o) .
 {
 	emit_subject(tagl, i, s, o);
 }
 
-explicit_referent_query ::= interrogator_seed(i) sub_relator_symbol(s) REFERENT(R) .
+explicit_referent_query ::= interrogator_type_id(i) sub_relator_symbol(s) REFERENT(R) .
 {
 	emit_subject(tagl, i, s, R);
 }
 
-interrogator_seed(i) ::= INTERROGATOR(I) .
+interrogator_type_id(i) ::= INTERROGATOR(I) .
 {
-	i = { TAGL::subject_kind::interrogator, I };
+	i = { TAGL::subject_type::interrogator, I };
 }
 
-interrogator_seed(i) ::= .
+interrogator_type_id(i) ::= .
 {
-	i = { TAGL::subject_kind::interrogator, TAGL::EMPTY_VALUE };
+	i = { TAGL::subject_type::interrogator, TAGL::EMPTY_VALUE };
 }
 
-interrogator ::= interrogator_seed(i) .
+interrogator ::= interrogator_type_id(i) .
 {
 	emit_subject(tagl, i);
 }
 
-subject_sub_relation ::= subject_seed(s) sub_relator_symbol(r) super_object_token(o) .
+subject_sub_relation ::= subject_type_id(s) sub_relator_symbol(r) super_object_token(o) .
 {
 	emit_subject(tagl, s, r, o);
 }
@@ -479,26 +473,26 @@ subject_sub_relation ::= unknown(u) sub_relator_symbol(r) super_object_token(o) 
 	emit_subject(tagl, u, r, o);
 }
 
-subject ::= subject_seed(s) .
+subject ::= subject_type_id(s) .
 {
 	emit_subject(tagl, s);
 }
 
-subject_seed(s) ::= TAG(T) .
+subject_type_id(s) ::= TAG(T) .
 {
-	s = { TAGL::subject_kind::tag, T };
+	s = { TAGL::subject_type::tag, T };
 }
-subject_seed(s) ::= SUB_RELATOR(S) .
+subject_type_id(s) ::= SUB_RELATOR(S) .
 {
-	s = { TAGL::subject_kind::tag, S };
+	s = { TAGL::subject_type::tag, S };
 }
-subject_seed(s) ::= RELATOR(R) .
+subject_type_id(s) ::= RELATOR(R) .
 {
-	s = { TAGL::subject_kind::relator, R };
+	s = { TAGL::subject_type::relator, R };
 }
-subject_seed(s) ::= INTERROGATOR(I) .
+subject_type_id(s) ::= INTERROGATOR(I) .
 {
-	s = { TAGL::subject_kind::interrogator, I };
+	s = { TAGL::subject_type::interrogator, I };
 }
 subject ::= URL(U) .
 {
@@ -524,23 +518,23 @@ subject ::= ERRURI(U) .
 }
 subject ::= REFERENT(R) .
 {
-	emit_subject(tagl, TAGL::subject_seed{TAGL::subject_kind::abstract_tag, R});
+	emit_subject(tagl, TAGL::subject_type_id{TAGL::subject_type::abstract_tag, R});
 }
 subject ::= REFERS_TO(R) .
 {
-	emit_subject(tagl, TAGL::subject_seed{TAGL::subject_kind::abstract_tag, R});
+	emit_subject(tagl, TAGL::subject_type_id{TAGL::subject_type::abstract_tag, R});
 }
 subject ::= CONTEXT(R) .
 {
-	emit_subject(tagl, TAGL::subject_seed{TAGL::subject_kind::abstract_tag, R});
+	emit_subject(tagl, TAGL::subject_type_id{TAGL::subject_type::abstract_tag, R});
 }
 subject ::= FLAG(F) .
 {
-	emit_subject(tagl, TAGL::subject_seed{TAGL::subject_kind::abstract_tag, F});
+	emit_subject(tagl, TAGL::subject_type_id{TAGL::subject_type::abstract_tag, F});
 }
 unknown(u) ::= UNKNOWN(U) .
 {
-	u = { TAGL::subject_kind::abstract_tag, U };
+	u = { TAGL::subject_type::abstract_tag, U };
 }
 
 

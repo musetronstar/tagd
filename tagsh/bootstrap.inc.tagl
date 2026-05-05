@@ -2,17 +2,21 @@
 
 >> about -^ _rel
 
->> substance _type_of _entity
+>> is_a _sub _sub
 
->> physical_object _type_of substance
+>> type_of _sub _sub
 
->> living_thing _type_of physical_object
+>> substance type_of _entity
+
+>> physical_object type_of substance
+
+>> living_thing type_of physical_object
 
 >> of -^ _sub
 
 >> part_of of of
 
->> kind_of of _type_of;
+>> kind_of of type_of;
 
 >> comes_from of of;
 
@@ -24,9 +28,9 @@
 
 >> knowledge -^ mind
 
->> concept _type_of knowledge
+>> concept type_of knowledge
 
->> science _type_of knowledge
+>> science type_of knowledge
 
 >> creativity -^ mind
 
@@ -34,17 +38,13 @@
 
 >> language -^ communication
 
->> simple_english _type_of language
+>> simple_english type_of language
 
 >> refers_to _refers_to _refers_to _context simple_english
 
 >> context _refers_to _context _context simple_english
 
->> is_a _refers_to _is_a _context simple_english
-
 >> has _refers_to _has _context simple_english
-
->> type_of _refers_to _type_of _context simple_english
 
 >> what _refers_to _what _context simple_english
 
@@ -53,4 +53,3 @@
 >> event _refers_to _event _context simple_english
 
 >> action _refers_to _action _context simple_english
-
