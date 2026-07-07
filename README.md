@@ -42,7 +42,7 @@ To define a tag, you must use a *sub relation*, derived from `_sub`, `_is_a`, or
 
 ##### Sub Relation Symbol
 
-An alias in the *sub relator* role for `_sub` is `-^`.
+An alias in the *sub relator* role for `_sub` is `=:`.
 Use it when you don't know the sub relator to use, or want to symbolically
 represent the most abstract sub relator: `_sub`.
 
@@ -61,12 +61,12 @@ Whoah, we have an error:
 The object (mammal in this case) of a sub relation must also be defined. This
 requires a bit of abstract metaphysical thinking, but here we go:
 
-	>> physical_object -^ _entity;
+	>> physical_object =: _entity;
 	>> living_thing _type_of physical_object;
 	>> animal _type_of living_thing;
 	>> vertibrate _type_of animal;
 	>> mammal _type_of vertibrate;
-    >> kind_of -^ _type_of;
+    >> kind_of =: _type_of;
 	>> dog kind_of mammal;
 
 The `>>` is the input operator for putting data.  Note the predicate
@@ -84,7 +84,7 @@ It is the only tag having this relation. It is the *root* of a tagspace (tree st
 
 Now let's put some more tags so that we can define dog more completely:
 
-	>> can -^ _rel;
+	>> can =: _rel;
 	>> sound _type_of _event;
 	>> utterance _type_of sound;
 	>> bark _type_of utterance;
@@ -124,7 +124,7 @@ Now is a good time to define a input (`>>`) statement more formally...
 	subject_sub_relation ::= subject sub_symbol TAG
 
 	sub_symbol ::= SUB
-	sub_symbol ::= "-^"
+	sub_symbol ::= "=:"
 
 	subject ::= TAG
 
@@ -221,7 +221,7 @@ cannot have a sub relation.
 Tags (subjects) can be retrieved according to matching predicates using query
 statements.  Let's define some more tags to make it interesting:
 
-	>> lives_in -^ _rel;
+	>> lives_in =: _rel;
 	>> substance _type_of _entity;
 	>> fluid _type_of substance;
 	>> water _type_of fluid;
@@ -346,7 +346,7 @@ Let's put some urls:
 
 Now we can query some URLs:
 
-	?? what -^ _url
+	?? what =: _url
 	about dog;
 
 Results:
@@ -459,7 +459,7 @@ Here are some more referents within the `simple_english` context:
 	>> citrus type_of fruit;
 	>> lemon type_of citrus;
 
-	>> quality -^ _entity;
+	>> quality =: _entity;
 	>> color type_of quality;
 	>> yellow is_a color;
 

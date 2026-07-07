@@ -1,6 +1,6 @@
->> can -^ _rel
+>> can =: _rel
 
->> about -^ _rel
+>> about =: _rel
 
 >> is_a _sub _sub
 
@@ -12,7 +12,7 @@
 
 >> living_thing type_of physical_object
 
->> of -^ _sub
+>> of =: _sub
 
 >> part_of of of
 
@@ -24,19 +24,19 @@
 
 >> body_part part_of body
 
->> mind -^ _entity
+>> mind =: _entity
 
->> knowledge -^ mind
+>> knowledge =: mind
 
 >> concept type_of knowledge
 
 >> science type_of knowledge
 
->> creativity -^ mind
+>> creativity =: mind
 
->> communication -^ _message
+>> communication =: _message
 
->> language -^ communication
+>> language =: communication
 
 >> simple_english type_of language
 

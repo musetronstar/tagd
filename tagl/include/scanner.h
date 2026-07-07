@@ -189,7 +189,7 @@ class scanner::tagdurl : public scanner {
 	"<="                 { emit(TOK_LT_EQ); goto next; }
 	";"                  { emit(TOK_TERMINATOR); goto next; }
 
-	"-^"                 { emit_literal_value(TOK_SUB_RELATOR_SYMBOL, HARD_TAG_SUB.data()); goto next; }
+	"=:"                 { emit_literal_value(TOK_SUB_RELATOR_SYMBOL, HARD_TAG_SUB.data()); goto next; }
 	"->"                 { emit_literal_value(TOK_RELATOR_SYMBOL, HARD_TAG_RELATOR.data()); goto next; }
 
 	"-"? [0-9]+ "." [0-9]+

@@ -637,7 +637,7 @@ sub_relator_symbol(s) ::= SUB_RELATOR(S) .
 }
 sub_relator_symbol(s) ::= SUB_RELATOR_SYMBOL(S) .
 {
-	s = S; // hard tag substituted for  `-^` symbol
+	s = S; // hard tag substituted for  `=:` symbol
 }
 
 super_object_token(o) ::= TAG(T) .
