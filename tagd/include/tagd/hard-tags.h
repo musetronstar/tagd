@@ -32,10 +32,9 @@ inline constexpr std::string_view HARD_TAG_ENTITY{"_entity"};	/// HARD_TAG_SUB H
 
 // sub relators - relates tag ids to their super_object (aka. superordinate, parent, hypernym...)
 inline constexpr std::string_view HARD_TAG_SUB{"_sub"};		/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_SUB_RELATOR
-// TODO HARD_TAG_IS_A
-// inline constexpr std::string_view HARD_TAG_IS_A{"_is_a"};		/// HARD_TAG_SUB HARD_TAG_SUB tagd::POS_SUB_RELATOR
-// TODO HARD_TAG_TYPE_OF
-// inline constexpr std::string_view HARD_TAG_TYPE_OF{"_type_of"};	/// HARD_TAG_SUB HARD_TAG_SUB tagd::POS_SUB_RELATOR
+// Leibniz discernment from _sub will come as constraints in TAGL are developed
+inline constexpr std::string_view HARD_TAG_IS_A{"_is_a"};		/// HARD_TAG_SUB HARD_TAG_SUB tagd::POS_SUB_RELATOR
+inline constexpr std::string_view HARD_TAG_TYPE_OF{"_type_of"};	/// HARD_TAG_SUB HARD_TAG_SUB tagd::POS_SUB_RELATOR
 
 // relators - relates subject to object, subordinate to all relators
 inline constexpr std::string_view HARD_TAG_RELATOR{"_rel"};		/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_RELATOR
@@ -173,6 +172,11 @@ inline constexpr std::string_view HARD_TAG_PORT{"_port"};		/// HARD_TAG_SUB HARD
 inline constexpr std::string_view HARD_TAG_USER{"_user"};		/// HARD_TAG_SUB HARD_TAG_URL_PART tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_PASS{"_pass"};		/// HARD_TAG_SUB HARD_TAG_URL_PART tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_SCHEME{"_scheme"};	/// HARD_TAG_SUB HARD_TAG_URL_PART tagd::POS_TAG
+
+/***** files *****/
+// known/materialized content, addressed by a file: scheme URL;
+// a URL having a _path is not necessarily a _file
+inline constexpr std::string_view HARD_TAG_FILE{"_file"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
 
 // A hard_tag_axiom is one point in the invariant hard-tag subspace.
 struct hard_tag_axiom {

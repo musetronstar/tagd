@@ -273,6 +273,12 @@ url_ok:
 	for (i = _host_offset; i < (_host_offset + _host_len); i++)
 		url_str[i] = tolower(url_str[i]);
 	_id = url_str;
+	// a file: scheme url identifies materialized content;
+	// the url object provides the subordinate relation, never the user
+	if (this->scheme() == "file") {
+		_sub_relator = HARD_TAG_TYPE_OF;
+		_super_object = HARD_TAG_FILE;
+	}
     return this->code(TAGD_OK);
 }
 
@@ -428,6 +434,12 @@ tagd::code url::init_hduri(id_view uri) {
 		if (elems[i] != nullptr) delete elems[i];
 
 	_id = ss_url.str();
+	// a file: scheme url identifies materialized content;
+	// the url object provides the subordinate relation, never the user
+	if (this->scheme() == "file") {
+		_sub_relator = HARD_TAG_TYPE_OF;
+		_super_object = HARD_TAG_FILE;
+	}
     return code(TAGD_OK);
 }
 
