@@ -134,7 +134,7 @@ test "tag_sub_search" \
 	 "mammal"
 
 test "tag_sub_symbol_search" \
-	 "?? _interrogator =: animal -> _terms = \"warm blood\";" \
+	 "?? _interrogator <: animal -> _terms = \"warm blood\";" \
 	 "mammal"
 
 test "search" \

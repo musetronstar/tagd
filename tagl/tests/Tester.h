@@ -530,7 +530,7 @@ class Tester : public CxxTest::TestSuite {
     void test_sub_relator_symbol(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		tagd::code tc = tagl.execute(">> dog =: mammal");
+		tagd::code tc = tagl.execute(">> dog <: mammal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		if (tagl.has_errors())
 			tagl.print_errors();
@@ -543,14 +543,14 @@ class Tester : public CxxTest::TestSuite {
     void test_sub_relator_object_symbol_error(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		tagd::code tc = tagl.execute(">> super =: =:");
+		tagd::code tc = tagl.execute(">> super <: <:");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 	}
 
     void test_sub_relator_object_symbol_sub_relator(void) {
 		tagdb_tester tdb;
 		TAGL::driver tagl(&tdb);
-		tagd::code tc = tagl.execute(tagl_input(">> subordinate =: ", HARD_TAG_SUB));
+		tagd::code tc = tagl.execute(tagl_input(">> subordinate <: ", HARD_TAG_SUB));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "subordinate" )
@@ -1876,7 +1876,7 @@ class Tester : public CxxTest::TestSuite {
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
 		tagd::code tc = tagl.execute(
-			"?? _interrogator =: mammal -> _terms = \"warm blood\";" );
+			"?? _interrogator <: mammal -> _terms = \"warm blood\";" );
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 	}
 
