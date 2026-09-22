@@ -65,4 +65,4 @@ tagl.o: tokens.inc tagl.cc
 clean:
 	rm -f *.o *.d
 	rm -f *.inc
-	rm -f scanner.out.cc scanner.tagdurl.cc parser.c parser.cc parser.out $(PARSER_H)
+	rm -f lemon scanner.out.cc scanner.tagdurl.cc parser.c parser.cc parser.out $(PARSER_H)
