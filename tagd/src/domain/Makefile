@@ -34,5 +34,5 @@ $(GPERF): effective_tld_names.dat
 clean:
 	rm -f *.o *.d
 
-extra_clean: clean
-	rm -f $(GPERF) $(GPERF_H)
+distclean: clean
+	rm -f $(GPERF) $(GPERF_H) effective_tld_names.dat
