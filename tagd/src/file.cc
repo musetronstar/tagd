@@ -91,7 +91,7 @@ size_t file::dir_shift_pos(const std::string& path) {
 			return std::string::npos;
 	}
 
-   	pos = path.find_first_of('/', pos);
+	pos = path.find_first_of('/', pos);
 	while (pos != std::string::npos) {
 		if ((pos+1) >= path.size())  // path all '/'
 			return std::string::npos;
@@ -113,7 +113,7 @@ const char * file::ext_media_type(std::string ext) {
 
 	// lowercase string
 	std::transform(ext.begin(), ext.end(), ext.begin(),
-		[](unsigned char c){ return std::tolower(c); });	
+		[](unsigned char c){ return std::tolower(c); });
 
 	// file extensions borrowed from "mime-support" package: /etc/mime.types
 	size_t i = 0;

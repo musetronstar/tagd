@@ -2,8 +2,8 @@
 
 # exp_internal 1   ;# diagnostics
 
-set spawn_tagsh "spawn ../bin/tagsh --db -"
-set bootstrap ../bootstrap.tagl
+set spawn_tagsh "spawn ../bin/tagsh"
+set bootstrap bootstrap.tagl
 
 set PROMPT "tagd> "
 set MAX_ERRORS 3
@@ -36,7 +36,7 @@ proc test {n s e} {
 	expect "$s$nl"	;# eat the echoed statement
 
 	expect {
-		-regexp $e  { 
+		-regexp $e  {
 				test_pass $n
 				set match 1
 			}
@@ -64,13 +64,13 @@ proc test_neg {n s e} {
 	upvar 1 NL nl
 	upvar 1 PROMPT prompt
 
-	set match 0	
+	set match 0
 
 	send "$s$nl"
 	expect "$s$nl"	;# eat the echoed statement
 
 	expect {
-		-regexp $e  { 
+		-regexp $e  {
 				test_fail $n
 				incr errors
 
@@ -79,7 +79,7 @@ proc test_neg {n s e} {
 					exit $errors
 				}
 
-				set match 1	
+				set match 1
 			}
 		default		;# timeout,eof ok
 	}
@@ -90,6 +90,44 @@ proc test_neg {n s e} {
 	if {$match} { return }  ;# failed
 
 	test_pass $n
+}
+
+
+# A diagnostic alone is not success: also check the child's exit status.
+# Keep failures local so the caller's finally block can remove its test home.
+proc test_cli {n cmd success {pattern {}}} {
+	global ERRORS
+	set timeout 10
+	set completed 0
+	# Expand an argv list so names with spaces remain one argument.
+	spawn -noecho {*}$cmd
+	set child $spawn_id
+	expect {
+		-i $child
+		eof { set completed 1 }
+		timeout { catch {exec kill -KILL [exp_pid -i $child]} }
+	}
+	set output $expect_out(buffer)
+	set status [wait -i $child]
+	# A signal appends wait metadata; only a normal exit satisfies this contract.
+	if {$completed && [llength $status] == 4 && [lindex $status 2] == 0
+		&& (([lindex $status 3] == 0) == $success) && [regexp $pattern $output]} {
+		test_pass $n
+	} else {
+		test_fail $n
+		puts "exit status: $status; output: $output"
+		incr ERRORS
+	}
+}
+
+proc test_storage_check {n passed} {
+	global ERRORS
+	if {$passed} {
+		test_pass $n
+	} else {
+		test_fail $n
+		incr ERRORS
+	}
 }
 
 eval $spawn_tagsh
@@ -108,6 +146,64 @@ test_neg "bootstrap_quiet" \
 test "bootstrap_reload_duplicate" \
 	 ".load $bootstrap" \
 	 "_error:ts_duplicate"
+
+# Exercise boolean vocabulary through the real shell and SQLite callbacks.
+test "boolean_define_yes" \
+	">> yes <: _true;" \
+	"TAGD_OK"
+
+test "boolean_define_no" \
+	">> no <: _false;" \
+	"TAGD_OK"
+
+test "boolean_define_certainly" \
+	">> certainly <: yes;" \
+	"TAGD_OK"
+
+# A duplicate PUT makes the effect of each SET visible.
+test "boolean_literal_true_ignores_duplicate" \
+	"%% _ignore_duplicates _true; >> certainly <: yes;" \
+	"TAGD_OK"
+
+test "boolean_literal_false_reports_duplicate" \
+	"%% _ignore_duplicates _false; >> certainly <: yes;" \
+	"_error:ts_duplicate"
+
+test "boolean_yes_ignores_duplicate" \
+	"%% _ignore_duplicates yes; >> certainly <: yes;" \
+	"TAGD_OK"
+
+test "boolean_no_reports_duplicate" \
+	"%% _ignore_duplicates no; >> certainly <: yes;" \
+	"_error:ts_duplicate"
+
+test "boolean_certainly_ignores_duplicate" \
+	"%% _ignore_duplicates certainly; >> certainly <: yes;" \
+	"TAGD_OK"
+
+test "boolean_rejects_zero" \
+	"%% _ignore_duplicates 0;" \
+	"_error:tagl_err"
+
+test "boolean_rejected_zero_preserves_true" \
+	">> certainly <: yes;" \
+	"TAGD_OK"
+
+test "boolean_disable_before_rejected_numbers" \
+	"%% _ignore_duplicates no; >> certainly <: yes;" \
+	"_error:ts_duplicate"
+
+test "boolean_rejects_one" \
+	"%% _ignore_duplicates 1;" \
+	"_error:tagl_err"
+
+test "boolean_rejects_larger_number" \
+	"%% _ignore_duplicates 5;" \
+	"_error:tagl_err"
+
+test "boolean_rejected_numbers_preserve_false" \
+	">> certainly <: yes;" \
+	"_error:ts_duplicate"
 
 send "%% _context simple_english$NL"
 expect "%% _context simple_english$NL"
@@ -158,10 +254,48 @@ send ".exit$NL"
 expect eof
 wait
 
+
+# Each run owns its temporary home; never write named test spaces under ~/.tagd.
+set storage_tmp [exec mktemp -d /tmp/tagsh-tagspace-XXXXXX]
+try {
+	set home [file join $storage_tmp home]
+	test_cli "tagspace_missing" \
+		[list ../bin/tagsh --home $home --tagspace Zoo --noshell] 0 {no such tagspace}
+	test_storage_check "tagspace_open_does_not_create_home" [expr {![file exists $home]}]
+	test_cli "tagspace_create_requires_name" [list ../bin/tagsh --create] 0 {--create requires --tagspace}
+	test_cli "tagspace_db_option_removed" [list ../bin/tagsh --db :memory:] 0 {invalid option}
+
+	# Exercise UTF-8 and an interior space in a storage name, not referent lookup.
+	set name "動物 Zoo"
+	set database [file join $home tagspaces $name "$name.db"]
+	test_cli "tagspace_create_utf8_and_spaces" \
+		[list ../bin/tagsh --tagspace $name --create --home $home --noshell \
+			--tagl {>> donkey _sub _entity;}] 1
+	test_storage_check "tagspace_database_layout" [file isfile $database]
+	test_cli "tagspace_reopen" \
+		[list ../bin/tagsh --home $home --tagspace $name --noshell --tagl {<< donkey;}] 1 {donkey}
+	test_cli "tagspace_create_existing_rejected" \
+		[list ../bin/tagsh --create --home $home --tagspace $name --noshell] 0 {tagspace exists}
+	test_cli "tagspace_create_option_order" \
+		[list ../bin/tagsh --create --tagspace Second --home $home --noshell] 1
+	test_cli "tagspace_memory_default_is_isolated" \
+		[list ../bin/tagsh --home $home --noshell --tagl {<< donkey;}] 0
+	test_cli "tagspace_path_traversal_rejected" \
+		[list ../bin/tagsh --home $home --create --tagspace ../escape --noshell] 0 {invalid tagspace name}
+
+	# Re-creation is permitted when the database is gone but its directory remains.
+	file delete $database
+	test_cli "tagspace_recreate_in_existing_directory" \
+		[list ../bin/tagsh --create --tagspace $name --home $home --noshell] 1
+	test_storage_check "tagspace_recreated_database" [file isfile $database]
+} finally {
+	file delete -force $storage_tmp
+}
+
 if {$ERRORS} {
 	puts "$ERRORS errors."
 } else {
 	puts "All tests passed."
-} 
+}
 
 exit $ERRORS

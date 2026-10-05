@@ -106,11 +106,11 @@ uint32_t rank::pop_back() {
 	if (pos == std::string::npos) // not found (malformed)
 		return 0xFFFD;
 
-	size_t tmp = pos; 
+	size_t tmp = pos;
 	uint32_t cp = utf8_read(_data, &tmp);
 	_data.erase(pos);
 
-	return cp;    
+	return cp;
 }
 
 tagd::code rank::push_back(uint32_t cp) {
@@ -183,7 +183,7 @@ tagd::code rank::next(rank& next, const rank_set& R) {
 	}
 
 	// rank can fit in leading utf8 byte, so fill holes if there are any
-	
+
 	if (back != 1) {
 		// first slot not taken, use the lowest rank
 		// by replacing last byte with 1

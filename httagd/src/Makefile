@@ -4,7 +4,7 @@ CXXFLAGS ?= -std=c++23 -Wall -Wextra -fpermissive -O3
 PRG_DIR = ../..
 TAGD_DIR = $(PRG_DIR)/tagd
 TAGL_DIR = $(PRG_DIR)/tagl
-TAGSPACE_DIR = $(PRG_DIR)/tagdb
+TAGSPACE_DIR = $(PRG_DIR)/tagspace
 TAGSH_DIR = $(PRG_DIR)/tagsh
 
 BUILD_DIR = ../bin
@@ -15,10 +15,10 @@ INC = -I../include \
 	  -I$(TAGD_DIR)/include \
 	  -I$(TAGL_DIR)/include \
 	  -I$(TAGSPACE_DIR)/include \
-	  -I$(TAGSPACE_DIR)/sqlite/include \
+	  \
 	  -I$(TAGSH_DIR)/include
 
-LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite \
+LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagspace \
 		 -L $(TAGL_DIR)/lib -ltagl \
 		 -L $(TAGD_DIR)/lib -ltagd \
 		 -L $(TAGSH_DIR)/lib -ltagsh \
@@ -56,7 +56,7 @@ client-main.o : client-main.cc
 
 $(CLIENT_BIN) : client-main.o httagd-client.o httagd.o
 	[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
-	g++ $(CXXFLAGS) -o $@ client-main.o httagd-client.o httagd.o $(LFLAGS) -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
+	g++ $(CXXFLAGS) -o $@ client-main.o httagd-client.o httagd.o -Wl,--start-group $(LFLAGS) -Wl,--end-group -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
 
 -include $(DEPS)
 

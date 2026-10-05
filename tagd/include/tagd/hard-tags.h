@@ -25,6 +25,10 @@ namespace tagd {
 |*|
 |*| The generator consumes lines in the form:
 |*| inline constexpr std::string_view HARD_TAG_TAGNAME{"<_tagname>"}; /// <SUB_RELATION> <SUPER_OBJECT> <tagd::part_of_speech>
+|*|
+|*| TODO: gperf does not support the sub_relator field at this time, so the
+|*| `sub_relator` is set to HARD_TAG_SUB and must be handled at runtime.
+|*| We should allow hard taggs to be defined with other hard tag sub_relators.
 \*/
 
 // root _entity (only axiomatic, self-referencing entity that exists)
@@ -42,11 +46,16 @@ inline constexpr std::string_view HARD_TAG_HAS{"_has"};		/// HARD_TAG_SUB HARD_T
 inline constexpr std::string_view HARD_TAG_CAN{"_can"};		/// HARD_TAG_SUB HARD_TAG_RELATOR tagd::POS_RELATOR
 
 /***** primitive types *****/
-// TODO: gperf does not support the sub_relator field for these entries;
-// the sub_relation is set to HARD_TAG_SUB and must be handled at runtime.
-inline constexpr std::string_view HARD_TAG_NUMBER{"_number"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
-inline constexpr std::string_view HARD_TAG_INTEGER{"_integer"};	/// HARD_TAG_SUB HARD_TAG_NUMBER tagd::POS_TAG
-inline constexpr std::string_view HARD_TAG_FLOAT{"_float"};	/// HARD_TAG_SUB HARD_TAG_NUMBER tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_TRUE{"_true"};		/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TRUE
+inline constexpr std::string_view HARD_TAG_FALSE{"_false"};		/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_FALSE
+
+/*
+ * TODO The scanner currently identifies INTEGER and FLOAT *syntactically*.
+ * Define these tags representing number when ready/needed
+ */
+//inline constexpr std::string_view HARD_TAG_NUMBER{"_number"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+//inline constexpr std::string_view HARD_TAG_INTEGER{"_integer"};	/// HARD_TAG_SUB HARD_TAG_NUMBER tagd::POS_TAG
+//inline constexpr std::string_view HARD_TAG_FLOAT{"_float"};	/// HARD_TAG_SUB HARD_TAG_NUMBER tagd::POS_TAG
 
 /***** interrogators *****/
 // resolves objects of inquiry (queries, searches)
@@ -154,8 +163,10 @@ inline constexpr std::string_view HARD_TAG_LINE_NUMBER{"_line_number"};	/// HARD
 inline constexpr std::string_view HARD_TAG_EMPTY{"_empty"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
 
 /***** URIs *****/
-// TODO #define HARD_TAG_URI "_uri"   // resources located by URIs
-// resources located by URLs
+/*
+ * TODO #define HARD_TAG_URI "_uri"   // resources located by URIs
+ * resources located by URLs
+ */
 inline constexpr std::string_view HARD_TAG_URL{"_url"};		/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
 /*** URL part hard tags ***/
 // the sub object of url part hard tags
@@ -174,23 +185,31 @@ inline constexpr std::string_view HARD_TAG_PASS{"_pass"};		/// HARD_TAG_SUB HARD
 inline constexpr std::string_view HARD_TAG_SCHEME{"_scheme"};	/// HARD_TAG_SUB HARD_TAG_URL_PART tagd::POS_TAG
 
 /***** files *****/
-// known/materialized content, addressed by a file: scheme URL;
-// a URL having a _path is not necessarily a _file
-inline constexpr std::string_view HARD_TAG_FILE{"_file"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+/*
+ * known/materialized content, addressed by a file: scheme URL;
+ * a URL having a _path is not necessarily a _file
+ */
+inline constexpr std::string_view HARD_TAG_FILE{"_file"};	/// HARD_TAG_SUB HARD_TAG_URL tagd::POS_TAG
+
+/*
+ * Append new declarations so existing generated row IDs and ranks do not move.
+ * Backend diagnostics use tagdb; tagspace has a separate role for its own work.
+ */
+inline constexpr std::string_view HARD_TAG_ROLE_TAGSPACE{"_role:tagspace"};	/// HARD_TAG_SUB HARD_TAG_ROLE_SYSTEM tagd::POS_TAG
 
 // A hard_tag_axiom is one point in the invariant hard-tag subspace.
 struct hard_tag_axiom {
-    std::string_view id;
-    std::string_view sub_relator;
-    std::string_view super_object;
-    tagd::part_of_speech pos;
-    uint64_t packed_rank;
-    uint8_t rank_size;
+	std::string_view id;
+	std::string_view sub_relator;
+	std::string_view super_object;
+	tagd::part_of_speech pos;
+	uint64_t packed_rank;
+	uint8_t rank_size;
 };
 
 struct hard_tag_id_index {
-    std::string_view id;
-    size_t axiom_index;
+	std::string_view id;
+	size_t axiom_index;
 };
 
 } // namespace tagd
@@ -203,9 +222,11 @@ using tagd::HARD_TAG_SUB;
 using tagd::HARD_TAG_RELATOR;
 using tagd::HARD_TAG_HAS;
 using tagd::HARD_TAG_CAN;
-using tagd::HARD_TAG_NUMBER;
-using tagd::HARD_TAG_INTEGER;
-using tagd::HARD_TAG_FLOAT;
+using tagd::HARD_TAG_TRUE;
+using tagd::HARD_TAG_FALSE;
+//using tagd::HARD_TAG_NUMBER;
+//using tagd::HARD_TAG_INTEGER;
+//using tagd::HARD_TAG_FLOAT;
 using tagd::HARD_TAG_INTERROGATOR;
 using tagd::HARD_TAG_WHAT;
 using tagd::HARD_TAG_SEARCH;
@@ -227,8 +248,10 @@ using tagd::HARD_TAG_TAGDB_QUERY_EVENT;
 using tagd::HARD_TAG_HTTP_EVENT;
 using tagd::HARD_TAG_HTTP_REQUEST_EVENT;
 using tagd::HARD_TAG_HTTP_RESPONSE_EVENT;
-// Bring all HTTP event hard tags into unqualified scope so tests and generated
-// code continue to see them without tagd:: qualification, matching convention.
+/*
+ * Bring all HTTP event hard tags into unqualified scope so tests and generated
+ * code continue to see them without tagd:: qualification, matching convention.
+ */
 using tagd::HARD_TAG_HTTP_REQUEST_GET_EVENT;
 using tagd::HARD_TAG_HTTP_REQUEST_HEAD_EVENT;
 using tagd::HARD_TAG_HTTP_REQUEST_PUT_EVENT;
@@ -244,6 +267,7 @@ using tagd::HARD_TAG_ROLE_SCANNER;
 using tagd::HARD_TAG_ROLE_PARSER;
 using tagd::HARD_TAG_ROLE_DRIVER;
 using tagd::HARD_TAG_ROLE_TAGDB;
+using tagd::HARD_TAG_ROLE_TAGSPACE;
 using tagd::HARD_TAG_ROLE_TAGSH;
 using tagd::HARD_TAG_ROLE_HTTAGD;
 using tagd::HARD_TAG_ROLE_SECURITY;

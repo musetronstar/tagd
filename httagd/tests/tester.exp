@@ -2,7 +2,7 @@
 
 # exp_internal 1   ;# diagnostics
 
-set spawn_httagd "spawn ../bin/httagd --log-level emergency,_role:httagd:debug --file ../../tagsh/bootstrap.tagl --www-dir ./www"
+set spawn_httagd "spawn ../bin/httagd --log-level emergency,_role:httagd:debug --file ../../tagsh/tests/bootstrap.tagl --www-dir ./www"
 
 set MAX_ERRORS 3
 set ERRORS 0
@@ -159,6 +159,34 @@ proc wait_for_server {timeout_secs} {
 
 	test_fail "httagd startup"
 	exit 1
+}
+
+
+# A diagnostic alone is not success: also check the child's exit status.
+# Keep failures local so the caller's finally block can remove its test home.
+proc test_cli {n cmd success {pattern {}}} {
+	global ERRORS
+	set timeout 10
+	set completed 0
+	# Expand an argv list so TAGL and path arguments keep their original boundaries.
+	spawn -noecho {*}$cmd
+	set child $spawn_id
+	expect {
+		-i $child
+		eof { set completed 1 }
+		timeout { catch {exec kill -KILL [exp_pid -i $child]} }
+	}
+	set output $expect_out(buffer)
+	set status [wait -i $child]
+	# A signal appends wait metadata; only a normal exit satisfies this contract.
+	if {$completed && [llength $status] == 4 && [lindex $status 2] == 0
+		&& (([lindex $status 3] == 0) == $success) && [regexp $pattern $output]} {
+		test_pass $n
+	} else {
+		test_fail $n
+		puts "exit status: $status; output: $output"
+		incr ERRORS
+	}
 }
 
 test_exec_fail "httagd_trace_removed" \
@@ -358,6 +386,70 @@ test_server_log "log_level_httagd_error_file_request_code" \
 
 close
 wait
+
+
+set storage_tmp [exec mktemp -d /tmp/httagd-tagspace-XXXXXX]
+try {
+	set home [file join $storage_tmp home]
+	test_cli "httagd_create_requires_tagspace" [list ../bin/httagd --create] 0 {--create requires --tagspace}
+	test_cli "httagd_db_option_removed" [list ../bin/httagd --db :memory:] 0 {invalid option}
+
+	# A fresh process must serve the same data after reopening. Keep the URL
+	# unprefixed: runtime tagspace selection is outside this CLI contract.
+	foreach mode {create reopen} {
+		# Ask the OS for a free port to avoid a fixed-port conflict with other runs.
+		set listener [socket -server {apply {{channel host port} {close $channel}}} -myaddr 127.0.0.1 0]
+		set port [lindex [fconfigure $listener -sockname] 2]
+		close $listener
+		set cmd [list ../bin/httagd --home $home --tagspace HttpZoo \
+			--bind-addr 127.0.0.1 --bind-port $port --tpl-dir ../app/tpl \
+			--www-dir ./www --log-level emergency,_role:httagd:notice]
+		if {$mode eq "create"} {
+			lappend cmd --create --tagl {>> otter _sub _entity;}
+		}
+		spawn -noecho {*}$cmd
+		set persistent_server $spawn_id
+		set persistent_pid [exp_pid -i $persistent_server]
+		try {
+			set ready 0
+			# Synchronize with startup rather than assuming a fixed sleep is sufficient.
+			expect {
+				-i $persistent_server
+				-timeout $STARTUP_TIMEOUT
+				-regexp {-- httagd start bind_addr=127\.0\.0\.1 bind_port=[0-9]+} { set ready 1 }
+				eof {}
+				timeout {}
+			}
+			if {$ready} {
+				# Require both the stored tag and HTTP 200; a body alone can mask errors.
+				test_cli "httagd_tagspace_${mode}_serves_data" \
+					[list curl -sS --fail --max-time 10 --write-out "\nHTTP_STATUS:%{http_code}\n" \
+						"http://127.0.0.1:$port/otter"] 1 {otter.*HTTP_STATUS:200\r?\n$}
+			} else {
+				test_fail "httagd_tagspace_${mode}_startup"
+				incr ERRORS
+			}
+		} finally {
+			# Reap only the server started by this iteration, including failures.
+			catch {exec kill -TERM $persistent_pid}
+			catch {
+				expect {
+					-i $persistent_server
+					-timeout 5
+					eof {}
+					timeout { catch {exec kill -KILL $persistent_pid} }
+				}
+			}
+			catch {close -i $persistent_server}
+			wait -i $persistent_server
+		}
+	}
+	# A different consumer must see the same persisted state through the public API.
+	test_cli "httagd_tagspace_reopens_in_tagsh" \
+		[list ../../tagsh/bin/tagsh --home $home --tagspace HttpZoo --noshell --tagl {<< otter;}] 1 {otter}
+} finally {
+	file delete -force $storage_tmp
+}
 
 if {$ERRORS} {
 	puts "$ERRORS errors."

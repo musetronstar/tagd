@@ -1,7 +1,7 @@
 #include <sstream>
 #include <map>
 #include "httagd.h"
-#include "tagdb/sqlite.h"
+#include "tagspace.h"
 
 using namespace httagd;
 
@@ -66,7 +66,7 @@ empty_handler_t home_handler(
 		tx.res->add_header_content_type(HTML_CONTENT_TYPE);
 		tagd_template tpl("home", tx.res->output_buffer());
 
-		// TODO internationalize a _home_page tag, etc. 
+		// TODO internationalize a _home_page tag, etc.
 		tagd::abstract_tag home_tag("Welcomd to tagd!");
 		fill_header(tx, tpl, home_tag.id());
 
@@ -391,7 +391,7 @@ get_handler_t browse_handler(
 			(void)q_related.relation(this_tag.id(), "");
 		else
 			(void)q_related.relation("", this_tag.id());
-		tc = tx.tdb->query(results, q_related, tx.drvr->session_ptr(), tagdb::F_NO_NOT_FOUND_ERROR);
+		tc = tx.tdb->query(results, q_related, tx.drvr->session_ptr(), tagd::F_NO_NOT_FOUND_ERROR);
 
 		if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
 			return tc;
@@ -503,7 +503,7 @@ void init_viewspace(viewspace &vws) {
 
 
 int main(int argc, char ** argv) {
-	tagdb::hard_tag::install_logger_validator();
+	tagd::tagspace_install_logger_validator();
 
 	httagd_args  args;
 	args.parse(argc, argv);
@@ -515,10 +515,25 @@ int main(int argc, char ** argv) {
 
 	HTTAGD_SET_LOGGER(&args.opt_logger);
 
-	tagdb::sqlite tdb;
-	if (tdb.init(args.db_fname) != tagd::TAGD_OK) {
+	// One CLI-selected space serves every request; it must outlive the server
+	// and all request-local drivers and sessions that borrow it.
+	tagd::tagspace::memory memory;
+	tagd::tagspace::persistent persistent;
+	tagd::tagspace& tdb = args.tagspace_name.empty()
+		? static_cast<tagd::tagspace&>(memory) : static_cast<tagd::tagspace&>(persistent);
+	tagd::code rc;
+	if (args.tagspace_name.empty()) {
+		rc = memory.init();
+	} else if (args.opt_create) {
+		rc = args.tagd_home.empty() ? persistent.create(args.tagspace_name)
+			: persistent.create(args.tagspace_name, args.tagd_home);
+	} else {
+		rc = args.tagd_home.empty() ? persistent.init(args.tagspace_name)
+			: persistent.init(args.tagspace_name, args.tagd_home);
+	}
+	if (rc != tagd::TAGD_OK) {
 		tdb.print_errors();
-		return tdb.code();
+		return rc;
 	}
 
 	if (args.tpl_dir.empty())

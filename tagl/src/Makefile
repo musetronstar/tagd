@@ -1,9 +1,9 @@
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
-YACC = 
-RE2CFLAGS = 
+YACC =
+RE2CFLAGS =
 
-INC =  -I../include -I../../tagd/include -I../../tagdb/include
+INC =  -I../include -I../../tagd/include -I../../tagspace/include
 PARSER_H = ../include/parser.h
 
 OBJS = tagl.o parser.o scanner_runtime.o scanner_lexer.o tagdurl_lexer.o

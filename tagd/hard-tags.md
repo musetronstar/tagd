@@ -5,7 +5,7 @@ blocks by which we extend the TAGL language.  All user-defined tags are
 subordinate to hard tags.
 
 Hard tags *must* be used in TAGL, however, their string values *should not*
-be hard-coded in C/C++ code, rather use the corresponding macros defined in
+be hard-coded in C/C++ code, rather use the corresponding constants defined in
 `tagd/include/tagd/hard-tags.h`.
 
 For example, the `_entity` hard tag in TAGL corresponds to `HARD_TAG_ENTITY`
@@ -25,21 +25,37 @@ For example, `_error:ts_not_found` not `_ts_not_found_error`
 
 ### Adding Hard Tags
 
-1. Add an entry to the `tagd::part_of_speech` enum in `tagd/include/tagd.h`
+1. Add an entry to the `tagd::part_of_speech` enum in `tagd/include/tagd/codes.h`
    Don't forget to increment POS_END.
 
-2. Add a macro definition to `tagd/include/tagd/hard-tags.h`.
-   Give meaningful names to defines and hard tags that strongly correspond.
+2. Add a constant definition to `tagd/include/tagd/hard-tags.h`.
+   Give meaningful names to constants and hard tags that strongly correspond.
 
 3. Add the `TERMINAL` symbol corresponding to the `tagd::part_of_speech`
    to TAGL grammar in `tagl/src/parser.y`.  The *lemon parser* will generate
    the `TOK_TERMINAL` definitions in the `tagl/include/parser.h` header used
    by our scanner.
 
-3. Add an entry into the `switch` statment in the `driver::lookup_pos()`
-   function in `/tagl/src/tagl.cc`. Lookups against the `tagdb` will return
+4. Add an entry into the `switch` statment in the `driver::lookup_pos()`
+   function in `/tagl/src/tagl.cc`. Lookups against the `tagspace` will return
    a `tagd::part_of_speech` which we will translate into a `TOK_TERMINAL`
    value and pass to the parser.
 
-4. Make sure sqlite::term_pos_occurence() in `tagdb/sqlite/src/sqlite.cc`
-   accomodates the new tagd::part_of_speech.
+5. Make sure sqlite::term_pos_occurence() in `tagspace/tagdb/sqlite/src/sqlite.cc`
+   accommodates the new `tagd::part_of_speech`. The first SQL branch reads
+   the declared `tags.pos`, including `POS_TRUE` and `POS_FALSE`; the other
+   branches collect positions where a tag is used. The foreign-key error
+   switch describes those uses, so it needs no separate boolean cases.
+
+
+### Boolean Hard Tags
+
+`_true` (`HARD_TAG_TRUE`, `POS_TRUE`) and `_false`
+(`HARD_TAG_FALSE`, `POS_FALSE`) are children of `_entity`.
+User-defined descendants inherit the corresponding part of speech, including
+indirect descendants such as `certainly <: yes <: _true`.
+
+TAGL maps these parts of speech to boolean tokens. For example,
+`%% _ignore_duplicates _true;` enables duplicate suppression, while
+`%% _ignore_duplicates _false;` disables it. Numeric and unrelated values
+are rejected; there is no numeric-to-boolean conversion.

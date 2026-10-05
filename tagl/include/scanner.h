@@ -15,7 +15,7 @@ const std::string QUERY_OPT_CONTEXT{"c"};   // tagspace context
 
 class driver;
 
-// Parse-lifetime backing for token text that must outlive scanner buffer refill.
+// Keeps token text alive until parsing finishes, even when the scanner buffer refills.
 class token_store {
 	protected:
 		// deque keeps string object addresses stable so emitted text_token views stay valid.
@@ -115,7 +115,7 @@ class scanner {
 
 		const char* fill();
 		void scan(const std::string& s) { this->scan(s.c_str(), s.size()); }
-		// Scan input and emit parser tokens through the driver contract.
+		// Scan input and pass tokens to the driver.
 		virtual void scan(const char*, size_t);
 		void scan(const char*) = delete; // don't allow implicit conversion to std::string
 		void evbuf(evbuffer *ev) { _evbuf = ev; _do_fill = true; }
@@ -148,7 +148,7 @@ class scanner::tagdurl : public scanner {
 	SCHEME_SPEC_DATA  = [^\000 \t\r\n'"]+ ;
 	SCHEME_SPEC_LCHAR = [^\000 \t\r\n'",;]{1} ;
 
-	TAGDURL = "/" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR; 
+	TAGDURL = "/" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR;
 
 	URI = URI_SCHEME SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
 	URL = URI_SCHEME "//" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
@@ -193,7 +193,7 @@ class scanner::tagdurl : public scanner {
 	"->"                 { emit_literal_value(TOK_RELATOR_SYMBOL, HARD_TAG_RELATOR.data()); goto next; }
 
 	"-"? [0-9]+ "." [0-9]+
-	                     { emit(TOK_FLOAT, new_value()); goto next; }
+						 { emit(TOK_FLOAT, new_value()); goto next; }
 	"-"? [0-9]+          { emit(TOK_INTEGER, new_value()); goto next; }
 
 	TAGDURL              { emit(TOK_TAGDURL, new_value()); goto next; }
@@ -204,7 +204,7 @@ class scanner::tagdurl : public scanner {
 	URI                  { emit_lookup_uri_token(); goto next; }
 	TAGL_FILE            { emit_tagl_file_token(); goto next; }
 	[^\000 \t\r\n;,=><'"-]+
-	                     { emit_tagd_pos_lookup(); goto next; }
+						 { emit_tagd_pos_lookup(); goto next; }
 
 	[\000]               { return; }
 	[^]                  { emit_error(); return; }

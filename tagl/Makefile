@@ -30,7 +30,7 @@ $(LIB): $(wildcard $(SRC_DIR)/*.o)
 	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
 	ar rcs $(LIB) $(SRC_DIR)/*.o
 
-tests: libtagl force_look 
+tests: libtagl force_look
 	@printf '[test] %s\n' 'tagl'
 	@make -C $(TEST_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 

@@ -155,8 +155,8 @@ void client::request_done(evhttp_request *req, void *arg) {
 	tx->res->status(evhttp_request_get_response_code(req));
 
 	for (const evkeyval *hdr = evhttp_request_get_input_headers(req)->tqh_first;
-	     hdr != nullptr;
-	     hdr = hdr->next.tqe_next) {
+		 hdr != nullptr;
+		 hdr = hdr->next.tqe_next) {
 		tx->res->header(hdr->key, hdr->value);
 	}
 

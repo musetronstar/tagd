@@ -10,7 +10,7 @@
 const bool HASH_CONTAINS_PRIVATE_TLDS = true;
 %}
 
-// tld_code defined by including file 
+// tld_code defined by including file
 struct hash_value {
     const char *key;
     tld_code code;

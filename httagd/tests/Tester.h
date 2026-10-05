@@ -1,14 +1,14 @@
 #include <cxxtest/TestSuite.h>
 #include <cstdio>
 #include "tagl.h"
-#include "tagdb.h"
+#include "tagspace.h"
 #include "httagd.h"
 
 #include <event2/buffer.h>
 
 typedef std::map<tagd::id_string, tagd::abstract_tag> tag_map;
-typedef tagdb::flags_t tdb_flags_t;
-typedef tagdb::session tdb_sess_t;
+typedef tagd::flags_t tdb_flags_t;
+typedef tagd::tagspace_session tdb_sess_t;
 
 #define TS_ASSERT_TAGD_OK(EXPR) TS_ASSERT_EQUALS((EXPR), tagd::TAGD_OK)
 
@@ -19,7 +19,7 @@ inline tagd::abstract_tag test_tag(tagd::id_view id, tagd::id_view super_object)
 }
 
 // pure virtual interface
-class tagdb_tester : public tagdb::tagdb {
+class tagspace_tester : public tagd::tagspace {
 	private:
 		tag_map db;
 
@@ -37,31 +37,31 @@ class tagdb_tester : public tagdb::tagdb {
 		tagd::abstract_tag _cat;
 
 	public:
-		tagdb_tester();
+		tagspace_tester();
 		tagd::part_of_speech pos(tagd::id_view, tdb_sess_t*, tdb_flags_t=tdb_flags_t()) override;
 		tagd::code get(tagd::abstract_tag&, tagd::id_view, tdb_sess_t*, tdb_flags_t=tdb_flags_t()) override;
 		tagd::code put(const tagd::abstract_tag&, tdb_sess_t*, tdb_flags_t=tdb_flags_t());
 		tagd::code del(const tagd::abstract_tag&, tdb_sess_t*, tdb_flags_t=tdb_flags_t());
-		bool exists(tagd::id_view, tdb_flags_t=tdb_flags_t()) override;
+		bool exists(tagd::id_view, tdb_flags_t=tdb_flags_t()) const override;
 		tagd::code query(tagd::tag_set&, const tagd::interrogator&, tdb_sess_t*, tdb_flags_t=tdb_flags_t()) override;
 
-		tagd::code dump(std::ostream& os = std::cout) {
+		tagd::code dump(std::ostream& os = std::cout) const {
 			os << "not implemented!" << std::endl;
 			return tagd::TS_ERR;
 		}
 
-		tagd::code dump_grid(std::ostream& os = std::cout) {
+		tagd::code dump_grid(std::ostream& os = std::cout) const {
 			os << "not implemented!" << std::endl;
 			return tagd::TS_ERR;
 		}
 
-		tagd::code dump_terms(std::ostream& os = std::cout) {
+		tagd::code dump_terms(std::ostream& os = std::cout) const {
 			os << "not implemented!" << std::endl;
 			return tagd::TS_ERR;
 		}
 };
 
-tagdb_tester::tagdb_tester() {
+tagspace_tester::tagspace_tester() {
 	put_test_tag(HARD_TAG_ENTITY, HARD_TAG_ENTITY, tagd::POS_TAG);
 	put_test_tag("living_thing", HARD_TAG_ENTITY, tagd::POS_TAG);
 	put_test_tag("animal", HARD_TAG_ENTITY, tagd::POS_TAG);
@@ -120,14 +120,14 @@ tagdb_tester::tagdb_tester() {
 	db[url_str] = u;
 }
 
-tagd::part_of_speech tagdb_tester::pos(tagd::id_view id, tdb_sess_t*, tdb_flags_t) {
+tagd::part_of_speech tagspace_tester::pos(tagd::id_view id, tdb_sess_t*, tdb_flags_t) {
 	tag_map::iterator it = db.find(tagd::id_string(id));
 	if (it == db.end()) return tagd::POS_UNKNOWN;
 
 	return it->second.pos();
 }
 
-tagd::code tagdb_tester::get(tagd::abstract_tag& t, tagd::id_view id, tdb_sess_t*, tdb_flags_t) {
+tagd::code tagspace_tester::get(tagd::abstract_tag& t, tagd::id_view id, tdb_sess_t*, tdb_flags_t) {
 	tag_map::iterator it = db.find(tagd::id_string(id));
 	if (it == db.end()) return this->ferror(tagd::TS_NOT_FOUND, "unknown tag: %s", std::string(id).c_str());
 
@@ -135,7 +135,7 @@ tagd::code tagdb_tester::get(tagd::abstract_tag& t, tagd::id_view id, tdb_sess_t
 	return this->code(tagd::TAGD_OK);
 }
 
-tagd::code tagdb_tester::put(const tagd::abstract_tag& t, tdb_sess_t*, tdb_flags_t) {
+tagd::code tagspace_tester::put(const tagd::abstract_tag& t, tdb_sess_t*, tdb_flags_t) {
 	if (t.id() == t.super_object())
 		return this->error(tagd::TS_MISUSE, "_id == _sub not allowed!");
 
@@ -155,7 +155,7 @@ tagd::code tagdb_tester::put(const tagd::abstract_tag& t, tdb_sess_t*, tdb_flags
 	return this->code(tagd::TAGD_OK);
 }
 
-tagd::code tagdb_tester::del(const tagd::abstract_tag& t, tdb_sess_t*, tdb_flags_t) {
+tagd::code tagspace_tester::del(const tagd::abstract_tag& t, tdb_sess_t*, tdb_flags_t) {
 	if (t.pos() != tagd::POS_URL && !t.super_object().empty()) {
 		return this->ferror(tagd::TS_MISUSE,
 			"sub must not be specified when deleting tag: %s", t.id().c_str());
@@ -193,11 +193,11 @@ tagd::code tagdb_tester::del(const tagd::abstract_tag& t, tdb_sess_t*, tdb_flags
 	return this->error(tagd::TS_INTERNAL_ERR, "fix del() method");
 }
 
-bool tagdb_tester::exists(tagd::id_view id, tdb_flags_t) {
+bool tagspace_tester::exists(tagd::id_view id, tdb_flags_t) const {
 	return (db.find(tagd::id_string(id)) != db.end());
 }
 
-tagd::code tagdb_tester::query(tagd::tag_set& T, const tagd::interrogator& q, tdb_sess_t*, tdb_flags_t) {
+tagd::code tagspace_tester::query(tagd::tag_set& T, const tagd::interrogator& q, tdb_sess_t*, tdb_flags_t) {
 	if (q.super_object().empty() &&
 			q.related("legs") &&
 			q.related("tail") ) {
@@ -212,7 +212,7 @@ tagd::code tagdb_tester::query(tagd::tag_set& T, const tagd::interrogator& q, td
 }
 
 class callback_tester : public TAGL::callback {
-		tagdb::tagdb *_tdb;
+		tagd::tagspace *_tdb;
 
 		void renew_last_tag(tagd::id_view id, const tagd::part_of_speech& pos = tagd::POS_TAG) {
 			if (last_tag != nullptr)
@@ -235,7 +235,7 @@ class callback_tester : public TAGL::callback {
 		int cmd;
 		int err_cmd;
 
-		callback_tester(tagdb::tagdb *tdb) :
+		callback_tester(tagd::tagspace *tdb) :
 			last_code(), last_tag(nullptr), err_cmd(-1) {
 			_tdb = tdb;
 		}
@@ -299,7 +299,7 @@ class callback_tester : public TAGL::callback {
 
 #define TAGD_CODE_STRING(c)	std::string(tagd::code_str(c))
 #define INIT_TDB_TAGL() \
-	tagdb_tester tdb; \
+	tagspace_tester tdb; \
 	auto ssn = tdb.get_session(); \
 	httagd::httagl tagl(&tdb, &ssn);
 
@@ -307,7 +307,7 @@ class callback_tester : public TAGL::callback {
 class Tester : public CxxTest::TestSuite {
 	public:
 
-    void test_get_tagdurl(void) {
+	void test_get_tagdurl(void) {
 		INIT_TDB_TAGL();
 		tagl.tagdurl_get(httagd::request(tagd::HTTP_GET, "/dog"));
 		tagl.finish();
@@ -316,7 +316,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
 	}
 
-    void test_get_tagdurl_trailing_path(void) {
+	void test_get_tagdurl_trailing_path(void) {
 		INIT_TDB_TAGL();
 		tagl.tagdurl_get(httagd::request(tagd::HTTP_GET, "/dog/"));
 		tagl.finish();
@@ -327,7 +327,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "dog" )
 	}
 
-    void test_post_tagdurl(void) {
+	void test_post_tagdurl(void) {
 		INIT_TDB_TAGL();
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_POST, "/dog"));
 		tagl.execute("is_a animal _has legs _can bark");
@@ -356,7 +356,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related("_can", "bark") )
 	}
 
-    void test_post_tagdurl_evbuffer_body(void) {
+	void test_post_tagdurl_evbuffer_body(void) {
 		INIT_TDB_TAGL();
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_POST, "/dog"));
 
@@ -434,7 +434,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_ERR" )
 	}
 
-    void test_get_tagdurl_hduri(void) {
+	void test_get_tagdurl_hduri(void) {
 		INIT_TDB_TAGL();
 		const char *hduri = "hd:org!wikipedia!en!/wiki/Dog!!!!!!https";
 		tagl.tagdurl_get(httagd::request(tagd::HTTP_GET, std::string("/").append(hduri)));
@@ -486,8 +486,8 @@ class Tester : public CxxTest::TestSuite {
 		evbuffer_free(input);
 	}
 
-    void test_tagdurl_query(void) {
-		tagdb_tester tdb;
+	void test_tagdurl_query(void) {
+		tagspace_tester tdb;
 		auto ssn = tdb.get_session();
 		callback_tester cb(&tdb);
 		httagd::httagl tagl(&tdb, &cb, &ssn);
@@ -519,8 +519,8 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( it->related("tail") )
 	}
 
-    void test_tagdurl_sub_placeholder_query(void) {
-		tagdb_tester tdb;
+	void test_tagdurl_sub_placeholder_query(void) {
+		tagspace_tester tdb;
 		auto ssn = tdb.get_session();
 		callback_tester cb(&tdb);
 		httagd::httagl tagl(&tdb, &cb, &ssn);
@@ -563,7 +563,7 @@ class Tester : public CxxTest::TestSuite {
 
 	// Contract 3: server owns _evbase and _htp; ~server() frees them without crash
 	void test_server_destructor_frees_evbase_and_htp(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		httagd::viewspace vws(".");
 		httagd::httagd_args args;
 		{

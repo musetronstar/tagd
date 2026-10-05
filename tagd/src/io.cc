@@ -20,7 +20,7 @@ std::string io::concat_dir(const std::string& dir, const std::string& apnd) {
 			return std::string(dir).append(apnd);
 		}
 	} else {  // no dir trailing '/'
-		if (apnd[0] == '/') 
+		if (apnd[0] == '/')
 			return std::string(dir).append(apnd);
 		else
 			return std::string(dir).append("/").append(apnd);

@@ -5,7 +5,7 @@
 #include <ostream>
 
 #include "tagd/logger.h"
-#include "tagdb.h"
+#include "tagspace.h"
 #include "tagl.h"
 
 typedef std::vector<char *> cmdlines_t;
@@ -14,26 +14,26 @@ class tagsh;
 
 class tagsh_callback : public TAGL::callback {
 		friend class tagsh;
-		tagdb::tagdb *_tdb;  // borrowed
+		tagd::tagspace *_tdb;  // borrowed
 		tagsh *_tsh;         // borrowed
 		cmdlines_t _lines;
 
 	public:
-		tagsh_callback(tagdb::tagdb *tdb, tagsh *tsh) : _tdb{tdb}, _tsh{tsh} {}
+		tagsh_callback(tagd::tagspace *tdb, tagsh *tsh) : _tdb{tdb}, _tsh{tsh} {}
 		~tagsh_callback() { for(auto l : _lines) delete l; }
 
 		void cmd_get(const tagd::abstract_tag&);
 		void cmd_put(const tagd::abstract_tag&);
 		void cmd_del(const tagd::abstract_tag&);
-		void cmd_query(const tagd::interrogator&); 
-        void cmd_error();
+		void cmd_query(const tagd::interrogator&);
+		void cmd_error();
 
 		void handle_cmd_error();
 };
 
 class tagsh {
 	protected:
-		tagdb::tagdb *_tdb;           // borrowed
+		tagd::tagspace *_tdb;           // borrowed
 		tagsh_callback *_callback;
 		bool _own_callback = false;   // true when this instance allocated _callback
 		TAGL::driver _driver;
@@ -45,13 +45,13 @@ class tagsh {
 		bool echo_result_code = true;
 		std::ostream *out = &std::cout;
 
-		tagsh(tagdb::tagdb *tdb, tagsh_callback *cb) :
+		tagsh(tagd::tagspace *tdb, tagsh_callback *cb) :
 			_tdb{tdb}, _callback{cb}, _driver(tdb, cb)
 		{
 			_driver.own_session(tdb->new_session());  // heap session; ownership transferred to _driver
 		}
 
-		tagsh(tagdb::tagdb *tdb) :
+		tagsh(tagd::tagspace *tdb) :
 			_tdb{tdb}, _callback{new tagsh_callback(_tdb, this)}, _own_callback{true},
 			_driver(_tdb, _callback)
 		{
@@ -90,14 +90,15 @@ class cmd_args : public tagd::errorable {
 
 	public:
 		std::vector<std::string> tagl_statements;
-		std::string db_fname;
-		bool opt_db_create = false;
+		std::string tagspace_name;
+		std::string tagd_home;
+		bool opt_create = false;
 		bool opt_noshell = false;
 		bool opt_dump = false;
 		tagd::logger opt_logger;
 
 		cmd_args();
-		void parse(int, char **); 
+		void parse(int, char **);
 
 		int interpret(tagsh&);
 };

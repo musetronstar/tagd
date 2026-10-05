@@ -1,14 +1,14 @@
 TAGD_DIR = ../../tagd
-TAGSPACE_DIR = ../../tagdb
-INC = -I../include -I$(TAGD_DIR)/include -I../../tagdb/include
+TAGSPACE_DIR = ../../tagspace
+INC = -I../include -I$(TAGD_DIR)/include -I../../tagspace/include
 LIBTAGD = $(TAGD_DIR)/lib/libtagd.a
 LIBTAGL = ../lib/libtagl.a
-LIBTAGDB_SQLITE = $(TAGSPACE_DIR)/lib/libtagdb-sqlite.a
+LIBTAGSPACE = $(TAGSPACE_DIR)/lib/libtagspace.a
 
 CXXTEST = cxxtestgen --error-printer
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3 -Wno-write-strings
-LFLAGS =  -L $(TAGSPACE_DIR)/lib -ltagdb-sqlite -L../lib -ltagl -L$(TAGD_DIR)/lib -ltagd -levent
+LFLAGS =  -L $(TAGSPACE_DIR)/lib -ltagspace -L../lib -ltagl -L$(TAGD_DIR)/lib -ltagd -levent -lsqlite3
 
 TESTER = ./tester
 TESTER_TAGDURL = ./tagdurl_tester
@@ -24,14 +24,14 @@ valgrind: debug
 
 build: tagl_tests tagdurl_tests
 
-tagl_tests: $(LIBTAGD) $(LIBTAGL) $(LIBTAGDB_SQLITE)
+tagl_tests: $(LIBTAGD) $(LIBTAGL) $(LIBTAGSPACE)
 	$(CXXTEST) Tester.h -o tester.cpp
-	g++ $(CXXFLAGS) -o tester tester.cpp $(INC) $(LFLAGS)
+	g++ $(CXXFLAGS) -o tester tester.cpp $(INC) -Wl,--start-group $(LFLAGS) -Wl,--end-group
 	$(TESTER)
 
-tagdurl_tests: $(LIBTAGD) $(LIBTAGL) $(LIBTAGDB_SQLITE)
+tagdurl_tests: $(LIBTAGD) $(LIBTAGL) $(LIBTAGSPACE)
 	$(CXXTEST) TagdUrlTester.h -o tagdurl_tester.cpp
-	g++ $(CXXFLAGS) -o tagdurl_tester tagdurl_tester.cpp $(INC) $(LFLAGS)
+	g++ $(CXXFLAGS) -o tagdurl_tester tagdurl_tester.cpp $(INC) -Wl,--start-group $(LFLAGS) -Wl,--end-group
 	$(TESTER_TAGDURL)
 
 $(LIBTAGD):

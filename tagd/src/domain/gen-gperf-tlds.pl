@@ -19,7 +19,7 @@ while (<DATA>) {
             .($print_private ? "true" : "false").";\n";
         print "%}\n";
     } else {
-        print $_ 
+        print $_
     }
 }
 
@@ -67,7 +67,7 @@ while (<>) {
         $idn = undef;
     } else {
         my $a = domain_to_ascii($tld);
-       
+
         print "# $tld\n" if $a ne $tld;  # utf
         print_uniq ("$a, $tld_constant\n");
     }
@@ -93,7 +93,7 @@ __END__
 
 USE_PRIVATE_PLACEHOLDER
 
-// tld_code defined by including file 
+// tld_code defined by including file
 struct hash_value {
     const char *key;
     tld_code code;

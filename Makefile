@@ -1,4 +1,4 @@
-MAKE_DIRS = tagd tagdb tagl tagsh httagd
+MAKE_DIRS = tagd tagspace tagl tagsh httagd
 TARGET=
 CXXFLAGS = -std=c++23 -Wall -Wextra -O3
 MAKEFLAGS += --no-print-directory --output-sync=target
@@ -28,3 +28,13 @@ build: force_look
 # 'true' forces make to look (otherwise its always up to date)
 force_look:
 	@true
+
+# Expand this list when deliberately formatting another handwritten C++ file.
+FORMAT_FILES = $(shell cat tools/format-files.txt)
+.PHONY: check-format format
+check-format:
+	clang-format --dry-run --Werror $(FORMAT_FILES)
+	perl tools/check-whitespace.pl
+
+format:
+	clang-format -i $(FORMAT_FILES)

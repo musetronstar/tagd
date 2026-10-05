@@ -5,7 +5,7 @@
 #include <iostream>
 #include "tagd.h"
 #include "tagl.h"  // includes parser.h
-#include "tagdb.h"
+#include "tagspace.h"
 
 #define DELETE(p) \
 	if (p != nullptr) { \
@@ -274,20 +274,24 @@ set_flag ::= FLAG(F) boolean_value(b) .
 {
 	const auto flag = F.str();
 	// TODO hard tag flags will need to have a flag_value relation holding
-	// the value of the tagdb::flag_t
+	// the value of the tagd::flags_t
 	if (flag == HARD_TAG_IGNORE_DUPLICATES) {
 		if (b) {
-			tagl->flags |= tagdb::F_IGNORE_DUPLICATES;
+			tagl->flags |= tagd::F_IGNORE_DUPLICATES;
 		} else {
-			tagl->flags &= ~(tagdb::F_IGNORE_DUPLICATES);
+			tagl->flags &= ~(tagd::F_IGNORE_DUPLICATES);
 		}
 	} else {
 		tagl->ferror(tagd::TAGL_ERR, "bad flag: %s", flag.c_str());
 	}
 }
-boolean_value(b) ::= quantifier(Q) .
+boolean_value(b) ::= TRUE .
 {
-	b = (Q.str() != "0");
+	b = true;
+}
+boolean_value(b) ::= FALSE .
+{
+	b = false;
 }
 
 quantifier(q) ::= INTEGER(I) .
@@ -351,9 +355,9 @@ get_statement ::= CMD_GET unknown(u) .
 /* not_found_context_dichotomy
 // We can't set TS_NOT_FOUND as an error here
 // because lookup_pos will return pos:UNKNOWN for
-// out of context referents, whereas tagdb::get()
+// out of context referents, whereas tagd::tagspace::get()
 // will return tagd_code:TS_AMBIGUOUS, so we have to set
-// the tag so it makes it to tagdb::get via the callback
+// the tag so it makes it to tagd::tagspace::get via the callback
 // TODO have lookup_pos return REFERENT for out of context referents
 */
 get_statement ::= CMD_GET REFERS(R) .
@@ -478,6 +482,15 @@ subject ::= subject_type_id(s) .
 	emit_subject(tagl, s);
 }
 
+// Boolean subjects retain abstract identity so storage preserves/inherits POS.
+subject_type_id(s) ::= TRUE(T) .
+{
+	s = { TAGL::subject_type::abstract_tag, T };
+}
+subject_type_id(s) ::= FALSE(F) .
+{
+	s = { TAGL::subject_type::abstract_tag, F };
+}
 subject_type_id(s) ::= TAG(T) .
 {
 	s = { TAGL::subject_type::tag, T };
@@ -640,6 +653,15 @@ sub_relator_symbol(s) ::= SUB_RELATOR_SYMBOL(S) .
 	s = S; // hard tag substituted for  `<:` symbol
 }
 
+// Boolean parents permit user-defined truth values at any descendant depth.
+super_object_token(o) ::= TRUE(T) .
+{
+	o = T;
+}
+super_object_token(o) ::= FALSE(F) .
+{
+	o = F;
+}
 super_object_token(o) ::= TAG(T) .
 {
 	o = T;
@@ -714,17 +736,17 @@ rhs_object(o) ::= quantifier(q) .
 { o = q; }
 rhs_object(o) ::= MODIFIER(M) .
 { o = M; }
-rhs_object(o) ::= QUOTED_STR(Q) . 
+rhs_object(o) ::= QUOTED_STR(Q) .
 { o = Q; }
 rhs_object(o) ::= UNKNOWN(U) .
 { o = U; }
-rhs_object(o) ::= URL(U) . 
+rhs_object(o) ::= URL(U) .
 { o = U; }
-rhs_object(o) ::= HDURI(U) . 
+rhs_object(o) ::= HDURI(U) .
 { o = U; }
-rhs_object(o) ::= EVURI(U) . 
+rhs_object(o) ::= EVURI(U) .
 { o = U; }
-rhs_object(o) ::= ERRURI(U) . 
+rhs_object(o) ::= ERRURI(U) .
 { o = U; }
 
 bare_object ::= TAG(T) .

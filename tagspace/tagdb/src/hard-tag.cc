@@ -16,8 +16,10 @@ std::vector<const char *>& hard_tag_rows_storage() {
 	static std::vector<const char *> rows = []() {
 		std::vector<const char *> values;
 		values.reserve(tagd::HARD_TAG_AXIOMS.size() + 1);
-		// Row 0 stays empty so hard-tag row ids match the historical sqlite ids
-		// starting at 1 without rewriting the bootstrap callers.
+		/*
+		 * Row 0 stays empty so hard-tag row ids match the historical sqlite ids
+		 * starting at 1 without rewriting the bootstrap callers.
+		 */
 		values.push_back("");
 		for (const tagd::hard_tag_axiom& axiom : tagd::HARD_TAG_AXIOMS)
 			values.push_back(axiom.id.data());
@@ -28,7 +30,7 @@ std::vector<const char *>& hard_tag_rows_storage() {
 }
 
 rowid_t hard_tag_row_id(const tagd::hard_tag_axiom& axiom) {
-	// Axiom-table order is the bootstrap row-id contract for hard tags.
+	// Hard-tag row IDs follow declaration order in hard-tags.h.
 	return static_cast<rowid_t>((&axiom - tagd::HARD_TAG_AXIOMS.data()) + 1);
 }
 
@@ -94,8 +96,7 @@ tagd::code hard_tag::get(tagd::abstract_tag& t, tagd::id_view id) {
 }
 
 void hard_tag::install_logger_validator() {
-	// Logger validation still uses tagdb::hard_tag because bootstrap row ids are
-	// defined by the tagdb/sqlite hard-tag surface, not just by tag semantics.
+	// Validate logging roles against the generated hard tags used by the backend.
 	tagd::set_log_role_validator(valid_log_role_hard_tag);
 }
 

@@ -145,7 +145,7 @@ void print_evbuf(struct evbuffer *input, std::ostream &os=std::cout) {
 
 	os << "-*** input buffer ***-" << std::endl;
 	do {
-		sz = evbuffer_copyout(input, buf, read_sz); 
+		sz = evbuffer_copyout(input, buf, read_sz);
 		if (sz <= 0) break;
 		os << std::string(buf, sz);
 		if (sz < read_sz) break;  // EOF
@@ -155,77 +155,77 @@ void print_evbuf(struct evbuffer *input, std::ostream &os=std::cout) {
 }
 
 int output_header(evhtp_header_t * header, void* arg) {
-    // evbuf_t * buf = (evbuf_t *)arg;
-    // evbuffer_add_printf(buf, "print_kvs() key = '%s', val = '%s'\n",
-      //                   header->key, header->val);
-    printf("%s: %s\n", header->key, header->val);
-    return 0;
+	// evbuf_t * buf = (evbuf_t *)arg;
+	// evbuffer_add_printf(buf, "print_kvs() key = '%s', val = '%s'\n",
+	  //                   header->key, header->val);
+	printf("%s: %s\n", header->key, header->val);
+	return 0;
 }
 
 evhtp_res print_kvs(evhtp_request_t * req, evhtp_headers_t * hdrs, void *) {
 	printf("-*** headers ***-\n");
-    evhtp_headers_for_each(hdrs, output_header, req->buffer_out);
+	evhtp_headers_for_each(hdrs, output_header, req->buffer_out);
 	printf("-************-\n");
-    return EVHTP_RES_OK;
+	return EVHTP_RES_OK;
 }
 
 evhtp_res print_path(evhtp_request_t * req, evhtp_path_t * path, void * arg) {
-    // if (ext_body) {
-    //     evbuffer_add_printf(req->buffer_out, "ext_body: '%s'\n", ext_body);
-    // }
+	// if (ext_body) {
+	//     evbuffer_add_printf(req->buffer_out, "ext_body: '%s'\n", ext_body);
+	// }
 
-    // evbuffer_add_printf(req->buffer_out,
-    //                     "print_path() full        = '%s'\n"
-    //                     "             path        = '%s'\n"
-    //                     "             file        = '%s'\n"
-    //                     "             match start = '%s'\n"
-    //                     "             match_end   = '%s'\n"
-    //                     "             methno      = '%d'\n",
-    //                     path->full, path->path, path->file,
-    //                     path->match_start, path->match_end,
-    //                     evhtp_request_get_method(req));
+	// evbuffer_add_printf(req->buffer_out,
+	//                     "print_path() full        = '%s'\n"
+	//                     "             path        = '%s'\n"
+	//                     "             file        = '%s'\n"
+	//                     "             match start = '%s'\n"
+	//                     "             match_end   = '%s'\n"
+	//                     "             methno      = '%d'\n",
+	//                     path->full, path->path, path->file,
+	//                     path->match_start, path->match_end,
+	//                     evhtp_request_get_method(req));
 
 	printf(
-                        "-*** path ***-\n"
-                        "full        = '%s'\n"
-                        "path        = '%s'\n"
-                        "file        = '%s'\n"
-                        "match start = '%s'\n"
-                        "match_end   = '%s'\n"
-                        "methno      = '%s'\n"
-                        "-************-\n",
-                        path->full, path->path, path->file,
-                        path->match_start, path->match_end,
-                        evhtp_method_str(evhtp_request_get_method(req)));
+						"-*** path ***-\n"
+						"full        = '%s'\n"
+						"path        = '%s'\n"
+						"file        = '%s'\n"
+						"match start = '%s'\n"
+						"match_end   = '%s'\n"
+						"methno      = '%s'\n"
+						"-************-\n",
+						path->full, path->path, path->file,
+						path->match_start, path->match_end,
+						evhtp_method_str(evhtp_request_get_method(req)));
 
-    return EVHTP_RES_OK;
+	return EVHTP_RES_OK;
 }
 
 evhtp_res set_my_connection_handlers(evhtp_connection_t * conn, void * arg) {
-    //struct timeval               tick;
-    //struct ev_token_bucket_cfg * tcfg = NULL;
+	//struct timeval               tick;
+	//struct ev_token_bucket_cfg * tcfg = NULL;
 
-    // evhtp_connection_set_hook(conn, evhtp_hook_on_header, print_kv, "foo");
-    // evhtp_connection_set_hook(conn, evhtp_hook_on_headers, print_kvs, "bar");
+	// evhtp_connection_set_hook(conn, evhtp_hook_on_header, print_kv, "foo");
+	// evhtp_connection_set_hook(conn, evhtp_hook_on_headers, print_kvs, "bar");
 	evhtp_connection_set_hook(conn, evhtp_hook_on_headers, print_kvs, "baz");
-    evhtp_connection_set_hook(conn, evhtp_hook_on_path, print_path, "baz");
-    // evhtp_connection_set_hook(conn, evhtp_hook_on_read, print_data, "derp");
-    // evhtp_connection_set_hook(conn, evhtp_hook_on_new_chunk, print_new_chunk_len, NULL);
-    // evhtp_connection_set_hook(conn, evhtp_hook_on_chunk_complete, print_chunk_complete, NULL);
-    // evhtp_connection_set_hook(conn, evhtp_hook_on_chunks_complete, print_chunks_complete, NULL);
+	evhtp_connection_set_hook(conn, evhtp_hook_on_path, print_path, "baz");
+	// evhtp_connection_set_hook(conn, evhtp_hook_on_read, print_data, "derp");
+	// evhtp_connection_set_hook(conn, evhtp_hook_on_new_chunk, print_new_chunk_len, NULL);
+	// evhtp_connection_set_hook(conn, evhtp_hook_on_chunk_complete, print_chunk_complete, NULL);
+	// evhtp_connection_set_hook(conn, evhtp_hook_on_chunks_complete, print_chunks_complete, NULL);
 
-    // if (bw_limit > 0) {
-    //     tick.tv_sec  = 0;
-    //     tick.tv_usec = 500 * 100;
+	// if (bw_limit > 0) {
+	//     tick.tv_sec  = 0;
+	//     tick.tv_usec = 500 * 100;
 
-    //     tcfg         = ev_token_bucket_cfg_new(bw_limit, bw_limit, bw_limit, bw_limit, &tick);
+	//     tcfg         = ev_token_bucket_cfg_new(bw_limit, bw_limit, bw_limit, bw_limit, &tick);
 
-    //     bufferevent_set_rate_limit(conn->bev, tcfg);
-    // }
+	//     bufferevent_set_rate_limit(conn->bev, tcfg);
+	// }
 
-    //evhtp_connection_set_hook(conn, evhtp_hook_on_request_fini, test_fini, tcfg);
+	//evhtp_connection_set_hook(conn, evhtp_hook_on_request_fini, test_fini, tcfg);
 
-    return EVHTP_RES_OK;
+	return EVHTP_RES_OK;
 }
 */
 
@@ -260,7 +260,7 @@ tagd::code httagl::execute(transaction& tx) {
 			// Keep HTTP path/body composition here; tagdurl translation remains
 			// one standalone tagdurl to one TAGL statement.
 			if (!tx.req->has_root_path()) {
-				this->tagdurl_put(*tx.req);	// put matches tagdb semantics, not http
+				this->tagdurl_put(*tx.req);	// put matches tagspace semantics, not http
 			}
 			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
 			break;
@@ -301,7 +301,7 @@ tagd::code httagl::tagdurl_get(const request& req) {
 
 tagd::code httagl::tagdurl_put(const request& req) {
 	if ((req.method == tagd::HTTP_POST || req.method == tagd::HTTP_PUT) &&
-	    !req.has_root_path()) {
+		!req.has_root_path()) {
 		return this->prepare_constrained_body_subject(req);
 	}
 
@@ -333,7 +333,7 @@ tagd::code httagl::validate_request_tag_id_path(const request& req) {
 	}
 
 	if (id.substr(0, tagd::HDURI_SCHEME.size()) != tagd::HDURI_SCHEME &&
-	    id.find('/') != std::string::npos) {
+		id.find('/') != std::string::npos) {
 		this->error(tagd::TAGL_ERR, "malformed path: trailing '/'");
 		return this->code();
 	}
@@ -866,8 +866,8 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagd::server *svr = (httagd::server*)arg;
 
-	// for now, this request uses the servers tagdb reference
-	// TODO allow requests to use other tagdbs (given the request)
+	// for now, this request uses the servers tagspace reference
+	// TODO allow requests to use other tagspaces (given the request)
 	auto tdb = svr->tdb();
 	auto vws = svr->vws();
 
@@ -1061,7 +1061,7 @@ tagd::code server::start() {
 	evhtp_set_gencb(_htp, httagd::main_cb, this);
 
 	const char *bind_addr = ( _bind_addr == "localhost" ? "0.0.0.0" : _bind_addr.c_str() );
-    if (evhtp_bind_socket(_htp, bind_addr, _bind_port, 128) < 0) {
+	if (evhtp_bind_socket(_htp, bind_addr, _bind_port, 128) < 0) {
 		return this->ferror( tagd::TAGD_ERR,
 				"failed to bind socket(%s): %s:%d", strerror(errno), bind_addr, _bind_port );
 	}
@@ -1075,7 +1075,7 @@ tagd::code server::start() {
 				std::string("httagd code=").append(tagd::code_str(tagd::TAGD_OK)));
 	}
 
-    event_base_loop(_evbase, 0);
+	event_base_loop(_evbase, 0);
 
 	return tagd::TAGD_OK;
 }

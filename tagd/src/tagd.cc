@@ -305,8 +305,10 @@ void merge_tags(tag_set& A, const tag_set& B) {
 	for (tagd::tag_set::iterator b = B.begin(); b != B.end(); ++b) {
 		a = A.insert(a, *b);
 		if ( a->id() == b->id() ) { // duplicate — merge relations
-			// extract/mutate/reinsert: no copy of element, no iterator invalidation hazard.
-			// hint is the predecessor so reinsert is O(1); fall back to end() when a is begin().
+			/*
+			 * extract/mutate/reinsert: no copy of element, no iterator invalidation hazard.
+			 * hint is the predecessor so reinsert is O(1); fall back to end() when a is begin().
+			 */
 			auto hint = (a != A.begin()) ? std::prev(a) : A.end();
 			auto node = A.extract(a);  // a is now invalid
 			node.value().predicates(b->relations);
@@ -384,7 +386,7 @@ size_t merge_containing_tags(tag_set& A, const tag_set& B) {
 	}
 
 	return A.size();
-} 
+}
 
 bool tag_set_equal(const tag_set& A, const tag_set& B) {
 	if (A.size() != B.size())
@@ -423,7 +425,7 @@ abstract_tag& abstract_tag::operator=(const abstract_tag& rhs) {
 	if (this == &rhs)
 		return *this;
 
-	// copy-then-swap for whole-object replacement via the same noexcept exchange seam
+	// Copy first, then swap so a failed copy leaves this object unchanged.
 	abstract_tag copied(rhs);
 	swap(copied);
 	return *this;
@@ -468,7 +470,7 @@ void abstract_tag::clear() {
 	_id.clear();
 	_sub_relator.clear();
 	_super_object.clear();
-	// _pos = POS_UNKNOWN;  
+	// _pos = POS_UNKNOWN;
 	_rank.clear();
 	if (!relations.empty()) relations.clear();
 }
@@ -545,7 +547,7 @@ bool abstract_tag::has_relator(id_view r) const {
 			return true;
 		}
 	}
-   
+
 	return false;
 }
 
@@ -560,7 +562,7 @@ bool abstract_tag::has_relator(id_view r, predicate_set& P) const {
 			P.insert(*it);
 		}
 	}
-   
+
 	return match;
 }
 
@@ -573,7 +575,7 @@ bool abstract_tag::related(id_view object) const {
 		if (it->object == object)
 			return true;
 	}
-   
+
 	return false;
 }
 
@@ -598,7 +600,7 @@ size_t abstract_tag::related(id_view object, predicate_set& how) const {
 			matches++;
 		}
 	}
-   
+
 	return matches;
 }
 
@@ -659,7 +661,7 @@ void print_object (std::ostream& os, const predicate& p) {
 	if (!p.modifier.empty()) {
 		os << ' ' << p.op_c_str() << ' ';
 		print_quotable(os, p.modifier);
-	} 
+	}
 }
 
 std::ostream& operator<<(std::ostream& os, const predicate& p) {
@@ -693,7 +695,7 @@ std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
 		os << ' ';
 		print_object(os, *it);
 		return os;
-	} 
+	}
 
 	id_string last_relator;
 	for (; it != t.relations.end(); ++it) {
@@ -712,7 +714,7 @@ std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
 			last_relator = it->relator;
 		}
 	}
- 
+
 	return os;
 }
 // end tag output functions

@@ -2,7 +2,7 @@
 
 #include "tagd.h"
 #include "tagl.h"
-#include "tagdb.h"
+#include "tagspace.h"
 #include "tagsh.h"
 
 #include <cstring>
@@ -93,10 +93,9 @@ class httagd_args : public cmd_args {
 					<< "httagd" 																<< std::endl
 					<< "httagd [options]" 													<< std::endl
 					<< "---------------" 													<< std::endl
-					<< "  --db <database path | :memory:>"									<< std::endl
-					<< "		specify tagdb, :memory: by default" 						<< std::endl
-					<< "  --create" 														<< std::endl
-					<< "		create the file specified by --db (if not already existing)" 	<< std::endl
+					<< "  --home DIR       tagd home (default ~/.tagd)" << std::endl
+					<< "  --tagspace ID    open an existing tagspace (default: memory)" << std::endl
+					<< "  --create         create the named tagspace; fail if it exists" << std::endl
 					<< "  -f <tagl file>" 													<< std::endl
 					<< "  --file" 															<< std::endl
 					<< "		execute tagl file, multiple flags will be processed in order" 	<< std::endl
@@ -139,7 +138,7 @@ class server : public tagsh, public tagd::errorable {
 	public:
 		~server();
 
-		server(tagdb::tagdb *tdb, viewspace *vs, httagd_args *args)
+		server(tagd::tagspace *tdb, viewspace *vs, httagd_args *args)
 			: tagsh(tdb), _vws{vs}, _args{args}
 		{
 			_bind_addr = (!args->bind_addr.empty() ? args->bind_addr : "localhost");
@@ -155,7 +154,7 @@ class server : public tagsh, public tagd::errorable {
 			return _bind_port;
 		}
 
-		tagdb::tagdb* tdb() {
+		tagd::tagspace* tdb() {
 			return _tdb;
 		}
 
@@ -178,9 +177,11 @@ static const std::string DEFAULT_CONTENT_TYPE{"text/plain; charset=utf-8"};
 class response {
 	protected:
 		evhtp_request_t *_ev_req;
-		// res_code sent
-		// when set to >= 0 before sending,
-		// send this code instead of translated tagd::code to EVHTP_RES_*
+		/*
+		 * res_code sent
+		 * when set to >= 0 before sending,
+		 * send this code instead of translated tagd::code to EVHTP_RES_*
+		 */
 		int _res_code = -1;
 		bool _reply_sent = false;
 		bool _header_content_type_added = false;
@@ -350,11 +351,11 @@ class htscanner : public TAGL::scanner {
 
 class httagl : public TAGL::driver {
 	public:
-		httagl(tagdb::tagdb *tdb, tagdb::session *ssn)
+		httagl(tagd::tagspace *tdb, tagd::tagspace_session *ssn)
 			: TAGL::driver(tdb, new htscanner(this), ssn) {
 				_own_scanner = true;
 			}
-		httagl(tagdb::tagdb *tdb, TAGL::callback *cb, tagdb::session *ssn)
+		httagl(tagd::tagspace *tdb, TAGL::callback *cb, tagd::tagspace_session *ssn)
 			: TAGL::driver(tdb, new htscanner(this), cb, ssn) {
 				_own_scanner = true;
 			}
@@ -367,10 +368,12 @@ class httagl : public TAGL::driver {
 		tagd::code tagdurl_put(const request&);
 		tagd::code tagdurl_del(const request&);
 		tagd::code scan_request_tagdurl(const request&);
-		// HTTP PUT/POST path validation remains transport-side, separate from
-		// standalone tagdurl-to-TAGL translation in tagl.
+		/*
+		 * HTTP PUT/POST path validation remains transport-side, separate from
+		 * standalone tagdurl-to-TAGL translation in tagl.
+		 */
 		tagd::code validate_request_tag_id_path(const request&);
-		// Prepare the transport-specific constrained POST/PUT body seam.
+		// Prepare the HTTP POST/PUT body for the scanner.
 		tagd::code prepare_constrained_body_subject(const request&);
 };
 
@@ -389,7 +392,7 @@ class base_transaction : public tagd::errorable {
 
 class transaction : public base_transaction	{
 	public:
-		tagdb::tagdb *tdb;
+		tagd::tagspace *tdb;
 		httagl *drvr;
 		httagd::viewspace *vws;
 
@@ -397,7 +400,7 @@ class transaction : public base_transaction	{
 			server *sv,
 			request *r,
 			response *s,
-			tagdb::tagdb *td,
+			tagd::tagspace *td,
 			httagl *dr,
 			httagd::viewspace *vs
 		) : base_transaction(sv, r, s),
@@ -427,7 +430,7 @@ typedef std::function<tagd::code(transaction&, const view&, const tagd::errorabl
 |*| Each action specifies the selected handler member in the view's
 |*| anonymous union. Its called an action because it corresponds to
 |*| the command method (cmd_*) that was called in the httagd callback.
-|*| An action will likely be performed on a tagdb before the handler
+|*| An action will likely be performed on a tagspace before the handler
 |*| is called. The handler then populates a response from the results.
 \*/
 enum struct view_action {
@@ -901,7 +904,7 @@ const view default_error_view(
 );
 
 // container of views(templates and handlers)
-// TODO (maybe) extend it from tagdb::tagdb so views can be stored in a tagdb
+// TODO (maybe) extend it from tagd::tagspace so views can be stored in a tagspace
 class viewspace : public tagd::errorable {
 		view_map_t _views;
 		std::string _tpl_dir;
@@ -911,9 +914,11 @@ class viewspace : public tagd::errorable {
 		view fallback_error_view;
 
 		viewspace(const std::string& tpl_dir) :
-			_tpl_dir{tpl_dir}, fallback_error_view(default_error_view) {} 
-		// TODO add a flags variable to get(), put(), etc.
-		// such as F_DISABLE_ERROR_REPORTING
+			_tpl_dir{tpl_dir}, fallback_error_view(default_error_view) {}
+		/*
+		 * TODO add a flags variable to get(), put(), etc.
+		 * such as F_DISABLE_ERROR_REPORTING
+		 */
 
 		tagd::code put(const view& vw) {
 			if ( !_views.emplace(std::make_pair(static_cast<view_id>(vw), vw)).second )
@@ -941,7 +946,7 @@ class viewspace : public tagd::errorable {
 		}
 
 		std::string fpath(const std::string& tpl_fname) {
-			return tagd::io::concat_dir(_tpl_dir, tpl_fname); 
+			return tagd::io::concat_dir(_tpl_dir, tpl_fname);
 		}
 };
 
@@ -956,26 +961,30 @@ class callback : public TAGL::callback {
 		void cmd_put(const tagd::abstract_tag&);
 		void cmd_del(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&);
-        void cmd_error();
-        void finish();
-		// welcome message or home page
-		// virtual because it get late binded
-        virtual void empty();
+		void cmd_error();
+		void finish();
+		/*
+		 * welcome message or home page
+		 * virtual because it get late binded
+		 */
+		virtual void empty();
 
-		// methods that handle DEFAULT_VIEW which are not in the tagdb
+		// methods that handle DEFAULT_VIEW which are not in the tagspace
 		void default_cmd_get(const tagd::abstract_tag&);
 		void default_cmd_put(const tagd::abstract_tag&);
 		void default_cmd_del(const tagd::abstract_tag&);
 		void default_cmd_query(const tagd::interrogator&);
-        void default_cmd_error();
-        void default_empty();  // welcome message or home page
+		void default_cmd_error();
+		void default_empty();  // welcome message or home page
 
 		transaction* tx() {
 			return _tx;
 		}
 
-		// output transaction errors, calling a the error handler if given a view name
-		// or a fallback error handler, or to plain text the other handlers fail
+		/*
+		 * output transaction errors, calling a the error handler if given a view name
+		 * or a fallback error handler, or to plain text the other handlers fail
+		 */
 		void output_errors(tagd::code);
 };
 
@@ -1013,7 +1022,7 @@ class  evbuffer_emitter : public ctemplate::ExpandEmitter {
 	protected:
 		ctemplate::TemplateDictionary* _dict;  // conditionally owned: borrowed by wrapper instances, deleted by root-owned templates
 		ctemplate::ExpandEmitter* _output;     // conditionally owned: mirrors _dict so borrowed emitters are not reclaimed here
-		bool _owner;  // gates destruction of _dict and _output: true for self-allocated roots, false for borrowed seams
+		bool _owner;  // gates destruction of _dict and _output: true for self-allocated roots, false for borrowed objects
 		std::string _output_str;
 
 		// reference to dynamically created objects own by this
@@ -1052,8 +1061,10 @@ class  evbuffer_emitter : public ctemplate::ExpandEmitter {
 				if (s) delete s;
 		}
 
-		// load template filename
-		// static so files can be pre-loaded without instanciating
+		/*
+		 * load template filename
+		 * static so files can be pre-loaded without instanciating
+		 */
 		static tagd::code load(tagd::errorable& E, const std::string&);
 
 		// expand template filename into ouput
@@ -1111,14 +1122,16 @@ class  evbuffer_emitter : public ctemplate::ExpandEmitter {
 				transaction& tx,
 				const std::string& key,
 				const std::string& val) {
-			                                   // * = wildcard relator
+											   // * = wildcard relator
 			set_tag_link(tx, key, (val.empty() ? "*" : val));
 		}
 
 
 	protected:
-		// ctemplate::ShowSection() and others return ctemplate::TemplateDictionary*
-		// pointers owned by them.  Similary we will own sub-templates created by this
+		/*
+		 * ctemplate::ShowSection() and others return ctemplate::TemplateDictionary*
+		 * pointers owned by them.  Similary we will own sub-templates created by this
+		 */
 		tagd_template* new_sub_template(ctemplate::TemplateDictionary *t) {
 			auto s = new tagd_template(t, _output);
 			_sub_templates.push_back(s);

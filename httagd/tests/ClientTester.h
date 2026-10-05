@@ -97,8 +97,8 @@ class client_test_server {
 		static void echo_cb(evhttp_request *req, void *) {
 			evkeyvalq *out = evhttp_request_get_output_headers(req);
 			for (const evkeyval *h = evhttp_request_get_input_headers(req)->tqh_first;
-			     h != nullptr;
-			     h = h->next.tqe_next) {
+				 h != nullptr;
+				 h = h->next.tqe_next) {
 				std::string key = "X-Request-";
 				key += h->key;
 				evhttp_add_header(out, key.c_str(), h->value);

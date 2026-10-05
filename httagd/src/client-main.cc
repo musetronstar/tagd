@@ -100,7 +100,7 @@ bool parse_args(
 } // namespace
 
 int main(int argc, char **argv) {
-	tagdb::hard_tag::install_logger_validator();
+	tagd::tagspace_install_logger_validator();
 
 	bool verbose = false;
 	tagd::http_method method = tagd::HTTP_GET;

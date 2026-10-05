@@ -13,15 +13,15 @@ TAGL: Scanner -> Parser -> Callback Architecture
     | d |<--|3  to token ID |  from tree    |   +---+
     | b |   |-------^--------------v--------|   | t |
     +---+   |     scan/     |   callback   7|-->| a |
-            |      lex      |  tagdb CRUD   |   | g |
+            |      lex      |  tagspace CRUD   |   | g |
             |2    tokens    | set results   |<--| d |
             |-------^--------------v--------|   | b |
             |      TAGL driver manages     8|   +---+
             |   scanner, parser, callback,  |
-            |1    tagdb and I/O resources   |
+            |1    tagspace and I/O resources   |
             +-------------------------------+
-                    ^              | 
-                    |     push/    | 
+                    ^              |
+                    |     push/    |
                     |   callback   |
                     |              v
                +---------+    +----------+
@@ -30,9 +30,9 @@ TAGL: Scanner -> Parser -> Callback Architecture
 
 
 ### Steps
-1. Caller creates TAGL `driver` passing its `callback`, `tagdb`,
-   and (optionally) `session` objects, where
-   * a `session` manages tagdb `contexts` and
+1. Caller creates TAGL `driver` passing its `callback`, `tagspace`,
+   and (optionally) `tagspace_session` objects, where
+   * a `tagspace_session` manages referent context within its tagspace and
    * the `driver` creates `scanner` and `parser` objects
    * The caller calls the `driver::execute()` method
      passing in TAGL statements.
@@ -51,7 +51,7 @@ TAGL: Scanner -> Parser -> Callback Architecture
      "looking up their tagd part of speech" given a `tag id`, where:
 3. The scanner calls the `driver::lookup_pos()` method which
    given the `tag id`:
-   * calls the `tagdb::pos()` method (using its context if given)
+   * calls the `tagspace::pos()` method (using its context if given)
    * returning a `tag pos`
    * that is translated into a parser token `tok_id`
 4. Token id/values are passed to the `parser` via the

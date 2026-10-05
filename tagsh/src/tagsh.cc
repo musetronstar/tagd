@@ -12,7 +12,7 @@
 
 #include "tagd.h"
 #include "tagl.h"
-#include "tagdb/sqlite.h"
+#include "tagspace.h"
 
 static tagd::logger *TAGSH_LOGGER = nullptr;
 
@@ -102,7 +102,7 @@ void tagsh_callback::handle_cmd_error() {
 		ssn->print_errors();
 		ssn->clear_errors();
 	}
-	
+
 	if (!_tdb->ok()) {
 		_driver->code(_tdb->code()); // stops the scanner
 		_tsh->last_code(_driver->code());
@@ -184,7 +184,7 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 	log_driver_debug("driver statement command=CMD_QUERY subject=%s", q.id());
 	log_driver_debug("driver callback=cmd_query subject=%s", q.id());
 
-	auto tc = _tdb->query(T, q, ssn, _driver->flags|tagdb::F_NO_NOT_FOUND_ERROR);
+	auto tc = _tdb->query(T, q, ssn, _driver->flags|tagd::F_NO_NOT_FOUND_ERROR);
 	if (!CMD_OK()) {
 		this->handle_cmd_error();
 		log_driver_debug("driver code=%s", tagd::code_str(_driver->code()));
@@ -203,7 +203,7 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 			if (_tsh->echo_result_code)
 				(*_tsh->out) << "-- " << tagd::code_str(tc) << std::endl;
 			break;
-		default:	
+		default:
 			this->handle_cmd_error();
 	}
 	_tsh->last_code((!CMD_OK()) ? _driver->code() : tc);
@@ -221,23 +221,23 @@ void tagsh_callback::cmd_error() {
 
 std::vector<std::string> split_string(const std::string &s, const char *delim = " ", bool allow_empty = false)
 {
-    std::vector<std::string> results;
+	std::vector<std::string> results;
 
-    size_t prev = 0;
-    size_t next = 0;
+	size_t prev = 0;
+	size_t next = 0;
 
-    while ((next = s.find_first_of(delim, prev)) != std::string::npos) {
-        if (allow_empty || (next - prev != 0)) {
-            results.push_back(s.substr(prev, next - prev));
-        }
-        prev = next + 1;
-    }
+	while ((next = s.find_first_of(delim, prev)) != std::string::npos) {
+		if (allow_empty || (next - prev != 0)) {
+			results.push_back(s.substr(prev, next - prev));
+		}
+		prev = next + 1;
+	}
 
-    if (prev < s.size()) {
-        results.push_back(s.substr(prev));
-    }
+	if (prev < s.size()) {
+		results.push_back(s.substr(prev));
+	}
 
-    return results;
+	return results;
 }
 
 void tagsh::dump_file(const std::string& fname, bool check_existing) {
@@ -299,11 +299,11 @@ void tagsh::command(const std::string& cmdline) {
 		}
 	}
 
-	// dump_grid specific only to tagdb_sqlite
+	// The diagnostic grid is provided by the storage implementation.
 	if (cmd == ".dump_grid") {
 		_tdb->dump_grid();
 		return;
-	
+
 	}
 
 	if (cmd == ".dump_terms") {
@@ -317,7 +317,7 @@ void tagsh::command(const std::string& cmdline) {
 	}
 
 	if (cmd == ".print_flags") {
-		TAGD_COUT << tagdb::flag_util::flag_list_str(_driver.flags) << std::endl;
+		TAGD_COUT << tagd::flag_util::flag_list_str(_driver.flags) << std::endl;
 		return;
 	}
 
@@ -340,14 +340,14 @@ void tagsh::command(const std::string& cmdline) {
 }
 
 int tagsh::interpret_readline() {
-    // tab auto-complete paths 
-    rl_bind_key('\t', rl_complete);
+	// tab auto-complete paths
+	rl_bind_key('\t', rl_complete);
 
 	char* input;
-    while((input = readline(prompt.c_str())) != NULL) {
-        _callback->_lines.push_back(input);
+	while((input = readline(prompt.c_str())) != NULL) {
+		_callback->_lines.push_back(input);
 		this->interpret(input);
-    }
+	}
 
 	return 0;
 }
@@ -409,7 +409,7 @@ void tagsh::cmd_show() {
 	TAGD_COUT << ".load <filename>\t# load a tagl file" << std::endl;
 	TAGD_COUT << ".dump\t# dump tagspace to stdout" << std::endl;
 	TAGD_COUT << ".dump [-f] <filename>\t# dump tagspace to file, [-f] forces overwrite existing" << std::endl;
-	TAGD_COUT << ".dump_grid\t# dump tagspace to stdout as a grid (specific to sqlite)" << std::endl;
+	TAGD_COUT << ".dump_grid\t# dump tagspace to stdout as a grid" << std::endl;
 	TAGD_COUT << ".dump_terms\t# dump tagspace terms and part_of_speech lists to stdout" << std::endl;
 	TAGD_COUT << ".dump_search\t# dump full text content of tag search terms" << std::endl;
 	TAGD_COUT << ".print_flags\t# print TAGL flags set" << std::endl;
@@ -422,24 +422,23 @@ cmd_args::cmd_args()
 {
 	opt_logger.level(tagd::log_level::ERROR);
 
-	_cmds["--db"] = {
+	// Collect storage options without opening anything: creation and selection
+	// are resolved together after parsing, regardless of their argument order.
+	_cmds["--tagspace"] = {
 		[this](char *val) {
-			if (val[0] == '-')
-				this->db_fname = ":memory:";
-			else {
-				if (!this->opt_db_create && !tagd::io::file_exists(val)) {
-					this->ferror(tagd::TAGD_ERR, "no such file: %s", val);
-					return;
-				}
-				this->db_fname = val;
-			}
+			if (!*val) { this->error(tagd::TS_ERR, "invalid tagspace name"); return; }
+			this->tagspace_name = val;
 		}, true
 	};
-
+	_cmds["--home"] = {
+		[this](char *val) {
+			if (!*val) { this->error(tagd::TAGD_ERR, "empty --home"); return; }
+			this->tagd_home = val;
+		}, true
+	};
 	_cmds["--create"] = {
-		[this](char *) { this->opt_db_create = true; },
-		false
-	}; 
+		[this](char *) { this->opt_create = true; }, false
+	};
 
 	cmd_handler noshell_handler = {
 		[this](char *) { this->opt_noshell = true; },
@@ -449,7 +448,7 @@ cmd_args::cmd_args()
 	_cmds["-n"] = noshell_handler;
 
 	cmd_handler tagl_handler = {
-		[this](char *val) { 
+		[this](char *val) {
 			// files and statements processed in order
 			tagl_statements.push_back(std::string("t:").append(val));
 		}, true
@@ -490,13 +489,12 @@ cmd_args::cmd_args()
 		[this](char *) {
 			std::cout
 			<< "tagsh" 																		<< std::endl
-			<< "		with no options: interactive tagl prompt with an in memory tagdb" 	<< std::endl
+			<< "		with no options: interactive tagl prompt with an in-memory tagspace" 	<< std::endl
 			<< "tagsh [options]" 															<< std::endl
 			<< "---------------" 															<< std::endl
-			<< "  --db <database path | :memory:>"											<< std::endl
-			<< "		specify tagdb, :memory: by default" 								<< std::endl
-			<< "  --create" 																<< std::endl
-			<< "		create the file specified by --db (if not already existing)" 		<< std::endl
+			<< "  --home DIR       tagd home (default ~/.tagd)" << std::endl
+			<< "  --tagspace ID    open an existing tagspace (default: memory)" << std::endl
+			<< "  --create         create the named tagspace; fail if it exists" << std::endl
 			<< "  -f <tagl file>" 															<< std::endl
 			<< "  --file" 																	<< std::endl
 			<< "		execute tagl file, multiple flags will be processed in order" 		<< std::endl
@@ -541,10 +539,10 @@ void cmd_args::parse(int argc, char **argv) {
 			return;
 	}
 
-	if (db_fname.empty()) {
-		// if a default tagdb file is desired ..
-		// this->db_fname = tagdb::util::user_db();
-		this->db_fname = ":memory:";
+	// Validate the combination only after parsing: option order has no meaning.
+	if (opt_create && tagspace_name.empty()) {
+		this->error(tagd::TAGD_ERR, "--create requires --tagspace ID");
+		return;
 	}
 
 	this->code(tagd::TAGD_OK);
@@ -552,7 +550,7 @@ void cmd_args::parse(int argc, char **argv) {
 
 int cmd_args::interpret(tagsh& shell) {
 	TAGL_SET_LOGGER(&opt_logger);
-	TAGDB_SET_LOGGER(&opt_logger);
+	TAGSPACE_SET_LOGGER(&opt_logger);
 	TAGSH_SET_LOGGER(&opt_logger);
 
 	auto f_tagl_statement = [&](const std::string &s) -> int {

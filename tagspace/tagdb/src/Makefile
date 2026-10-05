@@ -1,13 +1,13 @@
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 
-TAGDDIR =../../tagd
+TAGDDIR =../../../tagd
 INC = -I../include -I$(TAGDDIR)/include
 SRCS = tagdb.cc
 OBJS=$(SRCS:.cc=.o)
 DEPS=$(OBJS:.o=.d)
 
-HARD_TAGS_H = ../../tagd/include/tagd/hard-tags.h
+HARD_TAGS_H = ../../../tagd/include/tagd/hard-tags.h
 
 all: build
 

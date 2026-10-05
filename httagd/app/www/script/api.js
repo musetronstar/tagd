@@ -15,7 +15,7 @@ export function tagdURL(tagId) {
 const HTTP_HEADERS = { "Content-Type": "text/plain; charset=utf-8" };
 
 /**
- * Sends a HTTP PUT request to the httagd server 
+ * Sends a HTTP PUT request to the httagd server
  * Used for TAGL PUT operations (e.g. ">> tag _sub tag").
  *
  * @param {string} tagId - The name of the tag (subject)

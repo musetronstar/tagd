@@ -11,7 +11,7 @@
 #include <libgen.h>
 
 #include "tagl.h"
-#include "tagdb.h"
+#include "tagspace.h"
 
 #include <event2/buffer.h>
 
@@ -89,27 +89,27 @@ const char* token_str(int tok) {
 	}
 }
 
-driver::driver(tagdb::tagdb *tdb, tagdb::session *ssn) :
+driver::driver(tagd::tagspace *tdb, tagd::tagspace_session *ssn) :
 		_own_scanner{true}, _scanner{new scanner(this)},
 		_tdb{tdb}, _session{ssn}
 {
 	this->init();
 }
 
-driver::driver(tagdb::tagdb *tdb, scanner *s, tagdb::session *ssn) :
+driver::driver(tagd::tagspace *tdb, scanner *s, tagd::tagspace_session *ssn) :
 		_scanner{s}, _tdb{tdb}, _session{ssn}
 {
 	this->init();
 }
 
-driver::driver(tagdb::tagdb *tdb, scanner *s, callback *cb, tagdb::session *ssn) :
+driver::driver(tagd::tagspace *tdb, scanner *s, callback *cb, tagd::tagspace_session *ssn) :
 		_scanner{s}, _tdb{tdb}, _session{ssn}
 {
 	this->bind_callback(cb);
 	this->init();
 }
 
-driver::driver(tagdb::tagdb *tdb, callback *cb, tagdb::session *ssn) :
+driver::driver(tagd::tagspace *tdb, callback *cb, tagd::tagspace_session *ssn) :
 		_own_scanner{true}, _scanner{new scanner(this)},
 		_tdb{tdb}, _session{ssn}
 {
@@ -200,7 +200,7 @@ tagd::code driver::parseln(const std::string& line) {
 	return this->code();
 }
 
-void driver::own_session(tagdb::session *ssn) {
+void driver::own_session(tagd::tagspace_session *ssn) {
 	if (_session != nullptr && _session != ssn)
 		delete _session;
 	_session = ssn;
@@ -258,6 +258,14 @@ int driver::lookup_pos(const std::string& s) {
 	//TAGL_LOG_TRACE( "term_pos(" << s << "): " << pos_list_str(term_pos) << std::endl )
 
 	switch(pos) {
+		// Descendants inherit their boolean POS from storage, so spelling does
+		// not determine truth (for example, certainly <: yes <: _true).
+		case tagd::POS_TRUE:
+			token = TOK_TRUE;
+			break;
+		case tagd::POS_FALSE:
+			token = TOK_FALSE;
+			break;
 		case tagd::POS_TAG:
 			token = TOK_TAG;
 			break;
@@ -333,7 +341,7 @@ tagd::code driver::execute(struct evbuffer *input) {
 	this->init();
 
 	size_t read_sz = BUF_SZ - 1;
-	size_t sz = evbuffer_remove(input, _scanner->_buf, read_sz); 
+	size_t sz = evbuffer_remove(input, _scanner->_buf, read_sz);
 	if (sz > 0) {
 		if (sz < BUF_SZ)
 			_scanner->_buf[sz] = '\0';
@@ -389,15 +397,15 @@ void driver::do_callback() {
 }
 
 class tagdio : public tagd::errorable {
-    public:
-        static tagdio& runtime();
+	public:
+		static tagdio& runtime();
 
 	/*** singleton can't instatiate, can't copy **/
-    private:
-        tagdio() {}
-    public:
-        tagdio(tagdio const&) = delete;
-        void operator=(tagdio const&) = delete;
+	private:
+		tagdio() {}
+	public:
+		tagdio(tagdio const&) = delete;
+		void operator=(tagdio const&) = delete;
 
 		bool is_dir(const std::string&);
 };
@@ -513,7 +521,7 @@ tagd::code driver::new_url(const std::string& url) {
 		delete u;
 		return this->ferror(code, "parse URL failed: %s", url.c_str());
 	}
-	
+
 	if (!constrain_tag_id.empty()) {
 		// the url constrained url can be either in URI or HDURI form
 		tagd::url uc(constrain_tag_id);

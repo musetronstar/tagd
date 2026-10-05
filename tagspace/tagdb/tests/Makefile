@@ -1,4 +1,4 @@
-TAGD_DIR = ../../tagd
+TAGD_DIR = ../../../tagd
 LIBTAGD = $(TAGD_DIR)/lib/libtagd.a
 LIBTAGDB_SQLITE = ../lib/libtagdb-sqlite.a
 PRG_DIR = ../sqlite
@@ -7,7 +7,7 @@ INC = -I../include -I$(TAGD_DIR)/include -I$(PRG_DIR)/include
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 CXXTEST = cxxtestgen --error-printer
-LFLAGS = -L../lib -ltagdb-sqlite -L$(TAGD_DIR)/lib -ltagd -lsqlite3 
+LFLAGS = -L../lib -ltagdb-sqlite -L$(TAGD_DIR)/lib -ltagd -lsqlite3
 
 SRC = tester.cc
 BIN = ./tester

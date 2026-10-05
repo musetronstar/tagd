@@ -9,263 +9,263 @@
 namespace tagd {
 
 tagd::code url::init(id_view u) {
-    if (u.size() == 0) return _code;  // URL_EMPTY
-    if (u.size() > URL_MAX_LEN) return code(URL_MAX_LEN);
+	if (u.size() == 0) return _code;  // URL_EMPTY
+	if (u.size() > URL_MAX_LEN) return code(URL_MAX_LEN);
 
 	auto url_str = std::string(u);  // copy becuase we lower scheme
 	auto sz = url_str.size();
-    url_size_t i = 0;
+	url_size_t i = 0;
 
 	auto f_scheme = [this, &url_str] {
 		return url_str.substr(0, this->_scheme_len);
 	};
 
 // scheme
-    for (; i < sz; i++) {
-        url_str[i] = tolower(url_str[i]);
-        if (url_str[i] == ':') {
-            if (i == 0)
+	for (; i < sz; i++) {
+		url_str[i] = tolower(url_str[i]);
+		if (url_str[i] == ':') {
+			if (i == 0)
 				return code(URL_ERR_SCHEME);
 
 			_scheme_len = i;
-            if (url_str.substr(i, 3) == "://") {
-                i += 3;
-                goto authority;
-			} 
-			
+			if (url_str.substr(i, 3) == "://") {
+				i += 3;
+				goto authority;
+			}
+
 			if (url_str.substr(0, HDURI_SCHEME.size()) == HDURI_SCHEME)
 				return this->init_hduri(url_str);
 
 			if (url_str.substr(0, i) == "mailto") {
-                // techically a uri, but lets allow it
-                i++;  // pass over ':'
-                goto authority;
-            }
+				// techically a uri, but lets allow it
+				i++;  // pass over ':'
+				goto authority;
+			}
 
 			return code(URL_ERR_SCHEME);
-        }
-    }
+		}
+	}
 
-    // missing ':'
-    return code(URL_ERR_SCHEME);
+	// missing ':'
+	return code(URL_ERR_SCHEME);
 
 authority:
-    /*
-        Parsing user:pass for our purposes is the same as parsing host:port,
-        the way to differentiate is if a '@' is first encountered, we know
-        the user:pass parsed is actually a user:pass and we can procede to
-        parsing host:port.  But if a {'/', '?', '#'} is first encountered,
-        we know that there is no actual user:pass and that what was thought
-        to be user:pass should be assigned to user:port
-    */
+	/*
+		Parsing user:pass for our purposes is the same as parsing host:port,
+		the way to differentiate is if a '@' is first encountered, we know
+		the user:pass parsed is actually a user:pass and we can procede to
+		parsing host:port.  But if a {'/', '?', '#'} is first encountered,
+		we know that there is no actual user:pass and that what was thought
+		to be user:pass should be assigned to user:port
+	*/
 
-    _user_offset = i;
-    for (; i < sz; i++) {
-        switch (url_str[i]) {
-            case '@':
-                if (i == _user_offset) return code(URL_ERR_USER);
-                _user_len = i - _user_offset;
-                i++; // advance past '@'
-                goto host;
-            case ':':
-                if (i == _user_offset) return code(URL_ERR_USER);
-                _user_len = i - _user_offset;
-                i++; // advance past ':'
-                goto pass;
+	_user_offset = i;
+	for (; i < sz; i++) {
+		switch (url_str[i]) {
+			case '@':
+				if (i == _user_offset) return code(URL_ERR_USER);
+				_user_len = i - _user_offset;
+				i++; // advance past '@'
+				goto host;
+			case ':':
+				if (i == _user_offset) return code(URL_ERR_USER);
+				_user_len = i - _user_offset;
+				i++; // advance past ':'
+				goto pass;
 
-            /* {'/', '?', '#'} indicate no user, so it must be host */
-            case '/':
-                // empty user
-                _host_offset = _user_offset;
+			/* {'/', '?', '#'} indicate no user, so it must be host */
+			case '/':
+				// empty user
+				_host_offset = _user_offset;
 				_user_offset = _user_len = 0;
-                _host_len = i - _host_offset;
-                if (_host_len == 0 && f_scheme() != "file")
+				_host_len = i - _host_offset;
+				if (_host_len == 0 && f_scheme() != "file")
 					return code(URL_ERR_HOST);
-                goto path;
-            case '?':
-                _host_offset = _user_offset;
+				goto path;
+			case '?':
+				_host_offset = _user_offset;
 				_user_offset = _user_len = 0;
-                if (i == _host_offset) return code(URL_ERR_HOST);
-                _host_len = i - _host_offset;
-                //i++; keep the '?'
-                goto query;
-            case '#':
-                _host_offset = _user_offset;
+				if (i == _host_offset) return code(URL_ERR_HOST);
+				_host_len = i - _host_offset;
+				//i++; keep the '?'
+				goto query;
+			case '#':
+				_host_offset = _user_offset;
 				_user_offset = _user_len = 0;
-                if (i == _host_offset) return code(URL_ERR_HOST);
-                _host_len = i - _host_offset;
-                goto fragment;
-            //default: NOP
-        }
-    }
+				if (i == _host_offset) return code(URL_ERR_HOST);
+				_host_len = i - _host_offset;
+				goto fragment;
+			//default: NOP
+		}
+	}
 
-    // empty user and host
-    if (i == _user_offset) return code(URL_ERR_HOST);
+	// empty user and host
+	if (i == _user_offset) return code(URL_ERR_HOST);
 
-    // user is really host, but no port, path, query, fragment
-    _host_offset = _user_offset;
-    _host_len = i - _host_offset;
+	// user is really host, but no port, path, query, fragment
+	_host_offset = _user_offset;
+	_host_len = i - _host_offset;
 	// _user_offset = 0;  TODO uncomment
 
-    goto url_ok;
+	goto url_ok;
 
 pass:
-    /*
-        If we made it here, the parsed out user may in fact be a host.
-        If no '@' is encountered, we can assume the user is really a host.
-        Empty passwords are allowed (i.e. http://joe:example.com)
-    */
+	/*
+		If we made it here, the parsed out user may in fact be a host.
+		If no '@' is encountered, we can assume the user is really a host.
+		Empty passwords are allowed (i.e. http://joe:example.com)
+	*/
 
-    _pass_offset = i;
-    for (; i < sz; i++) {
-        switch (url_str[i]) {
-            case '@':
-                _pass_len = i - _pass_offset;
-                i++; // advance past '@'
-                goto host;
+	_pass_offset = i;
+	for (; i < sz; i++) {
+		switch (url_str[i]) {
+			case '@':
+				_pass_len = i - _pass_offset;
+				i++; // advance past '@'
+				goto host;
 
-            /* {'/', '?', '#'} indicate no user:pass, so it must be host:port */
-            case '/':
-                _host_offset = _user_offset;
-                _host_len = _user_len;
-                _user_offset = _user_len = 0;
-                _port_offset = _pass_offset;
-                if (i == _port_offset) return code(URL_ERR_PORT);
-                _port_len = i - _pass_offset;
-                _pass_offset = _pass_len = 0;
-                goto path;
-            case '?':
-                _host_offset = _user_offset;
-                _host_len = _user_len;
-                _user_offset = _user_len = 0;
-                _port_offset = _pass_offset;
-                if (i == _port_offset) return code(URL_ERR_PORT);
-                _port_len = i - _pass_offset;
-                _pass_offset = _pass_len = 0;
-                //i++; // advance past '?'
-                goto query;
-            case '#':
-                _host_offset = _user_offset;
-                _host_len = _user_len;
-                _user_offset = _user_len = 0;
-                _port_offset = _pass_offset;
-                if (i == _port_offset) return code(URL_ERR_PORT);
-                _port_len = i - _pass_offset;
-                _pass_offset = _pass_len = 0;
-                goto fragment;
-            //default: NOP
-        }
-    }
+			/* {'/', '?', '#'} indicate no user:pass, so it must be host:port */
+			case '/':
+				_host_offset = _user_offset;
+				_host_len = _user_len;
+				_user_offset = _user_len = 0;
+				_port_offset = _pass_offset;
+				if (i == _port_offset) return code(URL_ERR_PORT);
+				_port_len = i - _pass_offset;
+				_pass_offset = _pass_len = 0;
+				goto path;
+			case '?':
+				_host_offset = _user_offset;
+				_host_len = _user_len;
+				_user_offset = _user_len = 0;
+				_port_offset = _pass_offset;
+				if (i == _port_offset) return code(URL_ERR_PORT);
+				_port_len = i - _pass_offset;
+				_pass_offset = _pass_len = 0;
+				//i++; // advance past '?'
+				goto query;
+			case '#':
+				_host_offset = _user_offset;
+				_host_len = _user_len;
+				_user_offset = _user_len = 0;
+				_port_offset = _pass_offset;
+				if (i == _port_offset) return code(URL_ERR_PORT);
+				_port_len = i - _pass_offset;
+				_pass_offset = _pass_len = 0;
+				goto fragment;
+			//default: NOP
+		}
+	}
 
-    // user:pass is really host:port, path, query, fragment
-    _host_offset = _user_offset;
-    _host_len = _user_len;
-    _port_offset = _pass_offset;
-    _port_len = i - _port_offset;
-    _user_offset = _user_len = _pass_offset = _pass_len = 0;  // no user:pass
+	// user:pass is really host:port, path, query, fragment
+	_host_offset = _user_offset;
+	_host_len = _user_len;
+	_port_offset = _pass_offset;
+	_port_len = i - _port_offset;
+	_user_offset = _user_len = _pass_offset = _pass_len = 0;  // no user:pass
 
-    goto url_ok;
+	goto url_ok;
 
 host:
-    _host_offset = i;
-    for (; i < sz; i++) {
+	_host_offset = i;
+	for (; i < sz; i++) {
 
-        // I wish their were a more elegent way than repeating
-        // the same two lines of code for each case
-        // We could use gcc's "computed labels" but that's not portable
-        switch (url_str[i]) {
-            case '/':
-                // empty host
-                if (i == _host_offset) return code(URL_ERR_HOST);
-                _host_len = i - _host_offset;
-                goto path;
-            case ':':
-                if (i == _host_offset) return code(URL_ERR_HOST);
-                _host_len = i - _host_offset;
-                i++; // advance past ':'
-                goto port;
-            case '?':
-                if (i == _host_offset) return code(URL_ERR_HOST);
-                _host_len = i - _host_offset;
-                //i++; // advance past '?'
-                goto query;
-            case '#':
-                if (i == _host_offset) return code(URL_ERR_HOST);
-                _host_len = i - _host_offset;
-                goto fragment;
-            //default: NOP
-        }
-    }
+		// I wish their were a more elegent way than repeating
+		// the same two lines of code for each case
+		// We could use gcc's "computed labels" but that's not portable
+		switch (url_str[i]) {
+			case '/':
+				// empty host
+				if (i == _host_offset) return code(URL_ERR_HOST);
+				_host_len = i - _host_offset;
+				goto path;
+			case ':':
+				if (i == _host_offset) return code(URL_ERR_HOST);
+				_host_len = i - _host_offset;
+				i++; // advance past ':'
+				goto port;
+			case '?':
+				if (i == _host_offset) return code(URL_ERR_HOST);
+				_host_len = i - _host_offset;
+				//i++; // advance past '?'
+				goto query;
+			case '#':
+				if (i == _host_offset) return code(URL_ERR_HOST);
+				_host_len = i - _host_offset;
+				goto fragment;
+			//default: NOP
+		}
+	}
 
-    // empty host
+	// empty host
    if (i == _host_offset) return code(URL_ERR_HOST);
 
-    // no port, path, query, fragment
-    _host_len = i - _host_offset;
-    goto url_ok;
+	// no port, path, query, fragment
+	_host_len = i - _host_offset;
+	goto url_ok;
 
 port:
-    _port_offset = i;
-    for (; i < sz; i++) {
-        switch (url_str[i]) {
-            case '/':
-                if (i == _port_offset) return code(URL_ERR_PORT);
-                _port_len = i - _port_offset;
-                goto path;
-            case '?':
-                if (i == _port_offset) return code(URL_ERR_PORT);
-                _port_len = i - _port_offset;
-                //i++; // advance past '?'
-                goto query;
-            case '#':
-                if (i == _port_offset) return code(URL_ERR_PORT);
-                _port_len = i - _port_offset;
-                goto fragment;
-            //default: NOP
-        }
-    }
+	_port_offset = i;
+	for (; i < sz; i++) {
+		switch (url_str[i]) {
+			case '/':
+				if (i == _port_offset) return code(URL_ERR_PORT);
+				_port_len = i - _port_offset;
+				goto path;
+			case '?':
+				if (i == _port_offset) return code(URL_ERR_PORT);
+				_port_len = i - _port_offset;
+				//i++; // advance past '?'
+				goto query;
+			case '#':
+				if (i == _port_offset) return code(URL_ERR_PORT);
+				_port_len = i - _port_offset;
+				goto fragment;
+			//default: NOP
+		}
+	}
 
-    // no path, query, fragment
-    _port_len = i - _port_offset;
-    goto url_ok;
+	// no path, query, fragment
+	_port_len = i - _port_offset;
+	goto url_ok;
 
 path:
-    _path_offset = i;
-    for (; i < sz; i++) {
-        switch (url_str[i]) {
-            case '?':
-                if (i == _path_offset) return code(URL_ERR_PATH);
-                _path_len = i - _path_offset;
-                //i++; // advance past '?'
-                goto query;
-            case '#':
-                if (i == _path_offset) return code(URL_ERR_PATH);
-                _path_len = i - _path_offset;
-                goto fragment;
-            //default: NOP
-        }
-    }
+	_path_offset = i;
+	for (; i < sz; i++) {
+		switch (url_str[i]) {
+			case '?':
+				if (i == _path_offset) return code(URL_ERR_PATH);
+				_path_len = i - _path_offset;
+				//i++; // advance past '?'
+				goto query;
+			case '#':
+				if (i == _path_offset) return code(URL_ERR_PATH);
+				_path_len = i - _path_offset;
+				goto fragment;
+			//default: NOP
+		}
+	}
 
-    // no query
-    _path_len = i - _path_offset;
-    goto fragment;
+	// no query
+	_path_len = i - _path_offset;
+	goto fragment;
 
 query:
-    _query_offset = i;
-    for (; i < sz; i++) {
-        if (url_str[i] == '#') {
-            _query_len = i - _query_offset;
-            goto fragment;
-        }
-    }
+	_query_offset = i;
+	for (; i < sz; i++) {
+		if (url_str[i] == '#') {
+			_query_len = i - _query_offset;
+			goto fragment;
+		}
+	}
 
-    // no fragment
-    _query_len = i - _query_offset;
-    goto url_ok;
+	// no fragment
+	_query_len = i - _query_offset;
+	goto url_ok;
 
 fragment:
-    _fragment_offset = i;
-    _fragment_len = sz - _fragment_offset;
+	_fragment_offset = i;
+	_fragment_len = sz - _fragment_offset;
 	if (_fragment_len > 0)
 
 url_ok:
@@ -279,7 +279,7 @@ url_ok:
 		_sub_relator = HARD_TAG_TYPE_OF;
 		_super_object = HARD_TAG_FILE;
 	}
-    return this->code(TAGD_OK);
+	return this->code(TAGD_OK);
 }
 
 tagd::code url::init_hduri(id_view uri) {
@@ -288,13 +288,13 @@ tagd::code url::init_hduri(id_view uri) {
 
 	// payload after uri scheme
 	const auto hduri = uri.substr(HDURI_SCHEME.size());
-    auto sz = hduri.size();
-    if (sz == 0) return _code;  // URL_EMPTY
+	auto sz = hduri.size();
+	if (sz == 0) return _code;  // URL_EMPTY
 
-    if (sz > URL_MAX_LEN) return code(URL_MAX_LEN);
+	if (sz > URL_MAX_LEN) return code(URL_MAX_LEN);
 
 	// find scheme (at the end)
-    auto i = sz;
+	auto i = sz;
 	while (--i > 0) {
 		if (hduri[i] == HDURI_DELIM)
 			break;
@@ -304,7 +304,7 @@ tagd::code url::init_hduri(id_view uri) {
 	if (i == 0) return code(URL_ERR_SCHEME);
 
 	// scheme is after the last delim
-    std::stringstream ss_url;
+	std::stringstream ss_url;
 	ss_url << decode_hduri_delim(std::string(hduri.substr(i + 1)));
 
 	_scheme_len = sz - (i+1);
@@ -405,28 +405,28 @@ tagd::code url::init_hduri(id_view uri) {
 	if (elems[HDURI_PORT]) {
 		ss_url << ':' << decode_hduri_delim(*(elems[HDURI_PORT]));
 		_port_offset = sz + 1;
-        _port_len = elems[HDURI_PORT]->size();
+		_port_len = elems[HDURI_PORT]->size();
 		sz += elems[HDURI_PORT]->size() + 1;
 	}
 
 	if (elems[HDURI_PATH]) {
 		ss_url << decode_hduri_delim(*(elems[HDURI_PATH]));
 		_path_offset = sz;
-        _path_len = elems[HDURI_PATH]->size();
+		_path_len = elems[HDURI_PATH]->size();
 		sz += elems[HDURI_PATH]->size();
 	}
 
 	if (elems[HDURI_QUERY]) {
 		ss_url << decode_hduri_delim(*(elems[HDURI_QUERY]));
 		_query_offset = sz;
-        _query_len = elems[HDURI_QUERY]->size();
+		_query_len = elems[HDURI_QUERY]->size();
 		sz += elems[HDURI_QUERY]->size();
 	}
 
 	if (elems[HDURI_FRAGMENT]) {
 		ss_url << decode_hduri_delim(*(elems[HDURI_FRAGMENT]));
 		_fragment_offset = sz;
-        _fragment_len = elems[HDURI_FRAGMENT]->size();
+		_fragment_len = elems[HDURI_FRAGMENT]->size();
 		sz += elems[HDURI_FRAGMENT]->size() + 1;
 	}
 
@@ -440,7 +440,7 @@ tagd::code url::init_hduri(id_view uri) {
 		_sub_relator = HARD_TAG_TYPE_OF;
 		_super_object = HARD_TAG_FILE;
 	}
-    return code(TAGD_OK);
+	return code(TAGD_OK);
 }
 
 std::string encode_hduri_delim(std::string elem) {
@@ -487,7 +487,7 @@ std::string decode_hduri_delim(std::string elem) {
 std::string url::hduri() const {
 	assert(!this->scheme().empty());
 
-    std::stringstream ss;
+	std::stringstream ss;
 	ss << HDURI_SCHEME;
 
 	tagd::domain d(this->host());
@@ -517,7 +517,7 @@ std::string url::hduri() const {
 
 	hduri_elem_f(this->scheme());
 
-    return ss.str();
+	return ss.str();
 }
 
 // inserts host part relations, returns tld_code from domain::init
@@ -648,118 +648,118 @@ bool url::looks_like_hduri(const std::string& uri) {
 \*/
 const char HEX2DEC[256] =
 {
-    /*       0  1  2  3   4  5  6  7   8  9  A  B   C  D  E  F */
-    /* 0 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    /* 1 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    /* 2 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    /* 3 */  0, 1, 2, 3,  4, 5, 6, 7,  8, 9,-1,-1, -1,-1,-1,-1,
+	/*       0  1  2  3   4  5  6  7   8  9  A  B   C  D  E  F */
+	/* 0 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* 1 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* 2 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* 3 */  0, 1, 2, 3,  4, 5, 6, 7,  8, 9,-1,-1, -1,-1,-1,-1,
 
-    /* 4 */ -1,10,11,12, 13,14,15,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    /* 5 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    /* 6 */ -1,10,11,12, 13,14,15,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    /* 7 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* 4 */ -1,10,11,12, 13,14,15,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* 5 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* 6 */ -1,10,11,12, 13,14,15,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* 7 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
 
-    /* 8 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    /* 9 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    /* A */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    /* B */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* 8 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* 9 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* A */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* B */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
 
-    /* C */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    /* D */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    /* E */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
-    /* F */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1
+	/* C */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* D */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* E */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+	/* F */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1
 };
 
 std::string uri_decode(const std::string & sSrc)
 {
-    // Note from RFC1630:  "Sequences which start with a percent sign
-    // but are not followed by two hexadecimal characters (0-9, A-F) are reserved
-    // for future extension"
+	// Note from RFC1630:  "Sequences which start with a percent sign
+	// but are not followed by two hexadecimal characters (0-9, A-F) are reserved
+	// for future extension"
 
-    const unsigned char * pSrc = (const unsigned char *)sSrc.c_str();
+	const unsigned char * pSrc = (const unsigned char *)sSrc.c_str();
 	const int SRC_LEN = sSrc.length();
-    const unsigned char * const SRC_END = pSrc + SRC_LEN;
-    const unsigned char * const SRC_LAST_DEC = SRC_END - 2;   // last decodable '%'
+	const unsigned char * const SRC_END = pSrc + SRC_LEN;
+	const unsigned char * const SRC_LAST_DEC = SRC_END - 2;   // last decodable '%'
 
-    char * const pStart = new char[SRC_LEN];
-    char * pEnd = pStart;
+	char * const pStart = new char[SRC_LEN];
+	char * pEnd = pStart;
 
-    while (pSrc < SRC_LAST_DEC)
+	while (pSrc < SRC_LAST_DEC)
 	{
 		if (*pSrc == '%')
-        {
-            char dec1, dec2;
-            if (-1 != (dec1 = HEX2DEC[*(pSrc + 1)])
-                && -1 != (dec2 = HEX2DEC[*(pSrc + 2)]))
-            {
-                *pEnd++ = (dec1 << 4) + dec2;
-                pSrc += 3;
-                continue;
-            }
-        }
+		{
+			char dec1, dec2;
+			if (-1 != (dec1 = HEX2DEC[*(pSrc + 1)])
+				&& -1 != (dec2 = HEX2DEC[*(pSrc + 2)]))
+			{
+				*pEnd++ = (dec1 << 4) + dec2;
+				pSrc += 3;
+				continue;
+			}
+		}
 
-        *pEnd++ = *pSrc++;
+		*pEnd++ = *pSrc++;
 	}
 
-    // the last 2- chars
-    while (pSrc < SRC_END)
-        *pEnd++ = *pSrc++;
+	// the last 2- chars
+	while (pSrc < SRC_END)
+		*pEnd++ = *pSrc++;
 
-    std::string sResult(pStart, pEnd);
-    delete [] pStart;
+	std::string sResult(pStart, pEnd);
+	delete [] pStart;
 	return sResult;
 }
 
 // safe chars: [0-9a-zA-Z_]
 const char SAFE[256] =
 {
-    /*      0 1 2 3  4 5 6 7  8 9 A B  C D E F */
-    /* 0 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-    /* 1 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-    /* 2 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-    /* 3 */ 1,1,1,1, 1,1,1,1, 1,1,0,0, 0,0,0,0,
+	/*      0 1 2 3  4 5 6 7  8 9 A B  C D E F */
+	/* 0 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+	/* 1 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+	/* 2 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+	/* 3 */ 1,1,1,1, 1,1,1,1, 1,1,0,0, 0,0,0,0,
 
-    /* 4 */ 0,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,
-    /* 5 */ 1,1,1,1, 1,1,1,1, 1,1,1,0, 0,0,0,1,
-    /* 6 */ 0,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,
-    /* 7 */ 1,1,1,1, 1,1,1,1, 1,1,1,0, 0,0,0,0,
+	/* 4 */ 0,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,
+	/* 5 */ 1,1,1,1, 1,1,1,1, 1,1,1,0, 0,0,0,1,
+	/* 6 */ 0,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,
+	/* 7 */ 1,1,1,1, 1,1,1,1, 1,1,1,0, 0,0,0,0,
 
-    /* 8 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-    /* 9 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-    /* A */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-    /* B */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+	/* 8 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+	/* 9 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+	/* A */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+	/* B */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
 
-    /* C */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-    /* D */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-    /* E */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-    /* F */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0
+	/* C */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+	/* D */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+	/* E */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+	/* F */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0
 };
 
 std::string uri_encode(const std::string & sSrc)
 {
-    const char DEC2HEX[16 + 1] = "0123456789ABCDEF";
-    const unsigned char * pSrc = (const unsigned char *)sSrc.c_str();
-    const int SRC_LEN = sSrc.length();
-    unsigned char * const pStart = new unsigned char[SRC_LEN * 3];
-    unsigned char * pEnd = pStart;
-    const unsigned char * const SRC_END = pSrc + SRC_LEN;
+	const char DEC2HEX[16 + 1] = "0123456789ABCDEF";
+	const unsigned char * pSrc = (const unsigned char *)sSrc.c_str();
+	const int SRC_LEN = sSrc.length();
+	unsigned char * const pStart = new unsigned char[SRC_LEN * 3];
+	unsigned char * pEnd = pStart;
+	const unsigned char * const SRC_END = pSrc + SRC_LEN;
 
-    for (; pSrc < SRC_END; ++pSrc)
+	for (; pSrc < SRC_END; ++pSrc)
 	{
 		if (SAFE[*pSrc])
-            *pEnd++ = *pSrc;
-        else
-        {
-            // escape this char
-            *pEnd++ = '%';
-            *pEnd++ = DEC2HEX[*pSrc >> 4];
-            *pEnd++ = DEC2HEX[*pSrc & 0x0F];
-        }
+			*pEnd++ = *pSrc;
+		else
+		{
+			// escape this char
+			*pEnd++ = '%';
+			*pEnd++ = DEC2HEX[*pSrc >> 4];
+			*pEnd++ = DEC2HEX[*pSrc & 0x0F];
+		}
 	}
 
-    std::string sResult((char *)pStart, (char *)pEnd);
-    delete [] pStart;
-    return sResult;
+	std::string sResult((char *)pStart, (char *)pEnd);
+	delete [] pStart;
+	return sResult;
 }
 
 void url::insert_url_part_relations(tagd::predicate_set& P, const url& u) {

@@ -17,11 +17,11 @@ extern "C" {
 #define ULID_SECURE    (1 << 2)
 
 struct ulid_generator {
-    unsigned char last[16];
-    unsigned long long last_ts;
-    int flags;
-    unsigned char i, j;
-    unsigned char s[256];
+	unsigned char last[16];
+	unsigned long long last_ts;
+	int flags;
+	unsigned char i, j;
+	unsigned char s[256];
 };
 
 /* Initialize a new ULID generator instance.

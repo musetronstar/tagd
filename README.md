@@ -6,7 +6,7 @@
 
 The tagd software is composed of
 * semantic entities called **tags**
-* a semantic-relational database called **tagdb**
+* a semantic-relational storage interface called **tagspace**
 * the **TAGL** language and interpreter
 * a **tagsh** shell
 * and the **httagd** web service
@@ -14,7 +14,7 @@ The tagd software is composed of
 *intelligent agents* (human or machine) can define and retrieve the semantic
 meaning of tags through a meta-conceptual language called **TAGL**.
 
-By defining *subordinate relations*, *tagdb* organizes a tree of knowledge
+By defining *subordinate relations*, *tagspace* organizes a tree of knowledge
 called a **tagspace**.  TAGL maps to a *tagspace*. The *httagd* web service
 in turn maps to *TAGL*, enabling communication over the Web and
 integration with other services.
@@ -30,10 +30,33 @@ To perform the actions, first make the software (see [Installation](#installatio
 then launch **tagsh** - the tagd shell:
 
 	cd tagsh
-	bin/tagsh --db -
+	bin/tagsh
 
-The `--db -` option tells tagsh to create a sqlite in-memory database.
+With no `--tagspace` option, tagsh uses an in-memory tagspace.
 `tagsh -h` shows usage and options.
+
+To create a persistent named tagspace, then reopen it:
+
+```sh
+bin/tagsh --tagspace Zoology --create
+bin/tagsh --tagspace Zoology
+```
+
+`--create` requires `--tagspace` and fails if its database already exists.
+Without `--create`, a missing tagspace is an error. Option order is irrelevant.
+Use `--home DIR` to override the default `~/.tagd`; data resides at
+`<home>/tagspaces/<name>/<name>.db`. Creation makes missing parent directories
+and may reuse an existing directory when the database file has been removed.
+It never overwrites an existing database. Names may contain UTF-8 and internal
+spaces (quote shell arguments, such as `--tagspace "My Zoo"`). Invalid UTF-8,
+path separators, control characters, traversal names, and surrounding whitespace
+are rejected before filesystem changes.
+
+The same options apply to httagd, which also defaults to in-memory storage.
+Both programs operate on one tagspace selected at startup. TAGL switching,
+named-tagspace URL prefixes, and filepile storage are future work. The former
+`--db` option is removed.
+
 
 
 #### Sub Relation
@@ -356,7 +379,7 @@ Results:
 
 And some more:
 
-    -- TODO replace '*' with '->' operator 
+    -- TODO replace '*' with '->' operator
 	?? what * _private = wikipedia,
 	_public = org
 	about animal;
@@ -548,6 +571,31 @@ The context can be cleared by setting it to an empty string:
 
 	%% context "";
 
+##### Boolean Flags
+
+Boolean flag values are the hard tags `_true` and `_false`, or user-defined
+tags subordinate to them. Descendants inherit `POS_TRUE` or `POS_FALSE`
+through every level of the hierarchy; their spelling does not determine truth.
+
+    %% _ignore_duplicates _true;
+    %% _ignore_duplicates _false;
+
+The `_ignore_duplicates` flag suppresses duplicate errors when enabled.
+Disabling it restores duplicate errors. Setting this flag preserves other flags.
+
+Define your own boolean vocabulary using ordinary sub relations:
+
+    >> yes <: _true;
+    >> no <: _false;
+    >> certainly <: yes;
+    %% _ignore_duplicates certainly;
+    %% _ignore_duplicates no;
+
+Here `yes` and `certainly` mean true, and `no` means false. These user-defined
+tags must be created before use. Numbers are not converted to booleans:
+`0`, `1`, other integers, and floating-point values are rejected, as are
+unrelated tags and unknown values. A rejected value leaves the flag unchanged.
+
 ##### QUERY Referents:
 
 You can see what a label *refers* by using a query:
@@ -695,7 +743,7 @@ First, fire up the webserver:
 
 	# assuming you are still in the tagsh/ directory
 	cd ../httagd
-	bin/httagd --db - &
+	bin/httagd &
 
 httagd should now be listening on port 2112 and using an in-memory database.
 

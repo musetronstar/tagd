@@ -4,6 +4,7 @@
 #include <sstream>
 #include <stdint.h>
 #include "tagd.h"
+#include "tagd/tagspace.h"
 #include "tagd/hard-tags.h"
 #include "tagd/logger.h"
 
@@ -23,77 +24,17 @@ void TAGDB_LOG_EVENT(tagd::session *, tagd::log_level, const std::string&);
 
 namespace tagdb {
 
-typedef enum {
-	F_NO_POS_CAST	         = 1 << 0, // don't cast a tag according to its pos (i.e. url, referent...)
-	F_NO_TRANSFORM_REFERENTS = 1 << 1, // don't transform to/from referent to tag when putting/getting
-	F_NO_NOT_FOUND_ERROR     = 1 << 2, // don't set error when get() returns TS_NOT_FOUND
-	F_IGNORE_DUPLICATES      = 1 << 3, // don't set error when TS_DUPLICATE would be set 
-	F_NO_RESET               = 1 << 4  // don't call reset() at the beginning of public tagdb methods
-	// ...
-	//          	= 1 << 31,
-} ts_flags;
-const int TS_FLAGS_END     = 1 << 5;
-
-typedef uint32_t flags_t;
-
-struct flag_util {
-	static std::string flag_str(flags_t f) {
-		if (f == 0)
-			return "EMPTY_FLAGS";
-
-        switch (f) {
-			case F_NO_POS_CAST:            return "F_NO_POS_CAST";
-			case F_NO_TRANSFORM_REFERENTS: return "F_NO_TRANSFORM_REFERENTS";
-			case F_NO_NOT_FOUND_ERROR:     return "F_NO_NOT_FOUND_ERROR";
-			case F_IGNORE_DUPLICATES:      return "F_IGNORE_DUPLICATES";
-			case F_NO_RESET:               return "F_NO_RESET";
-            default:                       return "FLAG_UNKNOWN";
-        }
-    }
-
-	static std::string flag_list_str(flags_t f) {
-		if (f == 0)
-			return "EMPTY_FLAGS";
-
-		std::string s;
-		int i = 0;
-		ts_flags flag = (ts_flags)(1 << i);
-		if ((f & flag) == flag)
-			s.append( flag_str(flag) );
-		while ((flag=(ts_flags)(1<<(++i))) < TS_FLAGS_END) {
-			if ((f & flag) == flag) {
-				if (s.size() > 0)
-					s.append(",");
-				s.append(flag_str(flag));
-			}
-		}
-
-		return s;
-	}
-};
-
-class tagdb;	// forward declare
-
-// Extends tagd::session with a context stack; inherits its explicit copy semantics (std::atomic suppresses implicit copy/move).
-class session : public tagd::session {
-	// no pub cons, only tagdb can access
-	friend tagdb;
-
-	private:
-		// stack of tags ids as context
-		tagd::id_vec _context;
-		tagdb *_tdb;  // borrowed back-pointer; tagdb outlives this session
-
-		session() = delete;  // *tagdb reqd
-		session(tagdb *tdb) : tagd::session(), _tdb{tdb} {}
-
-	public:
-		tagd::code push_context(tagd::id_view);
-		tagd::code pop_context();
-		tagd::code clear_context();
-		void print_context();
-		const tagd::id_vec& context() const;
-};
+// The backend uses the same session and flags as the public tagspace.
+using session = tagd::tagspace_session;
+using tagd::flags_t;
+using tagd::ts_flags;
+using tagd::TS_FLAGS_END;
+using tagd::flag_util;
+using tagd::F_NO_POS_CAST;
+using tagd::F_NO_TRANSFORM_REFERENTS;
+using tagd::F_NO_NOT_FOUND_ERROR;
+using tagd::F_IGNORE_DUPLICATES;
+using tagd::F_NO_RESET;
 
 // matches sqlite_int64 type defined in sqlite.h
 typedef long long int rowid_t;
@@ -123,21 +64,13 @@ class tagdb : public tagd::errorable {
 		tagdb() : tagd::errorable(tagd::TS_INIT) {}
 		virtual ~tagdb() {}
 
-		// execution-context type: abstract interface + virtual destructor + open db lifetime make copy/move unsafe
+		// Open database handles have one owner; copying or moving this object is unsafe.
 		tagdb(const tagdb&)            = delete;
 		tagdb& operator=(const tagdb&) = delete;
 		tagdb(tagdb&&)                 = delete;
 		tagdb& operator=(tagdb&&)      = delete;
 
-		// Stack-lifetime session; no allocation. Prefer over new_session() for single-frame use.
-		session get_session() {
-			return session(this);
-		}
-
-		// Heap-allocated session; caller must delete. Use when the session must outlive its creating frame.
-		session* new_session() {
-			return new session(this);
-		}
+		// The caller supplies a session created by its tagspace.
 
 		/*
 		 * when implemented, the follow methods should begin with a
@@ -148,8 +81,10 @@ class tagdb : public tagd::errorable {
 		// get into tag from db, given id
 		[[nodiscard]] virtual tagd::code get(tagd::abstract_tag&, tagd::id_view, session*, flags_t = 0) = 0;
 
-		// Type-specific get overloads; default delegates to abstract_tag get().
-		// Backends with type-specific storage (e.g., sqlite URL column layout) override these.
+		/*
+		 * Type-specific get overloads; default delegates to abstract_tag get().
+		 * Backends with type-specific storage (e.g., sqlite URL column layout) override these.
+		 */
 		[[nodiscard]] virtual tagd::code get(tagd::url& u, tagd::id_view id, session* ssn, flags_t f = 0) {
 			return this->get(static_cast<tagd::abstract_tag&>(u), id, ssn, f);
 		}
@@ -180,7 +115,7 @@ class tagdb : public tagd::errorable {
 		[[nodiscard]] virtual tagd::code query(tagd::tag_set&, const tagd::interrogator&, session*, flags_t = 0) = 0;
 
 		// return a tag::pos given a tag id
-		virtual tagd::part_of_speech pos(tagd::id_view, session*, flags_t = 0) = 0; 
+		virtual tagd::part_of_speech pos(tagd::id_view, session*, flags_t = 0) = 0;
 
 		// returns whether a tag id exists
 		virtual bool exists(tagd::id_view, flags_t = 0) = 0;
@@ -188,7 +123,7 @@ class tagdb : public tagd::errorable {
 		virtual tagd::code dump(std::ostream& os = std::cout) = 0;
 		virtual tagd::code dump_grid(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }
 		virtual tagd::code dump_terms(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }
-        virtual tagd::code dump_search(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }
+		virtual tagd::code dump_search(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }
 };
 
 struct util {

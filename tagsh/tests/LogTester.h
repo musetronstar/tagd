@@ -4,19 +4,19 @@
 
 #include <sstream>
 
-#include "tagdb/sqlite.h"
+#include "tagspace.h"
 #include "tagsh.h"
 
-typedef tagdb::sqlite tagdb_type;
+typedef tagd::tagspace::memory tagspace_type;
 
 class Tester : public CxxTest::TestSuite {
 	public:
 
 	void test_notice_file_logging_in_process(void) {
 		std::stringstream log_ss;
-		tagdb_type tdb;
+		tagspace_type tdb;
 
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 
 		tagsh shell(&tdb);
 		cmd_args args;
@@ -24,18 +24,18 @@ class Tester : public CxxTest::TestSuite {
 		args.opt_logger.level(tagd::log_level::EMERGENCY);
 		args.opt_logger.level(HARD_TAG_ROLE_TAGSH, tagd::log_level::NOTICE);
 		args.opt_logger.stream(log_ss);
-		args.tagl_statements.push_back("f:../bootstrap.tagl");
+		args.tagl_statements.push_back("f:bootstrap.tagl");
 
 		TS_ASSERT_EQUALS(args.interpret(shell), 0)
-		TS_ASSERT_DIFFERS(log_ss.str().find("-- tagsh load file=../bootstrap.tagl"), std::string::npos)
+		TS_ASSERT_DIFFERS(log_ss.str().find("-- tagsh load file=bootstrap.tagl"), std::string::npos)
 		TS_ASSERT_EQUALS(log_ss.str().find("-- tagsh code=TAGD_OK"), std::string::npos)
 	}
 
 	void test_error_command_logging_in_process(void) {
 		std::stringstream log_ss;
-		tagdb_type tdb;
+		tagspace_type tdb;
 
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 
 		tagsh shell(&tdb);
 		cmd_args args;
@@ -63,10 +63,10 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_valid_log_level_parse_configures_tagdb_debug_logging(void) {
 		std::stringstream log_ss;
-		tagdb_type tdb;
+		tagspace_type tdb;
 
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
-		tagdb::hard_tag::install_logger_validator();
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
+		tagd::tagspace_install_logger_validator();
 
 		tagsh shell(&tdb);
 		cmd_args args;
@@ -88,9 +88,9 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_driver_debug_logging_in_process(void) {
 		std::stringstream log_ss;
-		tagdb_type tdb;
+		tagspace_type tdb;
 
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 
 		tagsh shell(&tdb);
 		cmd_args args;
@@ -107,9 +107,9 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_tagdb_notice_put_logging_in_process(void) {
 		std::stringstream log_ss;
-		tagdb_type tdb;
+		tagspace_type tdb;
 
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 
 		tagsh shell(&tdb);
 		cmd_args args;
@@ -117,7 +117,7 @@ class Tester : public CxxTest::TestSuite {
 		args.opt_logger.level(tagd::log_level::EMERGENCY);
 		args.opt_logger.level(HARD_TAG_ROLE_TAGDB, tagd::log_level::NOTICE);
 		args.opt_logger.stream(log_ss);
-		args.tagl_statements.push_back("f:../bootstrap.tagl");
+		args.tagl_statements.push_back("f:bootstrap.tagl");
 		args.tagl_statements.push_back("t:>> otter kind_of mammal;");
 
 		TS_ASSERT_EQUALS(args.interpret(shell), 0)
@@ -127,9 +127,9 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_tagdb_error_put_logging_in_process(void) {
 		std::stringstream log_ss;
-		tagdb_type tdb;
+		tagspace_type tdb;
 
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 
 		tagsh shell(&tdb);
 		cmd_args args;
@@ -137,7 +137,7 @@ class Tester : public CxxTest::TestSuite {
 		args.opt_logger.level(tagd::log_level::EMERGENCY);
 		args.opt_logger.level(HARD_TAG_ROLE_TAGDB, tagd::log_level::ERROR);
 		args.opt_logger.stream(log_ss);
-		args.tagl_statements.push_back("f:../bootstrap.tagl");
+		args.tagl_statements.push_back("f:bootstrap.tagl");
 		args.tagl_statements.push_back("t:>> dog kind_of mammal;");
 
 		TS_ASSERT_EQUALS(args.interpret(shell), tagd::TS_DUPLICATE)

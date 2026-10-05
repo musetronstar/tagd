@@ -5,7 +5,7 @@
 #include "tagd.h"
 #include "tagd/hard-tags.h"
 #include "tagd/logger.h"
-#include "tagdb.h"
+#include "tagspace.h"
 #include "parser.h"
 
 // forward declare types used by lemon parser
@@ -65,21 +65,21 @@ class callback {
 	protected:
 		driver *_driver = nullptr;
 
-    public:
-        callback() {}
-        virtual ~callback() {}
-        callback(const callback&) = delete;
-        callback& operator=(const callback&) = delete;
-        callback(callback&&) = delete;
-        callback& operator=(callback&&) = delete;
+	public:
+		callback() {}
+		virtual ~callback() {}
+		callback(const callback&) = delete;
+		callback& operator=(const callback&) = delete;
+		callback(callback&&) = delete;
+		callback& operator=(callback&&) = delete;
 
-        // pure virtuals - consumers must override
-        virtual void cmd_get(const tagd::abstract_tag&) = 0;
-        virtual void cmd_put(const tagd::abstract_tag&) = 0;
-        virtual void cmd_del(const tagd::abstract_tag&) = 0;
-        virtual void cmd_query(const tagd::interrogator&) = 0;
-        virtual void cmd_error() = 0;
-        virtual void finish() {} // optional, can be overridden
+		// pure virtuals - consumers must override
+		virtual void cmd_get(const tagd::abstract_tag&) = 0;
+		virtual void cmd_put(const tagd::abstract_tag&) = 0;
+		virtual void cmd_del(const tagd::abstract_tag&) = 0;
+		virtual void cmd_query(const tagd::interrogator&) = 0;
+		virtual void cmd_error() = 0;
+		virtual void finish() {} // optional, can be overridden
 };
 
 const size_t BUF_SZ = 16384;
@@ -104,10 +104,10 @@ class driver : public tagd::errorable {
 		int _token = -1;		// last token scanned: 0 = <End of Input>, -1 = unitialized (ready for new parse tree)
 		int _cmd = -1;		// _token value representing a TAGL command
 
-		// The backing tagdb is borrowed from the caller for the driver's whole lifetime.
-		tagdb::tagdb *_tdb = nullptr;
+		// The caller owns the tagspace and must keep it alive until the driver is destroyed.
+		tagd::tagspace *_tdb = nullptr;
 		// Sessions may be borrowed or owned depending on how the driver was constructed.
-		tagdb::session *_session = nullptr;
+		tagd::tagspace_session *_session = nullptr;
 		// Callbacks are always borrowed; driver only binds and invokes them.
 		callback *_callback = nullptr;
 		// The current statement tag is owned by this driver until transferred or deleted.
@@ -122,31 +122,33 @@ class driver : public tagd::errorable {
 		void bind_callback(callback *);
 
 	public:
-		driver(tagdb::tagdb*, tagdb::session* = nullptr);
-		driver(tagdb::tagdb*, scanner*, tagdb::session* = nullptr);
-		driver(tagdb::tagdb*, scanner*, callback*, tagdb::session* = nullptr);
-		driver(tagdb::tagdb*, callback*, tagdb::session* = nullptr);
+		driver(tagd::tagspace*, tagd::tagspace_session* = nullptr);
+		driver(tagd::tagspace*, scanner*, tagd::tagspace_session* = nullptr);
+		driver(tagd::tagspace*, scanner*, callback*, tagd::tagspace_session* = nullptr);
+		driver(tagd::tagspace*, callback*, tagd::tagspace_session* = nullptr);
 		virtual ~driver();
 		driver(const driver&) = delete;
 		driver& operator=(const driver&) = delete;
 		driver(driver&&) = delete;
 		driver& operator=(driver&&) = delete;
 
-		tagdb::flags_t flags = 0;
+		tagd::flags_t flags = 0;
 		tagd::id_string constrain_tag_id; // if set, the assigned _tag.id() must be equal to this
 
 		// TODO remove from here, create/destroy relator in parser
 		tagd::id_string relator;    // current relator
 
-		tagdb::tagdb* tdb() { return _tdb; }
-		const tagdb::tagdb* tdb() const { return _tdb; }
-		void session_ptr(tagdb::session *ssn) { _session = ssn; }
-		tagdb::session* session_ptr() { return _session; }
-		const tagdb::session* session_ptr() const { return _session; }
+		tagd::tagspace* tdb() { return _tdb; }
+		const tagd::tagspace* tdb() const { return _tdb; }
+		void session_ptr(tagd::tagspace_session *ssn) { _session = ssn; }
+		tagd::tagspace_session* session_ptr() { return _session; }
+		const tagd::tagspace_session* session_ptr() const { return _session; }
 		// sets _session and _own_session, delete old session (if set and not the same)
-		void own_session(tagdb::session *);
-		// Not [[nodiscard]]: lemon-generated parser.cc calls this and discards; cannot change
-		// that file without regenerating from parser.y.
+		void own_session(tagd::tagspace_session *);
+		/*
+		 * Not [[nodiscard]]: lemon-generated parser.cc calls this and discards; cannot change
+		 * that file without regenerating from parser.y.
+		 */
 		tagd::code push_context(tagd::id_view);
 
 		void callback_ptr(callback *c) {
@@ -155,13 +157,17 @@ class driver : public tagd::errorable {
 		callback *callback_ptr() { return _callback; }
 		const callback *callback_ptr() const { return _callback; }
 
-		// Not [[nodiscard]]: errors surface through the cmd_error callback and the errorable
-		// mechanism; callers frequently drive parse/execute in callback-only mode.
+		/*
+		 * Not [[nodiscard]]: errors surface through the cmd_error callback and the errorable
+		 * mechanism; callers frequently drive parse/execute in callback-only mode.
+		 */
 		tagd::code parseln(const std::string& = std::string());
 		tagd::code execute(const std::string&);
 		tagd::code execute(evbuffer*);
-		// Not [[nodiscard]]: lemon-generated parser.cc calls this and discards; cannot change
-		// that file without regenerating from parser.y.
+		/*
+		 * Not [[nodiscard]]: lemon-generated parser.cc calls this and discards; cannot change
+		 * that file without regenerating from parser.y.
+		 */
 		tagd::code scan_tagdurl(int, const std::string& path);
 		[[nodiscard]] tagd::code scan_tagdurl(tagd::http_method, const std::string& path);
 		int token() const { return _token; }
@@ -207,8 +213,10 @@ class driver : public tagd::errorable {
 			_tag = nullptr;
 		}
 
-		// Not [[nodiscard]]: lemon-generated parser.cc calls this and discards.
-		// creates a new tagd::url and sets the _tag ptr
+		/*
+		 * Not [[nodiscard]]: lemon-generated parser.cc calls this and discards.
+		 * creates a new tagd::url and sets the _tag ptr
+		 */
 		tagd::code new_url(const std::string&);
 };
 

@@ -30,7 +30,7 @@ uint32_t utf8_read(const std::string&, size_t*);
 // returns std::string::npos if not found
 size_t utf8_pos_back(const std::string&, size_t pos=std::string::npos);
 
-// increments and return code point 
+// increments and return code point
 // returns 0xFFFD if cannot be incremented
 uint32_t utf8_increment(uint32_t);
 

@@ -18,6 +18,7 @@ static bool test_log_role_validator(const std::string& role) {
 		|| role == HARD_TAG_ROLE_SCANNER
 		|| role == HARD_TAG_ROLE_PARSER
 		|| role == HARD_TAG_ROLE_TAGDB
+		|| role == HARD_TAG_ROLE_TAGSPACE
 		|| role == HARD_TAG_ROLE_TAGSH
 		|| role == HARD_TAG_ROLE_SECURITY;
 }
@@ -147,11 +148,12 @@ class Tester : public CxxTest::TestSuite {
 		tagd::logger log(ss);
 		tagd::set_log_role_validator(test_log_role_validator);
 
-		TS_ASSERT(tagd::parse_log_level_spec("warning,_role:scanner:debug,_role:parser:info,_role:tagdb:emergency,_role:tagsh:notice", log))
+		TS_ASSERT(tagd::parse_log_level_spec("warning,_role:scanner:debug,_role:parser:info,_role:tagdb:emergency,_role:tagspace:info,_role:tagsh:notice", log))
 		TS_ASSERT_EQUALS(log.level(), tagd::log_level::WARNING)
 		TS_ASSERT_EQUALS(log.level(HARD_TAG_ROLE_SCANNER), tagd::log_level::DEBUG)
 		TS_ASSERT_EQUALS(log.level(HARD_TAG_ROLE_PARSER), tagd::log_level::INFO)
 		TS_ASSERT_EQUALS(log.level(HARD_TAG_ROLE_TAGDB), tagd::log_level::EMERGENCY)
+		TS_ASSERT_EQUALS(log.level(HARD_TAG_ROLE_TAGSPACE), tagd::log_level::INFO)
 		TS_ASSERT_EQUALS(log.level(HARD_TAG_ROLE_TAGSH), tagd::log_level::NOTICE)
 		TS_ASSERT_EQUALS(log.level(HARD_TAG_ROLE_HTTAGD), tagd::log_level::WARNING)
 	}

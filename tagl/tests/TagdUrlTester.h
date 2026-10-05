@@ -6,7 +6,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	public:
 
 	void test_cmd_get_tag(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
 
@@ -19,7 +19,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_http_get_tag(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
 
@@ -32,7 +32,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_cmd_del_tag(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
 
@@ -45,7 +45,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_http_del_tag(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		callback_tester cb(&tdb);
 		TAGL::driver tagl(&tdb, &cb);
 
@@ -58,7 +58,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_cmd_get_hduri_tag(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		const char *hduri = "/hd:org!wikipedia!en!/wiki/Dog!!!!!!https";
@@ -72,7 +72,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_cmd_get_event_error_uri_tag(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		const char *evuri = "/ev:2026-04-09T04:00:56.738Z!host!principal!tagsh!01KNS1F5S0CHPPQQNCVRQKVZM4!1!_event";
@@ -98,7 +98,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 
 	// mirrors Tester.h `test_subject(void)`, but uses a tagdurl subject
 	void test_get_statement_subject(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 		tagd::code tc = tagl.execute("<< /dog;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
@@ -108,7 +108,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_del_statement_subject(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.execute("!! /dog;");
@@ -119,7 +119,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_query_children(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.execute("?? /mammal/;");
@@ -131,7 +131,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_query_children_placeholder(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.execute("?? /*/legs,tail;");
@@ -145,7 +145,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_query_parent_relations(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.execute("?? /animal/meow,tail;");
@@ -159,7 +159,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_query_parent_relations_with_modifier(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.execute("?? /animal/blood=warm,tail,bark;");
@@ -174,7 +174,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_query_search_terms(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.execute("?? /mammal/?q=can+bark;");
@@ -187,7 +187,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_query_sub_search_terms(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.execute("?? /animal/?q=warm+blood;");
@@ -200,7 +200,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_query_search_terms_without_trailing_slash(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_GET, "/animal?q=warm+blood");
@@ -210,7 +210,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_root_search_terms(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_GET, "?q=can+bark");
@@ -224,7 +224,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_get_context_option(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_GET, "/dog?c=simple_english");
@@ -239,7 +239,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_get_utf8_subject(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_GET, "/イヌ");
@@ -250,7 +250,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_get_context_option_japanese(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_GET, "/イヌ?c=japanese");
@@ -267,7 +267,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_get_context_option_simple_english(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_GET, "/doggy?c=simple_english");
@@ -284,7 +284,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_put_empty_tagdurl(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_PUT, "");
@@ -293,7 +293,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_put_slash_empty_tagdurl(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_PUT, "/");
@@ -302,7 +302,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_put_trailing_slash_tagdurl(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_PUT, "/dog/");
@@ -311,7 +311,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_put_illegal_search(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_PUT, "/pigeon?q=oops");
@@ -320,7 +320,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_cmd_put_constrain_tag_id(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_PUT, "/dog");
@@ -331,7 +331,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_http_put_constrain_tag_id(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.scan_tagdurl(tagd::HTTP_PUT, "/dog");
@@ -342,7 +342,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	}
 
 	void test_del_illegal_search(void) {
-		tagdb_tester tdb;
+		tagspace_tester tdb;
 		TAGL::driver tagl(&tdb);
 
 		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_DEL, "/bat?q=oops");

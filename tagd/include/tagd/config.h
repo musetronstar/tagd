@@ -1,10 +1,10 @@
 #ifndef TAGD_CONFIG
 #define TAGD_CONFIG
 
-    /*|                                            |*\
-    |*|  macros for std::cerr and std::cout        |*|
-    |*|  should be used so they can be traced      |*|
-    \*|                                            |*/
+	/*|                                            |*\
+	|*|  macros for std::cerr and std::cout        |*|
+	|*|  should be used so they can be traced      |*|
+	\*|                                            |*/
 
 #define TAGD_COUT std::cout
 #define TAGD_CERR std::cerr

@@ -51,7 +51,7 @@ typedef bool (*log_role_validator)(const std::string&);
 |*|
 |*|   warning
 |*|   _role:scanner:debug
-|*|   warning,_role:scanner:debug,_role:parser:debug,_role:tagdb:emergency
+|*|   warning,_role:scanner:debug,_role:parser:debug,_role:tagspace:emergency
 |*|
 |*| A bare level sets the default. A role-specific level overrides the default
 |*| for that hard tag role id. Role ids are validated by an installed hard tag

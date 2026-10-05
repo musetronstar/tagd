@@ -33,7 +33,7 @@ struct predicate {
 	operator_t opr8r; // operates on the modifier
 	data_t modifier_type;
 
-	// string value members keep implicit copy/move semantics sufficient here
+	// String members handle copying and moving; no custom implementation is needed.
 	predicate() : opr8r{OP_EQ}, modifier_type{TYPE_STRING} {}
 	predicate(id_view r, id_view o) :
 		relator(r), object(o), opr8r{OP_EQ}, modifier_type{TYPE_STRING} {}
@@ -55,16 +55,18 @@ struct predicate {
 	|*| Currently orders by relator, object (string comparison), then modifier as a
 	|*| literal tiebreaker via cmp_modifier_lt. Safe for unranked predicates.
 	|*| Planned: canonical tagspace dump() requires rank-aware ordering — relator and
-	|*| object are tag ids whose ranks, once assigned via tagdb lookup, define the
+	|*| object are tag ids whose ranks, once assigned via tagspace lookup, define the
 	|*| canonical predicate sequence within a predicate_set.
 	|*| modifier is always a literal value and is not rank-promoted.
 	|*| Resolution depends on the same activation/comparator design as abstract_tag::operator<.
 	|*| When and where the rank lookup take place is TBD.
 	\*/
-	// predicate_set ordering contract; deeper predicate equality still lives in operator==
-	// noexcept not safe: cmp_modifier_lt calls std::stold which throws on malformed numeric strings
-    bool operator<(const predicate& p) const;
-    bool operator==(const predicate& p) const;
+	/*
+	 * Orders predicates in predicate_set; operator== compares their full contents.
+	 * noexcept not safe: cmp_modifier_lt calls std::stold which throws on malformed numeric strings
+	 */
+	bool operator<(const predicate& p) const;
+	bool operator==(const predicate& p) const;
 	bool operator!=(const predicate& p) const;
 	bool empty() const;
 };
@@ -98,8 +100,10 @@ void merge_tags(tag_set& A, const tag_set& B);
 // The number of tags merged will be returned
 size_t merge_tags_erase_diffs(tag_set& A, const tag_set& B);
 
-// Merges tags from B into A where an element of A contains B
-// or an element of B contains A.
+/*
+ * Merges tags from B into A where an element of A contains B
+ * or an element of B contains A.
+ */
 size_t merge_containing_tags(tag_set& A, const tag_set& B);
 
 // every member in A deep equals (===) every member in B
@@ -107,34 +111,38 @@ bool tag_set_equal(const tag_set& A, const tag_set& B);
 /************** end tag_set defs ************/
 
 class abstract_tag {
-    protected:
-        id_string _id;
-        id_string _sub_relator; // subordinate relation (i.e. _is_a)
-        id_string _super_object;  // superordinate, parent, or hypernym object in tree
-        part_of_speech _pos;
-        tagd::rank _rank;
+	protected:
+		id_string _id;
+		id_string _sub_relator; // subordinate relation (i.e. _is_a)
+		id_string _super_object;  // superordinate, parent, or hypernym object in tree
+		part_of_speech _pos;
+		tagd::rank _rank;
 		tagd::code _code;
-        tagd::code code(tagd::code c) { return _code = c; } // set and return
-    public:
-        // Semantic Identity: {_id, _sub_relator, _super_object, _rank} are immutable after construction.
-        // Structural Identity: a tag rank represents a fixed point in the tagspace topology.
+		tagd::code code(tagd::code c) { return _code = c; } // set and return
+	public:
+		/*
+		 * Semantic Identity: {_id, _sub_relator, _super_object, _rank} are immutable after construction.
+		 * Structural Identity: a tag rank represents a fixed point in the tagspace topology.
+		 */
 
-        // Empty tag used only as a temporary bridge where legacy out-parameter APIs
-        // still replace the whole value after lookup/parsing.
-        abstract_tag() :
+		/*
+		 * Empty tag used only as a temporary bridge where legacy out-parameter APIs
+		 * still replace the whole value after lookup/parsing.
+		 */
+		abstract_tag() :
 				_id(), _sub_relator(HARD_TAG_SUB), _super_object(),
 				_pos(POS_UNKNOWN), _rank(), _code(TAGD_OK) {};
-        // virtual destructor suppresses implicit moves for STL-friendly value semantics
-        abstract_tag(const abstract_tag&) = default;
-        abstract_tag(abstract_tag&&) noexcept = default;
-        virtual ~abstract_tag() {};
+		// The virtual destructor prevents automatic move methods; declare them explicitly.
+		abstract_tag(const abstract_tag&) = default;
+		abstract_tag(abstract_tag&&) noexcept = default;
+		virtual ~abstract_tag() {};
 
-        // Bare subject: parser ">> dog _has ..." — id only, sub_relator defaults to HARD_TAG_SUB
-        abstract_tag(id_view id, const part_of_speech& p = POS_UNKNOWN) :
+		// Bare subject: parser ">> dog _has ..." — id only, sub_relator defaults to HARD_TAG_SUB
+		abstract_tag(id_view id, const part_of_speech& p = POS_UNKNOWN) :
 			_id(id), _sub_relator(HARD_TAG_SUB), _super_object(),
 			_pos(p), _rank(), _code(TAGD_OK) {};
 
-        // Semantic: full identity construction with explicit sub-relation
+		// Semantic: full identity construction with explicit sub-relation
 		abstract_tag(
 				id_view id,
 				id_view sub_rel,
@@ -144,8 +152,8 @@ class abstract_tag {
 			_id(id), _sub_relator(sub_rel), _super_object(super_obj),
 			_pos(p), _rank(), _code(TAGD_OK) {};
 
-        // Rank upgrade: tagdb activation assigns structural rank to a semantic tag.
-        abstract_tag(const abstract_tag& sem, const tagd::rank& r) :
+		// Construct a ranked tag from the tag data after storage assigns its rank.
+		abstract_tag(const abstract_tag& sem, const tagd::rank& r) :
 			_id(sem._id),
 			_sub_relator(sem._sub_relator),
 			_super_object(sem._super_object),
@@ -155,9 +163,9 @@ class abstract_tag {
 			relations(sem.relations)
 		{};
 
-        predicate_set relations;
+		predicate_set relations;
 
-		// member swap as single noexcept seam for whole-tag exchange
+		// Exchange all tag fields without throwing.
 		void swap(abstract_tag&) noexcept;
 		abstract_tag& operator=(const abstract_tag&);
 		abstract_tag& operator=(abstract_tag&&) noexcept = default;
@@ -172,87 +180,87 @@ class abstract_tag {
 			);
 		}
 
-        const id_string& id() const { return _id; }
+		const id_string& id() const { return _id; }
 		void id(id_view) = delete;
 
-        const id_string& sub_relator() const { return _sub_relator; }
+		const id_string& sub_relator() const { return _sub_relator; }
 		void sub_relator(id_view) = delete;
 
-        const id_string& super_object() const { return _super_object; }
+		const id_string& super_object() const { return _super_object; }
 		void super_object(id_view) = delete;
 
-        part_of_speech pos() const { return _pos; }
-        void pos(const part_of_speech& p) { _pos = p; }
+		part_of_speech pos() const { return _pos; }
+		void pos(const part_of_speech& p) { _pos = p; }
 
-        const tagd::rank& rank() const { return _rank; }
+		const tagd::rank& rank() const { return _rank; }
 		void rank(const tagd::rank&) = delete;
 		void rank(const char *) = delete;
-        bool has_rank() const { return !_rank.empty(); }
+		bool has_rank() const { return !_rank.empty(); }
 
-        tagd::code code() const { return _code; }
-        bool ok() const { return _code == TAGD_OK; }
+		tagd::code code() const { return _code; }
+		bool ok() const { return _code == TAGD_OK; }
 
-        // TODO(cpp23-return-contracts): keep these mutation seams [[nodiscard]]
-        // and drive callers toward immediate-check style instead of relying on
-        // later ambient error/session state inspection.
-        [[nodiscard]] tagd::code relation(const predicate&);
-        [[nodiscard]] tagd::code relation(id_view, id_view); // relator, object
-        [[nodiscard]] tagd::code relation(id_view, id_view, id_view); // relator, object, modifier
-        [[nodiscard]] tagd::code relation(id_view, id_view, id_view, operator_t); // relator, object, modifier, opr8r
-        [[nodiscard]] tagd::code relation(id_view, id_view, id_view, operator_t, data_t); // relator, object, modifier, opr8r, modifier_type
+		// TODO(cpp23-return-contracts): keep these mutation methods [[nodiscard]]
+		// and drive callers toward immediate-check style instead of relying on
+		// later ambient error/session state inspection.
+		[[nodiscard]] tagd::code relation(const predicate&);
+		[[nodiscard]] tagd::code relation(id_view, id_view); // relator, object
+		[[nodiscard]] tagd::code relation(id_view, id_view, id_view); // relator, object, modifier
+		[[nodiscard]] tagd::code relation(id_view, id_view, id_view, operator_t); // relator, object, modifier, opr8r
+		[[nodiscard]] tagd::code relation(id_view, id_view, id_view, operator_t, data_t); // relator, object, modifier, opr8r, modifier_type
 
-        // TODO(cpp23-return-contracts): audit whether not_relation should also
-        // be [[nodiscard]] and require the same immediate-check discipline.
-        tagd::code not_relation(const predicate&);
-                            // relator, object
-        tagd::code not_relation(id_view, id_view);
+		// TODO(cpp23-return-contracts): audit whether not_relation should also
+		// be [[nodiscard]] and require the same immediate-check discipline.
+		tagd::code not_relation(const predicate&);
+							// relator, object
+		tagd::code not_relation(id_view, id_view);
 
 		// modifier not needed for negations (erasing)
-        // tagd::code not_relation(const id_string&, const id_string&, const id_string&);
+		// tagd::code not_relation(const id_string&, const id_string&, const id_string&);
 
-        void predicates(const predicate_set&);
+		void predicates(const predicate_set&);
 
-        bool has_relator(id_view) const;
-        bool has_relator(id_view, predicate_set& how) const;
+		bool has_relator(id_view) const;
+		bool has_relator(id_view, predicate_set& how) const;
 		// related to object
-        bool related(id_view object) const;
-        // fill predicate set with predicates matching object, return num matches
-        size_t related(id_view object, predicate_set& how) const;
+		bool related(id_view object) const;
+		// fill predicate set with predicates matching object, return num matches
+		size_t related(id_view object, predicate_set& how) const;
 
-        // relator, object
-        bool related(id_view relator, id_view object) const;
-        bool related(const predicate& p) const {
+		// relator, object
+		bool related(id_view relator, id_view object) const;
+		bool related(const predicate& p) const {
 			auto it = relations.find(p);
-            if (it == relations.end())
+			if (it == relations.end())
 				return false;
 
 			return (p.modifier.empty() || p.modifier == it->modifier);
-        }
-
-        // relator, object, modifier
-        bool related(id_view r, id_view o, id_view m) const {
-            return this->related(predicate(r, o, m));
 		}
 
-        // deep equality for whole-tag state; intentionally stronger than operator<
-        bool operator==(const abstract_tag&) const;
-        bool operator!=(const abstract_tag& rhs) const { return !(*this == rhs); }
+		// relator, object, modifier
+		bool related(id_view r, id_view o, id_view m) const {
+			return this->related(predicate(r, o, m));
+		}
+
+		// deep equality for whole-tag state; intentionally stronger than operator<
+		bool operator==(const abstract_tag&) const;
+		bool operator!=(const abstract_tag& rhs) const { return !(*this == rhs); }
 
 		/*\
 		|*| TODO: Activation and canonical ordering
 		|*| Currently orders by _id (string comparison) — safe for unranked tags.
-		|*| Planned: when a tag has rank assigned via tagdb lookup, ordering
+		|*| Planned: when a tag has rank assigned via tagspace lookup, ordering
 		|*| and equality should promote to rank-based comparison for canonical correctness.
 		|*| Design options under consideration:
-		|*|   1. Just-in-time lookup: pass tagdb context to rank-aware free functions or
+		|*|   1. Just-in-time lookup: pass tagspace context to rank-aware free functions or
 		|*|      algorithm overloads; operator< stays id-based; rank-aware comparisons
 		|*|      use explicit comparator types (e.g. tag_rank_order) at the call site.
 		|*|   2. operator== falls back to _id comparison if either operand has empty rank;
 		|*|      compares by rank only when both tags are ranked.
 		|*| Resolution of this design will affect tag_set ordering, equality, and output.
 		\*/
-        // tag_set identity ordering; intentionally shallower than operator==
-        bool operator<(const abstract_tag&) const;
+		// tag_set identity ordering; intentionally shallower than operator==
+		bool operator<(const abstract_tag&) const;
 
 		std::string str() const {
 			std::stringstream ss;
@@ -260,7 +268,7 @@ class abstract_tag {
 			return ss.str();
 		}
 
-        friend std::ostream& operator<<(std::ostream&, const abstract_tag&);
+		friend std::ostream& operator<<(std::ostream&, const abstract_tag&);
 };
 
 // ADL swap hook for generic constant-time tag exchange
@@ -281,19 +289,21 @@ std::string tag_ids_str(const T& t) {
 	return ss.str();
 }
 
-// relates a subject to an object
-// known as the linguistic "Copula" - usually a linking verb,
-// but not necissarily so
-// e.g. "dog is_a animal"; 'is_a' being the relator
+/*
+ * relates a subject to an object
+ * known as the linguistic "Copula" - usually a linking verb,
+ * but not necissarily so
+ * e.g. "dog is_a animal"; 'is_a' being the relator
+ */
 class relator : public abstract_tag {
-    public:
-        relator(id_view id) :
+	public:
+		relator(id_view id) :
 			abstract_tag(id, HARD_TAG_SUB, HARD_TAG_RELATOR, POS_RELATOR) {};
 
-        relator(id_view id, id_view sub_obj) :
+		relator(id_view id, id_view sub_obj) :
 			abstract_tag(id, HARD_TAG_SUB, sub_obj, POS_RELATOR) {};
 
-        relator(id_view id, id_view sub_rel, id_view sub_obj) :
+		relator(id_view id, id_view sub_rel, id_view sub_obj) :
 			abstract_tag(id, sub_rel, sub_obj, POS_RELATOR) {};
 };
 
@@ -305,17 +315,17 @@ class relator : public abstract_tag {
 // 2. or, one that holds an object of inquiry used in query operations
 //    ex. what _is_a mammal has tail can bark
 class interrogator : public abstract_tag {
-    public:
-        interrogator() :
+	public:
+		interrogator() :
 			abstract_tag(id_view{}, POS_INTERROGATOR) {};
 
-        interrogator(id_view id) :
+		interrogator(id_view id) :
 			abstract_tag(id, POS_INTERROGATOR) {};
 
-        interrogator(id_view id, id_view sub_obj) :
+		interrogator(id_view id, id_view sub_obj) :
 			abstract_tag(id, HARD_TAG_SUB, sub_obj, POS_INTERROGATOR) {};
 
-        interrogator(id_view id, id_view sub_rel, id_view sub_obj) :
+		interrogator(id_view id, id_view sub_rel, id_view sub_obj) :
 			abstract_tag(id, sub_rel, sub_obj, POS_INTERROGATOR) {};
 };
 
@@ -333,27 +343,27 @@ class referent : public abstract_tag {
 			}
 		}
 
-    public:
+	public:
 		// _id is the thing that refers
 		// _super_object is the thing refered to
-        // One-shot: sub_relator explicitly REFERS_TO, no post-construction mutation
-        referent() :
+		// One-shot: sub_relator explicitly REFERS_TO, no post-construction mutation
+		referent() :
 			abstract_tag("", HARD_TAG_REFERS_TO, "", POS_REFERENT)
 		{};
 
-        referent(const abstract_tag& t) :
+		referent(const abstract_tag& t) :
 			abstract_tag(t.id(), t.sub_relator(), t.super_object(), POS_REFERENT)
 		{ relations = t.relations; }
 
-        referent(id_view refers, id_view refers_to, id_view c) :
+		referent(id_view refers, id_view refers_to, id_view c) :
 			abstract_tag(refers, HARD_TAG_REFERS_TO, refers_to, POS_REFERENT)
 		{
 			context(c);
 			this->validate();
 		}
 
-        const id_string& refers() const { return _id; }
-        const id_string& refers_to() const { return _super_object; }
+		const id_string& refers() const { return _id; }
+		const id_string& refers_to() const { return _super_object; }
 		const id_string& context() const;
 		tagd::code context(id_view c) {
 			auto tc = this->relation(HARD_TAG_CONTEXT, c);
@@ -363,11 +373,13 @@ class referent : public abstract_tag {
 				return this->validate();
 		}
 
-        bool operator==(const referent& rhs) const {
+		bool operator==(const referent& rhs) const {
 			return (
 				_id == rhs._id &&
-				// leave _sub_relator out of equality and less comparisons
-				// because _id, _super_object, and _context make it unique
+				/*
+				 * leave _sub_relator out of equality and less comparisons
+				 * because _id, _super_object, and _context make it unique
+				 */
 				//_sub_relator == rhs._sub_relator &&
 				_super_object == rhs._super_object &&
 				_pos == rhs._pos &&
@@ -376,7 +388,7 @@ class referent : public abstract_tag {
 		}
 
 		// override so we can have duplicate ids
-        bool operator<(const referent& rhs) const {
+		bool operator<(const referent& rhs) const {
 			return (
 				_id < rhs._id ||
 				(
@@ -406,13 +418,13 @@ class referent : public abstract_tag {
 
 class error : public event {
 	public:
-        error() : event()
+		error() : event()
 		{
 			_pos = POS_ERROR;
 		}
 
-        // Create a new error instance for a tagd status code.
-        error(const tagd::code);
+		// Create a new error instance for a tagd status code.
+		error(const tagd::code);
 
 		// Parse an existing err: identity into an error object.
 		error(const std::string&);
@@ -420,7 +432,7 @@ class error : public event {
 		// Create a new error instance with a message relation.
 		error(const tagd::code, const std::string&);
 
-        const id_string& message() const;
+		const id_string& message() const;
 
 		// returns error object given printf style formatted list
 		static error ferror(tagd::code, const char *, ...);
@@ -438,8 +450,10 @@ class errorable {
 
 		void init_errors() {
 			if (_errors == nullptr) {
-				// create even if this is not the owner
-				// the owners destructor will delete it
+				/*
+				 * create even if this is not the owner
+				 * the owners destructor will delete it
+				 */
 				_errors = std::make_shared<errors_t>();
 			}
 		}
@@ -464,12 +478,12 @@ class errorable {
 		tagd::code last_error_relation(const predicate&);
 
 		// set and return
-        tagd::code code(tagd::code c) { return _code = c; }
+		tagd::code code(tagd::code c) { return _code = c; }
 
 		// return the most severe error code in the set
 		// compared to tagd::code passed in
-        tagd::code most_severe(tagd::code) const;
-        tagd::code most_severe() const { return most_severe(_init); }
+		tagd::code most_severe(tagd::code) const;
+		tagd::code most_severe() const { return most_severe(_init); }
 
 		tagd::code error(const tagd::error&);
 		tagd::code error(tagd::code, const predicate&);
@@ -478,8 +492,10 @@ class errorable {
 		// copy rhs._errors into this->_errors return *this
 		errorable& copy_errors(const errorable &);
 
-		// copy rhs _errors to this and
-		// assign this _errors pointer to rhs _errors pointer
+		/*
+		 * copy rhs _errors to this and
+		 * assign this _errors pointer to rhs _errors pointer
+		 */
 		errorable& share_errors(errorable &);
 
 		// set and return code, set err msg to printf style formatted list
@@ -493,6 +509,11 @@ class errorable {
 		const errors_t& errors() const;
 };
 
+/*\
+|*| session holds an event identity, sequence number, and errors.
+|*| It does not depend on a tagspace. tagspace_session adds the context needed
+|*| for tag operations; all modules in one operation can share that session.
+\*/
 class session : public errorable {
 	protected:
 		id_string _id;
@@ -502,7 +523,7 @@ class session : public errorable {
 	public:
 		session();
 		session(const id_string&, const id_string&);
-		// atomic sequence suppresses implicit copy semantics, so session spells them out
+		// The atomic sequence cannot be copied directly; copy methods read its value.
 		session(const session&);
 		session& operator=(const session&);
 		virtual ~session() {}
@@ -513,6 +534,11 @@ class session : public errorable {
 		uint64_t next_sequence() { return ++_sequence; }
 };
 
+/*\
+|*| session_factory generates core session identities and timestamps.
+|*| The default session constructor uses a shared factory. Tagspaces create
+|*| tagspace_session objects, which inherit this core session behavior.
+\*/
 class session_factory {
 	private:
 		class impl;

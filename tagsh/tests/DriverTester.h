@@ -4,19 +4,19 @@
 
 #include <sstream>
 
-#include "tagdb/sqlite.h"
+#include "tagspace.h"
 #include "tagsh.h"
 
-typedef tagdb::sqlite tagdb_type;
+typedef tagd::tagspace::memory tagspace_type;
 
 class DriverTester : public CxxTest::TestSuite {
 	void load_bootstrap(tagsh& shell) {
-		TS_ASSERT_EQUALS(shell.interpret_fname("../bootstrap.tagl"), 0)
+		TS_ASSERT_EQUALS(shell.interpret_fname("bootstrap.tagl"), 0)
 		TS_ASSERT_EQUALS(shell.last_code(), tagd::TAGD_OK)
 	}
 
 	void init_runtime(void) {
-		tagdb::hard_tag::install_logger_validator();
+		tagd::tagspace_install_logger_validator();
 	}
 
 	void run_stmt(tagsh& shell, const std::string& stmt) {
@@ -45,8 +45,8 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_cmd_get_not_found(void) {
 		init_runtime();
-		tagdb_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		tagspace_type tdb;
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 		tagsh shell(&tdb);
 
 		run_stmt(shell, "<< dog;");
@@ -56,8 +56,8 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_cmd_get_returns_tag(void) {
 		init_runtime();
-		tagdb_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		tagspace_type tdb;
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 		tagsh shell(&tdb);
 		std::stringstream out;
 		shell.set_output(out);
@@ -72,8 +72,8 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_cmd_put_duplicate(void) {
 		init_runtime();
-		tagdb_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		tagspace_type tdb;
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 		tagsh shell(&tdb);
 
 		load_bootstrap(shell);
@@ -84,8 +84,8 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_cmd_del_not_found(void) {
 		init_runtime();
-		tagdb_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		tagspace_type tdb;
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 		tagsh shell(&tdb);
 
 		load_bootstrap(shell);
@@ -96,8 +96,8 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_cmd_del_existing(void) {
 		init_runtime();
-		tagdb_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		tagspace_type tdb;
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 		tagsh shell(&tdb);
 
 		load_bootstrap(shell);
@@ -108,8 +108,8 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_referent_lifecycle(void) {
 		init_runtime();
-		tagdb_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		tagspace_type tdb;
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 		tagsh shell(&tdb);
 		std::stringstream out;
 		shell.set_output(out);
@@ -141,8 +141,8 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_cmd_query_children(void) {
 		init_runtime();
-		tagdb_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		tagspace_type tdb;
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 		tagsh shell(&tdb);
 		std::stringstream out;
 		shell.set_output(out);
@@ -165,8 +165,8 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_cmd_query_empty(void) {
 		init_runtime();
-		tagdb_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		tagspace_type tdb;
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 		tagsh shell(&tdb);
 
 		load_bootstrap(shell);
@@ -178,8 +178,8 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_context_referent(void) {
 		init_runtime();
-		tagdb_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(":memory:"), tagd::TAGD_OK)
+		tagspace_type tdb;
+		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
 		tagsh shell(&tdb);
 		std::stringstream out;
 		shell.set_output(out);

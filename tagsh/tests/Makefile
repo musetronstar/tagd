@@ -1,12 +1,12 @@
 SHELL_TESTER = ./tester.exp
 LOG_UNIT_TESTER = ./log-tester
 DRIVER_UNIT_TESTER = ./driver-tester
-BIN = ../bin/tagsh --noshell --file ../bootstrap.tagl
+BIN = ../bin/tagsh --noshell --file bootstrap.tagl
 VALGRIND = valgrind --leak-check=full --error-exitcode=1
 CXXTEST = cxxtestgen --error-printer
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3 -Wno-write-strings
-INC = -I../include -I../../tagd/include -I../../tagl/include -I../../tagdb/include -I../../tagdb/sqlite/include
-LFLAGS = -L../lib -ltagsh -L../../tagdb/lib -ltagdb-sqlite -L../../tagl/lib -ltagl -L../../tagd/lib -ltagd -lsqlite3 -levent -lreadline
+INC = -I../include -I../../tagd/include -I../../tagl/include -I../../tagspace/include
+LFLAGS = -L../lib -ltagsh -L../../tagspace/lib -ltagspace -L../../tagl/lib -ltagl -L../../tagd/lib -ltagd -lsqlite3 -levent -lreadline
 
 all: tests
 
@@ -36,13 +36,13 @@ log_tester:
 log_unit_tests: $(LOG_UNIT_TESTER)
 	$(LOG_UNIT_TESTER)
 
-$(DRIVER_UNIT_TESTER): DriverTester.h ../lib/libtagsh.a ../../tagdb/lib/libtagdb-sqlite.a ../../tagl/lib/libtagl.a ../../tagd/lib/libtagd.a
+$(DRIVER_UNIT_TESTER): DriverTester.h ../lib/libtagsh.a ../../tagspace/lib/libtagspace.a ../../tagl/lib/libtagl.a ../../tagd/lib/libtagd.a
 	$(CXXTEST) DriverTester.h -o driver-tester.cpp
-	g++ $(CXXFLAGS) driver-tester.cpp -o driver-tester $(INC) $(LFLAGS)
+	g++ $(CXXFLAGS) driver-tester.cpp -o driver-tester $(INC) -Wl,--start-group $(LFLAGS) -Wl,--end-group
 
-$(LOG_UNIT_TESTER): LogTester.h ../lib/libtagsh.a ../../tagdb/lib/libtagdb-sqlite.a ../../tagl/lib/libtagl.a ../../tagd/lib/libtagd.a
+$(LOG_UNIT_TESTER): LogTester.h ../lib/libtagsh.a ../../tagspace/lib/libtagspace.a ../../tagl/lib/libtagl.a ../../tagd/lib/libtagd.a
 	$(CXXTEST) LogTester.h -o log-tester.cpp
-	g++ $(CXXFLAGS) log-tester.cpp -o log-tester $(INC) $(LFLAGS)
+	g++ $(CXXFLAGS) log-tester.cpp -o log-tester $(INC) -Wl,--start-group $(LFLAGS) -Wl,--end-group
 
 valgrind:
 	$(VALGRIND) $(BIN)

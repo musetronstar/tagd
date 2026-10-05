@@ -1,7 +1,7 @@
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 
-TAGDDIR =../../../tagd
+TAGDDIR =../../../../tagd
 INC = -I../include -I../../include -I$(TAGDDIR)/include
 SRCS = sqlite.cc
 OBJS=$(SRCS:.cc=.o)

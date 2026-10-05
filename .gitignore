@@ -16,6 +16,7 @@ bin/
 
 # hidden files/dirs
 .*
+!.clang-format
 
 # CxxTest output - note the ucase in test filenames (e.g. Tester.h)
 *tester*
