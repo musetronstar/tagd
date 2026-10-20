@@ -9,6 +9,8 @@ void TAGSPACE_SET_LOGGER(tagd::logger*);
 namespace tagd {
 
 void tagspace_install_logger_validator();
+std::string default_tagd_home();
+bool valid_tagspace_name(const std::string&);
 
 /*\
 |*| stored_tagspace owns the storage used by persistent and memory tagspaces.
@@ -24,6 +26,7 @@ class stored_tagspace : public tagspace {
 protected:
 	stored_tagspace();
 	[[nodiscard]] tagd::code initialize_memory();
+	[[nodiscard]] tagd::code initialize_file(const std::string&);
 	[[nodiscard]] tagd::code initialize(
 		const std::string&,
 		const std::string&,
@@ -37,6 +40,11 @@ public:
 	stored_tagspace& operator=(const stored_tagspace&) = delete;
 	stored_tagspace(stored_tagspace&&) = delete;
 	stored_tagspace& operator=(stored_tagspace&&) = delete;
+
+	// Resolve an ordinary tag operation without writing; unknown IDs remain unchanged.
+	// Referent declarations keep their own lexeme semantics in put(referent).
+	[[nodiscard]] tagd::code resolve_referents(abstract_tag&, const abstract_tag&,
+		tagspace_session*);
 
 	[[nodiscard]] tagd::code get(abstract_tag&, id_view, tagspace_session* = nullptr, flags_t = 0) override;
 	[[nodiscard]] tagd::code get(url&, id_view, tagspace_session* = nullptr, flags_t = 0) override;
@@ -62,6 +70,10 @@ public:
 \*/
 class tagspace::persistent final : public stored_tagspace {
 public:
+	// Direct-file opening never creates storage.
+	[[nodiscard]] tagd::code open_file(const std::string& path) {
+		return initialize_file(path);
+	}
 	// Check the return code before use; errors are recorded on this object.
 	[[nodiscard]] tagd::code init(const std::string& name, const std::string& home);
 	[[nodiscard]] tagd::code init(const std::string& name);

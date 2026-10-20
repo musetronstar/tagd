@@ -17,8 +17,12 @@ tests:
 unit_tests:
 	$(MAKE) driver_unit_tests
 	$(MAKE) log_unit_tests
+	$(MAKE) config_unit_tests
 
-shell_tests:
+no-home.so: no-home.cc
+	$(CXX) -shared -fPIC $< -o $@
+
+shell_tests: no-home.so
 	$(SHELL_TESTER)
 
 system_tests: shell_tests
@@ -46,3 +50,8 @@ $(LOG_UNIT_TESTER): LogTester.h ../lib/libtagsh.a ../../tagspace/lib/libtagspace
 
 valgrind:
 	$(VALGRIND) $(BIN)
+
+config_unit_tests: ConfigTester.h ../lib/libtagsh.a ../../tagspace/lib/libtagspace.a
+	$(CXXTEST) ConfigTester.h -o config-tester.cpp
+	g++ $(CXXFLAGS) config-tester.cpp -o config-tester $(INC) -Wl,--start-group $(LFLAGS) -Wl,--end-group
+	./config-tester

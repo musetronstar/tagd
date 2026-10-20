@@ -23,101 +23,50 @@ std::string HTTAGD_HTTP_HEADERS_STR(const struct evkeyvalq *);
 namespace httagd {
 
 class httagd_args : public cmd_args {
-	public:
-		std::string tpl_dir;
-		std::string www_dir;
-		std::string favicon;
-		std::string default_view;
-		std::string bind_addr;
-		uint16_t bind_port;
-
-		httagd_args () : bind_port{0} {
-			_cmds["--trace"] = {
-				[this](char *) {
-					this->ferror(tagd::TAGD_ERR,
-						"httagd: --trace has been retired; use --log-level with _role:httagd:debug");
-				},
-				false
-			};
-
-			_cmds["--tpl-dir"] = {
-				[this](char *val) {
-						if (!tagd::io::dir_exists(val)) {
-							this->ferror(tagd::TAGD_ERR,
-								"invalid value for argument --tpl-dir: no such directory: %s", val);
-							return;
-						}
-						this->tpl_dir = val;
-				},
-				true
-			};
-
-			_cmds["--www-dir"] = {
-				[this](char *val) {
-						if (!tagd::io::dir_exists(val)) {
-							this->ferror(tagd::TAGD_ERR,
-								"invalid value for argument --www-dir: no such directory: %s", val);
-							return;
-						}
-						this->www_dir = val;
-				},
-				true
-			};
-
-			_cmds["--default-view"] = {
-				[this](char *val) {
-						this->default_view = val;
-				},
-				true
-			};
-
-			_cmds["--bind-addr"] = {
-				[this](char *val) {
-						this->bind_addr = val;
-				},
-				true
-			};
-
-			_cmds["--bind-port"] = {
-				[this](char *val) {
-						this->bind_port = static_cast<uint16_t>(
-								atoi( static_cast<const char*>(val) )
-							);
-				},
-				true
-			};
-
-			cmd_handler help_handler = {
-				[this](char *) {
-					std::cout
-					<< "httagd" 																<< std::endl
-					<< "httagd [options]" 													<< std::endl
-					<< "---------------" 													<< std::endl
-					<< "  --home DIR       tagd home (default ~/.tagd)" << std::endl
-					<< "  --tagspace ID    open an existing tagspace (default: memory)" << std::endl
-					<< "  --create         create the named tagspace; fail if it exists" << std::endl
-					<< "  -f <tagl file>" 													<< std::endl
-					<< "  --file" 															<< std::endl
-					<< "		execute tagl file, multiple flags will be processed in order" 	<< std::endl
-					<< "  -n" 																<< std::endl
-					<< "  --noshell" 														<< std::endl
-					<< "		execute then exit with no shell" 							<< std::endl
-					<< "  --dump" 															<< std::endl
-					<< "		dump tagspace" 												<< std::endl
-					<< "  --log-level <level>"												<< std::endl
-					<< "		set log level or role overrides, e.g. warning,_role:httagd:debug" << std::endl
-					<< "  --tpl-dir <dir>" 													<< std::endl
-					<< "  --www-dir <dir>" 													<< std::endl
-					<< "  --default-view <view>" 											<< std::endl
-					<< "  --bind-addr <addr>" 												<< std::endl
-					<< "  --bind-port <port>" 												<< std::endl
-					<< std::endl;
-					std::exit(EXIT_SUCCESS);
-				}, false
-			};
-			_cmds["--help"] = help_handler;
-			_cmds["-h"] = help_handler;
-		}
+public:
+	httagd_args() {
+		config_option("--tpl-dir", tagd::HARD_TAG_CONFIG_TPL_DIR);
+		config_option("--www-dir", tagd::HARD_TAG_CONFIG_WWW_DIR);
+		config_option("--default-view", tagd::HARD_TAG_CONFIG_DEFAULT_VIEW);
+		config_option("--bind-addr", tagd::HARD_TAG_CONFIG_BIND_ADDR);
+		config_option("--bind-port", tagd::HARD_TAG_CONFIG_BIND_PORT);
+		_cmds["--trace"] = {[this](char*) {
+			this->error(tagd::TAGD_ERR,
+				"httagd: --trace has been retired; use --log-level with _role:httagd:debug");
+		}, false};
+		cmd_handler help_handler = {
+			[this](char *) {
+				std::cout
+				<< "httagd" 																<< std::endl
+				<< "httagd [options]" 													<< std::endl
+				<< "---------------" 													<< std::endl
+				<< "  --config FILE    alternate TAGL configuration file" << std::endl
+				<< "  --config-id ID   configuration subject (default default_config)" << std::endl
+				<< "  --home DIR       tagd home (default ~/.tagd)" << std::endl
+				<< "  --tagspace ID    open an existing tagspace (default: memory)" << std::endl
+				<< "  --create         create the named tagspace; fail if it exists" << std::endl
+				<< "  -f <tagl file>" 													<< std::endl
+				<< "  --file" 															<< std::endl
+				<< "		execute tagl file, multiple flags will be processed in order" 	<< std::endl
+				<< "  -n" 																<< std::endl
+				<< "  --noshell" 														<< std::endl
+				<< "		execute then exit with no shell" 							<< std::endl
+				<< "  --dump" 															<< std::endl
+				<< "		dump tagspace and exit" 												<< std::endl
+				<< "  --log-level <level>"												<< std::endl
+				<< "		set log level or role overrides, e.g. warning,_role:httagd:debug" << std::endl
+				<< "  --tpl-dir <dir>" 													<< std::endl
+				<< "  --www-dir <dir>" 													<< std::endl
+				<< "  --default-view <view>" 											<< std::endl
+				<< "  --bind-addr <addr>" 												<< std::endl
+				<< "  --bind-port <port>" 												<< std::endl
+				<< std::endl;
+				std::exit(EXIT_SUCCESS);
+			}, false
+		};
+		_cmds["--help"] = help_handler;
+		_cmds["-h"] = help_handler;
+	}
 };
 
 struct viewspace;
@@ -125,9 +74,7 @@ struct viewspace;
 class server : public tagsh, public tagd::errorable {
 	protected:
 		viewspace *_vws;     // borrowed
-		httagd_args *_args;  // borrowed
-		std::string _bind_addr;
-		uint16_t _bind_port;
+
 		evbase_t *_evbase;  // owned here; freed in ~server()
 		evhtp_t  *_htp;     // owned here; freed in ~server()
 
@@ -138,32 +85,30 @@ class server : public tagsh, public tagd::errorable {
 	public:
 		~server();
 
-		server(tagd::tagspace *tdb, viewspace *vs, httagd_args *args)
-			: tagsh(tdb), _vws{vs}, _args{args}
+		server(tagd::tagspace *tsp, viewspace *vs, tagd::config& cfg)
+			: tagsh(tsp, cfg), _vws{vs}
 		{
-			_bind_addr = (!args->bind_addr.empty() ? args->bind_addr : "localhost");
-			_bind_port = (args->bind_port ? args->bind_port : 2112);
 			this->init();
 		}
 
-		const std::string& bind_addr() const {
-			return _bind_addr;
+		std::string bind_addr() const {
+			return _config.bind_addr();
 		}
 
 		uint16_t bind_port() const {
-			return _bind_port;
+			return _config.bind_port();
 		}
 
-		tagd::tagspace* tdb() {
-			return _tdb;
+		tagd::tagspace* tsp() {
+			return _tsp;
 		}
 
 		viewspace* vws() {
 			return _vws;
 		}
 
-		httagd_args * args() {
-			return _args;
+		tagd::config& configuration() {
+			return _config;
 		}
 
 		tagd::code start();
@@ -351,12 +296,12 @@ class htscanner : public TAGL::scanner {
 
 class httagl : public TAGL::driver {
 	public:
-		httagl(tagd::tagspace *tdb, tagd::tagspace_session *ssn)
-			: TAGL::driver(tdb, new htscanner(this), ssn) {
+		httagl(tagd::tagspace *tsp, tagd::tagspace_session *ssn)
+			: TAGL::driver(tsp, new htscanner(this), ssn) {
 				_own_scanner = true;
 			}
-		httagl(tagd::tagspace *tdb, TAGL::callback *cb, tagd::tagspace_session *ssn)
-			: TAGL::driver(tdb, new htscanner(this), cb, ssn) {
+		httagl(tagd::tagspace *tsp, TAGL::callback *cb, tagd::tagspace_session *ssn)
+			: TAGL::driver(tsp, new htscanner(this), cb, ssn) {
 				_own_scanner = true;
 			}
 
@@ -392,7 +337,7 @@ class base_transaction : public tagd::errorable {
 
 class transaction : public base_transaction	{
 	public:
-		tagd::tagspace *tdb;
+		tagd::tagspace *tsp;
 		httagl *drvr;
 		httagd::viewspace *vws;
 
@@ -404,7 +349,7 @@ class transaction : public base_transaction	{
 			httagl *dr,
 			httagd::viewspace *vs
 		) : base_transaction(sv, r, s),
-			tdb{td}, drvr{dr}, vws{vs}
+			tsp{td}, drvr{dr}, vws{vs}
 		{}
 
 		// opt view if not empty, or the default if not empty, or "tagl"
@@ -907,14 +852,14 @@ const view default_error_view(
 // TODO (maybe) extend it from tagd::tagspace so views can be stored in a tagspace
 class viewspace : public tagd::errorable {
 		view_map_t _views;
-		std::string _tpl_dir;
+		tagd::config& _config; // borrowed
 
 	public:
 		// called if no error view has been inserted for a given name
 		view fallback_error_view;
 
-		viewspace(const std::string& tpl_dir) :
-			_tpl_dir{tpl_dir}, fallback_error_view(default_error_view) {}
+		viewspace(tagd::config& cfg) :
+			_config{cfg}, fallback_error_view(default_error_view) {}
 		/*
 		 * TODO add a flags variable to get(), put(), etc.
 		 * such as F_DISABLE_ERROR_REPORTING
@@ -946,7 +891,7 @@ class viewspace : public tagd::errorable {
 		}
 
 		std::string fpath(const std::string& tpl_fname) {
-			return tagd::io::concat_dir(_tpl_dir, tpl_fname);
+			return tagd::io::concat_dir(_config.tpl_dir(), tpl_fname);
 		}
 };
 

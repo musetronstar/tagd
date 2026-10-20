@@ -89,29 +89,29 @@ const char* token_str(int tok) {
 	}
 }
 
-driver::driver(tagd::tagspace *tdb, tagd::tagspace_session *ssn) :
+driver::driver(tagd::tagspace *tsp, tagd::tagspace_session *ssn) :
 		_own_scanner{true}, _scanner{new scanner(this)},
-		_tdb{tdb}, _session{ssn}
+		_tsp{tsp}, _session{ssn}
 {
 	this->init();
 }
 
-driver::driver(tagd::tagspace *tdb, scanner *s, tagd::tagspace_session *ssn) :
-		_scanner{s}, _tdb{tdb}, _session{ssn}
+driver::driver(tagd::tagspace *tsp, scanner *s, tagd::tagspace_session *ssn) :
+		_scanner{s}, _tsp{tsp}, _session{ssn}
 {
 	this->init();
 }
 
-driver::driver(tagd::tagspace *tdb, scanner *s, callback *cb, tagd::tagspace_session *ssn) :
-		_scanner{s}, _tdb{tdb}, _session{ssn}
+driver::driver(tagd::tagspace *tsp, scanner *s, callback *cb, tagd::tagspace_session *ssn) :
+		_scanner{s}, _tsp{tsp}, _session{ssn}
 {
 	this->bind_callback(cb);
 	this->init();
 }
 
-driver::driver(tagd::tagspace *tdb, callback *cb, tagd::tagspace_session *ssn) :
+driver::driver(tagd::tagspace *tsp, callback *cb, tagd::tagspace_session *ssn) :
 		_own_scanner{true}, _scanner{new scanner(this)},
-		_tdb{tdb}, _session{ssn}
+		_tsp{tsp}, _session{ssn}
 {
 	this->bind_callback(cb);
 	this->init();
@@ -209,7 +209,7 @@ void driver::own_session(tagd::tagspace_session *ssn) {
 
 tagd::code driver::push_context(tagd::id_view id) {
 	if (_session == nullptr)
-		own_session(_tdb->new_session());
+		own_session(_tsp->new_session());
 	auto tc = _session->push_context(id);
 	if (tc == tagd::TAGD_OK)
 		_context_level++;
@@ -250,11 +250,11 @@ int driver::lookup_pos(const std::string& s) {
 		std::cerr << "context: ";
 		_session->print_context();
 	}
-	tagd::part_of_speech pos = _tdb->pos(s, _session);
+	tagd::part_of_speech pos = _tsp->pos(s, _session);
 	TAGL_LOG_TRACE( "pos(" << s << "): " << pos_str(pos) << std::endl )
 
 	// TODO term_pos lookups
-	//tagd::part_of_speech term_pos = _tdb->term_pos(s);
+	//tagd::part_of_speech term_pos = _tsp->term_pos(s);
 	//TAGL_LOG_TRACE( "term_pos(" << s << "): " << pos_list_str(term_pos) << std::endl )
 
 	switch(pos) {
@@ -495,8 +495,10 @@ tagd::code driver::include_file(const std::string& path) {
 	if (evbuffer_add_file(input, fd, 0, st.st_size) == 0) {
 		// create object of this type of driver to execute include file
 		// TODO figure out how to make this work create new polymorphic object
-		// auto *inc_driver = new decltype(this)(_tdb, _callback);
-		driver inc_driver(_tdb, _callback);
+		// auto *inc_driver = new decltype(this)(_tsp, _callback);
+		driver inc_driver(_tsp, _callback);
+		// Includes inherit execution flags; changes inside the file remain local.
+		inc_driver.flags = flags;
 		inc_driver.path(path);
 		rc = inc_driver.execute(input);
 		if (inc_driver.has_errors())

@@ -23,6 +23,15 @@ class stored_tagspace::impl {
 public:
 	class backend : public tagdb::sqlite {
 	public:
+		tagd::code resolve_referents(abstract_tag& result, const abstract_tag& input,
+			tagspace_session* ssn) {
+			reset(ssn);
+			auto resolved = ssn ? decode_referents(input, ssn) : input;
+			if (code() == TAGD_OK)
+				result = std::move(resolved);
+			return code();
+		}
+
 		void attach_errors(errorable& owner) {
 			// Keep errors still shared by other callers when changing the error list.
 			_errors.reset();
@@ -172,6 +181,14 @@ struct creation_guard {
 };
 }
 
+bool valid_tagspace_name(const std::string& name) {
+	return valid_name(name) && name.front() != '_';
+}
+
+std::string default_tagd_home() {
+	return default_home();
+}
+
 stored_tagspace::stored_tagspace() : _impl(std::make_unique<impl>()) {}
 // The destructor needs the full impl definition to delete the owned backend.
 stored_tagspace::~stored_tagspace() = default;
@@ -211,6 +228,22 @@ tagd::code stored_tagspace::initialize_memory() {
 	return code(rc);
 }
 
+tagd::code stored_tagspace::initialize_file(const std::string& path) {
+	if (_impl->ready)
+		return error(TS_MISUSE, "tagspace is already initialized");
+	std::error_code ec;
+	if (path.find('\0') != std::string::npos || !fs::is_regular_file(path, ec))
+		return error(TS_NOT_FOUND, "no database file: " + path);
+	_impl->db.attach_errors(*this);
+	_impl->db.report_errors = report_errors;
+	// Passing false prevents a race with removal from creating an empty database.
+	auto rc = _impl->db.init(path, false);
+	_impl->ready = rc == TAGD_OK;
+	if (!_impl->ready)
+		_impl->db.close();
+	return code(rc);
+}
+
 tagd::code stored_tagspace::initialize(
 	const std::string& name,
 	const std::string& home,
@@ -221,6 +254,9 @@ tagd::code stored_tagspace::initialize(
 	clear_errors();
 	if (!valid_name(name))
 		return error(TS_ERR, "invalid tagspace name");
+	// Application-owned tagspaces must never resolve to persistent user storage.
+	if (name.front() == '_')
+		return error(TS_ERR, "reserved tagspace name");
 	if (home.empty() || home.find('\0') != std::string::npos)
 		return error(TS_ERR, "invalid tagd home");
 
@@ -347,6 +383,13 @@ tagd::code tagspace::persistent::init(const std::string& name) {
 
 tagd::code tagspace::persistent::create(const std::string& name) {
 	return create(name, default_home());
+}
+
+tagd::code stored_tagspace::resolve_referents(abstract_tag& result,
+	const abstract_tag& input, tagspace_session* ssn) {
+	if (!prepare())
+		return code();
+	return finish(_impl->db.resolve_referents(result, input, ssn));
 }
 
 tagd::code stored_tagspace::get(abstract_tag& t, id_view id, tagspace_session* ssn, flags_t flags) {

@@ -126,7 +126,7 @@ void last_error_add_file_line_number(TAGL::driver *tagl) {
 void scan_tagdurl(TAGL::driver *tagl, const std::string &tagdurl ) {
 	// Use a separate driver+parser so the tagdurl scanner can call parse_tok
 	// without re-entering the outer parser mid-reduction.
-	TAGL::driver inner(tagl->tdb(), tagl->session_ptr());
+	TAGL::driver inner(tagl->tsp(), tagl->session_ptr());
 	inner.scan_tagdurl(TOK_CMD_GET, tagdurl);
 	inner.finish();  // flush reductions before inspecting tag_ptr
 	if (inner.has_errors()) {
@@ -275,14 +275,18 @@ set_flag ::= FLAG(F) boolean_value(b) .
 	const auto flag = F.str();
 	// TODO hard tag flags will need to have a flag_value relation holding
 	// the value of the tagd::flags_t
+	tagd::flags_t mask = 0;
 	if (flag == HARD_TAG_IGNORE_DUPLICATES) {
-		if (b) {
-			tagl->flags |= tagd::F_IGNORE_DUPLICATES;
-		} else {
-			tagl->flags &= ~(tagd::F_IGNORE_DUPLICATES);
-		}
+		mask = tagd::F_IGNORE_DUPLICATES;
+	} else if (flag == tagd::HARD_TAG_INCLUDE_INHERITED_PREDICATES) {
+		mask = tagd::F_INCLUDE_INHERITED_PREDICATES;
 	} else {
 		tagl->ferror(tagd::TAGL_ERR, "bad flag: %s", flag.c_str());
+	}
+	if (b) {
+		tagl->flags |= mask;
+	} else {
+		tagl->flags &= ~mask;
 	}
 }
 boolean_value(b) ::= TRUE .

@@ -197,6 +197,30 @@ inline constexpr std::string_view HARD_TAG_FILE{"_file"};	/// HARD_TAG_SUB HARD_
  */
 inline constexpr std::string_view HARD_TAG_ROLE_TAGSPACE{"_role:tagspace"};	/// HARD_TAG_SUB HARD_TAG_ROLE_SYSTEM tagd::POS_TAG
 
+// Configuration vocabulary is immutable; values belong to the runtime config subject.
+inline constexpr std::string_view HARD_TAG_CONFIG{"_config"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_CONFIG_HOME{"_config:home"};	/// HARD_TAG_SUB HARD_TAG_CONFIG tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_CONFIG_LOG_LEVEL{"_config:log_level"};	/// HARD_TAG_SUB HARD_TAG_CONFIG tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_CONFIG_BIND_ADDR{"_config:bind_addr"};	/// HARD_TAG_SUB HARD_TAG_CONFIG tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_CONFIG_BIND_PORT{"_config:bind_port"};	/// HARD_TAG_SUB HARD_TAG_CONFIG tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_CONFIG_TPL_DIR{"_config:tpl_dir"};	/// HARD_TAG_SUB HARD_TAG_CONFIG tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_CONFIG_WWW_DIR{"_config:www_dir"};	/// HARD_TAG_SUB HARD_TAG_CONFIG tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_CONFIG_FAVICON{"_config:favicon"};	/// HARD_TAG_SUB HARD_TAG_CONFIG tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_CONFIG_DEFAULT_VIEW{"_config:default_view"};	/// HARD_TAG_SUB HARD_TAG_CONFIG tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_CONFIG_PROMPT{"_config:prompt"};	/// HARD_TAG_SUB HARD_TAG_CONFIG tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_CONFIG_ECHO_RESULT_CODE{"_config:echo_result_code"};	/// HARD_TAG_SUB HARD_TAG_CONFIG tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_INCLUDE_INHERITED_PREDICATES{"_include_inherited_predicates"};	/// HARD_TAG_SUB HARD_TAG_FLAG tagd::POS_FLAG
+
+/*
+ * TODO: Reuse _from for the origin endpoint of a future _link, paired with
+ * _to. Keep this relator general; tagspace source constraints belong to
+ * tagspace validation rather than the meaning of _from itself.
+ */
+inline constexpr std::string_view HARD_TAG_FROM{"_from"};	/// HARD_TAG_SUB HARD_TAG_RELATOR tagd::POS_RELATOR
+inline constexpr std::string_view HARD_TAG_TAGSPACE{"_tagspace"}; /// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_USE{"_use"}; /// HARD_TAG_SUB HARD_TAG_RELATOR tagd::POS_RELATOR
+inline constexpr std::string_view HARD_TAG_DEFAULT{"_default"}; /// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+
 // A hard_tag_axiom is one point in the invariant hard-tag subspace.
 struct hard_tag_axiom {
 	std::string_view id;
@@ -222,6 +246,7 @@ using tagd::HARD_TAG_SUB;
 using tagd::HARD_TAG_RELATOR;
 using tagd::HARD_TAG_HAS;
 using tagd::HARD_TAG_CAN;
+using tagd::HARD_TAG_FROM;
 using tagd::HARD_TAG_TRUE;
 using tagd::HARD_TAG_FALSE;
 //using tagd::HARD_TAG_NUMBER;

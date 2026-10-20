@@ -197,7 +197,7 @@ eval $spawn_httagd
 set server_spawn_id $spawn_id
 
 expect {
-	-regexp {-- httagd start bind_addr=localhost bind_port=2112} {
+	-regexp {-- httagd start bind_addr=127\.0\.0\.1 bind_port=2112} {
 		test_pass "log_level_httagd_notice_start"
 	}
 	timeout {
@@ -388,11 +388,89 @@ close
 wait
 
 
+# HTTP application CLI contracts belong to this module, after tagsh in build order.
+set config_tmp [exec mktemp -d /tmp/httagd-config-XXXXXX]
+try {
+	set home [file join $config_tmp home]
+	file mkdir [file join $home _config]
+	file copy ../../tagsh/tests/config.tagl [file join $home _config _config.tagl]
+	set japanese [file join $config_tmp japanese.tagl]
+	file copy ../../tagsh/tests/config-japanese.tagl $japanese
+	set alternate [file join $config_tmp alternate.tagl]
+	file copy ../../tagsh/tests/config-alternate.tagl $alternate
+	test_cli "config_japanese_http" \
+		[list ../bin/httagd --home $home --tagspace _config \
+			--config $japanese --bind-port 7070 --dump] 1 {_config:bind_port = 7070}
+	test_cli "config_id_http_override" \
+		[list ../bin/httagd --config-id development --bind-port 6060 \
+			--home $home --tagspace _config -t {<< development;} --dump] \
+		1 {_config:bind_port = 6060}
+	test_cli "config_http_cli_precedence" \
+		[list ../bin/httagd --home $home --tagspace _config \
+			--bind-port 7070 --config $alternate --dump] 1 {_config:bind_port = 7070}
+	test_cli "config_http_invalid_port" \
+		[list ../bin/httagd --home $home --bind-port 65536 --dump] \
+		0 {bind port must be}
+} finally {
+	file delete -force $config_tmp
+}
+
 set storage_tmp [exec mktemp -d /tmp/httagd-tagspace-XXXXXX]
 try {
 	set home [file join $storage_tmp home]
 	test_cli "httagd_create_requires_tagspace" [list ../bin/httagd --create] 0 {--create requires --tagspace}
 	test_cli "httagd_db_option_removed" [list ../bin/httagd --db :memory:] 0 {invalid option}
+
+	test_cli "httagd_dump_exits" \
+		[list ../bin/httagd --home $home --tagspace _config --dump] 1 {default_config}
+	test_cli "httagd_startup_error_exits" \
+		[list ../bin/httagd --home $home --tagl {>> unknown _has missing;}] 0 {parse error|not_found}
+	set listener [socket -server {apply {{channel host port} {close $channel}}} -myaddr 127.0.0.1 0]
+	set port [lindex [fconfigure $listener -sockname] 2]
+	close $listener
+	spawn -noecho ../bin/httagd --home $home --tagspace _config \
+		--bind-addr localhost --bind-port $port --tpl-dir ../app/tpl --www-dir ./www \
+		--log-level emergency,_role:httagd:notice \
+		--tagl {>> profile _sub default_config; >> alias _refers_to default_config _context profile;}
+	set config_server $spawn_id
+	set config_pid [exp_pid -i $config_server]
+	try {
+		set ready 0
+		expect {
+			-i $config_server -timeout $STARTUP_TIMEOUT
+			-regexp {-- httagd start bind_addr=127\.0\.0\.1 bind_port=[0-9]+} {set ready 1}
+			eof {}
+			timeout {}
+		}
+		if {!$ready} {
+			test_fail "config_loopback_startup"
+			incr ERRORS
+		} else {
+			foreach {method path body} {
+				PUT /default_config {_has _config:www_dir = "/";}
+				PUT /profile {_has _config:tpl_dir = "/";}
+				DELETE /default_config {}
+				POST / {>> default_config _has _config:favicon = "/etc/passwd";}
+				POST / {>> alias _refers_to profile _context profile;}
+				PUT /alias?c=profile {_has _config:www_dir = "/";}
+			} {
+				test_cli "config_read_only_${method}_${path}" \
+					[list curl -sS --max-time 10 -X $method --data $body \
+						--write-out "HTTP_STATUS:%{http_code}" "http://127.0.0.1:$port$path"] \
+					1 {HTTP_STATUS:403$}
+			}
+			test_cli "config_http_read_unchanged" \
+				[list curl -sS --fail --max-time 10 "http://127.0.0.1:$port/default_config"] \
+				1 {_config:www_dir = [".\/]*www}
+			test_cli "config_descendant_http_read" \
+				[list curl -sS --fail --max-time 10 "http://127.0.0.1:$port/profile"] \
+				1 {profile _sub default_config}
+		}
+	} finally {
+		catch {exec kill -TERM $config_pid}
+		catch {close -i $config_server}
+		wait -i $config_server
+	}
 
 	# A fresh process must serve the same data after reopening. Keep the URL
 	# unprefixed: runtime tagspace selection is outside this CLI contract.

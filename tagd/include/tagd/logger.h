@@ -84,6 +84,11 @@ class logger {
 		std::ostream& stream(const std::string&) const;
 		std::ostream& stream(std::string_view role) const { return this->stream(std::string(role)); }
 
+		// Applying configuration preserves the logger's output stream ownership.
+		void levels(const logger& source) {
+			_level = source._level;
+			_role_levels = source._role_levels;
+		}
 		void level(log_level);
 		void level(const std::string&, log_level);
 		void level(std::string_view role, log_level lvl) { this->level(std::string(role), lvl); }

@@ -144,7 +144,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 	tagd::tag_set S;
 	tagd::interrogator q_refers_to(HARD_TAG_INTERROGATOR, HARD_TAG_REFERENT);
 	q_refers_to.relation(HARD_TAG_REFERS_TO, t.id());
-	tagd::code tc = tx.tdb->query(S, q_refers_to);
+	tagd::code tc = tx.tsp->query(S, q_refers_to);
 	if (tc != tagd::TAGD_OK) return tc;
 
 	if (S.size() > 0) {
@@ -158,7 +158,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 	S.clear();
 	tagd::interrogator q_refers(HARD_TAG_INTERROGATOR, HARD_TAG_REFERENT);
 	q_refers.relation(HARD_TAG_REFERS, t.id());
-	tc = tx.tdb->query(S, q_refers);
+	tc = tx.tsp->query(S, q_refers);
 
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0)
@@ -168,7 +168,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 	S.clear();
 	tagd::interrogator q_related{HARD_TAG_INTERROGATOR};
 	q_related.relation("", t.id());
-	tc = tx.tdb->query(S, q_related);
+	tc = tx.tsp->query(S, q_related);
 
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0) {
@@ -179,7 +179,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 
 	S.clear();
 	tagd::interrogator q_siblings(HARD_TAG_INTERROGATOR, t.super_object());
-	tc = tx.tdb->query(S, q_siblings);
+	tc = tx.tsp->query(S, q_siblings);
 
 	set_query_link(&tpl, "query_siblings", t.super_object());
 	if (tc == tagd::TAGD_OK && S.size() > 1) {
@@ -189,7 +189,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 
 	S.clear();
 	tagd::interrogator q_children(HARD_TAG_INTERROGATOR, t.id());
-	tc = tx.tdb->query(S, q_children);
+	tc = tx.tsp->query(S, q_children);
 
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0)
@@ -229,7 +229,7 @@ tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tag
 
 	tagd::tag_set sibling_set;
 	auto ssn = tx.drvr->session_ptr();
-	tagd::code tc = tx.tdb->query(sibling_set,
+	tagd::code tc = tx.tsp->query(sibling_set,
 			tagd::interrogator(HARD_TAG_INTERROGATOR, this_tag.super_object()), ssn);
 
 	if (tc == tagd::TAGD_OK) {
@@ -240,11 +240,11 @@ tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tag
 				sec_this_tag->set_tag_link(tx, "this_tag_id", sibling.id());
 				// query children
 				tagd::tag_set child_set;
-				tc = tx.tdb->query(child_set,
+				tc = tx.tsp->query(child_set,
 						tagd::interrogator(HARD_TAG_INTERROGATOR, this_tag.id()), ssn);
 
 				if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
-					return tx.tdb->code();
+					return tx.tsp->code();
 
 				if (child_set.size() > 0) {
 					auto s1 = tpl.add_section("has_children");
@@ -328,8 +328,8 @@ tagd::code fill_query(transaction& tx, const view&, tagd_template& tpl, const ta
 		}
 	}
 
-	if (tx.tdb->has_errors())
-		return tx.tdb->code();
+	if (tx.tsp->has_errors())
+		return tx.tsp->code();
 
 	return tagd::TAGD_OK;
 }
@@ -391,7 +391,7 @@ get_handler_t browse_handler(
 			(void)q_related.relation(this_tag.id(), "");
 		else
 			(void)q_related.relation("", this_tag.id());
-		tc = tx.tdb->query(results, q_related, tx.drvr->session_ptr(), tagd::F_NO_NOT_FOUND_ERROR);
+		tc = tx.tsp->query(results, q_related, tx.drvr->session_ptr(), tagd::F_NO_NOT_FOUND_ERROR);
 
 		if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
 			return tc;
@@ -513,53 +513,54 @@ int main(int argc, char ** argv) {
 		return args.code();
 	}
 
-	HTTAGD_SET_LOGGER(&args.opt_logger);
-
-	// One CLI-selected space serves every request; it must outlive the server
-	// and all request-local drivers and sessions that borrow it.
-	tagd::tagspace::memory memory;
-	tagd::tagspace::persistent persistent;
-	tagd::tagspace& tdb = args.tagspace_name.empty()
-		? static_cast<tagd::tagspace&>(memory) : static_cast<tagd::tagspace&>(persistent);
-	tagd::code rc;
-	if (args.tagspace_name.empty()) {
-		rc = memory.init();
-	} else if (args.opt_create) {
-		rc = args.tagd_home.empty() ? persistent.create(args.tagspace_name)
-			: persistent.create(args.tagspace_name, args.tagd_home);
-	} else {
-		rc = args.tagd_home.empty() ? persistent.init(args.tagspace_name)
-			: persistent.init(args.tagspace_name, args.tagd_home);
-	}
+	tagd::config cfg;
+	auto rc = load_config(cfg, args);
 	if (rc != tagd::TAGD_OK) {
-		tdb.print_errors();
+		cfg.print_errors();
 		return rc;
 	}
+	install_loggers(cfg);
+	HTTAGD_SET_LOGGER(&cfg.log());
 
-	if (args.tpl_dir.empty())
-		args.tpl_dir = "./app/tpl/";
+	// Selected storage and config outlive request-local drivers and sessions.
+	tagd::tagspace::memory memory;
+	tagd::tagspace::persistent persistent;
+	tagd::tagspace* selected;
+	if (args.tagspace_name() == tagd::HARD_TAG_CONFIG && !args.create()) {
+		selected = &cfg;
+	} else if (args.tagspace_name().empty()) {
+		selected = &memory;
+		rc = memory.init();
+	} else {
+		selected = &persistent;
+		rc = args.create() ? persistent.create(args.tagspace_name(), cfg.home())
+			: persistent.init(args.tagspace_name(), cfg.home());
+	}
+	if (rc != tagd::TAGD_OK) {
+		selected->print_errors();
+		return rc;
+	}
+	auto& tsp = *selected;
+	tagsh shell(&tsp, cfg);
+	cfg.start_runtime();
+	int result = execute_startup_actions(shell, args.actions());
+	if (result)
+		return result;
+	if (args.dump())
+		return tsp.dump();
 
-	if (args.www_dir.empty())
-		args.www_dir = "./app/www/";
-
-	args.favicon = std::string(args.www_dir).append("favicon.ico");
-
-	viewspace vws(args.tpl_dir);
+	viewspace vws(cfg);
 	init_viewspace(vws);
 	if (vws.has_errors()) {
 		vws.print_errors();
 		return vws.code();
 	}
 
-	tagsh shell(&tdb);
-	args.opt_noshell = true; // no REPL shell
-	args.interpret(shell);
-
-	server svr(&tdb, &vws, &args);
+	server svr(&tsp, &vws, cfg);
 	svr.start();
 
 	// NOTE: at this point, main_cb will have replaced
-	// the errors pointer of vws and tdb
+	// the errors pointer of vws and tsp
 
 	if (svr.has_errors())
 		svr.print_errors();

@@ -18,6 +18,15 @@ static_assert(tagd::hard_tag_axiom_for(tagd::HARD_TAG_ENTITY)->rank_size == 1);
 
 class HardTagTester : public CxxTest::TestSuite {
 public:
+	void test_from_is_a_general_relator() {
+		tagd::hard_tagspace ts;
+		tagd::abstract_tag t;
+		TS_ASSERT_EQUALS(ts.get(t, "_from"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(t.super_object(), tagd::HARD_TAG_RELATOR);
+		TS_ASSERT_EQUALS(t.pos(), tagd::POS_RELATOR);
+		TS_ASSERT(ts.contains(tagd::HARD_TAG_RELATOR, "_from"));
+	}
+
 	void test_boolean_axioms_and_parts_of_speech() {
 		tagd::hard_tagspace ts;
 		for (const auto id : {tagd::HARD_TAG_TRUE, tagd::HARD_TAG_FALSE}) {

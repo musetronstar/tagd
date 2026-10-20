@@ -51,6 +51,14 @@ It never overwrites an existing database. Names may contain UTF-8 and internal
 spaces (quote shell arguments, such as `--tagspace "My Zoo"`). Invalid UTF-8,
 path separators, control characters, traversal names, and surrounding whitespace
 are rejected before filesystem changes.
+Leading-underscore names are reserved for application-owned tagspaces and cannot
+be created or opened as persistent user storage.
+
+Both applications load a volatile configuration tagspace from application defaults,
+one `.tagl` file, and explicit CLI overrides. Select it with `--tagspace _config`,
+inspect it with `--dump`, or choose another input file with `--config FILE`.
+Runtime edits never persist automatically. See [Application Configuration](docs/configuration.md)
+for the schema, precedence, and runtime restrictions.
 
 The same options apply to httagd, which also defaults to in-memory storage.
 Both programs operate on one tagspace selected at startup. TAGL switching,
@@ -911,4 +919,3 @@ Building and Testing:
 
 In the pursuit of Universal love, peace, and harmony, this is free software
 committed to the public domain as [CC0](http://creativecommons.org/publicdomain/zero/1.0/).
-

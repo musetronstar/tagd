@@ -13,8 +13,8 @@ static_assert(__has_cpp_attribute(nodiscard), "[[nodiscard]] required for TAGL::
 #include <event2/buffer.h>
 
 typedef std::map<tagd::id_string, tagd::abstract_tag> tag_map;
-typedef tagd::flags_t tdb_flags_t;
-typedef tagd::tagspace_session tdb_session_t;
+typedef tagd::flags_t tsp_flags_t;
+typedef tagd::tagspace_session tsp_session_t;
 
 #define TS_ASSERT_TAGD_OK(EXPR) TS_ASSERT_EQUALS((EXPR), tagd::TAGD_OK)
 
@@ -146,14 +146,14 @@ class tagspace_tester : public tagd::tagspace {
 			this->code(tagd::TAGD_OK);
 		}
 
-		tagd::part_of_speech pos(tagd::id_view id, tdb_session_t * = nullptr, tdb_flags_t = tdb_flags_t()) override {
+		tagd::part_of_speech pos(tagd::id_view id, tsp_session_t * = nullptr, tsp_flags_t = tsp_flags_t()) override {
 			tag_map::iterator it = db.find(tagd::id_string(id));
 			if (it == db.end()) return tagd::POS_UNKNOWN;
 
 			return it->second.pos();
 		}
 
-		tagd::code get(tagd::abstract_tag& t, tagd::id_view id, tdb_session_t * = nullptr, tdb_flags_t = tdb_flags_t()) override {
+		tagd::code get(tagd::abstract_tag& t, tagd::id_view id, tsp_session_t * = nullptr, tsp_flags_t = tsp_flags_t()) override {
 			tag_map::iterator it = db.find(tagd::id_string(id));
 			if (it == db.end())
 				return this->ferror(tagd::TS_NOT_FOUND, "unknown tag: %s", std::string(id).c_str());
@@ -162,7 +162,7 @@ class tagspace_tester : public tagd::tagspace {
 			return this->code(tagd::TAGD_OK);
 		}
 
-		tagd::code put(const tagd::abstract_tag& t, tdb_session_t *ssn = nullptr, tdb_flags_t = tdb_flags_t()) override {
+		tagd::code put(const tagd::abstract_tag& t, tsp_session_t *ssn = nullptr, tsp_flags_t = tsp_flags_t()) override {
 			if (t.id()[0] == '_')
 				return this->ferror(tagd::TS_MISUSE, "inserting hard tags not allowed: %s", t.id().c_str());
 
@@ -192,7 +192,7 @@ class tagspace_tester : public tagd::tagspace {
 			return this->code(tagd::TAGD_OK);
 		}
 
-		tagd::code del(const tagd::abstract_tag& t, tdb_session_t *ssn, tdb_flags_t flags = tdb_flags_t()) override {
+		tagd::code del(const tagd::abstract_tag& t, tsp_session_t *ssn, tsp_flags_t flags = tsp_flags_t()) override {
 			if (!t.super_object().empty() && t.pos() != tagd::POS_URL) {
 				return this->ferror(tagd::TS_MISUSE,
 					"sub must not be specified when deleting tag: %s", t.id().c_str());
@@ -241,7 +241,7 @@ class tagspace_tester : public tagd::tagspace {
 		}
 
 		// !!!tag_set results hard coded!!!
-		tagd::code query(tagd::tag_set& T, const tagd::interrogator& q, tdb_session_t * = nullptr, tdb_flags_t = tdb_flags_t()) override {
+		tagd::code query(tagd::tag_set& T, const tagd::interrogator& q, tsp_session_t * = nullptr, tsp_flags_t = tsp_flags_t()) override {
 			if ( q.super_object().empty() &&
 					q.related("legs") &&
 					q.related("tail") ) {
@@ -260,7 +260,7 @@ class tagspace_tester : public tagd::tagspace {
 			return tagd::TS_NOT_FOUND;
 		}
 
-		bool exists(tagd::id_view id, tdb_flags_t=tdb_flags_t()) const override {
+		bool exists(tagd::id_view id, tsp_flags_t=tsp_flags_t()) const override {
 			return (db.find(tagd::id_string(id)) != db.end());
 		}
 
@@ -285,7 +285,7 @@ class tagspace_tester : public tagd::tagspace {
 };
 
 class callback_tester : public TAGL::callback {
-		tagd::tagspace *_tdb;
+		tagd::tagspace *_tsp;
 
 		void renew_last_tag(const tagd::part_of_speech& pos = tagd::POS_TAG) {
 			if (last_tag != nullptr)
@@ -304,9 +304,9 @@ class callback_tester : public TAGL::callback {
 		int cmd;
 		int cmd_error_calls;
 
-		callback_tester(tagd::tagspace *tdb) :
+		callback_tester(tagd::tagspace *tsp) :
 			last_code(), last_tag(nullptr), cmd_error_calls(0)  {
-			_tdb = tdb;
+			_tsp = tsp;
 		}
 
 		~callback_tester() {
@@ -325,16 +325,16 @@ class callback_tester : public TAGL::callback {
 					delete last_tag;
 				auto u = new tagd::url(t.id());
 				last_tag = u;
-				last_code = _tdb->get(*last_tag, u->hduri(), _driver->session_ptr());
+				last_code = _tsp->get(*last_tag, u->hduri(), _driver->session_ptr());
 			} else {
 				renew_last_tag(t.pos());
-				last_code = _tdb->get(*last_tag, t.id(), _driver->session_ptr());
+				last_code = _tsp->get(*last_tag, t.id(), _driver->session_ptr());
 			}
 		}
 
 		void cmd_put(const tagd::abstract_tag& t) {
 			if (t.id() == t.super_object()) {
-				last_code = _tdb->error(tagd::TS_MISUSE, "id cannot be the same as sub");
+				last_code = _tsp->error(tagd::TS_MISUSE, "id cannot be the same as sub");
 				return;
 			}
 			cmd = TOK_CMD_PUT;
@@ -344,17 +344,17 @@ class callback_tester : public TAGL::callback {
 				auto u = new tagd::url(t.id());
 				last_tag = u;
 				*last_tag = t;
-				last_code = _tdb->put(*last_tag, _driver->session_ptr());
+				last_code = _tsp->put(*last_tag, _driver->session_ptr());
 			} else {
 				renew_last_tag(t.pos());
 				*last_tag = t;
-				last_code = _tdb->put(*last_tag, _driver->session_ptr());
+				last_code = _tsp->put(*last_tag, _driver->session_ptr());
 			}
 		}
 
 			void cmd_del(const tagd::abstract_tag& t) {
 				if (t.id() == t.super_object()) {
-					last_code = _tdb->error(tagd::TS_MISUSE, "id cannot be the same as sub");
+					last_code = _tsp->error(tagd::TS_MISUSE, "id cannot be the same as sub");
 					return;
 				}
 				cmd = TOK_CMD_DEL;
@@ -368,7 +368,7 @@ class callback_tester : public TAGL::callback {
 					*last_tag = t;
 				}
 
-				last_code = _tdb->del(*last_tag, _driver->session_ptr());
+				last_code = _tsp->del(*last_tag, _driver->session_ptr());
 			}
 
 		void cmd_query(const tagd::interrogator& q) {
@@ -379,7 +379,7 @@ class callback_tester : public TAGL::callback {
 
 			*last_tag = q;
 			last_tag_set.clear();
-			last_code = _tdb->query(last_tag_set, q, _driver->session_ptr());
+			last_code = _tsp->query(last_tag_set, q, _driver->session_ptr());
 		}
 
 		void cmd_error() {
@@ -395,7 +395,7 @@ class callback_tester : public TAGL::callback {
 
 class driver_tester : public TAGL::driver {
 	public:
-		driver_tester(tagd::tagspace *tdb) : TAGL::driver(tdb) {}
+		driver_tester(tagd::tagspace *tsp) : TAGL::driver(tsp) {}
 
 		void init_parser() {
 			this->init();
@@ -417,50 +417,50 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_ctor(void) {
-		tagspace_tester tdb;
+		tagspace_tester tsp;
 		{
-			TAGL::driver tagl(&tdb);
+			TAGL::driver tagl(&tsp);
 			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		}
 
 		{
 			// for test puposes only, we would never pass a nullptr TAGL::driver
 			TAGL::scanner scnr(nullptr);
-			TAGL::driver tagl(&tdb, &scnr);
+			TAGL::driver tagl(&tsp, &scnr);
 			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		}
 
 		{
 			// for test puposes only, we would never pass a nullptr as TAGL::driver*
 			TAGL::scanner scnr(nullptr);
-			TAGL::driver tagl(&tdb, &scnr);  // _own_scanner will be false, so _scanner not deleted
+			TAGL::driver tagl(&tsp, &scnr);  // _own_scanner will be false, so _scanner not deleted
 			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		}
 
 		{
 			TAGL::scanner scnr(nullptr);
-			callback_tester clbk(&tdb);
-			TAGL::driver tagl(&tdb, &scnr, &clbk);
+			callback_tester clbk(&tsp);
+			TAGL::driver tagl(&tsp, &scnr, &clbk);
 			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		}
 
 		{
-			callback_tester clbk(&tdb);
-			TAGL::driver tagl(&tdb, &clbk);
+			callback_tester clbk(&tsp);
+			TAGL::driver tagl(&tsp, &clbk);
 			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		}
 	}
 
 	void test_const_driver_read_only_accessors(void) {
-		tagspace_tester tdb;
-		tdb_session_t *ssn = tdb.new_session();
-		callback_tester cb(&tdb);
+		tagspace_tester tsp;
+		tsp_session_t *ssn = tsp.new_session();
+		callback_tester cb(&tsp);
 		{
-			TAGL::driver tagl(&tdb, &cb, ssn);
+			TAGL::driver tagl(&tsp, &cb, ssn);
 			const TAGL::driver& ctagl = tagl;
 
 			TS_ASSERT(ctagl.is_setup());
-			TS_ASSERT(ctagl.tdb() == &tdb);
+			TS_ASSERT(ctagl.tsp() == &tsp);
 			TS_ASSERT(ctagl.session_ptr() == ssn);
 			TS_ASSERT(ctagl.callback_ptr() == &cb);
 		}
@@ -488,8 +488,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_subject(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute("<< dog");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd(), TOK_CMD_GET )
@@ -498,15 +498,15 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_get_sub_identity_error(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input("<< dog ", TEST_TAG_IS_A, " mammal"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 	}
 
 	void test_subject_sub_identity(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(">> dog ", TEST_TAG_IS_A, " mammal"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
@@ -516,22 +516,22 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_unknown_sub_relator(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(">> dog snarfs mammal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
 	}
 
 	void test_unknown_super_object(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(">> dog ", TEST_TAG_IS_A, " snarfadoodle"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_NOT_FOUND" )
 	}
 
 	void test_sub_relator_symbol(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(">> dog <: mammal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		if (tagl.has_errors())
@@ -543,15 +543,15 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_sub_relator_object_symbol_error(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(">> super <: <:");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 	}
 
 	void test_sub_relator_object_symbol_sub_relator(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(">> subordinate <: ", HARD_TAG_SUB));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
@@ -561,8 +561,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_relator_symbol(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(">> dog -> tail");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
@@ -571,15 +571,15 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_relator_object_symbol_error(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(">> dog -> ->");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 	}
 
 	void test_subject_predicate(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(">> dog ", HARD_TAG_HAS, " legs"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
@@ -588,8 +588,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_subject_newline_predicate(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(">> dog\n", HARD_TAG_HAS, " legs"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
@@ -598,8 +598,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_subject_predicate_list(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(">> dog ", HARD_TAG_HAS, " legs, tail, fur"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
@@ -610,8 +610,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_subject_newline_predicate_list(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(">> dog\n", HARD_TAG_HAS, " legs, tail, fur"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
@@ -622,8 +622,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_subject_identity_predicate_multiple_list(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 				">> dog ", TEST_TAG_IS_A, " mammal\n",
 				HARD_TAG_HAS, " legs, tail, fur\n",
@@ -641,8 +641,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_subject_identity_newline_predicate_multiple_list(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 				">> dog ", TEST_TAG_IS_A, " mammal \n",
 				HARD_TAG_HAS, " legs, tail, fur\n",
@@ -660,8 +660,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_subject_predicate_multiple_list(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 				">> dog ", HARD_TAG_HAS, " legs, tail, fur\n",
 				HARD_TAG_CAN, " bark, bite"
@@ -677,8 +677,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_subject_newline_predicate_multiple_list(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 				">> dog\n",
 				HARD_TAG_HAS, " legs, tail, fur\n",
@@ -695,8 +695,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_dash_modifier(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 				">> shar_pei ", TEST_TAG_IS_A, " dog\n",
 				HARD_TAG_HAS, " breed = Shar-Pei"
@@ -705,8 +705,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_url_modifier(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagl.execute(tagl_input(
 				">> shar_pei ", TEST_TAG_IS_A, " dog\n",
 				HARD_TAG_HAS, " breed = http://www.dogbreedinfo.com/sharpei.htm"
@@ -715,11 +715,11 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_url_list(void) {
-		tagspace_tester tdb;
-		TS_ASSERT_TAGD_OK(tdb.put(test_tag("simple", TEST_TAG_IS_A, "concept")));
-		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("Shar Pei", "shar_pei", "simple")));
-		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("SHARPEI","shar_pei","code")));
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TS_ASSERT_TAGD_OK(tsp.put(test_tag("simple", TEST_TAG_IS_A, "concept")));
+		TS_ASSERT_TAGD_OK(tsp.put(tagd::referent("Shar Pei", "shar_pei", "simple")));
+		TS_ASSERT_TAGD_OK(tsp.put(tagd::referent("SHARPEI","shar_pei","code")));
+		TAGL::driver tagl(&tsp);
 		tagl.execute(tagl_input(
 				">> shar_pei ", TEST_TAG_IS_A, " dog\n",
 				HARD_TAG_HAS, " information = http://www.dogbreedinfo.com/sharpei.htm, breed = http://www.akc.org/breeds/chinese_shar_pei/index.cfm, SHARPEI, \"Shar Pei\""
@@ -728,8 +728,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_delete_sub_not_allowed(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 				"!! dog ", TEST_TAG_IS_A, " mammal\n",
 				HARD_TAG_CAN, " bite"
@@ -738,9 +738,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_delete(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(tagl_input(
 				"!! dog\n",
 				HARD_TAG_HAS, " legs, tail, fur\n",
@@ -769,9 +769,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_delete_missing_calls_cmd_error_once(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 
 		tagd::code tc = tagl.execute("!! badger;");
 
@@ -782,8 +782,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_url(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(
 				">> http://www.hypermega.com/a/b/c#here?x=1&y=2\n"
 				"about internet_security"
@@ -797,8 +797,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_url_dot_dash_plus_scheme(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(
 				">> svn+ssh://www.hypermega.com\n"
 				"about internet_security\n"
@@ -820,8 +820,8 @@ class Tester : public CxxTest::TestSuite {
 	void test_event_error_uri(void) {
 		const char *evuri = "ev:2026-04-09T04:00:56.738Z!host!principal!tagsh!01KNS1F5S0CHPPQQNCVRQKVZM4!1!_event";
 		const char *erruri = "err:2026-04-09T04:00:56.739Z!host!principal!tagsh!01KNS1F5S0CHPPQQNCVRQKVZM4!2!_error:ts_not_found";
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(
 				std::string(">> ").append(evuri).append("\n")
 				.append("about dog, ").append(erruri)
@@ -854,8 +854,8 @@ class Tester : public CxxTest::TestSuite {
 		std::stringstream ss;
 		R.print_errors(ss);
 
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(ss.str());
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
@@ -865,8 +865,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_multiple_statements_whitespace(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(
 				"<< dog\n"
 				" \n \t\n "
@@ -878,8 +878,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_blank(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute("");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT( tc == tagl.code() )
@@ -887,8 +887,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_blank_lines(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(" \n \t \n\n\t ");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT( tc == tagl.code() )
@@ -896,8 +896,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_multiple_statements(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 				">> dog ", TEST_TAG_IS_A, " mammal \n",
 				HARD_TAG_HAS, " legs, tail, fur\n",
@@ -922,8 +922,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void testconstrain_tag_id_consistent(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagl.constrain_tag_id = "dog";
 		tagd::code tc = tagl.execute(tagl_input(
 				">> dog ", TEST_TAG_IS_A, " mammal \n",
@@ -940,8 +940,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void testconstrain_tag_id_inconsistent(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagl.constrain_tag_id = "dog";
 		tagd::code tc = tagl.execute(tagl_input(
 				">> dog ", TEST_TAG_IS_A, " mammal \n",
@@ -961,8 +961,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_multiple_parse(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 				">> dog ", TEST_TAG_IS_A, " mammal \n",
 				HARD_TAG_HAS, " legs, tail, fur\n",
@@ -995,8 +995,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_quantifiers(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 				">> dog ", HARD_TAG_HAS, " legs= 4, tail = 1, fur\n",
 				HARD_TAG_CAN, " bark, bite"
@@ -1026,8 +1026,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_one_line_quantifiers(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 			">> dog ", HARD_TAG_HAS, " legs = 4, tail = 1 ", HARD_TAG_CAN, " bark, bite"
 		));
@@ -1042,8 +1042,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_single_line(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 		  ">> dog ", TEST_TAG_IS_A, " mammal ", HARD_TAG_HAS, " legs, tail, fur ", HARD_TAG_CAN, " bark, bite; >> cat ", TEST_TAG_IS_A, " mammal ", HARD_TAG_HAS, " legs, tail, fur ", HARD_TAG_CAN, " meow, bite"
 		));
@@ -1060,15 +1060,15 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_put_hard_tag(void) {
-		tagspace_tester tdb;
-		auto tc = tdb.put(test_tag("_my_hard_tag", TEST_TAG_IS_A, "_entity"));
+		tagspace_tester tsp;
+		auto tc = tsp.put(test_tag("_my_hard_tag", TEST_TAG_IS_A, "_entity"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_MISUSE" )
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tdb.code()), "TS_MISUSE" )
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tsp.code()), "TS_MISUSE" )
 	}
 
 	void test_put_subject_unknown(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 		  ">> snipe ", TEST_TAG_IS_A, " mammal ", HARD_TAG_HAS, " legs"
 		));
@@ -1080,8 +1080,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_put_subject_known(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 		  ">> dog ", TEST_TAG_IS_A, " mammal ", HARD_TAG_HAS, " legs"
 		));
@@ -1093,8 +1093,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_put_sub_unknown(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 		  ">> dog ", TEST_TAG_IS_A, " snarf ", HARD_TAG_HAS, " legs"
 		));
@@ -1102,29 +1102,29 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_ignore_newline_eof_error(void) {
-		tagspace_tester tdb;
+		tagspace_tester tsp;
 		tagd::code tc;
-		TAGL::driver a(&tdb);
+		TAGL::driver a(&tsp);
 		tc = a.execute("<< dog\n");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( a.cmd() , TOK_CMD_GET )
 		TS_ASSERT_EQUALS( a.tag().id() , "dog" )
 
-		TAGL::driver b(&tdb);
+		TAGL::driver b(&tsp);
 		tc = b.execute(tagl_input(">> dog ", TEST_TAG_IS_A, " mammal\n"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( b.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( b.tag().id() , "dog" )
 		TS_ASSERT_EQUALS( b.tag().super_object() , "mammal" )
 
-		TAGL::driver c(&tdb);
+		TAGL::driver c(&tsp);
 		tc = c.execute(tagl_input(">> dog ", HARD_TAG_HAS, " legs\n"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( c.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( c.tag().id() , "dog" )
 		TS_ASSERT( c.tag().related(HARD_TAG_HAS, "legs") )
 
-		TAGL::driver d(&tdb);
+		TAGL::driver d(&tsp);
 		tc = d.execute(tagl_input(
 				">> dog ", TEST_TAG_IS_A, " mammal \n",
 				HARD_TAG_HAS, " legs, tail, fur\n",
@@ -1142,10 +1142,10 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_comment(void) {
-		tagspace_tester tdb;
+		tagspace_tester tsp;
 		tagd::code tc;
 
-		TAGL::driver d(&tdb);
+		TAGL::driver d(&tsp);
 		tc = d.execute(tagl_input(
 			"-- this is a comment\n",
 			">> dog ", TEST_TAG_IS_A, " mammal --so is this\n",
@@ -1173,8 +1173,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_parseln_terminator(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagl.parseln(tagl_input(">> dog ", TEST_TAG_IS_A, " mammal;"));
 		tagl.finish();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
@@ -1184,8 +1184,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
    void test_parseln_finish(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagl.parseln(tagl_input(">> dog ", TEST_TAG_IS_A, " mammal"));
 		tagl.parseln(tagl_input(HARD_TAG_HAS, " legs, tail, fur"));
 		tagl.parseln(tagl_input(HARD_TAG_CAN, " bark, bite"));
@@ -1220,8 +1220,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_parseln_no_finish(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagl.parseln(tagl_input(">> dog ", TEST_TAG_IS_A, " mammal"));
 		tagl.parseln(tagl_input(HARD_TAG_HAS, " legs, tail, fur"));
 		tagl.parseln(tagl_input(HARD_TAG_CAN, " bark, bite"));
@@ -1254,8 +1254,8 @@ class Tester : public CxxTest::TestSuite {
 	void test_parser_reinit_after_finish(void) {
 		// Verifies the init/free/reinit cycle: finish() releases the parser;
 		// a subsequent execute() re-initializes it and produces correct output.
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 
 		tagd::code tc = tagl.execute(tagl_input(">> dog ", TEST_TAG_IS_A, " mammal;"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
@@ -1271,9 +1271,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_quotes(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(tagl_input(
 			">> communication ", TEST_TAG_IS_A, " _entity;\n",
 			">> information ", TEST_TAG_IS_A, " communication;\n",
@@ -1303,9 +1303,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_quotes_parseln(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(tagl_input(
 			">> communication ", TEST_TAG_IS_A, " _entity;\n",
 			">> information ", TEST_TAG_IS_A, " communication;\n",
@@ -1335,9 +1335,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_callback(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(tagl_input(
 				">> dog ", TEST_TAG_IS_A, " mammal \n",
 				HARD_TAG_HAS, " legs, tail, fur\n",
@@ -1368,7 +1368,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( cb.last_tag->related(HARD_TAG_CAN, "bite") )
 
 		tagd::abstract_tag t;
-		tc = tdb.get(t, "dog");
+		tc = tsp.get(t, "dog");
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS( t.id(), "dog" )
 		TS_ASSERT_EQUALS( t.super_object(), "mammal" )
@@ -1380,9 +1380,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_callback_semicolon(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(tagl_input(
 				">> dog ", TEST_TAG_IS_A, " mammal \n",
 				HARD_TAG_HAS, " legs, tail, fur\n",
@@ -1411,7 +1411,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bite") )
 
 		tagd::abstract_tag t;
-		tc = tdb.get(t, "dog");
+		tc = tsp.get(t, "dog");
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS( t.id(), "dog" )
 		TS_ASSERT_EQUALS( t.super_object(), "mammal" )
@@ -1423,9 +1423,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_scanner_and_parser_debug_logging_in_process(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		std::stringstream log_ss;
 		tagd::logger log(log_ss);
 
@@ -1443,8 +1443,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_put_referent_no_context(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		// no context
 		tagd::code tc = tagl.execute(tagl_input(">> doggy ", HARD_TAG_REFERS_TO, " dog"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
@@ -1452,22 +1452,22 @@ class Tester : public CxxTest::TestSuite {
 
 	// TODO tagspace_tester won't allow this, but tagl parser will
 	// void test_put_referent_self(void) {
-	// 	tagspace_tester tdb;
-	// 	TAGL::driver tagl(&tdb);
+	// 	tagspace_tester tsp;
+	// 	TAGL::driver tagl(&tsp);
 	// 	tagd::code tc = tagl.execute(">> dog " HARD_TAG_REFERS_TO " dog");
 	// 	TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_MISUSE" )
 	// }
 
 	void test_put_referent_context(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(">> doggy ", HARD_TAG_REFERS_TO, " dog ", HARD_TAG_CONTEXT, " child"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 	}
 
 	void test_put_referent_referent(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(
 			">> refers_to ", HARD_TAG_REFERS_TO, " ", HARD_TAG_REFERS_TO,
 			" ", HARD_TAG_CONTEXT, " simple_english" ));
@@ -1475,8 +1475,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_put_utf8_subject(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(">> イヌ ", TEST_TAG_IS_A, " mammal"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.tag().id(), "イヌ" )
@@ -1484,16 +1484,16 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_put_utf8_referent_context(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(tagl_input(">> イヌ ", HARD_TAG_REFERS_TO, " dog ", HARD_TAG_CONTEXT, " japanese"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.tag().id(), "イヌ" )
 	}
 
 	void test_query_utf8_referent_label(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		TS_ASSERT_EQUALS(
 			TAGD_CODE_STRING(tagl.execute(tagl_input(">> イヌ ", HARD_TAG_REFERS_TO, " dog ", HARD_TAG_CONTEXT, " japanese"))),
 			"TAGD_OK"
@@ -1507,13 +1507,13 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_set_context(void) {
-		tagspace_tester tdb;
-		auto ssn = tdb.get_session();
-		TAGL::driver tagl(&tdb, &ssn);
+		tagspace_tester tsp;
+		auto ssn = tsp.get_session();
+		TAGL::driver tagl(&tsp, &ssn);
 		tagd::code tc;
 
 		// test tagspace_tester
-		TS_ASSERT( tdb.exists("child") )
+		TS_ASSERT( tsp.exists("child") )
 		TS_ASSERT_EQUALS( ssn.context().size() , 0 )
 		tc = ssn.push_context("child");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
@@ -1540,10 +1540,10 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_set_context_missing_calls_cmd_error_once(void) {
-		tagspace_tester tdb;
-		auto ssn = tdb.get_session();
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb, &ssn);
+		tagspace_tester tsp;
+		auto ssn = tsp.get_session();
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb, &ssn);
 
 		tagd::code tc = tagl.execute(tagl_input("%% ", HARD_TAG_CONTEXT, " haha"));
 
@@ -1554,9 +1554,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_set_context_existing_tag(void) {
-		tagspace_tester tdb;
-		auto ssn = tdb.get_session();
-		TAGL::driver tagl(&tdb, &ssn);
+		tagspace_tester tsp;
+		auto ssn = tsp.get_session();
+		TAGL::driver tagl(&tsp, &ssn);
 
 		tagd::code tc = tagl.parseln(tagl_input("%% ", HARD_TAG_CONTEXT, " simple_english;"));
 
@@ -1567,9 +1567,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_set_context_existing_tag_shell_style(void) {
-		tagspace_tester tdb;
-		auto ssn = tdb.get_session();
-		TAGL::driver tagl(&tdb, &ssn);
+		tagspace_tester tsp;
+		auto ssn = tsp.get_session();
+		TAGL::driver tagl(&tsp, &ssn);
 		tagd::code tc = tagl.parseln(tagl_input("%% ", HARD_TAG_CONTEXT, " simple_english"));
 
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
@@ -1583,9 +1583,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_set_context_existing_tag_list(void) {
-		tagspace_tester tdb;
-		auto ssn = tdb.get_session();
-		TAGL::driver tagl(&tdb, &ssn);
+		tagspace_tester tsp;
+		auto ssn = tsp.get_session();
+		TAGL::driver tagl(&tsp, &ssn);
 
 		tagd::code tc = tagl.parseln(tagl_input("%% ", HARD_TAG_CONTEXT, " simple_english, japanese;"));
 
@@ -1598,9 +1598,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_set_context_without_hard_tag_is_unknown_tag(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 
 		tagd::code tc = tagl.execute("%% context animal");
 
@@ -1610,9 +1610,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_set_blank_context(void) {
-		tagspace_tester tdb;
-		auto ssn = tdb.get_session();
-		TAGL::driver tagl(&tdb, &ssn);
+		tagspace_tester tsp;
+		auto ssn = tsp.get_session();
+		TAGL::driver tagl(&tsp, &ssn);
 		TS_ASSERT_TAGD_OK(ssn.push_context("mammal"));
 
 		tagd::code tc = tagl.execute(tagl_input("%% ", HARD_TAG_CONTEXT, " child"));
@@ -1628,8 +1628,8 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_set_ignore_duplicates(void) {
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		// Flags accept _true/_false and descendants inheriting POS_TRUE/POS_FALSE.
 		// Numeric coercion and unrelated values are forbidden; rejection preserves
 		// flag state, and valid assignments preserve unrelated flag bits.
@@ -1642,14 +1642,35 @@ class Tester : public CxxTest::TestSuite {
 		}
 	}
 
+	void test_set_inherited_predicates_preserves_other_flags() {
+		tagd::tagspace::memory tsp;
+		TS_ASSERT_TAGD_OK(tsp.init());
+		TAGL::driver tagl(&tsp);
+		const auto other_flags = tagd::F_IGNORE_DUPLICATES;
+		tagl.flags = other_flags;
+		for (const auto value : {HARD_TAG_TRUE, HARD_TAG_TRUE, HARD_TAG_FALSE, HARD_TAG_FALSE}) {
+			TS_ASSERT_TAGD_OK(tagl.execute(tagl_input("%% ",
+				tagd::HARD_TAG_INCLUDE_INHERITED_PREDICATES, " ", value, ";")));
+			TS_ASSERT_EQUALS(tagl.flags, other_flags |
+				(value == HARD_TAG_TRUE ? tagd::F_INCLUDE_INHERITED_PREDICATES : 0));
+		}
+		for (const auto value : {"1", "\"true\""}) {
+			TAGL::driver invalid(&tsp);
+			invalid.flags = other_flags;
+			TS_ASSERT_DIFFERS(invalid.execute(tagl_input("%% ",
+				tagd::HARD_TAG_INCLUDE_INHERITED_PREDICATES, " ", value, ";")), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(invalid.flags, other_flags);
+		}
+	}
+
 	void test_set_ignore_duplicates_rejects_non_booleans(void) {
-		tagspace_tester tdb;
+		tagspace_tester tsp;
 		for (const auto initial : {tagd::flags_t(tagd::F_NO_RESET),
 				tagd::flags_t(tagd::F_NO_RESET | tagd::F_IGNORE_DUPLICATES)}) {
 			for (const auto value : {"0", "1", "5", "-1", "0.0", "1.5",
 					"animal", "unknown_boolean", "\"\"",
 					"\"1\"", ""}) {
-				TAGL::driver tagl(&tdb);
+				TAGL::driver tagl(&tsp);
 				tagl.flags = initial;
 				TS_ASSERT_DIFFERS(tagl.execute(tagl_input("%% ", HARD_TAG_IGNORE_DUPLICATES, " ", value)),
 					tagd::TAGD_OK);
@@ -1658,9 +1679,9 @@ class Tester : public CxxTest::TestSuite {
 		}
 	}
 	void test_boolean_descendants(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		for (const auto statement : {">> yes <: _true;", ">> no <: _false;",
 				">> certainly <: yes;", ">> never <: no;"}) {
 			TS_ASSERT_TAGD_OK(tagl.execute(statement));
@@ -1668,7 +1689,7 @@ class Tester : public CxxTest::TestSuite {
 		}
 		for (const auto value : {"yes", "no", "certainly", "never"}) {
 			const bool enabled = std::string_view(value) == "yes" || std::string_view(value) == "certainly";
-			TS_ASSERT_EQUALS(tdb.pos(value), enabled ? tagd::POS_TRUE : tagd::POS_FALSE);
+			TS_ASSERT_EQUALS(tsp.pos(value), enabled ? tagd::POS_TRUE : tagd::POS_FALSE);
 			TS_ASSERT_TAGD_OK(tagl.execute(tagl_input("%% ", HARD_TAG_IGNORE_DUPLICATES, " ", value)));
 			TS_ASSERT_EQUALS(bool(tagl.flags & tagd::F_IGNORE_DUPLICATES), enabled);
 			TS_ASSERT_TAGD_OK(tagl.execute(tagl_input("<< ", value)));
@@ -1678,18 +1699,18 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_boolean_flags_with_memory_storage(void) {
-		tagd::tagspace::memory tdb;
-		TS_ASSERT_TAGD_OK(tdb.init());
+		tagd::tagspace::memory tsp;
+		TS_ASSERT_TAGD_OK(tsp.init());
 		class storage_callback : public callback_tester {
 			tagd::tagspace::memory& db;
 		public:
-			explicit storage_callback(tagd::tagspace::memory& tdb) : callback_tester(&tdb), db(tdb) {}
+			explicit storage_callback(tagd::tagspace::memory& tsp) : callback_tester(&tsp), db(tsp) {}
 			void cmd_put(const tagd::abstract_tag& t) override {
 				// Forward the actual parser flag to storage, as production callbacks do.
 				last_code = db.put(t, _driver->session_ptr(), _driver->flags);
 			}
-		} cb(tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		} cb(tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		for (const auto statement : {">> yes <: _true;", ">> no <: _false;",
 				">> certainly <: yes;", ">> never <: no;"}) {
 			TS_ASSERT_TAGD_OK(tagl.execute(statement));
@@ -1702,14 +1723,14 @@ class Tester : public CxxTest::TestSuite {
 			TS_ASSERT_TAGD_OK(tagl.execute(tagl_input("%% ", HARD_TAG_IGNORE_DUPLICATES, " ", value, ";")));
 			TS_ASSERT_TAGD_OK(tagl.execute(">> certainly <: yes;"));
 			TS_ASSERT_EQUALS(cb.last_code, enabled ? tagd::TAGD_OK : tagd::TS_DUPLICATE);
-			TS_ASSERT_EQUALS(tdb.pos("certainly", nullptr), tagd::POS_TRUE);
+			TS_ASSERT_EQUALS(tsp.pos("certainly", nullptr), tagd::POS_TRUE);
 		}
 	}
 
 	void test_set_context_list(void) {
-		tagspace_tester tdb;
-		auto ssn = tdb.get_session();
-		TAGL::driver tagl(&tdb, &ssn);
+		tagspace_tester tsp;
+		auto ssn = tsp.get_session();
+		TAGL::driver tagl(&tsp, &ssn);
 
 		TS_ASSERT_TAGD_OK(ssn.push_context("living_thing"));
 		TS_ASSERT_EQUALS( ssn.context().size() , 1 )
@@ -1739,9 +1760,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_query(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(tagl_input("?? ", HARD_TAG_WHAT, " ", TEST_TAG_IS_A, " mammal ", HARD_TAG_HAS, " legs, tail"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
@@ -1777,9 +1798,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_query_children(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(tagl_input("?? ", HARD_TAG_WHAT, " ", TEST_TAG_IS_A, " mammal"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TAGD_OK" )
@@ -1794,9 +1815,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_query_children_empty(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(tagl_input("?? ", HARD_TAG_WHAT, " ", TEST_TAG_IS_A, " dog"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )  // TAGL statment ok
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(cb.last_code), "TS_NOT_FOUND" )  // cmd_query returned TS_NOT_FOUND
@@ -1806,9 +1827,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_query_wildcard_relator(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(tagl_input("?? ", HARD_TAG_WHAT, " ", TEST_TAG_IS_A, " mammal * legs, tail"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
@@ -1832,9 +1853,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_query_no_sub_wildcard_relator(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(tagl_input("?? ", HARD_TAG_WHAT, " * legs, tail"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( cb.last_tag->pos() , tagd::POS_INTERROGATOR )
@@ -1858,9 +1879,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_query_not_found(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(tagl_input("<< ", HARD_TAG_WHAT, " ", TEST_TAG_IS_A, " snipe"));
 		// TODO why not NOT_FOUND?
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
@@ -1868,9 +1889,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_query_tag(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		// search string must be in double quotes
 		tagd::code tc = tagl.execute("?? dog;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
@@ -1878,16 +1899,16 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_query_tag_cleanup_then_get_subject(void) {
 		{
-			tagspace_tester tdb;
-			callback_tester cb(&tdb);
-			TAGL::driver tagl(&tdb, &cb);
+			tagspace_tester tsp;
+			callback_tester cb(&tsp);
+			TAGL::driver tagl(&tsp, &cb);
 			tagd::code tc = tagl.execute("?? dog;");
 			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 		}
 
 		{
-			tagspace_tester tdb;
-			TAGL::driver tagl(&tdb);
+			tagspace_tester tsp;
+			TAGL::driver tagl(&tsp);
 			tagd::code tc = tagl.execute("<< dog;");
 			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 			TS_ASSERT_EQUALS( tagl.tag().id(), "dog" )
@@ -1896,8 +1917,8 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_query_tag_cleanup_after_utf8_flows(void) {
 		{
-			tagspace_tester tdb;
-			TAGL::driver tagl(&tdb);
+			tagspace_tester tsp;
+			TAGL::driver tagl(&tsp);
 			TS_ASSERT_EQUALS(
 				TAGD_CODE_STRING(tagl.execute(tagl_input(">> イヌ ", HARD_TAG_REFERS_TO, " dog ", HARD_TAG_CONTEXT, " japanese"))),
 				"TAGD_OK"
@@ -1905,8 +1926,8 @@ class Tester : public CxxTest::TestSuite {
 		}
 
 		{
-			tagspace_tester tdb;
-			TAGL::driver tagl(&tdb);
+			tagspace_tester tsp;
+			TAGL::driver tagl(&tsp);
 			TS_ASSERT_EQUALS(
 				TAGD_CODE_STRING(tagl.execute(tagl_input(">> イヌ ", HARD_TAG_REFERS_TO, " dog ", HARD_TAG_CONTEXT, " japanese"))),
 				"TAGD_OK"
@@ -1918,34 +1939,34 @@ class Tester : public CxxTest::TestSuite {
 		}
 
 		{
-			tagspace_tester tdb;
-			callback_tester cb(&tdb);
-			TAGL::driver tagl(&tdb, &cb);
+			tagspace_tester tsp;
+			callback_tester cb(&tsp);
+			TAGL::driver tagl(&tsp, &cb);
 			tagd::code tc = tagl.execute("?? dog;");
 			TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGL_ERR" )
 		}
 	}
 
 	void test_search(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute("?? \"dog\";");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 	}
 
 	void test_tag_sub_search(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(
 			"?? _interrogator <: mammal -> _terms = \"warm blood\";" );
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 	}
 
 	void test_get_subject_search_terms_token_sequence(void) {
-		tagspace_tester tdb;
-		driver_tester tagl(&tdb);
+		tagspace_tester tsp;
+		driver_tester tagl(&tsp);
 
 		tagl.init_parser();
 		tagl.parse_tok(TOK_CMD_GET, TAGL::EMPTY_VALUE);
@@ -1961,10 +1982,10 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_query_referents(void) {
-		tagspace_tester tdb;
+		tagspace_tester tsp;
 
 		// a new tagd::tagspace_session will be created internally in parser.y upon pushing a context
-		TAGL::driver tagl(&tdb);
+		TAGL::driver tagl(&tsp);
 
 		TS_ASSERT( tagl.session_ptr() == nullptr )
 
@@ -2026,9 +2047,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_url_callback(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(
 				">> http://hypermega.com\n"
 				"about internet_security"
@@ -2043,9 +2064,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_put_get_url(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 		tagd::code tc = tagl.execute(
 				">> http://hypermega.com\n"
 				"about internet_security"
@@ -2064,14 +2085,14 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_put_del_get_url(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 
-		TS_ASSERT_TAGD_OK(tdb.put(test_relator("powered_by",HARD_TAG_ENTITY)));
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tdb.code()), "TAGD_OK" )
-		TS_ASSERT_TAGD_OK(tdb.put(test_tag("wikimedia",HARD_TAG_ENTITY)));
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tdb.code()), "TAGD_OK" )
+		TS_ASSERT_TAGD_OK(tsp.put(test_relator("powered_by",HARD_TAG_ENTITY)));
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tsp.code()), "TAGD_OK" )
+		TS_ASSERT_TAGD_OK(tsp.put(test_tag("wikimedia",HARD_TAG_ENTITY)));
+		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tsp.code()), "TAGD_OK" )
 
 		tagd::code tc = tagl.execute(
 				">> https://en.wikipedia.org/wiki/Dog\n"
@@ -2103,9 +2124,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_get_hduri(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 
 		// looks like quantifier in path
 		tagd::code tc = tagl.execute(
@@ -2145,9 +2166,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_constrain_hduri(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 
 		const std::string hduri{"hd:org!wikipedia!en!/wiki/Dog!!!!!!https"};
 		tagl.constrain_tag_id = hduri;
@@ -2161,9 +2182,9 @@ class Tester : public CxxTest::TestSuite {
 
 
 	void test_uri_put_get_semicolon(void) {
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 
 		tagd::code tc = tagl.execute(tagl_input(">> myuri:dog ", TEST_TAG_IS_A, " _entity;"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
@@ -2201,8 +2222,8 @@ class Tester : public CxxTest::TestSuite {
 		const std::string s = tagl_input(">> dog ", TEST_TAG_IS_A, " mammal ", HARD_TAG_HAS, " legs, fur ", HARD_TAG_CAN, " bark");
 		evbuffer_add(input, s.c_str(), s.size());
 
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(input);
 
 		evbuffer_free(input);
@@ -2242,8 +2263,8 @@ class Tester : public CxxTest::TestSuite {
 		struct evbuffer *input = evbuffer_new();
 		evbuffer_add(input, ss.str().c_str(), ss.str().size());
 
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(input);
 		evbuffer_free(input);
 
@@ -2266,8 +2287,8 @@ class Tester : public CxxTest::TestSuite {
 		struct evbuffer *input = evbuffer_new();
 		evbuffer_add(input, ss.str().c_str(), ss.str().size());
 
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(input);
 		evbuffer_free(input);
 
@@ -2286,8 +2307,8 @@ class Tester : public CxxTest::TestSuite {
 		struct evbuffer *input = evbuffer_new();
 		evbuffer_add(input, ss.str().c_str(), ss.str().size());
 
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(input);
 		evbuffer_free(input);
 
@@ -2314,8 +2335,8 @@ class Tester : public CxxTest::TestSuite {
 		struct evbuffer *input = evbuffer_new();
 		evbuffer_add(input, ss.str().c_str(), ss.str().size());
 
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(input);
 		evbuffer_free(input);
 		remove(path.c_str());
@@ -2334,9 +2355,9 @@ class Tester : public CxxTest::TestSuite {
 		fputs(" mammal;\n", fp);
 		fclose(fp);
 
-		tagspace_tester tdb;
-		callback_tester cb(&tdb);
-		TAGL::driver tagl(&tdb, &cb);
+		tagspace_tester tsp;
+		callback_tester cb(&tsp);
+		TAGL::driver tagl(&tsp, &cb);
 
 		TS_ASSERT_EQUALS(cb.bound_driver(), &tagl)
 
@@ -2357,8 +2378,8 @@ class Tester : public CxxTest::TestSuite {
 		struct evbuffer *input = evbuffer_new();
 		evbuffer_add(input, ss.str().c_str(), ss.str().size());
 
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(input);
 		evbuffer_free(input);
 
@@ -2378,8 +2399,8 @@ class Tester : public CxxTest::TestSuite {
 		struct evbuffer *input = evbuffer_new();
 		evbuffer_add(input, ss.str().c_str(), ss.str().size());
 
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(std::string(">> ").append(uri).append("\nabout internet_security"));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 
@@ -2394,10 +2415,10 @@ class Tester : public CxxTest::TestSuite {
 
 	// Contract 2: own_session() transfers session ownership to driver; destructor deletes it
 	void test_own_session_destructor_releases_session(void) {
-		tagspace_tester tdb;
+		tagspace_tester tsp;
 		{
-			TAGL::driver tagl(&tdb);
-			tagl.own_session(tdb.new_session());
+			TAGL::driver tagl(&tsp);
+			tagl.own_session(tsp.new_session());
 			// session owned by tagl; destructor at } deletes it without crash or double-free
 		}
 		TS_ASSERT(true);
@@ -2414,8 +2435,8 @@ class Tester : public CxxTest::TestSuite {
 		struct evbuffer *input = evbuffer_new();
 		evbuffer_add(input, ss.str().c_str(), ss.str().size());
 
-		tagspace_tester tdb;
-		TAGL::driver tagl(&tdb);
+		tagspace_tester tsp;
+		TAGL::driver tagl(&tsp);
 		tagd::code tc = tagl.execute(input);
 		evbuffer_free(input);
 

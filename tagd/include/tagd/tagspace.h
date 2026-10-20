@@ -17,11 +17,13 @@ typedef enum {
 	F_NO_TRANSFORM_REFERENTS = 1 << 1,
 	F_NO_NOT_FOUND_ERROR =     1 << 2,
 	F_IGNORE_DUPLICATES =      1 << 3,
-	F_NO_RESET =               1 << 4
+	F_NO_RESET =               1 << 4,
+	// GET merges ancestry by (relator, object); the nearest modifier wins, even empty.
+	F_INCLUDE_INHERITED_PREDICATES = 1 << 5
 } ts_flags;
 
 // First unused flag bit; update this when adding a flag.
-const int TS_FLAGS_END = 1 << 5;
+const int TS_FLAGS_END = 1 << 6;
 typedef uint32_t flags_t;
 
 struct flag_util {
@@ -40,6 +42,8 @@ struct flag_util {
 				return "F_IGNORE_DUPLICATES";
 			case F_NO_RESET:
 				return "F_NO_RESET";
+			case F_INCLUDE_INHERITED_PREDICATES:
+				return "F_INCLUDE_INHERITED_PREDICATES";
 			default:
 				return "FLAG_UNKNOWN";
 		}

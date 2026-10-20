@@ -1,0 +1,11 @@
+>> default_config _sub _config _has
+	_config:bind_port = 8080,
+	_config:log_level = warning;
+
+>> development _sub default_config _has
+	_config:bind_port = 9090,
+	_config:prompt = "development> ";
+
+>> production _sub _config _has
+	_config:bind_port = 7070,
+	_config:log_level = error;

@@ -317,16 +317,71 @@ object ::= TAG "=" FLOAT
 object ::= TAG "=" STRING
 ```
 
+For stored relations, `(subject, relator, object)` identifies one optional
+modifier. PUT with a supplied new modifier replaces the existing modifier; it
+does not add a second value for that relation. A bare object asserts the
+predicate's existence and preserves any existing modifier. If the predicate is
+absent, a bare PUT inserts it without a modifier.
+
+TODO: preserve the distinction between an absent (NULL) modifier and explicit
+empty text (`= ""`) throughout parsing, predicate types, storage, and serialization.
+The current representation conflates them; that limitation is not the intended
+meaning of explicit empty text.
+
+A valid PUT that changes stored state returns `TAGD_OK`. Reasserting an existing
+identity and relations without changing any values, including modifiers, returns
+`TS_DUPLICATE`, unless `_ignore_duplicates` is enabled. Mixing unchanged
+predicates with an insertion, modifier update, or subject move is a successful
+change. Other validation errors retain their existing behavior.
+
 #### 5.3 GET Grammar
 
 ```bnf
 get_statement ::= "<<" subject
 ```
 
+GET normally returns only the subject's own predicates. Enable inherited reads
+with `%% _include_inherited_predicates _true;` (the tagspace API flag is
+`F_INCLUDE_INHERITED_PREDICATES`), and disable them with `_false`.
+
+With this flag, GET accumulates predicates along the subject's subordinate
+ancestry. For each canonical `(relator, object)` pair, the nearest definition
+wins. An empty modifier overrides an ancestor's modifier but retains the
+predicate. Deleting that local predicate exposes the ancestor's value again.
+Resolution happens before session referent encoding. The subject's identity,
+immediate subordinate relation, part of speech, and rank remain unchanged.
+
+```tagl
+>> parent _sub _entity _has _message = "inherited";
+>> child _sub parent _has _message;
+%% _include_inherited_predicates _true;
+<< child;  -- child _sub parent _has _message
+!! child _has _message;
+<< child;  -- child _sub parent _has _message = inherited
+%% _include_inherited_predicates _false;
+<< child;  -- child _sub parent
+```
+
+This flag changes GET results only, including URL GET. It does not store the
+inherited predicates, change ordinary dumps, affect QUERY matching or results,
+or alter PUT and DELETE behavior. Explicitly putting a retrieved tag still
+asserts the predicates supplied by that PUT, as with any other write.
+
 #### 5.4 DELETE Grammar
 
 * Same as PUT
 * MUST NOT include sub relation
+* A bare predicate deletes the whole local predicate, with or without a modifier.
+* A predicate with a matching modifier clears only that modifier, retaining the
+  bare predicate. A missing predicate or mismatched modifier returns
+  `TS_NOT_FOUND`; a failed multi-predicate deletion leaves storage unchanged.
+
+```tagl
+>> dog _sub _entity _has _message = 4;
+>> dog _has _message;       -- TS_DUPLICATE; 4 remains
+!! dog _has _message = 4;   -- retains: dog _has _message
+!! dog _has _message;       -- removes the predicate
+```
 
 #### 5.5 QUERY Grammar
 

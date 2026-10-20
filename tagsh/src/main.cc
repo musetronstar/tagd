@@ -3,35 +3,49 @@
 
 int main(int argc, char **argv) {
 	tagd::tagspace_install_logger_validator();
-
 	cmd_args args;
 	args.parse(argc, argv);
-
 	if (args.has_errors()) {
 		args.print_errors();
 		return args.code();
 	}
 
-	/* The tagspace is constructed first so it outlives the shell and its sessions. */
+	// Config and selected storage outlive the shell and all borrowed sessions.
+	tagd::config cfg;
+	auto rc = load_config(cfg, args);
+	if (rc != tagd::TAGD_OK) {
+		cfg.print_errors();
+		return rc;
+	}
+	install_loggers(cfg);
 	tagd::tagspace::memory memory;
 	tagd::tagspace::persistent persistent;
-	tagd::tagspace& tdb = args.tagspace_name.empty()
-		? static_cast<tagd::tagspace&>(memory) : static_cast<tagd::tagspace&>(persistent);
-	tagd::code rc;
-	if (args.tagspace_name.empty()) {
+	tagd::tagspace* tsp;
+	if (args.tagspace_name() == tagd::HARD_TAG_CONFIG && !args.create()) {
+		tsp = &cfg;
+	} else if (args.tagspace_name().empty()) {
+		tsp = &memory;
 		rc = memory.init();
-	} else if (args.opt_create) {
-		rc = args.tagd_home.empty() ? persistent.create(args.tagspace_name)
-			: persistent.create(args.tagspace_name, args.tagd_home);
 	} else {
-		rc = args.tagd_home.empty() ? persistent.init(args.tagspace_name)
-			: persistent.init(args.tagspace_name, args.tagd_home);
+		tsp = &persistent;
+		rc = args.create() ? persistent.create(args.tagspace_name(), cfg.home())
+			: persistent.init(args.tagspace_name(), cfg.home());
 	}
 	if (rc != tagd::TAGD_OK) {
-		tdb.print_errors();
+		tsp->print_errors();
 		return rc;
 	}
 
-	tagsh shell(&tdb);
-	return args.interpret(shell);
+	tagsh shell(tsp, cfg);
+	cfg.start_runtime();
+	int result = execute_startup_actions(shell, args.actions());
+	if (result)
+		return result;
+	if (args.dump())
+		return tsp->dump();
+	if (!args.noshell()) {
+		TAGD_COUT << "use .show to list commands" << std::endl;
+		return shell.interpret_readline();
+	}
+	return 0;
 }

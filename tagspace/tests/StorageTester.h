@@ -30,6 +30,10 @@ public:
 		auto* heap = ts.new_session();
 		TS_ASSERT_DIFFERS(stack.id(), heap->id());
 		TS_ASSERT_EQUALS(stack.push_context("zoo"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(stack.push_context("nonexistent_context"), tagd::TS_NOT_FOUND);
+		TS_ASSERT_EQUALS(stack.code(), tagd::TS_NOT_FOUND);
+		TS_ASSERT_EQUALS(stack.context().size(), 1u);
+		TS_ASSERT_EQUALS(stack.context().back(), "zoo");
 		TS_ASSERT(heap->context().empty());
 		TS_ASSERT_EQUALS(heap->push_context("zoo"), tagd::TAGD_OK);
 		ts.release_session(heap);
@@ -136,6 +140,35 @@ public:
 			TS_ASSERT(ts.has_errors());
 			TS_ASSERT(!std::filesystem::exists(root / "absent"));
 		}
+	}
+
+	void test_reserved_names_cannot_create_or_open_persistent_storage() {
+		for (const std::string name : {"_config", "_private", "_"}) {
+			const auto home = root / name;
+			tagd::tagspace::persistent created;
+			TS_ASSERT_EQUALS(created.create(name, home.string()), tagd::TS_ERR);
+			TS_ASSERT(created.has_errors());
+			TS_ASSERT(!std::filesystem::exists(home));
+
+			// Reserved selection must not reach a database even if one exists on disk.
+			const auto dir = home / "tagspaces" / name;
+			std::filesystem::create_directories(dir);
+			std::ofstream(dir / (name + ".db")) << "not a database";
+			tagd::tagspace::persistent opened;
+			TS_ASSERT_EQUALS(opened.init(name, home.string()), tagd::TS_ERR);
+			TS_ASSERT(opened.has_errors());
+			std::ifstream input(dir / (name + ".db"));
+			std::string contents;
+			std::getline(input, contents);
+			TS_ASSERT_EQUALS(contents, "not a database");
+		}
+	}
+
+	void test_internal_underscore_remains_a_valid_persistent_name() {
+		tagd::tagspace::persistent created;
+		TS_ASSERT_EQUALS(created.create("my_config", root.string()), tagd::TAGD_OK);
+		tagd::tagspace::persistent opened;
+		TS_ASSERT_EQUALS(opened.init("my_config", root.string()), tagd::TAGD_OK);
 	}
 
 	void test_existing_invalid_database_is_not_overwritten() {

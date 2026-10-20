@@ -254,6 +254,156 @@ send ".exit$NL"
 expect eof
 wait
 
+test_cli "put_changed_modifier" \
+	[list ../bin/tagsh --noshell \
+		--tagl {>> settings _sub _entity _has _message = "before";} \
+		--tagl {>> settings _has _message = "after";} \
+		--tagl {<< settings;}] 1 {_message = after}
+
+test_cli "put_unchanged_modifier_is_duplicate" \
+	[list ../bin/tagsh --noshell \
+		--tagl {>> settings _sub _entity _has _message = "before";} \
+		--tagl {>> settings _has _message = "after";} \
+		--tagl {>> settings _has _message = "after";}] 0 {TS_DUPLICATE|ts_duplicate}
+
+
+test_cli "bare_put_preserves_modifier" \
+	[list ../bin/tagsh -n -t {>> animal _sub _entity; >> dog _sub animal _has _message = 4; %% _ignore_duplicates _true; >> dog _has _message; << dog;}] \
+	1 {_message = 4}
+test_cli "delete_modifier_retains_predicate" \
+	[list ../bin/tagsh -n -t {>> dog _sub _entity _has _message = 4; !! dog _has _message = 4; << dog;}] \
+	1 {dog _sub _entity\r?\n_has _message\r?\n}
+test_cli "delete_bare_removes_modified_predicate" \
+	[list ../bin/tagsh -n -t {>> dog _sub _entity _has _message = 4; !! dog _has _message; << dog;}] \
+	1 {dog _sub _entity\r?\n}
+set no_home [list env -u HOME LD_PRELOAD=[file normalize no-home.so]]
+test_cli "memory_without_home" \
+	[concat $no_home [list ../bin/tagsh -n -t {>> homeless _sub _entity; << homeless;}]] \
+	1 {homeless _sub _entity}
+test_cli "explicit_config_without_home" \
+	[concat $no_home [list ../bin/tagsh --config config.tagl --tagspace _config --dump]] \
+	1 {_config:bind_port = 8080}
+test_cli "named_storage_requires_home" \
+	[concat $no_home [list ../bin/tagsh --tagspace absent --create -n]] \
+	0 {invalid tagd home}
+
+set no_home_tmp [exec mktemp -d /tmp/tagsh-no-home-XXXXXX]
+set previous_dir [pwd]
+set tagsh_binary [file normalize ../bin/tagsh]
+try {
+	file mkdir [file join $no_home_tmp _config]
+	set stream [open [file join $no_home_tmp _config _config.tagl] w]
+	puts $stream {invalid TAGL must not be loaded from the working directory;}
+	close $stream
+	cd $no_home_tmp
+	test_cli "no_home_skips_cwd_config" \
+		[concat $no_home [list $tagsh_binary -n -t {>> standalone _sub _entity; << standalone;}]] \
+		1 {standalone _sub _entity}
+} finally {
+	cd $previous_dir
+	file delete -force $no_home_tmp
+}
+
+set roundtrip_tmp [exec mktemp -d /tmp/tagsh-roundtrip-XXXXXX]
+try {
+	# Exercise simple-English referents and custom relators plus a hard-tag predicate object.
+	# Tcl exec interprets arguments beginning with >> as redirection, even in lists.
+	set assertions [file join $roundtrip_tmp assertions.tagl]
+	set stream [open $assertions w]
+	puts $stream {>> dog _has _message = "hard object";}
+	close $stream
+	set before [exec ../bin/tagsh -f bootstrap.tagl -f $assertions --dump]
+	test_storage_check "dump_contains_hard_tag_predicate" \
+		[regexp {_message = "hard object"} $before]
+	set dump_file [file join $roundtrip_tmp dump.tagl]
+	set stream [open $dump_file w]
+	puts $stream $before
+	close $stream
+	set after [exec ../bin/tagsh -f $dump_file --dump]
+	test_storage_check "bootstrap_dump_roundtrip" [expr {$before eq $after}]
+} finally {
+	file delete -force $roundtrip_tmp
+}
+
+# Configuration files are inputs only; each process gets a fresh memory space.
+set config_tmp [exec mktemp -d /tmp/tagsh-config-XXXXXX]
+try {
+	set home [file join $config_tmp home]
+	file mkdir [file join $home _config]
+	set default_config [file join $home _config _config.tagl]
+	file copy config.tagl $default_config
+	set stream [open config.tagl r]
+	set original_config [read $stream]
+	close $stream
+	set base [list ../bin/tagsh --home $home --tagspace _config]
+	set japanese [file join $config_tmp japanese.tagl]
+	file copy config-japanese.tagl $japanese
+	set localized [concat $base [list --config $japanese]]
+	test_cli "config_japanese_file" [concat $localized [list --dump]] \
+		1 {_config:bind_port = 8181}
+	test_cli "config_japanese_read" \
+		[concat $localized [list -n -t {%% _context 日本語; << 設定;}]] \
+		1 {ポート = 8181}
+	test_cli "config_japanese_runtime_validation" \
+		[concat $localized [list -n -t {%% _context 日本語; >> 設定 持つ ポート = 9090;}]] \
+		0 {cannot change at runtime}
+	test_cli "config_japanese_inherited_profile" \
+		[concat $localized [list --config-id 開発 -n \
+			-t {%% _include_inherited_predicates _true; << 開発;}]] \
+		1 {_config:bind_port = 8181}
+	test_cli "config_id_development" \
+		[concat $base [list --config-id development --noshell -t {<< development;}]] \
+		1 {_config:bind_port = 9090}
+	test_cli "config_id_production" \
+		[concat $base [list --config-id production --noshell -t {<< production;}]] \
+		1 {_config:bind_port = 7070}
+	foreach id {unknown _config _config:bind_port} {
+		test_cli "config_id_invalid_$id" \
+			[concat $base [list --config-id $id --dump]] 0 {unknown or invalid config subject}
+	}
+	test_cli "config_id_empty" [concat $base [list --config-id "" --dump]] \
+		0 {empty --config-id}
+	test_cli "config_default_file" [concat $base [list --dump]] 1 {_config:bind_port = 8080}
+	test_cli "config_cli_overrides_file" \
+		[concat $base [list --log-level error --dump]] 1 {_config:log_level = error}
+	set alternate [file join $config_tmp alternate.tagl]
+	file copy config-alternate.tagl $alternate
+	test_cli "config_alternate_replaces_default" \
+		[concat $base [list --config $alternate --dump]] 1 {_config:log_level = error}
+	test_cli "config_runtime_prompt" \
+		[concat $base [list -t {>> default_config _has _config:prompt = "live> ";} --dump]] \
+		1 {_config:prompt = "live> "}
+	test_cli "config_runtime_changes_are_volatile" \
+		[concat $base [list --dump]] 1 {_config:prompt = "tagd> "}
+	test_cli "config_runtime_port_rejected" \
+		[concat $base [list -n -t {>> default_config _has _config:bind_port = 9090;}]] \
+		0 {cannot change at runtime}
+	test_cli "config_cannot_delete_required_values" \
+		[concat $base [list -n -t {!! default_config;}]] 0 {cannot be deleted}
+	test_cli "config_explicit_missing_file" \
+		[concat $base [list --config [file join $config_tmp missing.tagl] --dump]] \
+		0 {cannot load config file}
+	test_cli "config_reserved_creation" [concat $base [list --create --dump]] \
+		0 {reserved tagspace name}
+	set stream [open $default_config r]
+	set contents [read $stream]
+	close $stream
+	test_storage_check "config_source_unchanged" \
+		[expr {$contents eq $original_config}]
+	set dump [exec {*}$base --dump]
+	set stream [open $alternate w]
+	puts $stream $dump
+	close $stream
+	test_cli "config_dump_reloads_as_tagl" \
+		[concat $base [list --config $alternate --dump]] 1 {_config:bind_port = 8080}
+	set stream [open $default_config w]
+	puts $stream {>> default_config _has _config:bind_port = invalid;}
+	close $stream
+	test_cli "config_invalid_default_fails_startup" \
+		[concat $base [list --dump]] 0 {cannot load config file}
+} finally {
+	file delete -force $config_tmp
+}
 
 # Each run owns its temporary home; never write named test spaces under ~/.tagd.
 set storage_tmp [exec mktemp -d /tmp/tagsh-tagspace-XXXXXX]

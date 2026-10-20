@@ -25,10 +25,10 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void run_input(tagsh& shell, const std::string& input) {
 		std::istringstream in(input);
-		auto prompt = shell.prompt;
-		shell.prompt.clear();
+		auto batch = shell.batch();
+		shell.batch(true);
 		TS_ASSERT_EQUALS(shell.interpret(in), 0);
-		shell.prompt = prompt;
+		shell.batch(batch);
 	}
 
 	void set_simple_english_context(tagsh& shell) {
@@ -42,12 +42,64 @@ class DriverTester : public CxxTest::TestSuite {
 	}
 
 	public:
+	void test_stream_stops_at_first_error() {
+		tagspace_type tsp;
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK);
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init(""), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
+		shell.batch(true);
+		std::istringstream input(">> first _sub _entity;\n>> first _sub _entity;\n>> skipped _sub _entity;\n");
+		TS_ASSERT_DIFFERS(shell.interpret(input), 0);
+		TS_ASSERT(tsp.exists("first"));
+		TS_ASSERT(!tsp.exists("skipped"));
+	}
+
+	void test_inherited_predicates_flag_controls_get_only() {
+		tagspace_type tsp;
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK);
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
+		std::stringstream out;
+		shell.set_output(out);
+		shell.batch(true);
+		for (const auto statement : {
+			">> parent _sub _entity _has _message = inherited;",
+			">> child _sub parent;",
+			"%% _include_inherited_predicates _true;",
+			"<< child;"
+		}) {
+			TS_ASSERT_EQUALS(shell.interpret(statement), 0);
+		}
+		TS_ASSERT_DIFFERS(out.str().find("_has _message = inherited"), std::string::npos);
+		clear_stream(out);
+		TS_ASSERT_EQUALS(shell.interpret("%% _include_inherited_predicates _false;"), 0);
+		TS_ASSERT_EQUALS(shell.interpret("<< child;"), 0);
+		TS_ASSERT_EQUALS(out.str().find("_message"), std::string::npos);
+		TS_ASSERT_EQUALS(shell.interpret("%% _include_inherited_predicates _true;"), 0);
+		TS_ASSERT_EQUALS(shell.interpret(">> child _has _message;"), 0);
+		clear_stream(out);
+		TS_ASSERT_EQUALS(shell.interpret("<< child;"), 0);
+		TS_ASSERT_DIFFERS(out.str().find("_has _message"), std::string::npos);
+		TS_ASSERT_EQUALS(out.str().find("inherited"), std::string::npos);
+		TS_ASSERT_EQUALS(shell.interpret("!! child _has _message;"), 0);
+		clear_stream(out);
+		TS_ASSERT_EQUALS(shell.interpret("<< child;"), 0);
+		TS_ASSERT_DIFFERS(out.str().find("_has _message = inherited"), std::string::npos);
+		TS_ASSERT_EQUALS(shell.interpret("%% _include_inherited_predicates _false;"), 0);
+		clear_stream(out);
+		TS_ASSERT_EQUALS(shell.interpret("<< child;"), 0);
+		TS_ASSERT_EQUALS(out.str().find("_message"), std::string::npos);
+	}
 
 	void test_cmd_get_not_found(void) {
 		init_runtime();
-		tagspace_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
-		tagsh shell(&tdb);
+		tagspace_type tsp;
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
 
 		run_stmt(shell, "<< dog;");
 
@@ -56,12 +108,14 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_cmd_get_returns_tag(void) {
 		init_runtime();
-		tagspace_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
-		tagsh shell(&tdb);
+		tagspace_type tsp;
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
 		std::stringstream out;
 		shell.set_output(out);
-		shell.echo_result_code = false;
+		shell.batch(true);
 
 		load_bootstrap(shell);
 		run_stmt(shell, "<< dog;");
@@ -72,9 +126,11 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_cmd_put_duplicate(void) {
 		init_runtime();
-		tagspace_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
-		tagsh shell(&tdb);
+		tagspace_type tsp;
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
 
 		load_bootstrap(shell);
 		run_stmt(shell, ">> cat kind_of mammal;");
@@ -84,9 +140,11 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_cmd_del_not_found(void) {
 		init_runtime();
-		tagspace_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
-		tagsh shell(&tdb);
+		tagspace_type tsp;
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
 
 		load_bootstrap(shell);
 		run_stmt(shell, "!! badger;");
@@ -96,9 +154,11 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_cmd_del_existing(void) {
 		init_runtime();
-		tagspace_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
-		tagsh shell(&tdb);
+		tagspace_type tsp;
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
 
 		load_bootstrap(shell);
 		run_stmt(shell, "!! bat;");
@@ -108,12 +168,14 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_referent_lifecycle(void) {
 		init_runtime();
-		tagspace_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
-		tagsh shell(&tdb);
+		tagspace_type tsp;
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
 		std::stringstream out;
 		shell.set_output(out);
-		shell.echo_result_code = false;
+		shell.batch(true);
 
 		load_bootstrap(shell);
 		set_simple_english_context(shell);
@@ -141,12 +203,14 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_cmd_query_children(void) {
 		init_runtime();
-		tagspace_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
-		tagsh shell(&tdb);
+		tagspace_type tsp;
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
 		std::stringstream out;
 		shell.set_output(out);
-		shell.echo_result_code = false;
+		shell.batch(true);
 
 		load_bootstrap(shell);
 		set_simple_english_context(shell);
@@ -165,9 +229,11 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_cmd_query_empty(void) {
 		init_runtime();
-		tagspace_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
-		tagsh shell(&tdb);
+		tagspace_type tsp;
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
 
 		load_bootstrap(shell);
 		set_simple_english_context(shell);
@@ -178,12 +244,14 @@ class DriverTester : public CxxTest::TestSuite {
 
 	void test_context_referent(void) {
 		init_runtime();
-		tagspace_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
-		tagsh shell(&tdb);
+		tagspace_type tsp;
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
 		std::stringstream out;
 		shell.set_output(out);
-		shell.echo_result_code = false;
+		shell.batch(true);
 
 		load_bootstrap(shell);
 		set_simple_english_context(shell);

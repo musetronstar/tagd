@@ -105,7 +105,7 @@ class driver : public tagd::errorable {
 		int _cmd = -1;		// _token value representing a TAGL command
 
 		// The caller owns the tagspace and must keep it alive until the driver is destroyed.
-		tagd::tagspace *_tdb = nullptr;
+		tagd::tagspace *_tsp = nullptr;
 		// Sessions may be borrowed or owned depending on how the driver was constructed.
 		tagd::tagspace_session *_session = nullptr;
 		// Callbacks are always borrowed; driver only binds and invokes them.
@@ -138,8 +138,8 @@ class driver : public tagd::errorable {
 		// TODO remove from here, create/destroy relator in parser
 		tagd::id_string relator;    // current relator
 
-		tagd::tagspace* tdb() { return _tdb; }
-		const tagd::tagspace* tdb() const { return _tdb; }
+		tagd::tagspace* tsp() { return _tsp; }
+		const tagd::tagspace* tsp() const { return _tsp; }
 		void session_ptr(tagd::tagspace_session *ssn) { _session = ssn; }
 		tagd::tagspace_session* session_ptr() { return _session; }
 		const tagd::tagspace_session* session_ptr() const { return _session; }

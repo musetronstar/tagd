@@ -1,5 +1,6 @@
 #include "tagsh.h"
 
+#include <filesystem>
 #include <iostream>      // std::cout, std::cerr
 #include <fstream>       // std::ofstream
 #include <string>        // std::string
@@ -103,15 +104,15 @@ void tagsh_callback::handle_cmd_error() {
 		ssn->clear_errors();
 	}
 
-	if (!_tdb->ok()) {
-		_driver->code(_tdb->code()); // stops the scanner
+	if (!_tsp->ok()) {
+		_driver->code(_tsp->code()); // stops the scanner
 		_tsh->last_code(_driver->code());
-		_tdb->print_errors();
-		_tdb->clear_errors();
+		_tsp->print_errors();
+		_tsp->clear_errors();
 	}
 }
 
-#define CMD_OK() (_tdb->ok() && (!ssn || (ssn && ssn->ok())))
+#define CMD_OK() (_tsp->ok() && (!ssn || (ssn && ssn->ok())))
 
 void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 	tagd::abstract_tag *T;
@@ -121,10 +122,10 @@ void tagsh_callback::cmd_get(const tagd::abstract_tag& t) {
 
 	if (t.pos() == tagd::POS_URL) {
 		T = new tagd::url();
-		(void)_tdb->get((tagd::url&)*T, t.id(), ssn, _driver->flags);
+		(void)_tsp->get((tagd::url&)*T, t.id(), ssn, _driver->flags);
 	} else {
 		T = new tagd::abstract_tag();
-		(void)_tdb->get(*T, t.id(), ssn, _driver->flags);
+		(void)_tsp->get(*T, t.id(), ssn, _driver->flags);
 	}
 
 	if(CMD_OK())
@@ -143,10 +144,10 @@ void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 	auto ssn = _driver->session_ptr();
 	log_driver_debug("driver statement command=CMD_PUT subject=%s", t.id());
 	log_driver_debug("driver callback=cmd_put subject=%s", t.id());
-	tagd::code tc = _tdb->put(t, ssn, _driver->flags);
+	tagd::code tc = _tsp->put(t, ssn, _driver->flags);
 
 	if (CMD_OK()) {
-		if (_tsh->echo_result_code)
+		if (_tsh->echo_result_code())
 			(*_tsh->out) << "-- " << tagd::code_str(tc) << std::endl;
 	} else {
 		this->handle_cmd_error();
@@ -161,18 +162,18 @@ void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 	auto ssn = _driver->session_ptr();
 	log_driver_debug("driver statement command=CMD_DEL subject=%s", t.id());
 	log_driver_debug("driver callback=cmd_del subject=%s", t.id());
-	tagd::code tc = _tdb->del(t, ssn, _driver->flags);
+	tagd::code tc = _tsp->del(t, ssn, _driver->flags);
 
 	if (CMD_OK()) {
-		if (_tsh->echo_result_code)
+		if (_tsh->echo_result_code())
 			(*_tsh->out) << "-- " << tagd::code_str(tc) << std::endl;
-	} else if (_tdb->code() == tagd::TS_NOT_FOUND) {
-		if (_tsh->echo_result_code)
+	} else if (_tsp->code() == tagd::TS_NOT_FOUND) {
+		if (_tsh->echo_result_code())
 			(*_tsh->out) << "-- " << tagd::code_str(tc) << std::endl;
 	} else {
 		this->handle_cmd_error();
 	}
-	_tsh->last_code((CMD_OK() || _tdb->code() == tagd::TS_NOT_FOUND) ? tc : _driver->code());
+	_tsh->last_code((CMD_OK() || _tsp->code() == tagd::TS_NOT_FOUND) ? tc : _driver->code());
 	log_driver_debug("driver code=%s", tagd::code_str(_driver->code()));
 
 	add_history_lines_clear(_lines);
@@ -184,7 +185,7 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 	log_driver_debug("driver statement command=CMD_QUERY subject=%s", q.id());
 	log_driver_debug("driver callback=cmd_query subject=%s", q.id());
 
-	auto tc = _tdb->query(T, q, ssn, _driver->flags|tagd::F_NO_NOT_FOUND_ERROR);
+	auto tc = _tsp->query(T, q, ssn, _driver->flags|tagd::F_NO_NOT_FOUND_ERROR);
 	if (!CMD_OK()) {
 		this->handle_cmd_error();
 		log_driver_debug("driver code=%s", tagd::code_str(_driver->code()));
@@ -200,7 +201,7 @@ void tagsh_callback::cmd_query(const tagd::interrogator& q) {
 				tagd::print_tag_ids(T, *_tsh->out);
 			break;
 		case tagd::TS_NOT_FOUND:  // TS_NOT_FOUND not an error for queries
-			if (_tsh->echo_result_code)
+			if (_tsh->echo_result_code())
 				(*_tsh->out) << "-- " << tagd::code_str(tc) << std::endl;
 			break;
 		default:
@@ -254,7 +255,7 @@ void tagsh::dump_file(const std::string& fname, bool check_existing) {
 		error("open failed, no such file: %s", fname.c_str());
 		return;
 	}
-	_tdb->dump(ofs);
+	_tsp->dump(ofs);
 	ofs.close();
 	TAGD_COUT << "dumped to file: " << fname << std::endl;
 }
@@ -275,10 +276,10 @@ void tagsh::command(const std::string& cmdline) {
 			return;
 		}
 
-		auto echo_result_code = this->echo_result_code;
-		this->echo_result_code = false;
+		auto batch = this->_batch;
+		this->_batch = true;
 		this->interpret_fname(V[1]);
-		this->echo_result_code = echo_result_code;
+		this->_batch = batch;
 		return;
 	}
 
@@ -301,18 +302,18 @@ void tagsh::command(const std::string& cmdline) {
 
 	// The diagnostic grid is provided by the storage implementation.
 	if (cmd == ".dump_grid") {
-		_tdb->dump_grid();
+		_tsp->dump_grid();
 		return;
 
 	}
 
 	if (cmd == ".dump_terms") {
-		_tdb->dump_terms();
+		_tsp->dump_terms();
 		return;
 	}
 
 	if (cmd == ".dump_search") {
-		_tdb->dump_search();
+		_tsp->dump_search();
 		return;
 	}
 
@@ -344,7 +345,7 @@ int tagsh::interpret_readline() {
 	rl_bind_key('\t', rl_complete);
 
 	char* input;
-	while((input = readline(prompt.c_str())) != NULL) {
+	while((input = readline(prompt().c_str())) != NULL) {
 		_callback->_lines.push_back(input);
 		this->interpret(input);
 	}
@@ -353,7 +354,7 @@ int tagsh::interpret_readline() {
 }
 
 int tagsh::interpret(const std::string &line) {
-	if (line[0] == '.') {
+	if (!line.empty() && line[0] == '.') {
 		this->last_code(tagd::TAGD_OK);
 		command(line);
 		add_history_lines_clear(_callback->_lines);
@@ -383,14 +384,16 @@ int tagsh::interpret(const std::string &line) {
 int tagsh::interpret(std::istream& ins) {
 	std::string line;
 
-	if (!prompt.empty())
-		TAGD_COUT << prompt;
+	if (!prompt().empty())
+		TAGD_COUT << prompt();
 
 	while (getline(ins, line)) {
-		this->interpret(line);
+		int rc = this->interpret(line);
+		if (rc)
+			return rc;
 
-		if (!prompt.empty())
-			TAGD_COUT << prompt;
+		if (!prompt().empty())
+			TAGD_COUT << prompt();
 	}
 
 	_driver.finish();
@@ -398,10 +401,17 @@ int tagsh::interpret(std::istream& ins) {
 	return 0;
 }
 
-int tagsh::interpret_fname(const  std::string& fname) {
+int tagsh::interpret_fname(const std::string& fname, bool ignore_duplicates) {
 	log_tagsh_notice("tagsh load file=%s", fname);
-	_driver.include_file(fname);
+	auto flags = _driver.flags;
+	if (ignore_duplicates)
+		_driver.flags |= tagd::F_IGNORE_DUPLICATES;
+	this->last_code(tagd::TAGD_OK);
+	auto rc = _driver.include_file(fname);
+	_driver.flags = flags;
 	_driver.finish();
+	if (rc != tagd::TAGD_OK)
+		this->last_code(rc);
 	return this->last_code();
 }
 
@@ -420,28 +430,41 @@ void tagsh::cmd_show() {
 
 cmd_args::cmd_args()
 {
-	opt_logger.level(tagd::log_level::ERROR);
 
 	// Collect storage options without opening anything: creation and selection
 	// are resolved together after parsing, regardless of their argument order.
 	_cmds["--tagspace"] = {
 		[this](char *val) {
 			if (!*val) { this->error(tagd::TS_ERR, "invalid tagspace name"); return; }
-			this->tagspace_name = val;
+			this->_tagspace_name = val;
 		}, true
 	};
 	_cmds["--home"] = {
 		[this](char *val) {
 			if (!*val) { this->error(tagd::TAGD_ERR, "empty --home"); return; }
-			this->tagd_home = val;
+			this->_home = val;
+			_overrides.emplace_back(tagd::HARD_TAG_CONFIG_HOME, val);
 		}, true
 	};
 	_cmds["--create"] = {
-		[this](char *) { this->opt_create = true; }, false
+		[this](char *) { this->_create = true; }, false
+	};
+
+	_cmds["--config"] = {
+		[this](char* val) {
+			if (!*val) { this->error(tagd::TAGD_ERR, "empty --config"); return; }
+			_config_file = val;
+		}, true
+	};
+	_cmds["--config-id"] = {
+		[this](char* val) {
+			if (!*val) { this->error(tagd::TAGD_ERR, "empty --config-id"); return; }
+			_config_id = val;
+		}, true
 	};
 
 	cmd_handler noshell_handler = {
-		[this](char *) { this->opt_noshell = true; },
+		[this](char *) { this->_noshell = true; },
 		false
 	};
 	_cmds["--noshell"] = noshell_handler;
@@ -450,7 +473,8 @@ cmd_args::cmd_args()
 	cmd_handler tagl_handler = {
 		[this](char *val) {
 			// files and statements processed in order
-			tagl_statements.push_back(std::string("t:").append(val));
+			_actions.push_back({std::string(val) == "-" ? startup_action::kind::stdin_stream
+				: startup_action::kind::tagl, val});
 		}, true
 	};
 	_cmds["--tagl"] = tagl_handler;
@@ -463,7 +487,7 @@ cmd_args::cmd_args()
 				return;
 			}
 			// files and statements processed in order
-			tagl_statements.push_back(std::string("f:").append(val));
+			_actions.push_back({startup_action::kind::file, val});
 		}, true
 	};
 	_cmds["--file"] = file_handler;
@@ -471,16 +495,23 @@ cmd_args::cmd_args()
 
 	_cmds["--log-level"] = {
 		[this](char *val) {
-			if (!tagd::parse_log_level_spec(val, opt_logger))
+			tagd::logger candidate;
+			if (!*val || !tagd::parse_log_level_spec(val, candidate))
 				this->ferror(tagd::TAGD_ERR, "invalid log level: %s", val);
+			else {
+				if (!_log_spec.empty())
+					_log_spec += ",";
+				_log_spec += val;
+				_overrides.emplace_back(tagd::HARD_TAG_CONFIG_LOG_LEVEL, _log_spec);
+			}
 		},
 		true
 	};
 
 	_cmds["--dump"] = {
 		[this](char *) {
-			opt_dump = true;
-			opt_noshell = true;
+			_dump = true;
+			_noshell = true;
 		},
 		false
 	};
@@ -492,6 +523,8 @@ cmd_args::cmd_args()
 			<< "		with no options: interactive tagl prompt with an in-memory tagspace" 	<< std::endl
 			<< "tagsh [options]" 															<< std::endl
 			<< "---------------" 															<< std::endl
+			<< "  --config FILE    alternate TAGL configuration file" << std::endl
+			<< "  --config-id ID   configuration subject (default default_config)" << std::endl
 			<< "  --home DIR       tagd home (default ~/.tagd)" << std::endl
 			<< "  --tagspace ID    open an existing tagspace (default: memory)" << std::endl
 			<< "  --create         create the named tagspace; fail if it exists" << std::endl
@@ -540,7 +573,7 @@ void cmd_args::parse(int argc, char **argv) {
 	}
 
 	// Validate the combination only after parsing: option order has no meaning.
-	if (opt_create && tagspace_name.empty()) {
+	if (_create && _tagspace_name.empty()) {
 		this->error(tagd::TAGD_ERR, "--create requires --tagspace ID");
 		return;
 	}
@@ -548,62 +581,86 @@ void cmd_args::parse(int argc, char **argv) {
 	this->code(tagd::TAGD_OK);
 }
 
-int cmd_args::interpret(tagsh& shell) {
-	TAGL_SET_LOGGER(&opt_logger);
-	TAGSPACE_SET_LOGGER(&opt_logger);
-	TAGSH_SET_LOGGER(&opt_logger);
+void cmd_args::config_option(const std::string& option, tagd::id_view setting) {
+	_cmds[option] = {[this, id = tagd::id_string(setting)](char* value) {
+		_overrides.emplace_back(id, value);
+	}, true};
+}
 
-	auto f_tagl_statement = [&](const std::string &s) -> int {
-		int err;
-		shell.prompt.clear();
-		err = shell.interpret(s);
-		if (err)
-			return err;
-		err = shell.interpret(";"); // just in case it wasn't provided
-		return err;
-	};
+void uninstall_loggers() {
+	TAGL_SET_LOGGER(nullptr);
+	TAGSPACE_SET_LOGGER(nullptr);
+	TAGSH_SET_LOGGER(nullptr);
+}
 
-	shell.echo_result_code = false;
+void install_loggers(tagd::config& cfg) {
+	TAGL_SET_LOGGER(&cfg.log());
+	TAGSPACE_SET_LOGGER(&cfg.log());
+	TAGSH_SET_LOGGER(&cfg.log());
+}
 
-	int err;
-	// input files and tagl statements process in order,
-	// each string prepended with:
-	//   "t:"  tagl statment
-	//   "f:"  filename
-	for(auto s : this->tagl_statements) {
-		if (s.size() <= 2)
-			return this->error(tagd::TAGL_ERR, "cmd_args: missing value for TAGL statment");
-
-		auto k = s.substr(0, 2);
-		auto v = s.substr(2, std::string::npos);
-		if (k == "t:") {
-			if (v == "-") {  // fname == "-", use interpret stdin
-				// TODO create an evbuffer from stdin, so shell commands are not exposed
-				shell.prompt.clear();
-				err = shell.interpret(std::cin);
-			} else {
-				err = f_tagl_statement(v);
-			}
-		} else if (k == "f:") {
-			err = shell.interpret_fname(v);
-		} else {
-			assert(0);
-			return this->error(tagd::TAGL_ERR, "cmd_args: internal error processing tagl_statements");
+tagd::code load_config(tagd::config& cfg, const cmd_args& args) {
+	const auto home = args.home().empty() ? tagd::default_tagd_home() : args.home();
+	auto rc = cfg.init(home);
+	if (rc != tagd::TAGD_OK)
+		return rc;
+	// A missing home means no implicit config source, never a cwd-relative fallback.
+	const auto file = !args.config_file().empty() ? args.config_file()
+		: home.empty() ? std::string{}
+		: (std::filesystem::path(home) / "_config/_config.tagl").string();
+	if (!file.empty()) {
+		std::error_code ec;
+		auto status = std::filesystem::symlink_status(file, ec);
+		if (ec == std::errc::no_such_file_or_directory)
+			ec.clear();
+		bool present = status.type() != std::filesystem::file_type::not_found;
+		if (ec)
+			return cfg.error(tagd::TAGD_ERR, "cannot inspect config file: " + file);
+		if (present || !args.config_file().empty()) {
+			tagsh loader(&cfg, cfg);
+			loader.batch(true);
+			rc = static_cast<tagd::code>(loader.interpret_fname(file, true));
+			if (rc != tagd::TAGD_OK)
+				return cfg.error(rc, "cannot load config file: " + file);
 		}
-
-		if (err) return err;
 	}
 
-	if (this->opt_dump)
-		shell.dump();
-
-	shell.echo_result_code = true;
-
-	if (!this->opt_noshell) {
-		TAGD_COUT << "use .show to list commands" << std::endl;
-		shell.prompt = tagsh::DEFAULT_PROMPT;
-		return shell.interpret_readline();
+	rc = cfg.select(args.config_id(), home);
+	if (rc != tagd::TAGD_OK)
+		return rc;
+	for (const auto& [id, value] : args.overrides()) {
+		rc = cfg.set(id, value);
+		if (rc != tagd::TAGD_OK)
+			return rc;
 	}
+	return tagd::TAGD_OK;
+}
 
+int execute_startup_actions(tagsh& shell, const std::vector<startup_action>& actions) {
+	// Batch execution must not overwrite preferences changed by its TAGL input.
+	struct restore_batch {
+		tagsh& shell;
+		bool previous;
+		~restore_batch() { shell.batch(previous); }
+	} restore{shell, shell.batch()};
+	shell.batch(true);
+	for (const auto& action : actions) {
+		int rc;
+		switch (action.type) {
+			case startup_action::kind::file:
+				rc = shell.interpret_fname(action.input);
+				break;
+			case startup_action::kind::stdin_stream:
+				rc = shell.interpret(std::cin);
+				break;
+			case startup_action::kind::tagl:
+				rc = shell.interpret(action.input);
+				if (!rc)
+					rc = shell.interpret(";");
+				break;
+		}
+		if (rc)
+			return rc;
+	}
 	return 0;
 }

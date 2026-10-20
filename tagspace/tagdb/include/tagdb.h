@@ -35,6 +35,7 @@ using tagd::F_NO_TRANSFORM_REFERENTS;
 using tagd::F_NO_NOT_FOUND_ERROR;
 using tagd::F_IGNORE_DUPLICATES;
 using tagd::F_NO_RESET;
+using tagd::F_INCLUDE_INHERITED_PREDICATES;
 
 // matches sqlite_int64 type defined in sqlite.h
 typedef long long int rowid_t;

@@ -1,0 +1,11 @@
+-- Context tags are ordinary tags in the configuration hierarchy.
+>> 日本語 _sub _config;
+>> 設定 _refers_to default_config _context 日本語;
+>> 持つ _refers_to _has _context 日本語;
+>> 下位 _refers_to _sub _context 日本語;
+>> ポート _refers_to _config:bind_port _context 日本語;
+>> 表示 _refers_to _config:prompt _context 日本語;
+
+%% _context 日本語;
+>> 設定 持つ ポート = 8181, 表示 = "こんにちは> ";
+>> 開発 下位 設定 持つ 表示 = "開発> ";

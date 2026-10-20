@@ -8,7 +8,7 @@ LIBTAGSPACE = ../lib/libtagspace.a
 LFLAGS = -L../lib -ltagspace -L../../tagd/lib -ltagd -lsqlite3
 CXXTEST = cxxtestgen --error-printer
 
-all: tagspace_memory_tests storage_tests
+all: tagspace_memory_tests storage_tests config_tests collection_tests
 
 debug: CXXFLAGS += -g -O0
 debug: all
@@ -21,9 +21,19 @@ tagspace_memory_tests: $(LIBTAGSPACE) $(LIBTAGD) TagspaceMemoryTester.h
 	$(TAGSPACE_MEMORY_TESTER)
 
 clean:
-	rm -f tagspace-memory-tester.cpp tagspace-memory-tester storage-tester.cpp storage-tester
+	rm -f collection-tester.cpp collection-tester tagspace-memory-tester.cpp tagspace-memory-tester storage-tester.cpp storage-tester config-tester.cpp config-tester
 
 storage_tests: $(LIBTAGSPACE) $(LIBTAGD) StorageTester.h
 	$(CXXTEST) StorageTester.h -o storage-tester.cpp
 	g++ $(CXXFLAGS) storage-tester.cpp -o storage-tester $(INC) $(LFLAGS)
 	./storage-tester
+
+config_tests: $(LIBTAGSPACE) $(LIBTAGD) ConfigTester.h
+	$(CXXTEST) ConfigTester.h -o config-tester.cpp
+	g++ $(CXXFLAGS) config-tester.cpp -o config-tester $(INC) $(LFLAGS)
+	./config-tester
+
+collection_tests: $(LIBTAGSPACE) $(LIBTAGD) CollectionTester.h
+	$(CXXTEST) CollectionTester.h -o collection-tester.cpp
+	g++ $(CXXFLAGS) collection-tester.cpp -o collection-tester $(INC) $(LFLAGS)
+	./collection-tester

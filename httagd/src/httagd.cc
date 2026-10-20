@@ -366,7 +366,7 @@ tagd::code httagl::scan_request_tagdurl(const request& req) {
 
 void callback::default_cmd_put(const tagd::abstract_tag& t) {
 	auto ssn = _tx->drvr->session_ptr();
-	if ( _tx->tdb->put(t, ssn, _driver->flags) != tagd::TAGD_OK) {
+	if ( _tx->tsp->put(t, ssn, _driver->flags) != tagd::TAGD_OK) {
 		std::stringstream ss;
 		ssn->print_errors(ss);
 		_tx->res->add(ss.str());
@@ -375,7 +375,7 @@ void callback::default_cmd_put(const tagd::abstract_tag& t) {
 
 void callback::default_cmd_del(const tagd::abstract_tag& t) {
 	auto ssn = _tx->drvr->session_ptr();
-	if (_tx->tdb->del(t, ssn, _driver->flags) != tagd::TAGD_OK) {
+	if (_tx->tsp->del(t, ssn, _driver->flags) != tagd::TAGD_OK) {
 		std::stringstream ss;
 		ssn->print_errors(ss);
 		_tx->res->add(ss.str());
@@ -387,7 +387,7 @@ void callback::default_cmd_query(const tagd::interrogator& q) {
 	auto ssn = _tx->drvr->session_ptr();
 	std::stringstream ss;
 
-	if (_tx->tdb->query(T, q, ssn, _driver->flags) == tagd::TAGD_OK) {
+	if (_tx->tsp->query(T, q, ssn, _driver->flags) == tagd::TAGD_OK) {
 		tagd::print_tag_ids(T, ss);
 		ss << std::endl;
 	} else {
@@ -577,8 +577,8 @@ std::string request::abs_url_view(const std::string& view_name) const {
 std::string transaction::effective_opt_view() const {
 	std::string view_opt = this->req->query_opt(TAGL::QUERY_OPT_VIEW);
 	if (view_opt.empty()) {
-		if (!this->svr->args()->default_view.empty())
-			return this->svr->args()->default_view;  // user supplied default
+		if (!this->svr->configuration().default_view().empty())
+			return this->svr->configuration().default_view();  // user supplied default
 		else
 			return DEFAULT_VIEW;  // hard-coded default
 	}
@@ -619,10 +619,10 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 		if (!T->ok())
 			tc = _tx->ferror(T->code(), "default_cmd_get parse url failed: %s", t.id().c_str());
 		else
-			tc = _tx->tdb->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags);
+			tc = _tx->tsp->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags);
 	} else {
 		T = new tagd::abstract_tag();
-		tc = _tx->tdb->get(*T, t.id(), ssn, _driver->flags);
+		tc = _tx->tsp->get(*T, t.id(), ssn, _driver->flags);
 	}
 
 	// TODO, if outputting to an iostream is still desirable,
@@ -681,10 +681,10 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 		if (!T->ok())
 			tc = _tx->ferror(T->code(), "cmd_get parse url failed: %s", t.id().c_str());
 		else
-			tc = _tx->tdb->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags);
+			tc = _tx->tsp->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags);
 	} else {
 		T = new tagd::abstract_tag();
-		tc = _tx->tdb->get(*T, t.id(), ssn, _driver->flags);
+		tc = _tx->tsp->get(*T, t.id(), ssn, _driver->flags);
 	}
 	RET_IF_ERR();
 
@@ -721,7 +721,7 @@ void callback::cmd_query(const tagd::interrogator& q) {
 
 	tagd::tag_set R;
 	auto ssn = _tx->drvr->session_ptr();
-	tagd::code tc = _tx->tdb->query(R, q, ssn, _driver->flags);
+	tagd::code tc = _tx->tsp->query(R, q, ssn, _driver->flags);
 
 	if (tc != tagd::TAGD_OK) {
 		this->output_errors(tc);
@@ -868,11 +868,22 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 
 	// for now, this request uses the servers tagspace reference
 	// TODO allow requests to use other tagspaces (given the request)
-	auto tdb = svr->tdb();
+	auto tsp = svr->tsp();
 	auto vws = svr->vws();
 
 	request req(ev_req);
 	response res(ev_req);
+	/*
+	 * TODO: permit remote config mutations only after authentication and
+	 * permissions cover the config tagspace, its descendants, and referents.
+	 * Reject before parsing so POST bodies cannot bypass the read-only policy.
+	 */
+	const auto method = evhtp_request_get_method(ev_req);
+	if (tsp == &svr->configuration() && method != htp_method_GET && method != htp_method_HEAD) {
+		res.add("configuration is read-only over HTTP");
+		res.send_ev_reply(EVHTP_RES_FORBIDDEN);
+		return;
+	}
 	{
 		std::ostringstream ss;
 		ss << "httagd request method="
@@ -883,19 +894,19 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	}
 
 	// nullptr driver becuase circular depends httagl
-	transaction tx(svr, &req, &res, tdb, nullptr, vws);
+	transaction tx(svr, &req, &res, tsp, nullptr, vws);
 
-	auto ssn = tdb->get_session();
+	auto ssn = tsp->get_session();
 	if (!req.query_opt_context().empty())
 		ssn.push_context(req.query_opt_context());
 
 	callback CB(&tx);
-	httagl tagl(tdb, &CB, &ssn);
+	httagl tagl(tsp, &CB, &ssn);
 	tx.drvr = &tagl;
 
 	// all sharing the internal errors pointer of tx
 	tx.share_errors(tagl)
-	  .share_errors(*tdb)
+	  .share_errors(*tsp)
 	  .share_errors(*vws)
 	  .share_errors(ssn);
 
@@ -917,10 +928,10 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	 * TODO tbd, server and other long running objects
 	 * should not be errorable.  They should log as the errors occur
 	 */
-	// tdb will accumulate errors between requests, so clear
-	if (tdb->has_errors()) {
-		HTTAGD_LOG_ERRORS(tagd::log_level::ERROR, *tdb);
-		tdb->clear_errors();
+	// tsp will accumulate errors between requests, so clear
+	if (tsp->has_errors()) {
+		HTTAGD_LOG_ERRORS(tagd::log_level::ERROR, *tsp);
+		tsp->clear_errors();
 	}
 }
 
@@ -983,7 +994,7 @@ file_cb(evhtp_request_t * evreq, void * arg) {
 		return;
 	}
 
-	auto path = tagd::io::concat_dir(svr->args()->www_dir, req.path().substr(pos));
+	auto path = tagd::io::concat_dir(svr->configuration().www_dir(), req.path().substr(pos));
 
 	HTTAGD_LOG_DEBUG("httagd file request path=" << req.path());
 	HTTAGD_LOG_DEBUG("httagd file system path=" << path);
@@ -1038,7 +1049,7 @@ favicon_cb(evhtp_request_t * evreq, void * arg) {
 	base_transaction tx(svr, &req, &res);
 
 	res.add_header_content_type("image/x-icon");
-	tagd::code tc = res.add_file(svr->args()->favicon, &tx);
+	tagd::code tc = res.add_file(svr->configuration().favicon(), &tx);
 	if (tc != tagd::TAGD_OK) {
 		HTTAGD_LOG_REQUEST(tagd::log_level::ERROR,
 				evhtp_request_get_method(evreq), req.path(), evreq->headers_in, tc);
@@ -1060,16 +1071,18 @@ tagd::code server::start() {
 	evhtp_set_cb(_htp, "/favicon.ico", favicon_cb, this);
 	evhtp_set_gencb(_htp, httagd::main_cb, this);
 
-	const char *bind_addr = ( _bind_addr == "localhost" ? "0.0.0.0" : _bind_addr.c_str() );
-	if (evhtp_bind_socket(_htp, bind_addr, _bind_port, 128) < 0) {
+	const auto address = this->bind_addr();
+	const auto port = this->bind_port();
+	const char *bind_addr = (address == "localhost" ? "127.0.0.1" : address.c_str());
+	if (evhtp_bind_socket(_htp, bind_addr, port, 128) < 0) {
 		return this->ferror( tagd::TAGD_ERR,
-				"failed to bind socket(%s): %s:%d", strerror(errno), bind_addr, _bind_port );
+				"failed to bind socket(%s): %s:%d", strerror(errno), bind_addr, port );
 	}
 
 	if (HTTAGD_LOG_ENABLED(tagd::log_level::NOTICE)) {
 		std::stringstream ss;
-		ss << "httagd start bind_addr=" << _bind_addr
-		   << " bind_port=" << _bind_port;
+		ss << "httagd start bind_addr=" << bind_addr
+		   << " bind_port=" << port;
 		HTTAGD_LOG(tagd::log_level::NOTICE, ss.str());
 		HTTAGD_LOG(tagd::log_level::NOTICE,
 				std::string("httagd code=").append(tagd::code_str(tagd::TAGD_OK)));

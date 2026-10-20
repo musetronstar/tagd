@@ -11,41 +11,48 @@ typedef tagd::tagspace::memory tagspace_type;
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void tearDown() {
+		uninstall_loggers();
+	}
 
 	void test_notice_file_logging_in_process(void) {
 		std::stringstream log_ss;
-		tagspace_type tdb;
+		tagspace_type tsp;
 
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
 
-		tagsh shell(&tdb);
-		cmd_args args;
-		args.opt_noshell = true;
-		args.opt_logger.level(tagd::log_level::EMERGENCY);
-		args.opt_logger.level(HARD_TAG_ROLE_TAGSH, tagd::log_level::NOTICE);
-		args.opt_logger.stream(log_ss);
-		args.tagl_statements.push_back("f:bootstrap.tagl");
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
+		std::vector<startup_action> actions;
+		tagd::tagspace_install_logger_validator();
+		TS_ASSERT_EQUALS(cfg.set(tagd::HARD_TAG_CONFIG_LOG_LEVEL, "emergency,_role:tagsh:notice"), tagd::TAGD_OK);
+		cfg.log().stream(log_ss);
+		actions.push_back({startup_action::kind::file, "bootstrap.tagl"});
 
-		TS_ASSERT_EQUALS(args.interpret(shell), 0)
+		install_loggers(cfg);
+		TS_ASSERT_EQUALS(execute_startup_actions(shell, actions), 0)
 		TS_ASSERT_DIFFERS(log_ss.str().find("-- tagsh load file=bootstrap.tagl"), std::string::npos)
 		TS_ASSERT_EQUALS(log_ss.str().find("-- tagsh code=TAGD_OK"), std::string::npos)
 	}
 
 	void test_error_command_logging_in_process(void) {
 		std::stringstream log_ss;
-		tagspace_type tdb;
+		tagspace_type tsp;
 
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
 
-		tagsh shell(&tdb);
-		cmd_args args;
-		args.opt_noshell = true;
-		args.opt_logger.level(tagd::log_level::EMERGENCY);
-		args.opt_logger.level(HARD_TAG_ROLE_TAGSH, tagd::log_level::ERROR);
-		args.opt_logger.stream(log_ss);
-		args.tagl_statements.push_back("t:.bogus");
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
+		std::vector<startup_action> actions;
+		tagd::tagspace_install_logger_validator();
+		TS_ASSERT_EQUALS(cfg.set(tagd::HARD_TAG_CONFIG_LOG_LEVEL, "emergency,_role:tagsh:error"), tagd::TAGD_OK);
+		cfg.log().stream(log_ss);
+		actions.push_back({startup_action::kind::tagl, ".bogus"});
 
-		TS_ASSERT_EQUALS(args.interpret(shell), 0)
+		install_loggers(cfg);
+		TS_ASSERT_EQUALS(execute_startup_actions(shell, actions), 0)
 		TS_ASSERT_DIFFERS(log_ss.str().find("-- no such command: .bogus"), std::string::npos)
 		TS_ASSERT_DIFFERS(log_ss.str().find("-- tagsh code=TAGD_ERR"), std::string::npos)
 	}
@@ -63,12 +70,14 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_valid_log_level_parse_configures_tagdb_debug_logging(void) {
 		std::stringstream log_ss;
-		tagspace_type tdb;
+		tagspace_type tsp;
 
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
 		tagd::tagspace_install_logger_validator();
 
-		tagsh shell(&tdb);
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
 		cmd_args args;
 		const char *argv[] = {
 			"tagsh",
@@ -78,69 +87,80 @@ class Tester : public CxxTest::TestSuite {
 		};
 
 		args.parse(6, const_cast<char **>(argv));
-		args.opt_logger.stream(log_ss);
+		for (const auto& [id, value] : args.overrides()) {
+			TS_ASSERT_EQUALS(cfg.set(id, value), tagd::TAGD_OK);
+		}
+		const auto& actions = args.actions();
+		cfg.log().stream(log_ss);
 
 		TS_ASSERT(!args.has_errors())
 		TS_ASSERT_EQUALS(args.code(), tagd::TAGD_OK)
-		TS_ASSERT_EQUALS(args.interpret(shell), tagd::TS_NOT_FOUND)
+		install_loggers(cfg);
+		TS_ASSERT_EQUALS(execute_startup_actions(shell, actions), tagd::TS_NOT_FOUND)
 		TS_ASSERT_DIFFERS(log_ss.str().find("-- tagdb get subject=dog"), std::string::npos)
 	}
 
 	void test_driver_debug_logging_in_process(void) {
 		std::stringstream log_ss;
-		tagspace_type tdb;
+		tagspace_type tsp;
 
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
 
-		tagsh shell(&tdb);
-		cmd_args args;
-		args.opt_noshell = true;
-		args.opt_logger.level(tagd::log_level::EMERGENCY);
-		args.opt_logger.level(HARD_TAG_ROLE_DRIVER, tagd::log_level::DEBUG);
-		args.opt_logger.stream(log_ss);
-		args.tagl_statements.push_back("t:<< dog;");
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
+		std::vector<startup_action> actions;
+		tagd::tagspace_install_logger_validator();
+		TS_ASSERT_EQUALS(cfg.set(tagd::HARD_TAG_CONFIG_LOG_LEVEL, "emergency,_role:driver:debug"), tagd::TAGD_OK);
+		cfg.log().stream(log_ss);
+		actions.push_back({startup_action::kind::tagl, "<< dog;"});
 
-		TS_ASSERT_EQUALS(args.interpret(shell), tagd::TS_NOT_FOUND)
+		install_loggers(cfg);
+		TS_ASSERT_EQUALS(execute_startup_actions(shell, actions), tagd::TS_NOT_FOUND)
 		TS_ASSERT_DIFFERS(log_ss.str().find("-- driver statement command=CMD_GET subject=dog"), std::string::npos)
 		TS_ASSERT_DIFFERS(log_ss.str().find("-- driver callback=cmd_get subject=dog"), std::string::npos)
 	}
 
 	void test_tagdb_notice_put_logging_in_process(void) {
 		std::stringstream log_ss;
-		tagspace_type tdb;
+		tagspace_type tsp;
 
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
 
-		tagsh shell(&tdb);
-		cmd_args args;
-		args.opt_noshell = true;
-		args.opt_logger.level(tagd::log_level::EMERGENCY);
-		args.opt_logger.level(HARD_TAG_ROLE_TAGDB, tagd::log_level::NOTICE);
-		args.opt_logger.stream(log_ss);
-		args.tagl_statements.push_back("f:bootstrap.tagl");
-		args.tagl_statements.push_back("t:>> otter kind_of mammal;");
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
+		std::vector<startup_action> actions;
+		tagd::tagspace_install_logger_validator();
+		TS_ASSERT_EQUALS(cfg.set(tagd::HARD_TAG_CONFIG_LOG_LEVEL, "emergency,_role:tagdb:notice"), tagd::TAGD_OK);
+		cfg.log().stream(log_ss);
+		actions.push_back({startup_action::kind::file, "bootstrap.tagl"});
+		actions.push_back({startup_action::kind::tagl, ">> otter kind_of mammal;"});
 
-		TS_ASSERT_EQUALS(args.interpret(shell), 0)
+		install_loggers(cfg);
+		TS_ASSERT_EQUALS(execute_startup_actions(shell, actions), 0)
 		TS_ASSERT_DIFFERS(log_ss.str().find(">> otter kind_of mammal"), std::string::npos)
 		TS_ASSERT_DIFFERS(log_ss.str().find("-- tagdb code=TAGD_OK"), std::string::npos)
 	}
 
 	void test_tagdb_error_put_logging_in_process(void) {
 		std::stringstream log_ss;
-		tagspace_type tdb;
+		tagspace_type tsp;
 
-		TS_ASSERT_EQUALS(tdb.init(), tagd::TAGD_OK)
+		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
 
-		tagsh shell(&tdb);
-		cmd_args args;
-		args.opt_noshell = true;
-		args.opt_logger.level(tagd::log_level::EMERGENCY);
-		args.opt_logger.level(HARD_TAG_ROLE_TAGDB, tagd::log_level::ERROR);
-		args.opt_logger.stream(log_ss);
-		args.tagl_statements.push_back("f:bootstrap.tagl");
-		args.tagl_statements.push_back("t:>> dog kind_of mammal;");
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init("/tmp/tagd-test-home"), tagd::TAGD_OK);
+		tagsh shell(&tsp, cfg);
+		std::vector<startup_action> actions;
+		tagd::tagspace_install_logger_validator();
+		TS_ASSERT_EQUALS(cfg.set(tagd::HARD_TAG_CONFIG_LOG_LEVEL, "emergency,_role:tagdb:error"), tagd::TAGD_OK);
+		cfg.log().stream(log_ss);
+		actions.push_back({startup_action::kind::file, "bootstrap.tagl"});
+		actions.push_back({startup_action::kind::tagl, ">> dog kind_of mammal;"});
 
-		TS_ASSERT_EQUALS(args.interpret(shell), tagd::TS_DUPLICATE)
+		install_loggers(cfg);
+		TS_ASSERT_EQUALS(execute_startup_actions(shell, actions), tagd::TS_DUPLICATE)
 		TS_ASSERT_DIFFERS(log_ss.str().find(">> dog kind_of mammal"), std::string::npos)
 		TS_ASSERT_DIFFERS(log_ss.str().find("-- tagdb code=TS_DUPLICATE"), std::string::npos)
 	}

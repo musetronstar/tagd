@@ -1129,6 +1129,74 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 	}
 
+	void test_duplicate_includes_modifier_values(void) {
+		TDB_CONS_INIT();
+
+		for (const auto flags : {tagdb::flags_t{0}, tagdb::flags_t{tagdb::F_IGNORE_DUPLICATES}}) {
+			for (const std::string modifier : {"first", "second"}) {
+				tagd::abstract_tag dog = test_tag("dog", "mammal");
+				TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "tail", modifier));
+				TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "teeth"));
+				TS_ASSERT_TAGD_OK(tdb.put(dog, &ssn, flags));
+
+				tagd::abstract_tag loaded;
+				TS_ASSERT_TAGD_OK(tdb.get(loaded, "dog", &ssn));
+				size_t matches = 0;
+				for (const auto& relation : loaded.relations) {
+					if (relation.relator == HARD_TAG_HAS && relation.object == "tail") {
+						++matches;
+						TS_ASSERT_EQUALS(relation.modifier, modifier);
+					}
+				}
+				TS_ASSERT_EQUALS(matches, 1);
+				TS_ASSERT_EQUALS(tdb.put(dog, &ssn), tagd::TS_DUPLICATE);
+				TS_ASSERT_TAGD_OK(tdb.put(dog, &ssn, tagdb::F_IGNORE_DUPLICATES));
+			}
+		}
+
+		tagd::abstract_tag update = test_tag("dog");
+		TS_ASSERT_TAGD_OK(update.relation(HARD_TAG_HAS, "tail", "third"));
+		TS_ASSERT_TAGD_OK(tdb.put(update, &ssn));
+		TS_ASSERT_EQUALS(tdb.put(update, &ssn), tagd::TS_DUPLICATE);
+		tagd::abstract_tag loaded;
+		TS_ASSERT_TAGD_OK(tdb.get(loaded, "dog", &ssn));
+		TS_ASSERT(loaded.related(HARD_TAG_HAS, "tail", "third"));
+	}
+
+	void test_bare_assertions_preserve_modifiers_and_delete_can_clear_them() {
+		TDB_CONS_INIT();
+		tagd::abstract_tag bare = test_tag("dog");
+		TS_ASSERT_TAGD_OK(bare.relation(HARD_TAG_HAS, "legs"));
+		TS_ASSERT_EQUALS(tdb.put(bare, &ssn), tagd::TS_DUPLICATE);
+		TS_ASSERT_TAGD_OK(tdb.put(bare, &ssn, tagdb::F_IGNORE_DUPLICATES));
+		tagd::abstract_tag loaded;
+		TS_ASSERT_TAGD_OK(tdb.get(loaded, "dog", &ssn));
+		TS_ASSERT(loaded.related(HARD_TAG_HAS, "legs", "4"));
+		tagd::abstract_tag wrong = test_tag("dog");
+		TS_ASSERT_TAGD_OK(wrong.relation(HARD_TAG_HAS, "legs", "2"));
+		TS_ASSERT_EQUALS(tdb.del(wrong, &ssn), tagd::TS_NOT_FOUND);
+		TS_ASSERT_TAGD_OK(tdb.put(wrong, &ssn));
+		TS_ASSERT_TAGD_OK(tdb.del(wrong, &ssn));
+		TS_ASSERT_TAGD_OK(tdb.get(loaded, "dog", &ssn));
+		TS_ASSERT(loaded.related(HARD_TAG_HAS, "legs"));
+		TS_ASSERT(!loaded.related(HARD_TAG_HAS, "legs", "2"));
+		TS_ASSERT_TAGD_OK(tdb.put(wrong, &ssn));
+		TS_ASSERT_TAGD_OK(tdb.del(bare, &ssn));
+		TS_ASSERT_TAGD_OK(tdb.get(loaded, "dog", &ssn));
+		TS_ASSERT(!loaded.related(HARD_TAG_HAS, "legs"));
+	}
+
+	void test_move_with_unchanged_predicates_is_not_duplicate(void) {
+		TDB_CONS_INIT();
+		tagd::abstract_tag dog = test_tag("dog", "animal");
+		TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "tail"));
+		TS_ASSERT_TAGD_OK(tdb.put(dog, &ssn));
+		tagd::abstract_tag loaded;
+		TS_ASSERT_TAGD_OK(tdb.get(loaded, "dog", &ssn));
+		TS_ASSERT_EQUALS(loaded.super_object(), "animal");
+		TS_ASSERT_EQUALS(tdb.put(dog, &ssn), tagd::TS_DUPLICATE);
+	}
+
 	void test_ignore_duplicate_rank(void) {
 		TDB_CONS_INIT();
 
