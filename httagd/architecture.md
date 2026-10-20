@@ -54,3 +54,10 @@ httagd architecture
     Expanded output is emitted into response evbuffers directly.
   * Adds `response codes` to response objects.
 * HTTP server writes `response` and the HTTP `transaction` completes.
+
+
+Target dispatch uses the shared TAGL tagdurl parser. The first segment resolves
+through the config-owned collection into a request-local selection; the remaining
+path translates into the existing GET, PUT, DELETE, or QUERY operation. Description
+GET/HEAD operates in config, subject to its access policy. The server default
+remains fixed, and special file, favicon, and root routes precede target dispatch.

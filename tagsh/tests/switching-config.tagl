@@ -1,0 +1,7 @@
+-- Descriptions are declarations, not open connections.
+>> animals _sub _tagspace;
+>> plants _sub _tagspace;
+
+>> base_profile _sub _config _use animals = a;
+>> selected_profile _sub base_profile _has _config:prompt = "animals> ";
+>> other_profile _sub _config _use plants = p;

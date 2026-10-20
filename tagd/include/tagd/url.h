@@ -157,6 +157,8 @@ class HDURI : public url {
 };
 
 
+// Checked decoding rejects malformed escapes and NUL before callers use path bytes.
+bool uri_decode_checked(std::string&, const std::string&);
 std::string uri_decode(const std::string&);
 std::string uri_encode(const std::string&);
 

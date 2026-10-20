@@ -124,7 +124,7 @@ void scanner::tagdurl::scan(const char *cur, size_t sz) {
 	};
 
 	auto emit_query_option_context = [&, this](const std::string& s) {
-		(void)_driver->push_context(decode_query_value(s));
+		_driver->push_lookup_context(decode_query_value(s));
 	};
 
 #define YYCURSOR _cur

@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cctype>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -669,6 +670,19 @@ const char HEX2DEC[256] =
 	/* E */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
 	/* F */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1
 };
+
+bool uri_decode_checked(std::string& result, const std::string& input) {
+	for (size_t i = 0; i < input.size(); ++i) {
+		if (input[i] != '%')
+			continue;
+		if (i + 2 >= input.size() || !std::isxdigit(static_cast<unsigned char>(input[i + 1]))
+			|| !std::isxdigit(static_cast<unsigned char>(input[i + 2])))
+			return false;
+		i += 2;
+	}
+	result = uri_decode(input);
+	return result.find('\0') == std::string::npos;
+}
 
 std::string uri_decode(const std::string & sSrc)
 {

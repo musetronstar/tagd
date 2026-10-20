@@ -149,7 +149,7 @@ proc test_server_log {n e} {
 
 proc wait_for_server {timeout_secs} {
 	for {set i 0} {$i < $timeout_secs} {incr i} {
-		set rc [catch {exec curl -sSf http://localhost:2112/dog} output]
+		set rc [catch {exec curl -sSf http://localhost:2112/_/dog} output]
 		if {$rc == 0} {
 			return
 		}
@@ -209,29 +209,29 @@ expect {
 wait_for_server $STARTUP_TIMEOUT
 
 test_exec "get_dog" \
-	 "curl -sSf http://localhost:2112/dog" \
+	 "curl -sSf http://localhost:2112/_/dog" \
 	 "dog kind_of mammal"
 
 test_server_log "log_level_httagd_info_request_method" \
-	 {-- httagd request method=GET path=/dog}
+	 {-- httagd request method=GET path=/_/dog}
 
 test_server_log "log_level_httagd_info_request_code" \
 	 {-- httagd code=TAGD_OK}
 
 test "put_dolphin" \
-	 "PUT" "/dolphin" ">> dolphin kind_of whale" \
+	 "PUT" "/_/dolphin" ">> dolphin kind_of whale" \
 	 "200 OK"
 
 test "get_dolphin" \
-	 "GET" "/dolphin" "" \
+	 "GET" "/_/dolphin" "" \
 	 "dolphin kind_of whale"
 
 test "get_children" \
-	 "GET" "/mammal/" "" \
+	 "GET" "/_/mammal/" "" \
 	 "dog, cat, whale, bat"
 
 test "get_children_empty" \
-	 "GET" "/dog/" "" \
+	 "GET" "/_/dog/" "" \
 	 "404 Not Found"
 
 test "put_empty_tagdurl" \
@@ -243,107 +243,107 @@ test "put_slash_empty_tagdurl" \
 	 "400 Bad Request"
 
 test "put_illegal_search" \
-     "PUT" "/pigeon?q=oops" "kind_of bird" \
+     "PUT" "/_/pigeon?q=oops" "kind_of bird" \
 	 "400 Bad Request"
 
 test "get_doggy_not_exists" \
-	 "GET" "/doggy" "" \
+	 "GET" "/_/doggy" "" \
 	 "404 Not Found"
 
 test_server_log "log_level_httagd_error_request_method" \
-	 {-- httagd request method=GET path=/doggy}
+	 {-- httagd request method=GET path=/_/doggy}
 
 test_server_log "log_level_httagd_error_request_code" \
 	 {-- httagd code=TS_NOT_FOUND}
 
 test "put_refer_doggy_no_context" \
-	 "POST" "/doggy" "_refers_to dog" \
+	 "POST" "/_/doggy" "_refers_to dog" \
 	 "400 Bad Request"
 
 test "put_refer_doggy" \
-	 "POST" "/doggy" "_refers_to dog _context simple_english" \
+	 "POST" "/_/doggy" "_refers_to dog _context simple_english" \
 	 "200 OK"
 
 test "get_doggy_no_context" \
-	 "GET" "/doggy" "" \
+	 "GET" "/_/doggy" "" \
 	 "400 Bad Request"
 
 test "get_doggy" \
-	 "GET" "/doggy?c=simple_english" "" \
+	 "GET" "/_/doggy?c=simple_english" "" \
 	 "doggy kind_of mammal(.*)_refers_to dog"
 
 test "search" \
-	 "GET" "?q=can+bark" "" \
+	 "GET" "/_/*/?q=can+bark" "" \
 	 "dog"
 
 test "tag_search" \
-	 "GET" "/animal?q=warm+blood" "" \
+	 "GET" "/_/animal?q=warm+blood" "" \
 	 "400 Bad Request"
 
 # TODO httagd should produce this query (which works in tagsh):
 # ?? _interrogator _sub animal _has _terms = "warm blood";
 test "tag_sub_search" \
-	 "GET" "/animal/?q=warm+blood" "" \
+	 "GET" "/_/animal/?q=warm+blood" "" \
 	 "mammal"
 
 test "illegal_get_tag_search" \
-	 "GET" "?q=can+bark" "" \
+	 "GET" "/_/*/?q=can+bark" "" \
 	 "dog"
 
 
 test "delete_refers_no_context" \
-     "DELETE" "/doggy" "" \
+     "DELETE" "/_/doggy" "" \
 	 "404 Not Found"
 
 test "delete_refers_to_doggy_no_context" \
-	 "DELETE" "/doggy" "_refers_to dog" \
+	 "DELETE" "/_/doggy" "_refers_to dog" \
 	 "400 Bad Request"
 
 test "delete_refers_to_doggy" \
-	 "DELETE" "/doggy" "_refers_to dog _context simple_english" \
+	 "DELETE" "/_/doggy" "_refers_to dog _context simple_english" \
 	 "200 OK"
 
 test "get_doggy_deleted_not_exists" \
-	 "GET" "/doggy" "" \
+	 "GET" "/_/doggy" "" \
 	 "404 Not Found"
 
 test "delete_illegal_search" \
-     "DELETE" "/bat?q=oops" "" \
+     "DELETE" "/_/bat?q=oops" "" \
 	 "400 Bad Request"
 
 test "delete_bat" \
-     "DELETE" "/bat" "" \
+     "DELETE" "/_/bat" "" \
 	 "200 OK"
 
 test "query_mammal_sub" \
-	 "GET" "/mammal/" "" \
+	 "GET" "/_/mammal/" "" \
 	 "dog, cat, whale"
 
 test "query_parent_relator" \
-     "GET" "/animal/blood=warm,tail,bark" "" \
+     "GET" "/_/animal/blood=warm,tail,bark" "" \
 	 "dog"
 
 test "put_url" \
-	 "PUT" "/hd:org!wikipedia!en!/wiki/Dog!!!!!!https" ">> https://en.wikipedia.org/wiki/Dog about dog _has title = \"Dog - Wikipedia, the free encyclopedia\"" \
+	 "PUT" "/_/hd:org!wikipedia!en!/wiki/Dog!!!!!!https" ">> https://en.wikipedia.org/wiki/Dog about dog _has title = \"Dog - Wikipedia, the free encyclopedia\"" \
 	 "200 OK"
 
 test "get_wiki_dog_url" \
-	 "GET" "/hd:org!wikipedia!en!/wiki/Dog!!!!!!https" "" \
+	 "GET" "/_/hd:org!wikipedia!en!/wiki/Dog!!!!!!https" "" \
 	 "https://en.wikipedia.org/wiki/Dog(.*)about dog"
 
 # this works, but it shouldn't
 # TODO encode utf8 urls
 test "refer_japanese_dog" \
-     "POST" "/イヌ" "_refers_to dog _context japanese" \
+     "POST" "/_/イヌ" "_refers_to dog _context japanese" \
 	 "200 OK"
 
 test "get_japanese_dog_ambiguous" \
-	 "GET" "/イヌ" "" \
+	 "GET" "/_/イヌ" "" \
 	 "_error:ts_ambiguous"
 
 # contextual get
 test "get_japanese_dog" \
-	 "GET" "/イヌ?c=japanese" "" \
+	 "GET" "/_/イヌ?c=japanese" "" \
 	 "イヌ kind_of mammal(.*)_refers_to dog"
 
 test "get_txt_file" \
@@ -377,11 +377,11 @@ test_server_log "log_level_httagd_error_file_request_code" \
 
 # TODO
 #test "refer_file" \
-#     "POST" "/test" "_refers_to /_file/test.txt _context _file" \
+#     "POST" "/_/test" "_refers_to /_file/test.txt _context _file" \
 #	 "200 OK"
 
 #test "get_refered_txt_file" \
-#	 "GET" "/test?c=_file" "" \
+#	 "GET" "/_/test?c=_file" "" \
 #	 "FILE_TEXT"
 
 close
@@ -419,7 +419,7 @@ set storage_tmp [exec mktemp -d /tmp/httagd-tagspace-XXXXXX]
 try {
 	set home [file join $storage_tmp home]
 	test_cli "httagd_create_requires_tagspace" [list ../bin/httagd --create] 0 {--create requires --tagspace}
-	test_cli "httagd_db_option_removed" [list ../bin/httagd --db :memory:] 0 {invalid option}
+	test_cli "httagd_db_requires_extension" [list ../bin/httagd --db :memory:] 0 {extension}
 
 	test_cli "httagd_dump_exits" \
 		[list ../bin/httagd --home $home --tagspace _config --dump] 1 {default_config}
@@ -447,23 +447,28 @@ try {
 			incr ERRORS
 		} else {
 			foreach {method path body} {
-				PUT /default_config {_has _config:www_dir = "/";}
-				PUT /profile {_has _config:tpl_dir = "/";}
-				DELETE /default_config {}
+				PUT /_/default_config {_has _config:www_dir = "/";}
+				PUT /_/profile {_has _config:tpl_dir = "/";}
+				DELETE /_/default_config {}
 				POST / {>> default_config _has _config:favicon = "/etc/passwd";}
 				POST / {>> alias _refers_to profile _context profile;}
-				PUT /alias?c=profile {_has _config:www_dir = "/";}
+				PUT /_/alias?c=profile {_has _config:www_dir = "/";}
 			} {
 				test_cli "config_read_only_${method}_${path}" \
 					[list curl -sS --max-time 10 -X $method --data $body \
 						--write-out "HTTP_STATUS:%{http_code}" "http://127.0.0.1:$port$path"] \
 					1 {HTTP_STATUS:403$}
 			}
+			test_cli "config_default_allows_selection" \
+				[list curl -sS --max-time 10 -X POST \
+				--data {%% _use _default; %% _tagspace _config = settings; %% _use settings; << default_config;} \
+				--write-out "HTTP_STATUS:%{http_code}" "http://127.0.0.1:$port/"] \
+				1 {default_config.*HTTP_STATUS:200$}
 			test_cli "config_http_read_unchanged" \
-				[list curl -sS --fail --max-time 10 "http://127.0.0.1:$port/default_config"] \
+				[list curl -sS --fail --max-time 10 "http://127.0.0.1:$port/_/default_config"] \
 				1 {_config:www_dir = [".\/]*www}
 			test_cli "config_descendant_http_read" \
-				[list curl -sS --fail --max-time 10 "http://127.0.0.1:$port/profile"] \
+				[list curl -sS --fail --max-time 10 "http://127.0.0.1:$port/_/profile"] \
 				1 {profile _sub default_config}
 		}
 	} finally {
@@ -502,7 +507,7 @@ try {
 				# Require both the stored tag and HTTP 200; a body alone can mask errors.
 				test_cli "httagd_tagspace_${mode}_serves_data" \
 					[list curl -sS --fail --max-time 10 --write-out "\nHTTP_STATUS:%{http_code}\n" \
-						"http://127.0.0.1:$port/otter"] 1 {otter.*HTTP_STATUS:200\r?\n$}
+						"http://127.0.0.1:$port/_/otter"] 1 {otter.*HTTP_STATUS:200\r?\n$}
 			} else {
 				test_fail "httagd_tagspace_${mode}_startup"
 				incr ERRORS
@@ -528,6 +533,123 @@ try {
 } finally {
 	file delete -force $storage_tmp
 }
+
+set switching_tmp [exec mktemp -d /tmp/httagd-switching-XXXXXX]
+try {
+	set home [file join $switching_tmp home]
+	foreach name {animals plants} {
+		test_cli "http_switching_create_$name" \
+			[list ../../tagsh/bin/tagsh --home $home --tagspace $name --create --noshell] 1
+	}
+	set cold [file join $switching_tmp cold.tagl]
+	set warm [file join $switching_tmp warm.tagl]
+	set stream [open $cold w]
+	puts $stream {%% _use animals; >> forbidden_side_effect _sub _entity;}
+	close $stream
+	set stream [open $warm w]
+	puts $stream {>> warmtag _sub _entity;}
+	close $stream
+	set config [file join $switching_tmp config.tagl]
+	set stream [open $config w]
+	puts $stream {>> default_config _sub _config; >> animals _sub _tagspace; >> plants _sub _tagspace; >> settings _refers_to _config _context _config;}
+	puts $stream ">> file://$cold; >> cold _sub _tagspace _from file://$cold;"
+	close $stream
+	set listener [socket -server {apply {{channel host port} {close $channel}}} -myaddr 127.0.0.1 0]
+	set port [lindex [fconfigure $listener -sockname] 2]
+	close $listener
+	spawn -noecho ../bin/httagd --home $home --config $config --tagspace animals \
+		--bind-addr 127.0.0.1 --bind-port $port --tpl-dir ../app/tpl --www-dir ./www \
+		--log-level emergency,_role:httagd:notice --tagl "%% _tagspace $warm;"
+	set switching_server $spawn_id
+	set switching_pid [exp_pid -i $switching_server]
+	try {
+		set ready 0
+		expect {
+			-i $switching_server -timeout $STARTUP_TIMEOUT
+			-regexp {-- httagd start bind_addr=127\.0\.0\.1 bind_port=[0-9]+} {set ready 1}
+			eof {}
+			timeout {}
+		}
+		if {!$ready} {
+			test_fail "http_switching_startup"
+			incr ERRORS
+		} else {
+			foreach {name body status} {
+				write_other {%% _use plants; >> rose _sub _entity;} 200
+				alias {%% _tagspace plants = p;} 200
+				alias_repeat {%% _tagspace plants = p;} 200
+				read_alias {%% _use p; << rose;} 200
+				closed_tagl {%% _use cold;} 403
+				open_tagl {%% _use warm; << warmtag;} 200
+				config_write {%% _use _config; >> injected _sub _entity;} 403
+				config_read {%% _use _config; << default_config;} 403
+				config_alias {%% _use settings; << default_config;} 403
+				config_binding {%% _tagspace _config = denied;} 403
+				config_alias_binding {%% _tagspace settings = denied;} 403
+				invalid_alias {%% _tagspace plants = _bad;} 400
+				conflicting_alias {%% _tagspace animals = p;} 400
+				bad_set {%% _use foo, bar; >> after_error _sub _entity;} 400
+				recovered_request {>> recovered_request _sub _entity;} 200
+				read_recovered_request {<< recovered_request;} 200
+				close {%% !! _tagspace plants;} 403
+				remove_alias {%% !! _tagspace plants = p;} 403
+				unknown {%% _use undeclared;} 404
+				include {%% _include "/tmp/forbidden.tagl";} 403
+			} {
+				test_cli "http_switching_$name" \
+					[list curl -sS --max-time 10 -X POST --data $body \
+					--write-out "HTTP_STATUS:%{http_code}" "http://127.0.0.1:$port/"] \
+					1 "HTTP_STATUS:$status\$"
+			}
+			foreach id {rose forbidden_side_effect after_error} {
+				test_cli "http_switching_default_isolation_$id" \
+					[list curl -sS --max-time 10 --write-out "HTTP_STATUS:%{http_code}" \
+					"http://127.0.0.1:$port/_/$id"] 1 {HTTP_STATUS:404$}
+			}
+		}
+	} finally {
+		catch {exec kill -TERM $switching_pid}
+		catch {close -i $switching_server}
+		wait -i $switching_server
+	}
+} finally {
+	file delete -force $switching_tmp
+}
+
+
+# Direct-file startup never consults the implicit home configuration.
+set direct_tmp [exec mktemp -d /tmp/direct-db-XXXXXX]
+try {
+	set db [file join $direct_tmp animals.db]
+	set home [file join $direct_tmp home]
+	file mkdir [file join $home .tagd _config]
+	set stream [open [file join $home .tagd _config _config.tagl] w]
+	puts $stream {invalid config must not be loaded;}
+	close $stream
+	set base [list env HOME=$home ../bin/httagd --db $db]
+	test_cli "direct_missing" [concat $base [list --dump]] 0 {no such tagspace source}
+	test_cli "direct_create" [concat $base [list --create --tagl {>> donkey _sub _entity;} --dump]] 1 {donkey _sub _entity}
+	test_cli "direct_persist" [concat $base [list --dump]] 1 {donkey _sub _entity}
+	test_cli "direct_duplicate" [concat $base [list --create --dump]] 0 {create database}
+	test_cli "direct_matching_name" [concat $base [list --tagspace animals --dump]] 1 {donkey}
+	test_cli "direct_wrong_name" [concat $base [list --tagspace wrong --dump]] 0 {must match}
+	test_cli "direct_file_url" [list ../bin/httagd --db file://$db --dump] 1 {donkey}
+	test_cli "direct_home_conflict" [concat $base [list --home $home --dump]] 0 {cannot be combined}
+	test_cli "direct_missing_parent" [list ../bin/httagd --db [file join $direct_tmp absent animals.db] --create --dump] 0 {create database}
+	if {[file exists [file join $direct_tmp absent]]} { incr ERRORS }
+	set config [file join $direct_tmp config.tagl]
+	set stream [open $config w]
+	puts $stream {>> profile _sub _config _has _config:home = "/ignored/home";}
+	puts $stream ">> file://$db; >> zoology _sub _tagspace _from file://$db;"
+	close $stream
+	test_cli "direct_source_first" [concat $base [list --config $config --tagspace zoology --dump]] 1 {disables configured home lookup.*donkey}
+	test_cli "direct_source_name_mismatch" [concat $base [list --config $config --tagspace animals --dump]] 0 {must match}
+	test_cli "direct_switch_reuses_source" [concat $base [list --tagl "%% _use _default; %% _use $db; << donkey;" --dump]] 1 {donkey}
+} finally {
+	file delete -force $direct_tmp
+}
+
+source addressing.exp
 
 if {$ERRORS} {
 	puts "$ERRORS errors."

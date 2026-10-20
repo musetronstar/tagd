@@ -1,3 +1,5 @@
+%% _config_id default_config;
+
 >> default_config _sub _config _has
 	_config:bind_port = 8080,
 	_config:log_level = warning;

@@ -6,6 +6,7 @@
 #include "tagd/hard-tags.h"
 #include "tagd/logger.h"
 #include "tagspace.h"
+#include "tagspace-config.h"
 #include "parser.h"
 
 // forward declare types used by lemon parser
@@ -37,6 +38,16 @@ void TAGL_LOG(const std::string&, tagd::log_level, const std::string&);
 	} while (0)
 
 namespace TAGL {
+
+struct tagdurl_address {
+	std::string selector;
+	std::string operation;
+	std::string query;
+	bool description = false;
+	bool descendants = false;
+};
+tagd::code parse_tagdurl_address(const std::string&, tagdurl_address&, tagd::errorable&);
+
 struct text_token {
 	// Non-owning parser view; storage comes from token_store and must outlive this slice.
 	const char *z;
@@ -104,8 +115,42 @@ class driver : public tagd::errorable {
 		int _token = -1;		// last token scanned: 0 = <End of Input>, -1 = unitialized (ready for new parse tree)
 		int _cmd = -1;		// _token value representing a TAGL command
 
-		// The caller owns the tagspace and must keep it alive until the driver is destroyed.
+		// Unconfigured drivers borrow this construction target from the caller.
+		// configure() replaces access with shared selection and counted instance ownership.
 		tagd::tagspace *_tsp = nullptr;
+		struct selection {
+			std::shared_ptr<tagd::tagspace> target;
+		};
+		// Includes share selection; independent requests receive independent selections.
+		std::shared_ptr<selection> _selection;
+		tagd::config* _config = nullptr;
+		// Retain the dispatched target for the request; body commands cannot replace it.
+		std::shared_ptr<tagd::tagspace> _http_target;
+		// A tagdurl borrows its target until its callback completes, then restores the caller.
+		std::optional<std::shared_ptr<tagd::tagspace>> _tagdurl_previous;
+		std::optional<tagd::id_vec> _tagdurl_context;
+		int _tagdurl_command = -1;
+		void restore_tagdurl();
+
+		// The host marks request execution and its original authority; switches never broaden it.
+		bool _http = false;
+		bool _http_config_allowed = false;
+		// Host method policy: DELETE permits writes, but alias creation requires POST/PUT.
+		bool _http_mutations = true;
+		bool _http_aliases = true;
+		// Only explicit policy denials set this; ordinary TS_MISUSE remains a client error.
+		bool _http_forbidden = false;
+		// Config loading prohibits tagspace switching, including inside included files.
+		bool _config_loading = false;
+
+		/*
+		 * Parser mode for the current statement: _use/_tagspace are keywords only right
+		 * after SET, and their operands scan as tagspace arguments until the statement
+		 * terminates or fails. Both reset at every statement boundary.
+		 */
+		bool _set_statement = false;
+		bool _tagspace_arguments = false;
+		void bind_membership();
 		// Sessions may be borrowed or owned depending on how the driver was constructed.
 		tagd::tagspace_session *_session = nullptr;
 		// Callbacks are always borrowed; driver only binds and invokes them.
@@ -132,15 +177,36 @@ class driver : public tagd::errorable {
 		driver(driver&&) = delete;
 		driver& operator=(driver&&) = delete;
 
+		bool http_forbidden() const { return _http_forbidden; }
+		void http_mutations(bool allowed) { _http_mutations = allowed; }
+		void http_aliases(bool allowed) { _http_aliases = allowed; }
+		bool permit_write();
+		bool tagspace_arguments() const { return _tagspace_arguments; }
+		void configure(tagd::config&, bool http = false, bool config_loading = false);
+		void configuration_loading(bool value) { _config_loading = value; }
+		// Parser actions report errors through this driver rather than discarding them.
+		tagd::code set_tagspace(bool use, bool unset, const std::string&,
+			const std::string& alias = {});
+		tagd::code set_config_profile(const std::string&);
+		void unset_context();
+		tagd::code select_tagdurl(const tagdurl_address&, std::string&, bool description_read);
+		void scan_addressed_tagdurl(const std::string&);
+		void fix_http_target() { _http_target = _selection->target; }
+		void push_lookup_context(const std::string& id) {
+			if (!_session)
+				own_session(tsp()->new_session());
+			_session->lookup_context(id);
+			++_context_level;
+		}
 		tagd::flags_t flags = 0;
 		tagd::id_string constrain_tag_id; // if set, the assigned _tag.id() must be equal to this
 
 		// TODO remove from here, create/destroy relator in parser
 		tagd::id_string relator;    // current relator
 
-		tagd::tagspace* tsp() { return _tsp; }
-		const tagd::tagspace* tsp() const { return _tsp; }
-		void session_ptr(tagd::tagspace_session *ssn) { _session = ssn; }
+		tagd::tagspace* tsp() { return _selection ? _selection->target.get() : _tsp; }
+		const tagd::tagspace* tsp() const { return _selection ? _selection->target.get() : _tsp; }
+		void session_ptr(tagd::tagspace_session *ssn) { _session = ssn; bind_membership(); }
 		tagd::tagspace_session* session_ptr() { return _session; }
 		const tagd::tagspace_session* session_ptr() const { return _session; }
 		// sets _session and _own_session, delete old session (if set and not the same)

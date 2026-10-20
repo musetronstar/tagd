@@ -22,7 +22,7 @@ VALGRIND = valgrind --leak-check=full --error-exitcode=1
 valgrind: TESTER = $(VALGRIND) ./tester
 valgrind: debug
 
-build: tagl_tests tagdurl_tests
+build: tagl_tests tagdurl_tests switching_tests
 
 tagl_tests: $(LIBTAGD) $(LIBTAGL) $(LIBTAGSPACE)
 	$(CXXTEST) Tester.h -o tester.cpp
@@ -38,4 +38,9 @@ $(LIBTAGD):
 	make -C $(TAGD_DIR)
 
 clean:
-	rm -f tester.cpp tester.o ./tester tagdurl_tester.cpp tagdurl_tester.o ./tagdurl_tester
+	rm -f switching-tester.cpp switching-tester tester.cpp tester.o ./tester tagdurl_tester.cpp tagdurl_tester.o ./tagdurl_tester
+
+switching_tests: $(LIBTAGD) $(LIBTAGL) $(LIBTAGSPACE) SwitchingTester.h
+	$(CXXTEST) SwitchingTester.h -o switching-tester.cpp
+	g++ $(CXXFLAGS) -o switching-tester switching-tester.cpp $(INC) -Wl,--start-group $(LFLAGS) -Wl,--end-group
+	./switching-tester

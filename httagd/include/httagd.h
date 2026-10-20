@@ -41,10 +41,11 @@ public:
 				<< "httagd [options]" 													<< std::endl
 				<< "---------------" 													<< std::endl
 				<< "  --config FILE    alternate TAGL configuration file" << std::endl
-				<< "  --config-id ID   configuration subject (default default_config)" << std::endl
+				<< "  --config-id ID   canonical configuration profile override" << std::endl
 				<< "  --home DIR       tagd home (default ~/.tagd)" << std::endl
-				<< "  --tagspace ID    open an existing tagspace (default: memory)" << std::endl
-				<< "  --create         create the named tagspace; fail if it exists" << std::endl
+				<< "  --tagspace ID    select ID/alias, overriding profile _use (fallback: _default)" << std::endl
+				<< "  --db PATH        direct .db file or file URL; disables home lookup" << std::endl
+				<< "  --create         create database/tagspace; fail if it exists" << std::endl
 				<< "  -f <tagl file>" 													<< std::endl
 				<< "  --file" 															<< std::endl
 				<< "		execute tagl file, multiple flags will be processed in order" 	<< std::endl
@@ -100,7 +101,7 @@ class server : public tagsh, public tagd::errorable {
 		}
 
 		tagd::tagspace* tsp() {
-			return _tsp;
+			return _driver.tsp();
 		}
 
 		viewspace* vws() {
@@ -198,6 +199,8 @@ class request {
 	protected:
 		evhtp_request_t *_ev_req = nullptr;
 		std::string _path;
+		std::optional<std::string> _operation_path;
+		std::string _tagspace_selector{"_"};
 		url_query_map_t _query_map;
 
 	public:
@@ -244,16 +247,24 @@ class request {
 			return _path;
 		}
 
+		void addressed_path(const std::string& operation, const std::string& selector) {
+			_operation_path = operation.substr(0, operation.find('?'));
+			_tagspace_selector = selector;
+		}
+		const std::string& tagspace_selector() const { return _tagspace_selector; }
+		const std::string& operation_path() const {
+			return _operation_path ? *_operation_path : _path;
+		}
 		bool has_root_path() const {
-			return _path.empty() || _path == "/";
+			return operation_path().empty() || operation_path() == "/";
 		}
 
 		tagd::id_string path_tag_id() const {
-			return has_root_path() ? tagd::EMPTY_ID : tagd::uri_decode(_path.substr(1));
+			return has_root_path() ? tagd::EMPTY_ID : tagd::uri_decode(operation_path().substr(1));
 		}
 
 		std::string tagdurl() const {
-			std::string url = _path;
+			std::string url = operation_path();
 			std::string opt_search = this->query_opt_search();
 			if (!opt_search.empty()) {
 				url.push_back(url.find('?') == std::string::npos ? '?' : '&');
@@ -336,9 +347,12 @@ class base_transaction : public tagd::errorable {
 };
 
 class transaction : public base_transaction	{
+	private:
+		// The initial target is only a construction fallback; the driver owns selection.
+		tagd::tagspace *_initial_tsp;
 	public:
-		tagd::tagspace *tsp;
 		httagl *drvr;
+		tagd::tagspace* tsp() const { return drvr ? drvr->tsp() : _initial_tsp; }
 		httagd::viewspace *vws;
 
 		transaction(
@@ -349,7 +363,7 @@ class transaction : public base_transaction	{
 			httagl *dr,
 			httagd::viewspace *vs
 		) : base_transaction(sv, r, s),
-			tsp{td}, drvr{dr}, vws{vs}
+			_initial_tsp{td}, drvr{dr}, vws{vs}
 		{}
 
 		// opt view if not empty, or the default if not empty, or "tagl"
@@ -1054,13 +1068,14 @@ class  evbuffer_emitter : public ctemplate::ExpandEmitter {
 		void set_tag_link(
 				const url_query_map_t&,
 				const std::string&,  // key
-				const std::string&); // val
+				const std::string&, // val
+				const std::string& selector = {});
 
 		void set_tag_link(
 				transaction& tx,
 				const std::string& key,
 				const std::string& val) {
-			set_tag_link(tx.req->query_map(), key, val);
+			set_tag_link(tx.req->query_map(), key, val, tx.req->tagspace_selector());
 		}
 
 		void set_relator_link (

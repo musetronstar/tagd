@@ -12,15 +12,15 @@
 typedef std::vector<char *> cmdlines_t;
 
 class tagsh;
+class cmd_args;
 
 class tagsh_callback : public TAGL::callback {
 		friend class tagsh;
-		tagd::tagspace *_tsp;  // borrowed
 		tagsh *_tsh;         // borrowed
 		cmdlines_t _lines;
 
 	public:
-		tagsh_callback(tagd::tagspace *tsp, tagsh *tsh) : _tsp{tsp}, _tsh{tsh} {}
+		explicit tagsh_callback(tagsh *tsh) : _tsh{tsh} {}
 		~tagsh_callback() { for(auto l : _lines) delete l; }
 
 		void cmd_get(const tagd::abstract_tag&);
@@ -34,7 +34,6 @@ class tagsh_callback : public TAGL::callback {
 
 class tagsh {
 	protected:
-		tagd::tagspace *_tsp;           // borrowed
 		tagd::config& _config;        // borrowed
 		bool _batch = false;
 		tagsh_callback *_callback;
@@ -58,16 +57,18 @@ class tagsh {
 		std::ostream *out = &std::cout;
 
 		tagsh(tagd::tagspace *tsp, tagd::config& cfg, tagsh_callback *cb) :
-			_tsp{tsp}, _config{cfg}, _callback{cb}, _driver(tsp, cb)
+			_config{cfg}, _callback{cb}, _driver(tsp, cb)
 		{
 			_driver.own_session(tsp->new_session());  // heap session; ownership transferred to _driver
+			_driver.configure(cfg);
 		}
 
 		tagsh(tagd::tagspace *tsp, tagd::config& cfg) :
-			_tsp{tsp}, _config{cfg}, _callback{new tagsh_callback(_tsp, this)}, _own_callback{true},
-			_driver(_tsp, _callback)
+			_config{cfg}, _callback{new tagsh_callback(this)}, _own_callback{true},
+			_driver(tsp, _callback)
 		{
 			_driver.own_session(tsp->new_session());  // heap session; ownership transferred to _driver
+			_driver.configure(cfg);
 		}
 
 		~tagsh() {
@@ -75,15 +76,19 @@ class tagsh {
 				delete _callback;
 		}
 
+		tagd::tagspace* tsp() { return _driver.tsp(); }
+		const tagd::tagspace* tsp() const { return _driver.tsp(); }
+		tagd::code select_startup(const cmd_args&);
+		void configuration_loading(bool value) { _driver.configuration_loading(value); }
 		void command(const std::string&);
 		int interpret_readline();
 		int interpret(std::istream&);
 		int interpret(const std::string&);  // tagl statement
 		int interpret_fname(const std::string&, bool ignore_duplicates = false);  // filename
-		tagd::code last_code() const { return (_last_code == tagd::TAGD_OK ? _tsp->code() : _last_code); }
+		tagd::code last_code() const { return (_last_code == tagd::TAGD_OK ? _driver.tsp()->code() : _last_code); }
 		void last_code(tagd::code code) { _last_code = code; }
 		void set_output(std::ostream& os) { out = &os; }
-		void dump() { _tsp->dump(); }
+		void dump() { _driver.tsp()->dump(); }
 		void dump_file(const std::string&, bool = true);
 		static int error(const char *errfmt, ...);
 		static void cmd_show();
@@ -107,8 +112,9 @@ class cmd_args : public tagd::errorable {
 	std::vector<std::pair<tagd::id_string, std::string>> _overrides;
 	std::string _tagspace_name;
 	std::string _home;
+	std::string _database;
 	std::string _config_file;
-	std::string _config_id{tagd::config::CONFIG_SUBJECT};
+	std::string _config_id;
 	std::string _log_spec;
 	bool _create = false;
 	bool _noshell = false;
@@ -135,6 +141,7 @@ public:
 	const std::string& tagspace_name() const {
 		return _tagspace_name;
 	}
+	const std::string& database() const { return _database; }
 	const std::string& home() const {
 		return _home;
 	}

@@ -100,7 +100,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 	void test_get_statement_subject(void) {
 		tagspace_tester tsp;
 		TAGL::driver tagl(&tsp);
-		tagd::code tc = tagl.execute("<< /dog;");
+		tagd::code tc = tagl.execute("<< /_/dog;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd(), TOK_CMD_GET )
 		TS_ASSERT_EQUALS( tagl.tag().id(), "dog" )
@@ -111,7 +111,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 		tagspace_tester tsp;
 		TAGL::driver tagl(&tsp);
 
-		tagd::code tc = tagl.execute("!! /dog;");
+		tagd::code tc = tagl.execute("!! /_/dog;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd(), TOK_CMD_DEL )
 		TS_ASSERT_EQUALS( tagl.tag().id(), "dog" )
@@ -122,7 +122,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 		tagspace_tester tsp;
 		TAGL::driver tagl(&tsp);
 
-		tagd::code tc = tagl.execute("?? /mammal/;");
+		tagd::code tc = tagl.execute("?? /_/mammal/;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd(), TOK_CMD_QUERY )
 		TS_ASSERT_EQUALS( tagl.tag().id(), HARD_TAG_INTERROGATOR )
@@ -134,7 +134,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 		tagspace_tester tsp;
 		TAGL::driver tagl(&tsp);
 
-		tagd::code tc = tagl.execute("?? /*/legs,tail;");
+		tagd::code tc = tagl.execute("?? /_/*/legs,tail;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd(), TOK_CMD_QUERY )
 		TS_ASSERT_EQUALS( tagl.tag().id(), HARD_TAG_INTERROGATOR )
@@ -148,7 +148,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 		tagspace_tester tsp;
 		TAGL::driver tagl(&tsp);
 
-		tagd::code tc = tagl.execute("?? /animal/meow,tail;");
+		tagd::code tc = tagl.execute("?? /_/animal/meow,tail;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd(), TOK_CMD_QUERY )
 		TS_ASSERT_EQUALS( tagl.tag().id(), HARD_TAG_INTERROGATOR )
@@ -162,7 +162,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 		tagspace_tester tsp;
 		TAGL::driver tagl(&tsp);
 
-		tagd::code tc = tagl.execute("?? /animal/blood=warm,tail,bark;");
+		tagd::code tc = tagl.execute("?? /_/animal/blood=warm,tail,bark;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd(), TOK_CMD_QUERY )
 		TS_ASSERT_EQUALS( tagl.tag().id(), HARD_TAG_INTERROGATOR )
@@ -177,7 +177,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 		tagspace_tester tsp;
 		TAGL::driver tagl(&tsp);
 
-		tagd::code tc = tagl.execute("?? /mammal/?q=can+bark;");
+		tagd::code tc = tagl.execute("?? /_/mammal/?q=can+bark;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd(), TOK_CMD_QUERY )
 		TS_ASSERT_EQUALS( tagl.tag().id(), HARD_TAG_INTERROGATOR )
@@ -190,7 +190,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 		tagspace_tester tsp;
 		TAGL::driver tagl(&tsp);
 
-		tagd::code tc = tagl.execute("?? /animal/?q=warm+blood;");
+		tagd::code tc = tagl.execute("?? /_/animal/?q=warm+blood;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd(), TOK_CMD_QUERY )
 		TS_ASSERT_EQUALS( tagl.tag().id(), HARD_TAG_INTERROGATOR )

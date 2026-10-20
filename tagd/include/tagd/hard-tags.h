@@ -217,9 +217,11 @@ inline constexpr std::string_view HARD_TAG_INCLUDE_INHERITED_PREDICATES{"_includ
  * tagspace validation rather than the meaning of _from itself.
  */
 inline constexpr std::string_view HARD_TAG_FROM{"_from"};	/// HARD_TAG_SUB HARD_TAG_RELATOR tagd::POS_RELATOR
-inline constexpr std::string_view HARD_TAG_TAGSPACE{"_tagspace"}; /// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
-inline constexpr std::string_view HARD_TAG_USE{"_use"}; /// HARD_TAG_SUB HARD_TAG_RELATOR tagd::POS_RELATOR
-inline constexpr std::string_view HARD_TAG_DEFAULT{"_default"}; /// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_TAGSPACE{"_tagspace"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_CONFIG_TAGDURL_AUTOLOAD{"_config:tagdurl_autoload"};	/// HARD_TAG_SUB HARD_TAG_CONFIG tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_CONFIG_ID{"_config_id"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_USE{"_use"};	/// HARD_TAG_SUB HARD_TAG_RELATOR tagd::POS_RELATOR
+inline constexpr std::string_view HARD_TAG_DEFAULT{"_default"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
 
 // A hard_tag_axiom is one point in the invariant hard-tag subspace.
 struct hard_tag_axiom {

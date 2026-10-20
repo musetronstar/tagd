@@ -764,8 +764,8 @@ prevents curl from messing with the new line characters.
 
 Let's put some data:
 
-	curl -XPUT http://localhost:2112/meow --data '_type_of utterance'
-	curl -XPUT http://localhost:2112/cat --data 'kind_of mammal _can meow _has legs = 4, tail'
+	curl -XPUT http://localhost:2112/_/meow --data '_type_of utterance'
+	curl -XPUT http://localhost:2112/_/cat --data 'kind_of mammal _can meow _has legs = 4, tail'
 
 Which executes the TAGL statements:
 
@@ -779,7 +779,7 @@ Note, the subject is in the tagdurl, while the relations are in the data body.
 
 Now, let's get it:
 
-	curl -XGET http://localhost:2112/cat
+	curl -XGET http://localhost:2112/_/cat
 
 Results:
 
@@ -793,7 +793,7 @@ Likewise the following TAGL statement was generated:
 
 We can also provide a context
 
-	curl -XGET http://localhost:2112/cat?c=simple_english
+	curl -XGET http://localhost:2112/_/cat?c=simple_english
 
 Results:
 
@@ -809,7 +809,7 @@ Note, there was no trailing '/' after cat in the previous tagdurls representing 
 statements.
 A slash after the subject indicates a query.  For example, see the difference between:
 
-	curl -XGET http://localhost:2112/mammal
+	curl -XGET http://localhost:2112/_/mammal
 
 Results:
 
@@ -819,7 +819,7 @@ Results:
 
 and the query:
 
-	curl -XGET http://localhost:2112/mammal/
+	curl -XGET http://localhost:2112/_/mammal/
 
 Results:
 
@@ -831,7 +831,7 @@ The TAGL query generated was:
 
 Now, let's query with some relations:
 
-	curl -XGET http://localhost:2112/animal/meow,tail
+	curl -XGET http://localhost:2112/_/animal/meow,tail
 
 Results:
 
@@ -844,7 +844,7 @@ The TAGL query generated was:
 
 To perform a query not having a sub relation, use a wildcard ('\*'):
 
-	curl -XGET http://localhost:2112/*/fins,hair,air,water
+	curl -XGET http://localhost:2112/_/*/fins,hair,air,water
 
 Results:
 
@@ -857,7 +857,7 @@ The TAGL query generated was:
 
 To add search terms to your query, add a `q=<terms>` parameter to the query string:
 
-	curl -XGET http://localhost:2112/mammal/?q=can+bark
+	curl -XGET http://localhost:2112/_/mammal/?q=can+bark
 
 Results:
 
@@ -869,7 +869,7 @@ The TAGL query generated was:
 	_has _terms = "can bark"
 
 To browse your tagspace, fire up your favorite browser and go to
-`http://localhost:2112/mammal?t=html`
+`http://localhost:2112/_/mammal?t=html`
 
 So far, that is all that httagd can do.  More features will be coming soon...
 

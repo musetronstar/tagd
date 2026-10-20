@@ -11,6 +11,11 @@ namespace tagd {
 void tagspace_install_logger_validator();
 std::string default_tagd_home();
 bool valid_tagspace_name(const std::string&);
+inline constexpr char TAGSPACE_DB_SUFFIX[] = ".db";
+inline constexpr char TAGSPACE_TAGL_SUFFIX[] = ".tagl";
+// Creation, source validation, and discovery must agree on the home layout.
+std::string tagspaces_directory(const std::string& home);
+std::string tagspace_database_path(const std::string& home, const std::string& id);
 
 /*\
 |*| stored_tagspace owns the storage used by persistent and memory tagspaces.
@@ -26,7 +31,7 @@ class stored_tagspace : public tagspace {
 protected:
 	stored_tagspace();
 	[[nodiscard]] tagd::code initialize_memory();
-	[[nodiscard]] tagd::code initialize_file(const std::string&);
+	[[nodiscard]] tagd::code initialize_file(const std::string&, bool create = false);
 	[[nodiscard]] tagd::code initialize(
 		const std::string&,
 		const std::string&,
@@ -73,6 +78,9 @@ public:
 	// Direct-file opening never creates storage.
 	[[nodiscard]] tagd::code open_file(const std::string& path) {
 		return initialize_file(path);
+	}
+	[[nodiscard]] tagd::code create_file(const std::string& path) {
+		return initialize_file(path, true);
 	}
 	// Check the return code before use; errors are recorded on this object.
 	[[nodiscard]] tagd::code init(const std::string& name, const std::string& home);

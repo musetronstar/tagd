@@ -1,3 +1,5 @@
+%% _config_id default_config;
+
 -- Context tags are ordinary tags in the configuration hierarchy.
 >> 日本語 _sub _config;
 >> 設定 _refers_to default_config _context 日本語;

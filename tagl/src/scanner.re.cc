@@ -28,11 +28,22 @@ next:
 		return;
 	}
 
+	// SET locations have their own grammar; slash-prefixed ordinary TAGL stays a tagdurl.
+	if (_driver->tagspace_arguments())
+		goto tagspace_arguments;
+
 /*!re2c
 	re2c:define:YYCTYPE  = "char";
 	re2c:yyfill:enable   = 1;
 
 	!use:tagl_root;
+*/
+
+tagspace_arguments:
+/*!re2c
+	re2c:define:YYCTYPE = "char";
+	re2c:yyfill:enable = 1;
+	!use:tagl_tagspace_arguments;
 */
 
 comment:

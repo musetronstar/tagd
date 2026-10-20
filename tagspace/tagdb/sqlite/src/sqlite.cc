@@ -3504,7 +3504,7 @@ tagd::code sqlite::dump(std::ostream& os) {
 		// ignore hard tags
 		if (id[0] == '_') continue;
 
-		// TAGL PUT url statements require a predicate (they will get ouput below with relations)
+		// URL component predicates below emit the complete URL without duplicating its header.
 		if (pos == tagd::POS_URL) continue;
 
 		tagd::abstract_tag t(

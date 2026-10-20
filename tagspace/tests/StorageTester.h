@@ -47,6 +47,26 @@ public:
 		std::filesystem::remove_all(root);
 	}
 
+	void test_direct_creation_requires_existing_parent_and_is_exclusive() {
+		const auto path = (root / "animals.db").string();
+		{
+			tagd::tagspace::persistent created;
+			TS_ASSERT_EQUALS(created.create_file(path), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(created.put(tagd::abstract_tag("donkey", tagd::HARD_TAG_SUB,
+				tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
+		}
+
+		tagd::tagspace::persistent duplicate;
+		TS_ASSERT_EQUALS(duplicate.create_file(path), tagd::TS_DUPLICATE);
+		tagd::tagspace::persistent opened;
+		TS_ASSERT_EQUALS(opened.open_file(path), tagd::TAGD_OK);
+		TS_ASSERT(opened.exists("donkey"));
+
+		tagd::tagspace::persistent missing;
+		TS_ASSERT_DIFFERS(missing.create_file((root / "missing/animals.db").string()), tagd::TAGD_OK);
+		TS_ASSERT(!std::filesystem::exists(root / "missing"));
+	}
+
 	void test_create_open_persist_and_duplicate() {
 		/*
 		 * Use a UTF-8 name with a space to check that filenames preserve it.

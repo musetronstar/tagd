@@ -535,9 +535,105 @@ Core:
 %% _context example;
 ```
 
+
+### Tagspace SET and UNSET
+
+An application owns one volatile `_config` and a stable anonymous memory
+instance `_default`. User tagspaces have description tags beneath `_tagspace`
+in `_config`. Descriptions and alias referents survive closing; open state is
+runtime ownership, not a stored predicate.
+
+```tagl
+%% _use _config;
+>> file:///work/animals.db;
+>> zoology _sub _tagspace _from file:///work/animals.db;
+>> japanese _sub _entity;
+>> 動物園 _refers_to zoology _context japanese;
+%% _tagspace /work/animals.db = z;
+%% _use z;
+>> dog _sub _entity;
+%% _use _default;
+%% !! _tagspace zoology = z;
+%% !! _tagspace zoology;
+%% _use _config;
+!! zoology; -- ordinary dependencies can still prevent deletion
+```
+
+Grammar (the alias modifier is optional):
+
+```text
+SET          := %% (_tagspace | _use) target [= alias] ;
+UNSET        := %% !! _tagspace target [= alias] ;
+CLEAR_CONTEXT := %% !! _context ;
+```
+
+`_tagspace` opens without itself selecting; `_use` opens then selects.
+Repeated opening or the same alias binding succeeds. Qualified UNSET removes
+only the `_config`-context alias, even while active. Unqualified UNSET closes
+without deleting descriptions, aliases, or source files. Absent bindings and
+already-closed instances succeed; conflicting bindings fail. Borrowed/active
+instances and reserved targets cannot close. Creating databases remains the
+CLI `--create` operation, not a TAGL command.
+
+Targets are IDs/referents or locations beginning `/`, `./`, `../`, `~/`, or
+`file://`. Quote spaces and TAGL delimiters. Path shorthand is confined to these
+SET/UNSET arguments; tagdurls use the addressing contract below.
+Relative locations use the containing file's directory or interactive working
+directory. `~/` expands the OS user's home, independently of tagd home. Only
+file URLs decode percent escapes; a literal `%20` in a filesystem path stays
+literal. No shell expansion or command substitution is performed.
+
+Equivalent paths and symlinks reuse the source's existing description. If none
+exists, the filename stem supplies its ID. An alias never renames that ID.
+Conflicting stems require an explicit alternate description. IDs and aliases
+share a unique namespace across all contexts and ordinary tags in `_config`;
+user tagspaces retain independent namespaces. Names beginning `_` are reserved.
+
+Each description has at most one local `_from` file URL, with no modifier.
+Absent `_from`, its source is `<home>/tagspaces/<id>/<id>.db`. Child descriptions
+do not inherit sources. `.db` opens existing persistent storage; `.tagl` executes
+into a memory instance. Suffixes are case-sensitive. Declaration does not open
+or require the file, but source uniqueness is checked again before opening.
+Close before editing an effective source; edits never move files. Retained
+identity allows closing after the source disappears; reopening resolves its
+current location again.
+
+TAGL sources execute sequentially, including SET commands and includes. A new
+description/alias is published only after successful execution. A failed load
+discards its candidate memory instance but preserves earlier effects elsewhere.
+If the script remains in the candidate, `_tagspace` restores the caller's
+selection; explicit switches away survive. Successful `_use` finally selects
+the loaded instance. Errors never select a discarded instance. This is not a
+whole-script transaction; scopes and coordinated rollback remain future work.
+
+Switching retains the session context stack. Tagspace aliases resolve through
+that stack in `_config`, with context `_config` as fallback; ordinary operations
+then resolve referents in the selected tagspace. Missing lookup contexts provide
+no match. Explicitly pushing a missing context returns `TS_NOT_FOUND` without
+changing the stack. `%% !! _context;` clears the stack; `%% _context "";` remains
+a compatibility spelling.
+
+In `tagsh`, `.tagspaces` lists reserved targets, registered/open and
+registered/closed descriptions, aliases, and shallow disk-only/unverified home
+entries. `*` marks the active target. Listing never opens or registers sources.
+HTTP requests start with the fixed server default and have independent selection.
+They may select `_config` (directly or through an alias) only when it was that
+startup default; otherwise selection or opening returns `TS_MISUSE`/403 before
+reading or adding an alias. Ordinary invalid/conflicting arguments remain client
+errors, not policy denials;
+see [configuration](configuration.md) for request policy and startup profiles.
+
 ## 11. URLs
 
-* URLs are valid TAGL tokens
+URLs are valid TAGL tokens and carry their own subordinate relation. Bare PUT
+can declare a URL without artificial predicates, in any tagspace:
+
+```tagl
+>> file:///work/animals.db;
+```
+
+An HDURI spelling may be used for the same URL. This general declaration rule
+also supplies the file URL objects used by tagspace `_from` predicates.
 
 ## 12. Errors
 
@@ -578,3 +674,69 @@ Possible Operators:
 * `README.md`
 * `hard-tags.h`
 * `scanner.h`
+
+### Configuration-file profile selection
+
+`%% _config_id ID;` is permitted only while loading application configuration.
+The last SET across includes selects a profile, resolved after loading using
+that SET's context. CLI `--config-id` may override a valid file selection.
+See [configuration](configuration.md) for inference, defaults, and diagnostics.
+
+## Tagdurl addressing
+
+The first path segment selects a registered tagspace ID or alias. `_` selects
+the active tagspace; `_default` and `_config` are explicit reserved targets.
+Decode the selector once and validate it with the shared tagspace name rules.
+Malformed escapes, invalid UTF-8, separators, dot segments, NULs, and repeated
+slashes are errors. Unknown names return `TS_NOT_FOUND`; no storage is created.
+
+```tagl
+%% _use zoology;
+/petting_zoo/donkey;  -- GET in petting_zoo for this statement only
+/zoology/mammal/;    -- QUERY descendants of mammal in zoology
+/_/donkey;          -- GET in the still-active zoology
+/petting_zoo;       -- GET its description in _config
+/petting_zoo/;      -- QUERY its description's descendants in _config
+```
+
+The remaining path preserves existing predicate and search semantics, for
+example `/zoology/animal/legs,tail` or `/zoology/*/?q=can+bark`. Context `c`
+applies by spelling to both tagspace-alias and target-tag lookups. A context
+missing in either tagspace produces no match there, not a validation error.
+Explicit SET context commands still require a known context.
+
+Autoload uses the selected profile's `_config:tagdurl_autoload` setting, default
+`_false`. Registered descriptions can reopen their databases. With autoload
+enabled, available home-layout databases can be discovered; description-only
+operations register them without opening storage. Embedded operations restore
+the previous selection on success and failure.
+
+HTTP uses the same parser. Each request starts from the server startup default;
+selections never change that default. Description GET/HEAD requires `_config`
+as the server default, otherwise HTTP 403 is returned before discovery. Data
+requests to `_config`, including its aliases, have the same restriction and
+remain read-only. HEAD has GET status and authorization without a response body.
+
+`POST /` remains the general TAGL endpoint with request-local switching.
+`POST /animals` and `/animals/` accept complete statements but fix the target:
+`_use` of the same resolved target is idempotent, while another target or a
+cross-target embedded tagdurl is HTTP 403. A rejected combined selection and
+alias command creates no alias. `POST /animals/donkey` retains an implicit PUT
+subject and predicate body. PUT and DELETE require a tag after the selector;
+tagspace-only paths return HTTP 400. HTTP never executes local includes or
+closed `.tagl` sources. Open `.tagl` instances remain usable.
+
+`/` (welcome/general POST), `/_file/...`, and `/favicon.ico` remain special routes
+and take precedence. A tagspace named `favicon.ico` is masked even if the icon
+is missing. Generated links retain the supplied selector and applicable context.
+Errors use existing TAGL `_error` objects with HTTP status. Caching, permissions,
+redirect policy, scopes, and foreign references remain future work.
+
+### Migration
+
+Old active-relative URLs must acquire a selector: `/dog` becomes `/_/dog`, and
+`/mammal/` becomes `/_/mammal/`. Bare `/dog` now addresses the description of a
+tagspace named dog; it never falls back to reading dog from the active target.
+Update external scripts and stored URL values explicitly; databases are not
+automatically rewritten. Root searches can use `/_/*/?q=...`. The HTTP client
+still accepts arbitrary complete URLs without rewriting them.

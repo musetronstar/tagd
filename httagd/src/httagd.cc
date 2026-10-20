@@ -236,6 +236,14 @@ namespace httagd {
 tagd::code httagl::execute(transaction& tx) {
 	// translate evhtp_method into tagd::http_method
 	htp_method ev_method = evhtp_request_get_method(tx.req->ev_req());
+	// A URL-targeted write is known before parsing its predicate body.
+	if ((ev_method == htp_method_PUT || ev_method == htp_method_DELETE
+		|| (ev_method == htp_method_POST && !tx.req->has_root_path()))
+		&& !permit_write()) {
+		_callback->cmd_error();
+		return code();
+	}
+
 	switch(ev_method) {
 		case htp_method_HEAD:
 			tx.req->method = tagd::HTTP_HEAD;
@@ -366,7 +374,7 @@ tagd::code httagl::scan_request_tagdurl(const request& req) {
 
 void callback::default_cmd_put(const tagd::abstract_tag& t) {
 	auto ssn = _tx->drvr->session_ptr();
-	if ( _tx->tsp->put(t, ssn, _driver->flags) != tagd::TAGD_OK) {
+	if ( _tx->tsp()->put(t, ssn, _driver->flags) != tagd::TAGD_OK) {
 		std::stringstream ss;
 		ssn->print_errors(ss);
 		_tx->res->add(ss.str());
@@ -375,7 +383,7 @@ void callback::default_cmd_put(const tagd::abstract_tag& t) {
 
 void callback::default_cmd_del(const tagd::abstract_tag& t) {
 	auto ssn = _tx->drvr->session_ptr();
-	if (_tx->tsp->del(t, ssn, _driver->flags) != tagd::TAGD_OK) {
+	if (_tx->tsp()->del(t, ssn, _driver->flags) != tagd::TAGD_OK) {
 		std::stringstream ss;
 		ssn->print_errors(ss);
 		_tx->res->add(ss.str());
@@ -387,7 +395,7 @@ void callback::default_cmd_query(const tagd::interrogator& q) {
 	auto ssn = _tx->drvr->session_ptr();
 	std::stringstream ss;
 
-	if (_tx->tsp->query(T, q, ssn, _driver->flags) == tagd::TAGD_OK) {
+	if (_tx->tsp()->query(T, q, ssn, _driver->flags) == tagd::TAGD_OK) {
 		tagd::print_tag_ids(T, ss);
 		ss << std::endl;
 	} else {
@@ -418,6 +426,8 @@ void callback::finish() {
 	if (!_tx->res->header_content_type_added())
 		_tx->res->add_header_content_type(DEFAULT_CONTENT_TYPE);
 
+	if (_tx->drvr->http_forbidden())
+		_tx->res->res_code(EVHTP_RES_FORBIDDEN);
 	_tx->res->send_reply(
 		_tx->most_severe(_tx->drvr->session_ptr()->code())
 	);
@@ -619,10 +629,10 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 		if (!T->ok())
 			tc = _tx->ferror(T->code(), "default_cmd_get parse url failed: %s", t.id().c_str());
 		else
-			tc = _tx->tsp->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags);
+			tc = _tx->tsp()->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags);
 	} else {
 		T = new tagd::abstract_tag();
-		tc = _tx->tsp->get(*T, t.id(), ssn, _driver->flags);
+		tc = _tx->tsp()->get(*T, t.id(), ssn, _driver->flags);
 	}
 
 	// TODO, if outputting to an iostream is still desirable,
@@ -681,10 +691,10 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 		if (!T->ok())
 			tc = _tx->ferror(T->code(), "cmd_get parse url failed: %s", t.id().c_str());
 		else
-			tc = _tx->tsp->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags);
+			tc = _tx->tsp()->get(*T, static_cast<tagd::url *>(T)->hduri(), ssn, _driver->flags);
 	} else {
 		T = new tagd::abstract_tag();
-		tc = _tx->tsp->get(*T, t.id(), ssn, _driver->flags);
+		tc = _tx->tsp()->get(*T, t.id(), ssn, _driver->flags);
 	}
 	RET_IF_ERR();
 
@@ -721,7 +731,7 @@ void callback::cmd_query(const tagd::interrogator& q) {
 
 	tagd::tag_set R;
 	auto ssn = _tx->drvr->session_ptr();
-	tagd::code tc = _tx->tsp->query(R, q, ssn, _driver->flags);
+	tagd::code tc = _tx->tsp()->query(R, q, ssn, _driver->flags);
 
 	if (tc != tagd::TAGD_OK) {
 		this->output_errors(tc);
@@ -816,7 +826,8 @@ tagd_template* tagd_template::include(const std::string &id, const std::string &
 
 // sets the value of a template marker to <key> and also its
 // corresponding <key>_lnk marker to the hyperlink representation of <key>
-void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::string& key, const std::string& val) {
+void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::string& key,
+	const std::string& val, const std::string& selector) {
 	if (val == "*") { // wildcard relator
 		// empty link
 		this->set_value(key, val);
@@ -843,11 +854,13 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 		opt_str.append(tagd::uri_encode(context));
 	}
 
+	// TODO: Consider HTTP resolution redirects or _resolve_redirect; preserve aliases and _ here.
 	// sets template key and key_lnk with their corresponding values
-	auto f_set_vals = [this, &key, &opt_str](const std::string& key_val, const std::string& lnk_val) {
+	auto f_set_vals = [this, &key, &opt_str, &selector](const std::string& key_val, const std::string& lnk_val) {
 		this->set_value(
 			std::string(key).append("_lnk"),
-			std::string("/").append(lnk_val).append(opt_str)
+			std::string("/").append(selector.empty() ? "_/" : tagd::uri_encode(selector) + "/")
+				.append(lnk_val).append(opt_str)
 		);
 		this->set_value(key, key_val);
 	};
@@ -866,24 +879,19 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 void main_cb(evhtp_request_t *ev_req, void *arg) {
 	httagd::server *svr = (httagd::server*)arg;
 
-	// for now, this request uses the servers tagspace reference
-	// TODO allow requests to use other tagspaces (given the request)
+	// Every request begins with the server default; selection never leaks to another request.
 	auto tsp = svr->tsp();
 	auto vws = svr->vws();
 
 	request req(ev_req);
 	response res(ev_req);
 	/*
-	 * TODO: permit remote config mutations only after authentication and
-	 * permissions cover the config tagspace, its descendants, and referents.
-	 * Reject before parsing so POST bodies cannot bypass the read-only policy.
+	 * TODO: Define the request tagspace protocol with httagd-client and add
+	 * authentication and permissions for target access and shared bindings.
+	 * Enforce _config write protection against each operation's actual target.
 	 */
 	const auto method = evhtp_request_get_method(ev_req);
-	if (tsp == &svr->configuration() && method != htp_method_GET && method != htp_method_HEAD) {
-		res.add("configuration is read-only over HTTP");
-		res.send_ev_reply(EVHTP_RES_FORBIDDEN);
-		return;
-	}
+
 	{
 		std::ostringstream ss;
 		ss << "httagd request method="
@@ -897,11 +905,17 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	transaction tx(svr, &req, &res, tsp, nullptr, vws);
 
 	auto ssn = tsp->get_session();
+	// URL lookup contexts need not exist in both _config and the target tagspace.
 	if (!req.query_opt_context().empty())
-		ssn.push_context(req.query_opt_context());
+		ssn.lookup_context(req.query_opt_context());
 
 	callback CB(&tx);
 	httagl tagl(tsp, &CB, &ssn);
+	tagl.configure(svr->configuration(), true);
+	// DELETE may change ordinary data, but only POST/PUT may create shared alias bindings.
+	tagl.http_aliases(method == htp_method_POST || method == htp_method_PUT);
+	tagl.http_mutations(method == htp_method_POST || method == htp_method_PUT
+		|| method == htp_method_DELETE);
 	tx.drvr = &tagl;
 
 	// all sharing the internal errors pointer of tx
@@ -910,8 +924,37 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	  .share_errors(*vws)
 	  .share_errors(ssn);
 
-	// route request, parse, call callback method, and write response
-	tagl.execute(tx);
+	// Shared parsing determines the operation; transport policy cannot change its meaning.
+	if (!req.has_root_path()) {
+		TAGL::tagdurl_address address;
+		auto rc = TAGL::parse_tagdurl_address(req.tagdurl(), address, tagl);
+		const bool read = method == htp_method_GET || method == htp_method_HEAD;
+		if (rc == tagd::TAGD_OK && address.description
+			&& (method == htp_method_PUT || method == htp_method_DELETE)) {
+			// TODO: Consider tagspace creation through the HTTP service in future development.
+			rc = tagl.error(tagd::TAGL_ERR,
+				tagd::predicate(HARD_TAG_CAUSED_BY, tagd::HARD_TAG_TAGSPACE, address.selector));
+		}
+		std::string operation;
+		if (rc == tagd::TAGD_OK)
+			rc = tagl.select_tagdurl(address, operation, read);
+		if (rc == tagd::TAGD_OK) {
+			req.addressed_path(operation, address.selector);
+			if (method == htp_method_POST || method == htp_method_PUT || method == htp_method_DELETE)
+				tagl.fix_http_target();
+		}
+	}
+
+	/*
+	 * TODO: Address HTTP headers and caching systematically, including
+	 * Cache-Control: no-cache for /_/... and target-aware validators. A changed
+	 * target or alias must not reuse another tagspace's same-ID representation;
+	 * validators alone do not prevent fresh-cache reuse.
+	 */
+	if (tagl.has_errors())
+		tagl.do_callback();
+	else
+		tagl.execute(tx);
 
 	// execute() should call finish() when at the end of buffer
 	if (!res.reply_sent())
@@ -1032,6 +1075,7 @@ file_cb(evhtp_request_t * evreq, void * arg) {
 	res.send_reply(tc);
 }
 
+// This route masks a tagspace named favicon.ico; a missing file still returns 404.
 static void
 favicon_cb(evhtp_request_t * evreq, void * arg) {
 	httagd::server *svr = (httagd::server*)arg;

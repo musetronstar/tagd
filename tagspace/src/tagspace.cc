@@ -19,6 +19,16 @@ void tagspace_install_logger_validator() {
 	tagdb::hard_tag::install_logger_validator();
 }
 
+// The single definition of the home layout <home>/tagspaces/<id>/<id>.db; source identity
+// checks compare explicit _from sources against this derived path.
+std::string tagspaces_directory(const std::string& home) {
+	return (std::filesystem::path(home) / "tagspaces").string();
+}
+
+std::string tagspace_database_path(const std::string& home, const std::string& id) {
+	return (std::filesystem::path(tagspaces_directory(home)) / id / (id + TAGSPACE_DB_SUFFIX)).string();
+}
+
 class stored_tagspace::impl {
 public:
 	class backend : public tagdb::sqlite {
@@ -181,6 +191,7 @@ struct creation_guard {
 };
 }
 
+// Leading-underscore names are reserved for application tagspaces such as _config and _default.
 bool valid_tagspace_name(const std::string& name) {
 	return valid_name(name) && name.front() != '_';
 }
@@ -228,12 +239,34 @@ tagd::code stored_tagspace::initialize_memory() {
 	return code(rc);
 }
 
-tagd::code stored_tagspace::initialize_file(const std::string& path) {
+tagd::code stored_tagspace::initialize_file(const std::string& path, bool create) {
 	if (_impl->ready)
 		return error(TS_MISUSE, "tagspace is already initialized");
+
 	std::error_code ec;
-	if (path.find('\0') != std::string::npos || !fs::is_regular_file(path, ec))
+	if (path.empty() || path.find('\0') != std::string::npos)
+		return error(TS_MISUSE, "invalid database path");
+
+	creation_guard guard;
+	if (create) {
+		// Reserve only the file; exclusive creation must never manufacture parent directories.
+		for (const char* suffix : {"-journal", "-wal", "-shm"}) {
+			auto status = fs::symlink_status(path + suffix, ec);
+			if (ec == std::errc::no_such_file_or_directory)
+				ec.clear();
+			if (ec || fs::exists(status))
+				return error(TS_ERR, "existing or inaccessible database sidecar");
+		}
+		const int fd = ::open(path.c_str(), O_CREAT | O_EXCL | O_WRONLY | O_CLOEXEC, 0600);
+		if (fd < 0)
+			return error(errno == EEXIST ? TS_DUPLICATE : TS_ERR,
+				"create database: " + std::string(std::strerror(errno)));
+		::close(fd);
+		guard.database = path;
+	} else if (!fs::is_regular_file(path, ec)) {
 		return error(TS_NOT_FOUND, "no database file: " + path);
+	}
+
 	_impl->db.attach_errors(*this);
 	_impl->db.report_errors = report_errors;
 	// Passing false prevents a race with removal from creating an empty database.
@@ -241,6 +274,7 @@ tagd::code stored_tagspace::initialize_file(const std::string& path) {
 	_impl->ready = rc == TAGD_OK;
 	if (!_impl->ready)
 		_impl->db.close();
+	guard.committed = _impl->ready;
 	return code(rc);
 }
 
@@ -276,13 +310,13 @@ tagd::code stored_tagspace::initialize(
 	long limit = pathconf(parent.c_str(), _PC_NAME_MAX);
 	if (limit < 0)
 		limit = NAME_MAX;
-	if (name.size() + 3 > static_cast<size_t>(limit))
+	if (name.size() + sizeof(TAGSPACE_DB_SUFFIX) - 1 > static_cast<size_t>(limit))
 		return error(TS_ERR, "tagspace name exceeds filesystem limit");
 
-	const auto spaces = home_path / "tagspaces";
-	const auto dir = spaces / name;
-	const auto database = dir / (name + ".db");
-	for (const auto& path : {spaces, dir, database}) {
+	const fs::path tagspaces(tagspaces_directory(home));
+	const fs::path database(tagspace_database_path(home, name));
+	const auto dir = database.parent_path();
+	for (const auto& path : {tagspaces, dir, database}) {
 		auto status = fs::symlink_status(path, ec);
 		if (ec == std::errc::no_such_file_or_directory)
 			ec.clear();

@@ -19,8 +19,10 @@ public:
 			TS_ASSERT_EQUALS(ts.put(tagd::abstract_tag(id, tagd::HARD_TAG_SUB,
 				tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
 		}
+
 		tagd::abstract_tag before, after;
 		TS_ASSERT_EQUALS(ts.get(before, "first"), tagd::TAGD_OK);
+
 		TS_ASSERT_EQUALS(ts.put(tagd::abstract_tag("first", "kind",
 			tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.get(after, "first"), tagd::TAGD_OK);
@@ -35,14 +37,17 @@ public:
 			tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.put(tagd::referent("parent", tagd::HARD_TAG_ENTITY, "context")),
 			tagd::TAGD_OK);
+
 		auto ssn = ts.get_session();
 		TS_ASSERT_EQUALS(ssn.push_context("context"), tagd::TAGD_OK);
+
 		tagd::abstract_tag input("new", tagd::HARD_TAG_SUB, "parent", tagd::POS_TAG);
 		tagd::abstract_tag resolved;
 		TS_ASSERT_EQUALS(ts.resolve_referents(resolved, input, &ssn), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(resolved.super_object(), tagd::HARD_TAG_ENTITY);
 		TS_ASSERT_EQUALS(input.super_object(), "parent");
 		TS_ASSERT(!ts.exists("new"));
+
 		TS_ASSERT_EQUALS(ts.resolve_referents(resolved, input, nullptr), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(resolved.super_object(), "parent");
 	}
@@ -55,15 +60,18 @@ public:
 		TS_ASSERT_EQUALS(subject.relation(tagd::HARD_TAG_HAS,
 			tagd::HARD_TAG_MESSAGE, "stored"), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.put(subject), tagd::TAGD_OK);
+
 		tagd::abstract_tag removal("subject");
 		TS_ASSERT_EQUALS(removal.relation(tagd::HARD_TAG_HAS,
 			tagd::HARD_TAG_MESSAGE, "missing"), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(removal.relation(tagd::HARD_TAG_HAS,
 			tagd::HARD_TAG_MESSAGE, "stored"), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.del(removal), tagd::TS_NOT_FOUND);
+
 		tagd::abstract_tag unchanged;
 		TS_ASSERT_EQUALS(ts.get(unchanged, "subject"), tagd::TAGD_OK);
 		TS_ASSERT(unchanged.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "stored"));
+
 		removal.relations = subject.relations;
 		TS_ASSERT_EQUALS(ts.del(removal), tagd::TAGD_OK);
 		tagd::abstract_tag loaded;
@@ -82,17 +90,21 @@ public:
 		TS_ASSERT_EQUALS(parent.relation(tagd::HARD_TAG_CAUSED_BY, tagd::HARD_TAG_MESSAGE, "cause"),
 			tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.put(parent), tagd::TAGD_OK);
+
 		tagd::abstract_tag child("child", tagd::HARD_TAG_SUB, "parent", tagd::POS_TAG);
 		TS_ASSERT_EQUALS(child.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "near"),
 			tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.put(child), tagd::TAGD_OK);
+
 		tagd::abstract_tag leaf("leaf", tagd::HARD_TAG_SUB, "child", tagd::POS_TAG);
 		TS_ASSERT_EQUALS(leaf.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_LINE_NUMBER), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.put(leaf), tagd::TAGD_OK);
+
 		tagd::abstract_tag direct, inherited;
 		TS_ASSERT_EQUALS(ts.get(direct, "leaf"), tagd::TAGD_OK);
 		std::ostringstream before, after;
 		TS_ASSERT_EQUALS(ts.dump(before), tagd::TAGD_OK);
+
 		const auto flags = tagd::F_INCLUDE_INHERITED_PREDICATES;
 		TS_ASSERT_EQUALS(ts.get(inherited, "leaf", nullptr, flags), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(inherited.id(), direct.id());
@@ -107,10 +119,12 @@ public:
 			if (p.relator == tagd::HARD_TAG_HAS && p.object == tagd::HARD_TAG_LINE_NUMBER)
 				TS_ASSERT(p.modifier.empty());
 		}
+
 		TS_ASSERT_EQUALS(ts.get(direct, "leaf"), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(direct.relations.size(), 1);
 		TS_ASSERT_EQUALS(ts.dump(after), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(after.str(), before.str());
+
 		// Driver flags also reach writes; deletion must act only on stored predicates.
 		tagd::abstract_tag removal(leaf.id());
 		removal.relations = leaf.relations;
@@ -119,12 +133,14 @@ public:
 		TS_ASSERT(inherited.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_LINE_NUMBER, "10"));
 		TS_ASSERT_EQUALS(ts.get(direct, "leaf"), tagd::TAGD_OK);
 		TS_ASSERT(direct.relations.empty());
+
 		TS_ASSERT_EQUALS(ts.put(tagd::abstract_tag("leaf", tagd::HARD_TAG_SUB,
 			"parent", tagd::POS_TAG), nullptr, flags), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.get(direct, "leaf"), tagd::TAGD_OK);
 		TS_ASSERT(direct.relations.empty());
 		TS_ASSERT_EQUALS(ts.get(inherited, "leaf", nullptr, flags), tagd::TAGD_OK);
 		TS_ASSERT(inherited.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "root"));
+
 		// Full-text queries use GET internally but must keep ordinary query results.
 		tagd::interrogator query(tagd::HARD_TAG_INTERROGATOR);
 		TS_ASSERT_EQUALS(query.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_TERMS, "leaf"),
@@ -136,6 +152,7 @@ public:
 			TS_ASSERT_EQUALS(result.id(), "leaf");
 			TS_ASSERT(result.relations.empty());
 		}
+
 		TS_ASSERT_EQUALS(ts.get(inherited, tagd::HARD_TAG_ENTITY, nullptr, flags), tagd::TAGD_OK);
 		TS_ASSERT(inherited.relations.empty());
 		TS_ASSERT_EQUALS(ts.get(inherited, "missing", nullptr, flags), tagd::TS_NOT_FOUND);
@@ -148,15 +165,19 @@ public:
 			TS_ASSERT_EQUALS(ts.put(tagd::abstract_tag(id, tagd::HARD_TAG_SUB,
 				tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
 		}
+
 		tagd::abstract_tag parent("parent", tagd::HARD_TAG_SUB, tagd::HARD_TAG_ENTITY, tagd::POS_TAG);
 		TS_ASSERT_EQUALS(parent.relation(tagd::HARD_TAG_HAS, "setting", "ancestor"), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(parent.relation(tagd::HARD_TAG_HAS, "other_setting", "other"), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.put(parent), tagd::TAGD_OK);
+
 		tagd::abstract_tag child("child", tagd::HARD_TAG_SUB, "parent", tagd::POS_TAG);
 		TS_ASSERT_EQUALS(child.relation(tagd::HARD_TAG_HAS, "setting", "local"), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.put(child), tagd::TAGD_OK);
+
 		TS_ASSERT_EQUALS(ts.put(tagd::referent("alias", "setting", "context")), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.put(tagd::referent("selected", "child", "context")), tagd::TAGD_OK);
+
 		auto ssn = ts.get_session();
 		TS_ASSERT_EQUALS(ssn.push_context("context"), tagd::TAGD_OK);
 		tagd::abstract_tag loaded;
@@ -166,6 +187,7 @@ public:
 		TS_ASSERT(loaded.related(tagd::HARD_TAG_HAS, "alias", "local"));
 		TS_ASSERT(!loaded.related(tagd::HARD_TAG_HAS, "alias", "ancestor"));
 		TS_ASSERT(loaded.related(tagd::HARD_TAG_HAS, "other_setting", "other"));
+
 		TS_ASSERT_EQUALS(ts.get(loaded, "child", &ssn,
 			flags | tagd::F_NO_TRANSFORM_REFERENTS), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(loaded.id(), "child");
@@ -180,11 +202,13 @@ public:
 		TS_ASSERT_EQUALS(parent.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "page"),
 			tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.put(parent), tagd::TAGD_OK);
+
 		tagd::url page("https://example.com/path");
 		// Preserve the URL's parsed fields while assigning its explicit parent.
 		static_cast<tagd::abstract_tag&>(page) = tagd::abstract_tag(
 			page.id(), tagd::HARD_TAG_SUB, parent.id(), tagd::POS_URL);
 		TS_ASSERT_EQUALS(ts.put(page), tagd::TAGD_OK);
+
 		tagd::url loaded;
 		TS_ASSERT_EQUALS(ts.get(loaded, page.id(), nullptr,
 			tagd::F_INCLUDE_INHERITED_PREDICATES), tagd::TAGD_OK);
@@ -193,6 +217,7 @@ public:
 		TS_ASSERT_EQUALS(loaded.path(), "/path");
 		TS_ASSERT_EQUALS(loaded.super_object(), parent.id());
 		TS_ASSERT(loaded.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "page"));
+
 		TS_ASSERT_EQUALS(ts.get(loaded, page.id()), tagd::TAGD_OK);
 		TS_ASSERT(!loaded.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE));
 	}

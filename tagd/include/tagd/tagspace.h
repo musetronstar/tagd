@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <iostream>
 #include <ostream>
 #include <utility>
@@ -83,7 +84,14 @@ class tagspace_session : public session {
 public:
 	explicit tagspace_session(std::function<bool(id_view)> exists)
 		: _exists(std::move(exists)) {}
+	// Switching changes membership checks while preserving the caller's context IDs.
+	void membership(std::function<bool(id_view)> exists) {
+		_exists = std::move(exists);
+	}
 	tagd::code push_context(id_view);
+	// Lookup contexts may be absent in a target; only explicit SET requires membership.
+	void lookup_context(id_view id) { _context.emplace_back(id); }
+	void lookup_contexts(const id_vec& ids) { _context = ids; }
 	tagd::code pop_context();
 	tagd::code clear_context();
 	void print_context();
@@ -97,8 +105,10 @@ public:
 |*| It also creates sessions for operations on this tagspace.
 |*| The shared containment and ordering methods use the derived class to read
 |*| tags, so they work with both stored tags and compile-time hard tags.
+|*| Shared-owned instances let sessions retain their lifetime; stack-owned instances
+|*| must outlive their sessions. Borrowing an address does not confer ownership.
 \*/
-class const_tagspace : public tagd::errorable {
+class const_tagspace : public tagd::errorable, public std::enable_shared_from_this<const_tagspace> {
 public:
 	virtual ~const_tagspace() = default;
 
@@ -141,15 +151,17 @@ public:
 	/*
 	 * get_session() returns a value for stack use. The caller owns the pointer
 	 * returned by new_session() and releases it with release_session().
-	 * Neither kind of session keeps its tagspace alive.
+	 * Collection-owned storage is borrowed by the membership closure, including
+	 * session copies. Stack-owned storage must still outlive its sessions.
 	 */
 	tagspace_session get_session() {
-		return tagspace_session([this](id_view id) { return this->exists(id); });
-	}
-	virtual tagspace_session* new_session() {
-		return new tagspace_session([this](id_view id) {
+		auto owner = weak_from_this().lock();
+		return tagspace_session([this, owner = std::move(owner)](id_view id) {
 			return this->exists(id);
 		});
+	}
+	virtual tagspace_session* new_session() {
+		return new tagspace_session(get_session());
 	}
 	virtual void release_session(tagspace_session* ssn) {
 		delete ssn;

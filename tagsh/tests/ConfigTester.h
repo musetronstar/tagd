@@ -7,6 +7,49 @@
 
 class ConfigStartupTester : public CxxTest::TestSuite {
 public:
+	void test_direct_file_options_and_home_disabled() {
+		const char* argv[] = {"tagsh", "--db", "/tmp/animals.db", "--tagspace", "animals", "--create"};
+		cmd_args args;
+		args.parse(6, const_cast<char**>(argv));
+		TS_ASSERT(!args.has_errors());
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(load_config(cfg, args), tagd::TAGD_OK);
+		TS_ASSERT(cfg.home().empty());
+
+		for (const auto& options : {
+			std::vector<const char*>{"tagsh", "--db", "/tmp/animals.db", "--home", "/tmp/home"},
+			std::vector<const char*>{"tagsh", "--home", "/tmp/home", "--db", "/tmp/animals.db"}}) {
+			cmd_args invalid;
+			invalid.parse(options.size(), const_cast<char**>(options.data()));
+			TS_ASSERT(invalid.has_errors());
+		}
+	}
+
+	void test_file_selection_includes_and_context_snapshot() {
+		char pattern[] = "/tmp/tagd-profile-XXXXXX";
+		const std::filesystem::path root = mkdtemp(pattern);
+		struct cleanup {
+			std::filesystem::path path;
+			~cleanup() { std::filesystem::remove_all(path); }
+		} remove{root};
+		const auto file = (root / "config.tagl").string();
+		const char* argv[] = {"tagsh", "--config", file.c_str()};
+		cmd_args args;
+		args.parse(3, const_cast<char**>(argv));
+
+		std::ofstream(root / "included.tagl")
+			<< "%% _context japanese; %% _config_id selected; %% !! _context;"
+			<< ">> selected _refers_to server _context japanese;";
+		std::ofstream(file)
+			<< ">> japanese _sub _entity; >> server _sub _config "
+			<< "_has _config:bind_port = 8081; %% _config_id missing;"
+			<< "%% _include \"included.tagl\";";
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(load_config(cfg, args), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cfg.subject_id(), "server");
+		TS_ASSERT_EQUALS(cfg.bind_port(), 8081);
+	}
+
 	void test_fixture_profile_selection_and_cli_precedence() {
 		for (const auto subject : {"development", "production"}) {
 			const char* argv[] = {"tagsh", "--config-id", subject, "--config", "config.tagl",

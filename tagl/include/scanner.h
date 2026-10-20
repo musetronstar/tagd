@@ -148,7 +148,7 @@ class scanner::tagdurl : public scanner {
 	SCHEME_SPEC_DATA  = [^\000 \t\r\n'"]+ ;
 	SCHEME_SPEC_LCHAR = [^\000 \t\r\n'",;]{1} ;
 
-	TAGDURL = "/" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR;
+	TAGDURL = "/" SCHEME_SPEC_DATA? SCHEME_SPEC_LCHAR;
 
 	URI = URI_SCHEME SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
 	URL = URI_SCHEME "//" SCHEME_SPEC_DATA SCHEME_SPEC_LCHAR ;
@@ -227,11 +227,32 @@ class scanner::tagdurl : public scanner {
 	ANY                  { advance_begin(); goto block_comment; }
 */
 
+// NUL is the input sentinel, never string content; an unfinished quote must stop there.
 /*!rules:re2c:tagl_quoted
 	!use:tagl_defs;
 
 	"\\\""               { goto quoted_str; }
 	"\""                 { emit_quoted_string_token(); goto next; }
+	[\000]               { _driver->error(tagd::TAGL_ERR, "unclosed quoted string"); return; }
 	NL                   { next_line(); goto quoted_str; }
 	ANY                  { goto quoted_str; }
+*/
+
+/*
+ * SET arguments delimit paths with TAGL punctuation; a leading '-' is reserved
+ * for comments. This is not the standalone tagdurl grammar.
+ */
+/*!rules:re2c:tagl_tagspace_arguments
+	!use:tagl_defs;
+	"--" { goto comment; }
+	"-*" { goto block_comment; }
+	"\"" { goto quoted_str; }
+	";" { emit(TOK_TERMINATOR); goto next; }
+	"=" { emit(TOK_EQ); goto next; }
+	[ \t] { advance_begin(); goto next; }
+	NL { next_line(); advance_begin(); goto next; }
+	[^\000 \t\r\n;,=><'"-][^\000 \t\r\n;,=><'"]*
+		{ emit(TOK_TAGSPACE_TARGET, new_value()); goto next; }
+	[\000] { return; }
+	[^] { emit_error(); return; }
 */

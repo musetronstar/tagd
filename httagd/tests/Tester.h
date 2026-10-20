@@ -307,6 +307,8 @@ class callback_tester : public TAGL::callback {
 class Tester : public CxxTest::TestSuite {
 	public:
 
+	// These translator tests receive the operation path after shared target dispatch.
+	// Full addressed HTTP paths and policy are exercised by addressing.exp.
 	void test_get_tagdurl(void) {
 		INIT_TSP_TAGL();
 		tagl.tagdurl_get(httagd::request(tagd::HTTP_GET, "/dog"));

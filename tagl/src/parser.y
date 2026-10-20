@@ -123,19 +123,8 @@ void last_error_add_file_line_number(TAGL::driver *tagl) {
 	}
 }
 
-void scan_tagdurl(TAGL::driver *tagl, const std::string &tagdurl ) {
-	// Use a separate driver+parser so the tagdurl scanner can call parse_tok
-	// without re-entering the outer parser mid-reduction.
-	TAGL::driver inner(tagl->tsp(), tagl->session_ptr());
-	inner.scan_tagdurl(TOK_CMD_GET, tagdurl);
-	inner.finish();  // flush reductions before inspecting tag_ptr
-	if (inner.has_errors()) {
-		tagl->copy_errors(inner);
-	} else if (inner.tag_ptr() != nullptr) {
-		tagl->delete_tag();
-		tagl->tag_ptr(inner.tag_ptr());
-		inner.tag_ptr(nullptr);  // transfer ownership to outer driver
-	}
+void scan_tagdurl(TAGL::driver *tagl, const std::string& tagdurl) {
+	tagl->scan_addressed_tagdurl(tagdurl);
 }
 
 } // %include
@@ -248,11 +237,36 @@ statement ::= query_statement TERMINATOR .
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
+statement ::= TAGDURL(U) TERMINATOR .
+{
+	scan_tagdurl(tagl, U.str());
+	tagl->cmd(TOK_CMD_GET);
+	tagl->do_callback();
+}
 statement ::= TERMINATOR .
 
 set_statement ::= CMD_SET set_context .
 set_statement ::= CMD_SET set_flag .
 set_statement ::= CMD_SET set_include .
+
+%type tagspace_target { TAGL::text_token }
+%type tagspace_alias { TAGL::text_token }
+set_statement ::= CMD_SET SET_CONFIG_ID tagspace_target(t) .
+{ tagl->set_config_profile(t.str()); }
+set_statement ::= CMD_SET SET_USE tagspace_target(t) tagspace_alias(a) .
+{ tagl->set_tagspace(true, false, t.str(), a.str()); }
+set_statement ::= CMD_SET SET_TAGSPACE tagspace_target(t) tagspace_alias(a) .
+{ tagl->set_tagspace(false, false, t.str(), a.str()); }
+set_statement ::= CMD_SET CMD_DEL SET_TAGSPACE tagspace_target(t) tagspace_alias(a) .
+{ tagl->set_tagspace(false, true, t.str(), a.str()); }
+set_statement ::= CMD_SET CMD_DEL CONTEXT .
+{ tagl->unset_context(); }
+tagspace_alias(a) ::= .
+{ a = TAGL::EMPTY_VALUE; }
+tagspace_alias(a) ::= EQ TAGSPACE_TARGET(r) .
+{ a = r; }
+tagspace_target(t) ::= TAGSPACE_TARGET(T) .
+{ t = T; }
 
 %type boolean_value { bool }
 %type context_object { TAGL::text_token }
@@ -378,6 +392,11 @@ put_statement ::= CMD_PUT subject_sub_relation relations .
 put_statement ::= CMD_PUT subject_sub_relation .
 put_statement ::= CMD_PUT subject relations .
 put_statement ::= CMD_PUT referent_relation .
+// URLs carry their own subordinate relation; declaring a source needs no artificial predicate.
+put_statement ::= CMD_PUT URL(U) .
+{ tagl->new_url(U.str()); }
+put_statement ::= CMD_PUT HDURI(U) .
+{ tagl->new_url(U.str()); }
 put_statement ::= CMD_PUT TAGDURL(U) .
 {
 	scan_tagdurl(tagl, U.str());

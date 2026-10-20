@@ -147,6 +147,24 @@ test "bootstrap_reload_duplicate" \
 	 ".load $bootstrap" \
 	 "_error:ts_duplicate"
 
+test "tagspaces_active_default" \
+	".tagspaces" \
+	{\* _default[\t ]+reserved/open}
+
+test "malformed_tagspace_argument" \
+	"%% _use foo, bar;" \
+	{_error:tagl_err}
+test "valid_statement_after_malformed_set" \
+	">> review_recovered _sub _entity;" \
+	{TAGD_OK}
+test "unterminated_tagspace_argument" \
+	{%% _tagspace "unterminated} \
+	{_error:tagl_err}
+test "read_after_unterminated_set" \
+	"<< review_recovered;" \
+	{review_recovered _sub _entity}
+
+
 # Exercise boolean vocabulary through the real shell and SQLite callbacks.
 test "boolean_define_yes" \
 	">> yes <: _true;" \
@@ -325,7 +343,7 @@ try {
 	file delete -force $roundtrip_tmp
 }
 
-# Configuration files are inputs only; each process gets a fresh memory space.
+# Configuration files are inputs only; each process gets a fresh memory tagspace.
 set config_tmp [exec mktemp -d /tmp/tagsh-config-XXXXXX]
 try {
 	set home [file join $config_tmp home]
@@ -359,7 +377,7 @@ try {
 		1 {_config:bind_port = 7070}
 	foreach id {unknown _config _config:bind_port} {
 		test_cli "config_id_invalid_$id" \
-			[concat $base [list --config-id $id --dump]] 0 {unknown or invalid config subject}
+			[concat $base [list --config-id $id --dump]] 0 {config (profile not found|subject)}
 	}
 	test_cli "config_id_empty" [concat $base [list --config-id "" --dump]] \
 		0 {empty --config-id}
@@ -392,6 +410,7 @@ try {
 		[expr {$contents eq $original_config}]
 	set dump [exec {*}$base --dump]
 	set stream [open $alternate w]
+	puts $stream {%% _config_id default_config;}
 	puts $stream $dump
 	close $stream
 	test_cli "config_dump_reloads_as_tagl" \
@@ -405,7 +424,7 @@ try {
 	file delete -force $config_tmp
 }
 
-# Each run owns its temporary home; never write named test spaces under ~/.tagd.
+# Each run owns its temporary home; never write named test tagspaces under ~/.tagd.
 set storage_tmp [exec mktemp -d /tmp/tagsh-tagspace-XXXXXX]
 try {
 	set home [file join $storage_tmp home]
@@ -413,7 +432,7 @@ try {
 		[list ../bin/tagsh --home $home --tagspace Zoo --noshell] 0 {no such tagspace}
 	test_storage_check "tagspace_open_does_not_create_home" [expr {![file exists $home]}]
 	test_cli "tagspace_create_requires_name" [list ../bin/tagsh --create] 0 {--create requires --tagspace}
-	test_cli "tagspace_db_option_removed" [list ../bin/tagsh --db :memory:] 0 {invalid option}
+	test_cli "tagspace_db_requires_extension" [list ../bin/tagsh --db :memory:] 0 {extension}
 
 	# Exercise UTF-8 and an interior space in a storage name, not referent lookup.
 	set name "動物 Zoo"
@@ -440,6 +459,71 @@ try {
 	test_storage_check "tagspace_recreated_database" [file isfile $database]
 } finally {
 	file delete -force $storage_tmp
+}
+
+test_cli "malformed_set_batch_diagnostic" \
+	[list ../bin/tagsh --noshell --tagl {%% _use foo, bar;} \
+	--tagl {>> after_error _sub _entity;}] 0 {_error:tagl_err}
+
+set switching_tmp [file normalize [file join /tmp tagsh-switching-[pid]]]
+file mkdir $switching_tmp
+try {
+	set home [file join $switching_tmp home]
+	test_cli "switching_create_animals" \
+		[list ../bin/tagsh --home $home --tagspace animals --create --noshell \
+		--tagl {>> dog _sub _entity;}] 1
+	test_cli "switching_create_plants" \
+		[list ../bin/tagsh --home $home --tagspace plants --create --noshell \
+		--tagl {>> tree _sub _entity;}] 1
+	set configured [list ../bin/tagsh --home $home --config switching-config.tagl \
+		--config-id selected_profile --noshell]
+	test_cli "switching_profile_inherits_target" [concat $configured [list --dump]] 1 {dog _sub _entity}
+	test_cli "switching_cli_overrides_profile" \
+		[concat $configured [list --tagspace plants --dump]] 1 {tree _sub _entity}
+	test_cli "switching_overridden_alias_remains_available" \
+		[concat $configured [list --tagspace plants --tagl {%% _use a; << dog;}]] 1 {dog _sub _entity}
+	test_cli "switching_reserved_default" \
+		[list ../bin/tagsh --home $home --tagspace _default --noshell \
+		--tagl {>> anonymous _sub _entity; %% _use animals; %% _use _default; << anonymous;}] \
+		1 {anonymous _sub _entity}
+} finally {
+	file delete -force $switching_tmp
+}
+
+
+# Direct-file startup never consults the implicit home configuration.
+set direct_tmp [exec mktemp -d /tmp/direct-db-XXXXXX]
+try {
+	set db [file join $direct_tmp animals.db]
+	set home [file join $direct_tmp home]
+	file mkdir [file join $home .tagd _config]
+	set stream [open [file join $home .tagd _config _config.tagl] w]
+	puts $stream {invalid config must not be loaded;}
+	close $stream
+	set base [list env HOME=$home ../bin/tagsh --db $db]
+	test_cli "direct_missing" [concat $base [list --dump]] 0 {no such tagspace source}
+	test_cli "direct_create" [concat $base [list --create --tagl {>> donkey _sub _entity;} --dump]] 1 {donkey _sub _entity}
+	test_cli "direct_persist" [concat $base [list --dump]] 1 {donkey _sub _entity}
+	test_cli "direct_duplicate" [concat $base [list --create --dump]] 0 {create database}
+	test_cli "direct_matching_name" [concat $base [list --tagspace animals --dump]] 1 {donkey}
+	test_cli "direct_wrong_name" [concat $base [list --tagspace wrong --dump]] 0 {must match}
+	test_cli "direct_no_home_sources" [concat $no_home [list ../bin/tagsh --db $db --dump]] 1 {donkey}
+	test_cli "direct_literal_tilde" [list env HOME=$direct_tmp ../bin/tagsh --db {~/animals.db} --dump] 1 {donkey}
+	test_cli "direct_tilde_without_home" [concat $no_home [list ../bin/tagsh --db {~/animals.db} --dump]] 0 {cannot expand user home}
+	test_cli "direct_file_url" [list ../bin/tagsh --db file://$db --dump] 1 {donkey}
+	test_cli "direct_home_conflict" [concat $base [list --home $home --dump]] 0 {cannot be combined}
+	test_cli "direct_missing_parent" [list ../bin/tagsh --db [file join $direct_tmp absent animals.db] --create --dump] 0 {create database}
+	if {[file exists [file join $direct_tmp absent]]} { incr ERRORS }
+	set config [file join $direct_tmp config.tagl]
+	set stream [open $config w]
+	puts $stream {>> profile _sub _config _has _config:home = "/ignored/home";}
+	puts $stream ">> file://$db; >> zoology _sub _tagspace _from file://$db;"
+	close $stream
+	test_cli "direct_source_first" [concat $base [list --config $config --tagspace zoology --dump]] 1 {disables configured home lookup.*donkey}
+	test_cli "direct_source_name_mismatch" [concat $base [list --config $config --tagspace animals --dump]] 0 {must match}
+	test_cli "direct_switch_reuses_source" [concat $base [list --tagl "%% _use _default; %% _use $db; << donkey;" --dump]] 1 {donkey}
+} finally {
+	file delete -force $direct_tmp
 }
 
 if {$ERRORS} {

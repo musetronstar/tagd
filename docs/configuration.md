@@ -10,9 +10,10 @@ application configuration.
 
 Configuration is loaded in this order:
 
-1. Application defaults on `default_config`.
-2. `<tagd-home>/_config/_config.tagl`, or the one file supplied by `--config FILE`.
-3. Select `--config-id` and supply defaults for any missing effective settings.
+1. Establish application bootstrap configuration.
+2. Load `<tagd-home>/_config/_config.tagl`, or the file supplied by `--config FILE`.
+3. Validate the file selection, apply `--config-id` if supplied, otherwise infer
+   a sole profile. Supply built-in defaults only for missing inherited settings.
 4. Explicit command-line configuration overrides on the selected subject.
 
 `--config` replaces the default file source. Neither source is a database;
@@ -25,7 +26,7 @@ order. Without it, the existing default home resolution is used (`HOME/.tagd`,
 then the account home). If neither exists, memory operation remains available
 with an absent home and no implicit config file. An explicit `--config FILE`
 still loads. Named home-relative persistent storage requires a usable home;
-future direct-file storage need not share that requirement. A home value inside the file can configure subsequent
+direct-file `--db` storage does not share that requirement. A home value inside the file can configure subsequent
 persistent storage selection but never redirects configuration loading. An
 explicit `--home` also overrides that value at the final CLI layer.
 
@@ -35,15 +36,18 @@ tagsh --config ./development.tagl --tagspace _config --dump
 httagd --config ./development.tagl --bind-port 8080
 ```
 
-`--tagspace _config` selects the initialized config object. Without that option,
-the existing default active memory tagspace remains separate. All names beginning
+`--tagspace _config` selects the initialized config object. `_default` names the
+separate anonymous memory tagspace. The selected profile's `_use` predicate
+supplies the startup target; explicit `--tagspace` takes precedence, and absent
+both the application selects `_default`. All names beginning
 with `_` are reserved: users cannot create or open persistent storage under those
 names. `_config` cannot be destroyed or replaced by TAGL operations.
 
 ## TAGL Schema
 
-The default mutable subject is `default_config _sub _config`, created with
-application defaults before loading the file. Immutable `_config:*` hard tags
+Without a config file, application defaults use `default_config _sub _config`.
+During file loading this subject starts without setting predicates so built-in
+values cannot mask inherited settings. Immutable `_config:*` hard tags
 identify settings; `_has` relations on a configuration subject hold their values
 as modifiers. Files can update the default subject and declare additional profiles:
 
@@ -66,10 +70,18 @@ Select the configuration subject independently of the active tagspace:
 httagd --config ./config.tagl --config-id development
 ```
 
-Both applications accept `--config-id ID`; it defaults to `default_config`.
-The subject must exist beneath `_config` after the file is loaded. Unknown IDs,
-empty IDs, and hard-tag IDs fail startup. Option order does not matter, and the
-selected subject cannot change during runtime.
+Both applications accept `--config-id ID` as a canonical profile override.
+A file may select a profile with `%% _config_id ID;`; the last SET across includes
+wins. Its context is retained for referent resolution after loading, permitting
+forward declarations. This SET is legal only during config loading. Invalid file
+selection fails even if CLI selection would override it.
+
+Without explicit selection, exactly one file-defined profile is selected.
+Parents and children both count; repeated declarations count once. Untouched
+built-in default_config does not count. Multiple profiles require SET or CLI
+selection; no profiles is an error. Missing IDs return TS_NOT_FOUND, and invalid
+or ambiguous selections return TS_MISUSE. CLI lookup does not use referents.
+The selected subject cannot change during runtime.
 
 Accessors read the selected subject with `F_INCLUDE_INHERITED_PREDICATES`.
 The nearest ancestor definition of each setting wins; an empty modifier clears
@@ -149,7 +161,8 @@ For optional user-defined settings, declare vocabulary beneath
 ```
 
 These extension values are visible through TAGL but do not introduce new C++
-application behavior. URL creation is not a configuration operation.
+application behavior. Ordinary supporting tags, relators, and file URL tags can
+also be declared outside the profile hierarchy.
 
 ## Context and Referents
 
@@ -182,10 +195,23 @@ future work when predicate IDs carry ranks. The executable Japanese example is
 
 ## HTTP Access and Startup
 
-The config tagspace is read-only over HTTP: GET and HEAD remain available;
-other methods receive HTTP 403 before request bodies are parsed. This protects
-all config subjects, descendants, and referent definitions. Local startup actions
-and shell operations still use validated mutations. TODO: authenticated,
+Each HTTP request starts with the server's lifetime default and has its own
+selection. TAGL SET may select/open already-registered `.db` targets by ID or
+alias, or use already-open `.tagl` instances. A closed `.tagl` can only be loaded
+locally: HTTP attempts return `TS_MISUSE`/403 before executing source statements.
+Requests cannot supply filesystem locations, register undeclared targets,
+include local files, remove aliases, or close shared instances.
+
+Ordinary writes to registered user tagspaces are allowed. HTTP can select/open `_config`, including through aliases, only when the
+operator chose it as the server startup default. Otherwise it returns
+`TS_MISUSE`/403 before any read or new binding. Config PUT/DELETE is
+rejected with 403 at each actual operation target, including after switches.
+URL-targeted config writes are rejected before parsing the predicate body.
+POST/PUT may create shared volatile aliases through controlled SET shorthand;
+this exception does not permit arbitrary config or referent writes. Reads of
+config remain available only under that startup-default policy. Local startup actions and shell operations still use
+validated mutations. Registration is not per-target authorization; shared aliases
+remain exposed to name squatting and growth until access controls are added. TODO: authenticated,
 permission-checked configuration writes require a general access-control design.
 
 `localhost` binds to IPv4 loopback (`127.0.0.1`). Use an explicit wildcard address
@@ -215,11 +241,74 @@ Runtime changes never rewrite the input file or create a config database. A dump
 is ordinary TAGL output and can be saved explicitly by the user. A new process
 starts again from defaults, its selected file, and its CLI overrides.
 
-Runtime tagspace switching and HTTP routing across multiple tagspaces remain
-future work. This implementation supplies startup selection and stable config
-ownership without defining that future selection protocol.
+Runtime SET/UNSET switching, first-segment tagdurl routing, autoload, and
+direct-file `--db` startup are implemented. Qualified foreign references remain
+deferred. Request selection never changes the server default.
 
 Dumps retain predicates with hard-tag objects. Hierarchy declarations precede
 custom subordinate-relator restoration and predicate output, so a relator may
 appear later than a tag that uses it. Config reads remain uncached; any future
 optimization must preserve visibility of ancestor and referent changes.
+
+## Tagspace descriptions and startup intent
+
+The config object owns open runtime instances. Its private tags and referents
+are the authoritative descriptions and names; a closed description remains
+queryable and reserves its source and names. No registry or status predicates
+are written. See [TAGL SET/UNSET](TAGL-spec.md#tagspace-set-and-unset).
+
+```tagl
+>> zoology _sub _tagspace;
+>> selected_profile _sub default_config _use zoology = zoo;
+```
+
+With `--config-id selected_profile`, this selects `zoology` at startup and binds
+`zoo` in context `_config`. A CLI `--tagspace` override still establishes that
+alias but leaves the profile's unused target closed. Other profiles have no
+selection effect. `_use` has one unmodified target or an optional alias modifier;
+there may be at most one local declaration along any profile ancestry chain,
+even if two declarations name the same target. Independent sibling branches
+may choose different targets. Reparenting, deletion, and referent-resolved
+mutations receive the same validation before storage changes.
+
+Config files and their includes cannot execute SET `_use`; they remain in
+`_config`. Runtime profile `_use` edits neither switch selection nor change
+aliases. In `httagd`, the selected profile's effective startup target is frozen
+before serving requests. CLI `--create` remains restricted to a non-reserved
+home-layout database and refuses to clobber existing storage or reinterpret a
+registered `.tagl`/external source. Local SET can open explicit file paths
+without a tagd home directory.
+
+## Direct-file databases
+
+Both applications accept `--db PATH` or `--db file:///absolute/path.db`.
+Only `.db` sources are accepted. Without `--create` the file must exist;
+with `--create` it must not exist and its parent directory must already exist.
+No home directory layout is created. Relative paths use the startup working
+directory; literal `~/` uses HOME through the same resolver as TAGL sources.
+
+`--db` disables implicit configuration loading and home-based discovery.
+Combining it with `--home` is an error. Explicit `--config` and `--config-id`
+remain supported. A home setting in the selected configuration produces a
+nonfatal TAGL error on STDERR and cannot re-enable home lookup.
+
+Source-first identity is shared with TAGL: reuse an existing source description,
+otherwise derive the ID from the filename stem. Optional `--tagspace ID` must
+match that canonical ID. Registered IDs and aliases remain available for
+switching; additional sources require explicit paths or local file URLs.
+
+## Tagdurl autoload
+
+The selected profile's `_has _config:tagdurl_autoload = _true` enables discovery
+of named tagspaces under home. The default is `_false`: names and aliases must
+already be registered, though closed databases can reopen. Local runtime edits
+take effect on the next operation. The same option governs embedded tagdurls
+and HTTP, including HTTP SET `_tagspace` and `_use`. HTTP cannot enable it,
+supply filesystem paths, or execute closed `.tagl` sources. Direct-file mode
+disables home discovery.
+
+A tagdurl starts with its target, for example `/animals/donkey` or `/_/donkey`.
+`_` denotes the current selection; explicit targets in embedded TAGL last for
+one statement. In HTTP, each request starts from the fixed server default.
+See [tagdurl addressing](TAGL-spec.md#tagdurl-addressing) for description reads,
+request restrictions, and migration.

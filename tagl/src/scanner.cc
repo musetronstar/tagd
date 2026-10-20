@@ -118,28 +118,35 @@ const char* scanner::fill() {
 	assert(sz <= BUF_SZ);
 	size_t carried = 0;
 	size_t tail_sz = 0;
+	size_t marker_offset = 0;
 
 	if (sz >= BUF_SZ) {
 		// buffer is full, so overflow the consumed span into _val and
 		// carry forward only the unread tail for continued scanning
-		carried = _cur - _beg;
-		tail_sz = _lim - _cur;
+		const char* boundary = (_mark > _beg && _mark < _cur) ? _mark : _cur;
+		carried = boundary - _beg;
+		tail_sz = _lim - boundary;
+		const auto cursor_offset = _cur - boundary;
+		marker_offset = _mark >= boundary ? _mark - boundary : 0;
 		_val.append(_beg, carried);
 		if (tail_sz > 0)
-			memmove(&_buf[0], _cur, tail_sz);
+			memmove(&_buf[0], boundary, tail_sz);
 		_beg = &_buf[0];
 		// resume scanning at the start of the unread tail we just carried forward
-		_cur = &_buf[0];
+		_cur = &_buf[cursor_offset];
 		sz = offset = tail_sz;
 	} else {
 		tail_sz = sz;
+		marker_offset = _mark - _beg;
 		memmove(&_buf[0], _beg, sz);
 		_cur = &_buf[_cur-_beg];
 		_beg = &_buf[0];
 		offset = sz;
 	}
 	_buf[sz] = '\0';
-	_mark = _cur;
+	// Longest-match fallback may precede the cursor (for example, a final semicolon).
+	// Relocating the buffer must preserve that marker, including at EOF.
+	_mark = &_buf[marker_offset];
 
 	size_t read_sz = BUF_SZ - offset;
 
@@ -252,6 +259,8 @@ void scanner::emit_quoted_string_token() {
 
 void scanner::emit_error() {
 	log_error(std::string(_beg, (_cur - _beg)));
+	if (_driver->tagspace_arguments())
+		_driver->error(tagd::TAGL_ERR, "unexpected character in tagspace argument");
 	_driver->error(tagd::TAGL_ERR,
 		tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, std::string(_beg, (_cur - _beg))));
 	if (!_driver->path().empty()) {

@@ -1,0 +1,95 @@
+# The same IDs in different databases expose target-selection mistakes directly.
+set addressing_tmp [exec mktemp -d /tmp/httagd-addressing-XXXXXX]
+try {
+	set home [file join $addressing_tmp home]
+	foreach name {animals plants hidden} {
+		test_cli "address_create_$name" [list ../bin/httagd --home $home --tagspace $name --create \
+			--tagl ">> donkey _sub _entity _has _message = $name; >> targetonly _sub _entity; >> burro _refers_to donkey _context targetonly;" --dump] 1 {donkey}
+	}
+	file mkdir [file join $home tagspaces unopened]
+	set stream [open [file join $home tagspaces unopened unopened.db] w]
+	puts $stream {not a database; description reads must not open this file}
+	close $stream
+
+	foreach default {animals _config} {
+		foreach autoload {_false _true} {
+			set config [file join $addressing_tmp config.tagl]
+			set stream [open $config w]
+			puts $stream ">> default_config _sub _config _has _config:tagdurl_autoload = $autoload;"
+			puts $stream {>> animals _sub _tagspace; >> plants _sub _tagspace; >> favicon.ico _sub _tagspace;}
+			puts $stream {>> a _refers_to animals _context _config; >> 日本 _refers_to animals _context _config;}
+			puts $stream {>> japanese _sub _entity; >> pz _refers_to plants _context japanese;}
+			close $stream
+			set listener [socket -server {apply {{channel host port} {close $channel}}} -myaddr 127.0.0.1 0]
+			set port [lindex [fconfigure $listener -sockname] 2]
+			close $listener
+			spawn -noecho ../bin/httagd --home $home --config $config --tagspace $default \
+				--bind-addr 127.0.0.1 --bind-port $port --www-dir ./www --tpl-dir ../app/tpl \
+				--log-level emergency,_role:httagd:notice
+			set server $spawn_id
+			expect {
+				-i $server -timeout 10
+				-re {httagd start} {}
+				timeout { error "addressing server startup failed" }
+			}
+			try {
+				set origin "http://127.0.0.1:$port"
+				set curl [list curl --path-as-is -sS --max-time 10 --write-out {HTTP_STATUS:%{http_code}}]
+				foreach name {animals plants} {
+					test_cli "address_data_${default}_${autoload}_$name" [concat $curl [list "$origin/$name/donkey"]] 1 "_message = $name.*HTTP_STATUS:200$"
+				}
+				test_cli "address_context" [concat $curl [list "$origin/pz/donkey?c=japanese"]] 1 {plants.*HTTP_STATUS:200$}
+				test_cli "address_target_only_context" [concat $curl [list "$origin/animals/burro?c=targetonly"]] 1 {_refers_to donkey.*HTTP_STATUS:200$}
+				test_cli "address_utf8_selector" [concat $curl [list "$origin/%E6%97%A5%E6%9C%AC/donkey"]] 1 {animals.*HTTP_STATUS:200$}
+				test_cli "address_decode_once" [concat $curl [list "$origin/%252e%252e/donkey"]] 1 {HTTP_STATUS:404$}
+				test_cli "address_alias" [concat $curl [list "$origin/a/donkey"]] 1 {animals.*HTTP_STATUS:200$}
+				test_cli "address_favicon_masks_description" [concat $curl [list "$origin/favicon.ico"]] 1 {HTTP_STATUS:404$}
+				test_cli "address_html_alias_links" [concat $curl [list "$origin/pz/donkey?c=japanese&v=tag.html"]] 1 {href="/pz/_entity[^"]*c=japanese.*HTTP_STATUS:200$}
+				test_cli "address_html_active_links" [concat $curl [list "$origin/a/donkey?v=tag.html"]] 1 {href="/a/_entity.*HTTP_STATUS:200$}
+				test_cli "address_nested_execution_rejected" [concat $curl [list -X POST --data {%% _include "/tmp/never.tagl";} "$origin/animals"]] 1 {ts_misuse.*HTTP_STATUS:403$}
+				test_cli "address_body_alias_without_switch" [concat $curl [list -X POST --data {%% _tagspace plants = shrub; << donkey;} "$origin/animals"]] 1 {animals.*HTTP_STATUS:200$}
+				test_cli "address_body_alias_available" [concat $curl [list "$origin/shrub/donkey"]] 1 {plants.*HTTP_STATUS:200$}
+				test_cli "address_cannot_enable_autoload" [concat $curl [list -X POST --data {>> default_config _has _config:tagdurl_autoload = _true;} "$origin/_config"]] 1 {HTTP_STATUS:403$}
+				set description_status [expr {$default eq "_config" ? 200 : 403}]
+				test_cli "address_description" [concat $curl [list "$origin/animals"]] 1 "HTTP_STATUS:$description_status$"
+				test_cli "address_description_head" [concat $curl [list -I "$origin/animals"]] 1 "HTTP_STATUS:$description_status$"
+				if {$default eq "_config"} {
+					test_cli "address_alias_description_canonical" [concat $curl [list "$origin/a"]] 1 {animals _sub _tagspace.*HTTP_STATUS:200$}
+					test_cli "address_config_body_description" [concat $curl [list -X POST --data {/animals;} "$origin/_config"]] 1 {animals _sub _tagspace.*HTTP_STATUS:200$}
+					test_cli "address_config_descendants" [concat $curl [list "$origin/_config/"]] 1 {default_config.*HTTP_STATUS:200$}
+				}
+				set discovery_status [expr {$default ne "_config" ? 403 : $autoload eq "_true" ? 200 : 404}]
+				test_cli "address_description_without_open" [concat $curl [list "$origin/unopened"]] 1 "HTTP_STATUS:$discovery_status$"
+				set hidden_status [expr {$autoload eq "_true" ? 200 : 404}]
+				test_cli "address_set_autoload" [concat $curl [list -X POST --data {%% _use hidden; << donkey;} "$origin/"]] 1 "HTTP_STATUS:$hidden_status$"
+				test_cli "address_url_autoload" [concat $curl [list "$origin/hidden/donkey"]] 1 "HTTP_STATUS:$hidden_status$"
+				foreach path {//animals/donkey /animals//donkey /%2e%2e/donkey /animals%2fother/donkey /%FF/donkey /%00/donkey /animals%5Cother/donkey /bad%/donkey} {
+					test_cli "address_bad_path_$path" [concat $curl [list "$origin$path"]] 1 {HTTP_STATUS:400$}
+				}
+				foreach path {/animals /animals/} {
+					test_cli "address_post_$path" [concat $curl [list -X POST --data {<< donkey;} "$origin$path"]] 1 {animals.*HTTP_STATUS:200$}
+					foreach method {PUT DELETE} {
+						test_cli "address_no_tag_${method}_$path" [concat $curl [list -X $method "$origin$path"]] 1 {HTTP_STATUS:400$}
+					}
+				}
+				foreach body {{%% _use plants = denied;} {/plants/donkey;}} {
+					test_cli "address_fixed_target" [concat $curl [list -X POST --data $body "$origin/animals"]] 1 {ts_misuse.*HTTP_STATUS:403$}
+				}
+				test_cli "address_rejected_alias_absent" [concat $curl [list -X POST --data {%% _use denied;} "$origin/"]] 1 {HTTP_STATUS:404$}
+				test_cli "address_same_target" [concat $curl [list -X POST --data {%% _use a; /_/donkey;} "$origin/animals"]] 1 {animals.*HTTP_STATUS:200$}
+				test_cli "address_general_post_switch" [concat $curl [list -X POST --data {%% _use plants; << donkey;} "$origin/"]] 1 {plants.*HTTP_STATUS:200$}
+				set default_status [expr {$default eq "animals" ? 200 : 404}]
+				if {$default eq "animals"} {
+					test_cli "address_active_selector_links" [concat $curl [list "$origin/_/donkey?v=tag.html"]] 1 {href="/_/_entity.*HTTP_STATUS:200$}
+				}
+				test_cli "address_default_unchanged" [concat $curl [list "$origin/_/donkey"]] 1 "HTTP_STATUS:$default_status$"
+			} finally {
+				catch {exec kill -TERM [exp_pid -i $server]}
+				catch {close -i $server}
+				catch {wait -i $server}
+			}
+		}
+	}
+} finally {
+	file delete -force $addressing_tmp
+}

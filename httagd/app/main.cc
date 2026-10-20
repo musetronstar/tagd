@@ -44,6 +44,7 @@ const std::string HTML_CONTENT_TYPE{"text/html; charset=utf-8"};
 
 void fill_header(transaction& tx, tagd_template& tpl, const std::string& title) {
 	tpl.set_value("title", title);
+	tpl.set_value("search_action", "/" + tagd::uri_encode(tx.req->tagspace_selector()) + "/*/");
 
 	auto qm = tx.req->query_map();
 	if ( qm.size() > 0 ) {
@@ -144,7 +145,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 	tagd::tag_set S;
 	tagd::interrogator q_refers_to(HARD_TAG_INTERROGATOR, HARD_TAG_REFERENT);
 	q_refers_to.relation(HARD_TAG_REFERS_TO, t.id());
-	tagd::code tc = tx.tsp->query(S, q_refers_to);
+	tagd::code tc = tx.tsp()->query(S, q_refers_to);
 	if (tc != tagd::TAGD_OK) return tc;
 
 	if (S.size() > 0) {
@@ -158,7 +159,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 	S.clear();
 	tagd::interrogator q_refers(HARD_TAG_INTERROGATOR, HARD_TAG_REFERENT);
 	q_refers.relation(HARD_TAG_REFERS, t.id());
-	tc = tx.tsp->query(S, q_refers);
+	tc = tx.tsp()->query(S, q_refers);
 
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0)
@@ -168,7 +169,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 	S.clear();
 	tagd::interrogator q_related{HARD_TAG_INTERROGATOR};
 	q_related.relation("", t.id());
-	tc = tx.tsp->query(S, q_related);
+	tc = tx.tsp()->query(S, q_related);
 
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0) {
@@ -179,7 +180,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 
 	S.clear();
 	tagd::interrogator q_siblings(HARD_TAG_INTERROGATOR, t.super_object());
-	tc = tx.tsp->query(S, q_siblings);
+	tc = tx.tsp()->query(S, q_siblings);
 
 	set_query_link(&tpl, "query_siblings", t.super_object());
 	if (tc == tagd::TAGD_OK && S.size() > 1) {
@@ -189,7 +190,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 
 	S.clear();
 	tagd::interrogator q_children(HARD_TAG_INTERROGATOR, t.id());
-	tc = tx.tsp->query(S, q_children);
+	tc = tx.tsp()->query(S, q_children);
 
 	if (tc == tagd::TAGD_OK) {
 		if (S.size() > 0)
@@ -229,7 +230,7 @@ tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tag
 
 	tagd::tag_set sibling_set;
 	auto ssn = tx.drvr->session_ptr();
-	tagd::code tc = tx.tsp->query(sibling_set,
+	tagd::code tc = tx.tsp()->query(sibling_set,
 			tagd::interrogator(HARD_TAG_INTERROGATOR, this_tag.super_object()), ssn);
 
 	if (tc == tagd::TAGD_OK) {
@@ -240,11 +241,11 @@ tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tag
 				sec_this_tag->set_tag_link(tx, "this_tag_id", sibling.id());
 				// query children
 				tagd::tag_set child_set;
-				tc = tx.tsp->query(child_set,
+				tc = tx.tsp()->query(child_set,
 						tagd::interrogator(HARD_TAG_INTERROGATOR, this_tag.id()), ssn);
 
 				if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
-					return tx.tsp->code();
+					return tx.tsp()->code();
 
 				if (child_set.size() > 0) {
 					auto s1 = tpl.add_section("has_children");
@@ -328,8 +329,8 @@ tagd::code fill_query(transaction& tx, const view&, tagd_template& tpl, const ta
 		}
 	}
 
-	if (tx.tsp->has_errors())
-		return tx.tsp->code();
+	if (tx.tsp()->has_errors())
+		return tx.tsp()->code();
 
 	return tagd::TAGD_OK;
 }
@@ -391,7 +392,7 @@ get_handler_t browse_handler(
 			(void)q_related.relation(this_tag.id(), "");
 		else
 			(void)q_related.relation("", this_tag.id());
-		tc = tx.tsp->query(results, q_related, tx.drvr->session_ptr(), tagd::F_NO_NOT_FOUND_ERROR);
+		tc = tx.tsp()->query(results, q_related, tx.drvr->session_ptr(), tagd::F_NO_NOT_FOUND_ERROR);
 
 		if (tc != tagd::TAGD_OK && tc != tagd::TS_NOT_FOUND)
 			return tc;
@@ -406,7 +407,8 @@ get_handler_t browse_handler(
 	}
 );
 
-void fill_error(const url_query_map_t& qm, tagd_template& tpl, const tagd::errorable& errs) {
+void fill_error(const url_query_map_t& qm, tagd_template& tpl, const tagd::errorable& errs,
+	const std::string& selector) {
 	tpl.set_value("err_ids", tagd::tag_ids_str(errs.errors()));
 
 	if (errs.size() > 0) {
@@ -414,14 +416,14 @@ void fill_error(const url_query_map_t& qm, tagd_template& tpl, const tagd::error
 		for (auto err : errs.errors()) {
 			auto s1 = tpl.add_section("error");
 			s1->set_value("err_id", err.id());
-			s1->set_tag_link(qm, "err_sub_relator", err.sub_relator());
-			s1->set_tag_link(qm, "err_super_object", err.super_object());
+			s1->set_tag_link(qm, "err_sub_relator", err.sub_relator(), selector);
+			s1->set_tag_link(qm, "err_super_object", err.super_object(), selector);
 			if (err.relations.size() > 0) {
 				s1->show_section("err_relations");
 				for (auto err_pred : err.relations) {
 					auto s2 = s1->add_section("err_relation");
-					s2->set_tag_link(qm, "err_relator", err_pred.relator);
-					s2->set_tag_link(qm, "err_object", err_pred.object);
+					s2->set_tag_link(qm, "err_relator", err_pred.relator, selector);
+					s2->set_tag_link(qm, "err_object", err_pred.object, selector);
 					if (!err_pred.modifier.empty()) {
 						s2->show_section("err_has_modifier");
 						s2->set_value("err_modifier", err_pred.modifier);
@@ -448,7 +450,7 @@ error_handler_t error_handler(
 		if (!opt_vw.empty() && opt_vw != BROWSE_VIEW_ID.name())
 			qm[TAGL::QUERY_OPT_VIEW] = BROWSE_VIEW_ID.name();
 
-		fill_error(qm, *(tpl.include("main_html_tpl", tx.vws->fpath(fname))), errs);
+		fill_error(qm, *(tpl.include("main_html_tpl", tx.vws->fpath(fname))), errs, tx.req->tagspace_selector());
 
 		return tpl.expand(*tx.vws, LAYOUT_TPL);
 	}
@@ -469,7 +471,7 @@ error_handler_t partial_error_handler(
 		if (!opt_vw.empty() && opt_vw != TAG_VIEW_ID.name())
 			qm[TAGL::QUERY_OPT_VIEW] = TAG_VIEW_ID.name();
 
-		fill_error(qm, tpl, errs);
+		fill_error(qm, tpl, errs, tx.req->tagspace_selector());
 
 		return tpl.expand(*tx.vws, fname);
 	}
@@ -522,32 +524,21 @@ int main(int argc, char ** argv) {
 	install_loggers(cfg);
 	HTTAGD_SET_LOGGER(&cfg.log());
 
-	// Selected storage and config outlive request-local drivers and sessions.
-	tagd::tagspace::memory memory;
-	tagd::tagspace::persistent persistent;
-	tagd::tagspace* selected;
-	if (args.tagspace_name() == tagd::HARD_TAG_CONFIG && !args.create()) {
-		selected = &cfg;
-	} else if (args.tagspace_name().empty()) {
-		selected = &memory;
-		rc = memory.init();
-	} else {
-		selected = &persistent;
-		rc = args.create() ? persistent.create(args.tagspace_name(), cfg.home())
-			: persistent.init(args.tagspace_name(), cfg.home());
-	}
+	// Config owns storage; the shell and server retain borrows of their selections.
+	tagsh shell(&cfg, cfg);
+	rc = shell.select_startup(args);
 	if (rc != tagd::TAGD_OK) {
-		selected->print_errors();
+		cfg.print_errors();
 		return rc;
 	}
-	auto& tsp = *selected;
-	tagsh shell(&tsp, cfg);
+
+	// Runtime restrictions on fixed settings apply to startup actions as well.
 	cfg.start_runtime();
 	int result = execute_startup_actions(shell, args.actions());
 	if (result)
 		return result;
 	if (args.dump())
-		return tsp.dump();
+		return shell.tsp()->dump();
 
 	viewspace vws(cfg);
 	init_viewspace(vws);
@@ -556,7 +547,11 @@ int main(int argc, char ** argv) {
 		return vws.code();
 	}
 
-	server svr(&tsp, &vws, cfg);
+	// Freeze before accepting requests: later config edits cannot move the server default.
+	if ((rc = cfg.freeze_target()) != tagd::TAGD_OK)
+		return rc;
+
+	server svr(shell.tsp(), &vws, cfg);
 	svr.start();
 
 	// NOTE: at this point, main_cb will have replaced
