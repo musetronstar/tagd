@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tagspace.h"
+#include "tagdb/storage.h"
 #include "tagd/hard-tagspace.h"
 #include <cxxtest/TestSuite.h>
 #include <filesystem>
@@ -14,6 +15,17 @@ class StorageTester : public CxxTest::TestSuite {
 	std::filesystem::path root;
 
 public:
+	void test_explicit_backend_location() {
+		tagd::tagspace::persistent storage;
+		TS_ASSERT_EQUALS(storage.open_location({tagdb::storage_kind::remote, "service/database"}),
+			tagd::TS_NOT_IMPLEMENTED);
+
+		const auto path = (root / "explicit.db").string();
+		TS_ASSERT_EQUALS(storage.open_location({tagdb::storage_kind::file, path,
+			tagdb::open_mode::create}), tagd::TAGD_OK);
+		TS_ASSERT(storage.exists(tagd::HARD_TAG_ENTITY));
+	}
+
 	void test_ordered_results_across_sessions_targets_and_storage_lifetimes() {
 		tagd::abstract_tag retained;
 		std::string serialized;

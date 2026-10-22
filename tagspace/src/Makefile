@@ -1,6 +1,6 @@
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 
-INC = -I../include -I../../tagd/include -I../tagdb/include -I../tagdb/sqlite/include
+INC = -I../include -I../../tagd/include -I../tagdb/include
 SRCS = tagspace.cc config.cc collection.cc
 OBJS = $(SRCS:.cc=.o)
 DEPS = $(OBJS:.o=.d)

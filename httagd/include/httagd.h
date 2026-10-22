@@ -44,7 +44,7 @@ public:
 				<< "  --config-id ID   canonical configuration profile override" << std::endl
 				<< "  --home DIR       tagd home (default ~/.tagd)" << std::endl
 				<< "  --tagspace ID    select ID/alias, overriding profile _use (fallback: _default)" << std::endl
-				<< "  --db PATH        direct .db file or file URL; disables home lookup" << std::endl
+				<< "  --db PATH        direct storage file or file URL; disables home lookup" << std::endl
 				<< "  --create         create database/tagspace; fail if it exists" << std::endl
 				<< "  -f <tagl file>" 													<< std::endl
 				<< "  --file" 															<< std::endl

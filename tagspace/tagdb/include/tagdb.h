@@ -4,6 +4,8 @@
 #include <sstream>
 #include <stdint.h>
 #include "tagd.h"
+#include "tagdb/storage.h"
+#include "tagdb/canonical-cache.h"
 #include "tagd/tagspace.h"
 #include "tagd/hard-tags.h"
 #include "tagd/logger.h"
@@ -37,7 +39,7 @@ using tagd::F_IGNORE_DUPLICATES;
 using tagd::F_NO_RESET;
 using tagd::F_INCLUDE_INHERITED_PREDICATES;
 
-// matches sqlite_int64 type defined in sqlite.h
+// Internal hard-tag table identifiers; these are not persistent backend row addresses.
 typedef long long int rowid_t;
 
 class hard_tag {
@@ -52,7 +54,7 @@ class hard_tag {
 		static size_t rows_end();
 };
 
-// pure virtual interface
+// Abstract storage interface; shared defaults do not depend on a concrete backend.
 class tagdb : public tagd::errorable {
 	protected:
 		// rest tagdb and session to OK state
@@ -64,6 +66,28 @@ class tagdb : public tagd::errorable {
 	public:
 		tagdb() : tagd::errorable(tagd::TS_INIT) {}
 		virtual ~tagdb() {}
+
+		[[nodiscard]] virtual tagd::code open(const storage_location&) = 0;
+		[[nodiscard]] virtual tagd::code open_named(const std::string& name,
+			const std::string& home, open_mode) = 0;
+		virtual void close() = 0;
+
+		// Backend diagnostics and test controls; tagspace callers need not manage caching.
+		using cache_metrics = canonical_cache::cache_metrics;
+		virtual cache_metrics cache_status() const = 0;
+		virtual void configure_cache(size_t bytes, size_t entries,
+			canonical_cache::cache_clock::duration idle,
+			std::function<canonical_cache::cache_clock::time_point()> now) = 0;
+		[[nodiscard]] virtual tagd::code lookup_rank(tagd::rank&, tagd::id_view) = 0;
+		[[nodiscard]] virtual tagd::code order_predicates(tagd::predicate_set&) = 0;
+		[[nodiscard]] virtual tagd::code resolve_referents(tagd::abstract_tag&,
+			const tagd::abstract_tag&, session*) = 0;
+
+		void attach_errors(tagd::errorable& owner) {
+			// Rebinding must leave lists still shared by other callers intact.
+			_errors.reset();
+			owner.share_errors(*this);
+		}
 
 		// Open database handles have one owner; copying or moving this object is unsafe.
 		tagdb(const tagdb&)            = delete;
@@ -84,7 +108,7 @@ class tagdb : public tagd::errorable {
 
 		/*
 		 * Type-specific get overloads; default delegates to abstract_tag get().
-		 * Backends with type-specific storage (e.g., sqlite URL column layout) override these.
+		 * Backends with type-specific storage (such as a separate URL representation) override these.
 		 */
 		[[nodiscard]] virtual tagd::code get(tagd::url& u, tagd::id_view id, session* ssn, flags_t f = 0) {
 			return this->get(static_cast<tagd::abstract_tag&>(u), id, ssn, f);
@@ -123,6 +147,7 @@ class tagdb : public tagd::errorable {
 
 		virtual tagd::code dump(std::ostream& os = std::cout) = 0;
 		virtual tagd::code dump_grid(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }
+		// Diagnostics describe vocabulary/POS and searchable content, not backend tables.
 		virtual tagd::code dump_terms(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }
 		virtual tagd::code dump_search(std::ostream& = std::cout) { return tagd::TS_NOT_IMPLEMENTED; }
 };

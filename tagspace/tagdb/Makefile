@@ -1,11 +1,13 @@
+include ../backend.mk
+
 MAKEFLAGS += --no-print-directory
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 
 SRC_DIR = ./src
-PRG_DIR = ./sqlite
+PRG_DIR = ./$(TAGDB_BACKEND)
 BUILD_DIR = ./lib
 TEST_DIR = ./tests
-LIB = $(BUILD_DIR)/libtagdb-sqlite.a
+LIB = $(BUILD_DIR)/lib$(TAGDB_LIBRARY).a
 
 TARGET=
 
@@ -22,11 +24,11 @@ build: tagdb $(LIB)
 tagdb: force_look
 	@printf '[build] %s\n' 'tagdb/src'
 	@make -C $(SRC_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
-	@printf '[build] %s\n' 'tagdb/sqlite'
+	@printf '[build] %s\n' 'tagdb/$(TAGDB_BACKEND)'
 	@make -C $(PRG_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 $(LIB): $(wildcard $(SRC_DIR)/*.o $(PRG_DIR)/src/*.o)
-	@printf '[ar] %s\n' 'tagdb/libtagdb-sqlite.a'
+	@printf '[ar] %s\n' 'tagdb/lib$(TAGDB_LIBRARY).a'
 	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
 	ar rcs $(LIB) $(SRC_DIR)/*.o $(PRG_DIR)/src/*.o
 

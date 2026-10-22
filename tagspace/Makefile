@@ -1,3 +1,5 @@
+include backend.mk
+
 MAKEFLAGS += --no-print-directory
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 
@@ -25,7 +27,7 @@ libtagspace: tagspace $(LIB)
 $(LIB): tagspace
 	@printf '[ar] %s\n' 'tagspace/libtagspace.a'
 	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
-	ar rcs $(LIB) $(SRC_DIR)/*.o tagdb/src/*.o tagdb/sqlite/src/*.o
+	ar rcs $(LIB) $(SRC_DIR)/*.o tagdb/src/*.o tagdb/$(TAGDB_BACKEND)/src/*.o
 
 tests: force_look libtagspace
 	@make -C tagdb tests CXXFLAGS="$(CXXFLAGS)"

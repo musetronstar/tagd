@@ -1,3 +1,5 @@
+include ../../tagspace/backend.mk
+
 TAGD_DIR = ../../tagd
 TAGSPACE_DIR = ../../tagspace
 TAGL_DIR = ../../tagl
@@ -17,7 +19,7 @@ LFLAGS += -L$(TAGD_DIR)/lib -ltagd
 LFLAGS += -L$(TAGL_DIR)/lib -ltagl
 LFLAGS += -L$(TAGSH_DIR)/lib -ltagsh
 
-LFLAGS += -lsqlite3 -levent -lreadline
+LFLAGS += $(TAGSPACE_BACKEND_LIBS) -levent -lreadline
 LFLAGS += -lctemplate_nothreads
 
 ifdef EVHTP_SRC_DIR
@@ -58,3 +60,6 @@ $(LIBHTTAGD):
 
 clean:
 	rm -f *.o tester.cpp client-tester.cpp ./tester ./client-tester
+
+# Public backend-neutral location types accompany the tagspace API.
+INC += $(TAGSPACE_CPPFLAGS)

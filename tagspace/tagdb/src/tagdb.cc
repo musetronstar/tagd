@@ -61,7 +61,7 @@ std::string util::user_db() {
 	std::string str(pw->pw_dir);  // home dir
 	if (str.empty()) return str;
 
-	str.append("/.tagdb.db");
+	str.append("/" + storage_filename(".tagdb"));
 	return str;
 }
 

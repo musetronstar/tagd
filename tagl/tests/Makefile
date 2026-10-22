@@ -1,3 +1,5 @@
+include ../../tagspace/backend.mk
+
 TAGD_DIR = ../../tagd
 TAGSPACE_DIR = ../../tagspace
 INC = -I../include -I$(TAGD_DIR)/include -I../../tagspace/include
@@ -8,7 +10,7 @@ LIBTAGSPACE = $(TAGSPACE_DIR)/lib/libtagspace.a
 CXXTEST = cxxtestgen --error-printer
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3 -Wno-write-strings
-LFLAGS =  -L $(TAGSPACE_DIR)/lib -ltagspace -L../lib -ltagl -L$(TAGD_DIR)/lib -ltagd -levent -lsqlite3
+LFLAGS =  -L $(TAGSPACE_DIR)/lib -ltagspace -L../lib -ltagl -L$(TAGD_DIR)/lib -ltagd -levent $(TAGSPACE_BACKEND_LIBS)
 
 TESTER = ./tester
 TESTER_TAGDURL = ./tagdurl_tester
@@ -44,3 +46,6 @@ switching_tests: $(LIBTAGD) $(LIBTAGL) $(LIBTAGSPACE) SwitchingTester.h
 	$(CXXTEST) SwitchingTester.h -o switching-tester.cpp
 	g++ $(CXXFLAGS) -o switching-tester switching-tester.cpp $(INC) -Wl,--start-group $(LFLAGS) -Wl,--end-group
 	./switching-tester
+
+# Public backend-neutral location types accompany the tagspace API.
+INC += $(TAGSPACE_CPPFLAGS)

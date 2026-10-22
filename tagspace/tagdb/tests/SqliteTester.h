@@ -1,6 +1,14 @@
 #pragma once
 
 #include "TestCommon.h"
+#include "tagdb/sqlite.h"
+#include <type_traits>
+
+static_assert(!std::is_copy_constructible_v<tagdb::sqlite>, "tagdb::sqlite must not be copy-constructible");
+static_assert(!std::is_copy_assignable_v<tagdb::sqlite>,    "tagdb::sqlite must not be copy-assignable");
+static_assert(!std::is_move_constructible_v<tagdb::sqlite>, "tagdb::sqlite must not be move-constructible");
+static_assert(!std::is_move_assignable_v<tagdb::sqlite>,    "tagdb::sqlite must not be move-assignable");
+
 #include <filesystem>
 #include <unistd.h>
 
@@ -11,40 +19,63 @@ public:
 
 class SqliteTester : public CxxTest::TestSuite {
 public:
-	void test_canonical_identity_cache_loads_on_demand() {
-		class database : public tagdb::sqlite {
-		public:
-			using ::tagdb::sqlite::configure_cache;
-			using ::tagdb::sqlite::cache_status;
-		};
-		database db;
-		TS_ASSERT_TAGD_OK(db.init(":memory:"));
-		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("subject", HARD_TAG_SUB,
+	void test_factory_locations_preserve_open_storage() {
+		auto owner = tagdb::make_backend();
+		auto& db = *owner;
+		TS_ASSERT(tagdb::accepts_storage_file("test.db"));
+		TS_ASSERT(!tagdb::accepts_storage_file("test.tagl"));
+		TS_ASSERT_EQUALS(tagdb::storage_filename("test"), "test.db");
+		TS_ASSERT_EQUALS(db.open({tagdb::storage_kind::remote, "service/database"}),
+			tagd::TS_NOT_IMPLEMENTED);
+
+		TS_ASSERT_TAGD_OK(db.open({tagdb::storage_kind::memory}));
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("retained", HARD_TAG_SUB,
 			HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
-
-		const auto initial = db.cache_status();
-		tagd::rank rank;
-		TS_ASSERT_TAGD_OK(db.lookup_rank(rank, "subject"));
-		TS_ASSERT_EQUALS(db.cache_status().identity_reads, initial.identity_reads);
-		TS_ASSERT_EQUALS(db.cache_status().predicate_reads, initial.predicate_reads);
-
-		tagd::abstract_tag first, second;
-		TS_ASSERT_TAGD_OK(db.get(first, "subject", nullptr));
-		const auto loaded = db.cache_status();
-		TS_ASSERT_EQUALS(loaded.identity_reads, initial.identity_reads + 1);
-		TS_ASSERT_TAGD_OK(db.get(second, "subject", nullptr));
-		TS_ASSERT_EQUALS(db.cache_status().identity_reads, loaded.identity_reads);
-		TS_ASSERT_EQUALS(first.str(), second.str());
-		TS_ASSERT_EQUALS(first.rank(), rank);
-
-		db.configure_cache(0, 0, std::chrono::minutes(1), std::chrono::steady_clock::now);
-		const auto disabled = db.cache_status().identity_reads;
-		TS_ASSERT_TAGD_OK(db.get(second, "subject", nullptr));
-		TS_ASSERT_TAGD_OK(db.get(second, "subject", nullptr));
-		TS_ASSERT_EQUALS(db.cache_status().identity_reads, disabled + 2);
-		TS_ASSERT_EQUALS(first.str(), second.str());
-		TS_ASSERT_EQUALS(db.cache_status().entries, 0);
+		TS_ASSERT_EQUALS(db.open({tagdb::storage_kind::memory}), tagd::TS_MISUSE);
+		TS_ASSERT(db.exists("retained"));
 	}
+
+	void test_search(void) {
+		tagdb::sqlite tdb;
+		TS_ASSERT_TAGD_OK(tdb.open({tagdb::storage_kind::memory}));
+		populate_tags(tdb);
+
+		std::string terms = "mammal can swim";
+		tagd::tag_set S;
+		tagd::code tc = tdb.search(S, terms);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(S.size(), 1);
+		TS_ASSERT(tag_set_exists(S, "whale"));
+
+		S.clear();
+		terms = "has fangs";
+		tc = tdb.search(S, terms);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(S.size(), 2);
+		TS_ASSERT(tag_set_exists(S, "spider"));
+		TS_ASSERT(tag_set_exists(S, "snake"));
+
+		S.clear();
+		terms = "has teeth";
+		tc = tdb.search(S, terms);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(S.size(), 1);
+		TS_ASSERT(tag_set_exists(S, "mammal"));
+		// fangs are teeth, but don't match FTS for teeth
+		TS_ASSERT(!tag_set_exists(S, "spider"));
+		TS_ASSERT(!tag_set_exists(S, "snake"));
+
+		S.clear();
+		terms = "mammal has can";
+		tc = tdb.search(S, terms);
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
+		TS_ASSERT_EQUALS(S.size(), 4);
+		TS_ASSERT(tag_set_exists(S, "dog"));
+		TS_ASSERT(tag_set_exists(S, "cat"));
+		TS_ASSERT(tag_set_exists(S, "whale"));
+		TS_ASSERT(tag_set_exists(S, "bat"));
+	}
+
 
 	void test_canonical_identity_cache_invalidation_and_expiry() {
 		class database : public tagdb::sqlite {
@@ -378,57 +409,6 @@ public:
 		}
 	}
 
-	// Contract 2: tagdb::session copy preserves context and sequence state (inherited from tagd::session)
-	void test_session_copy_preserves_state(void) {
-		TDB_CONS_INIT();
-
-		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("thing", "physical_object", "simple_english"), &ssn));
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
-
-		TS_ASSERT_TAGD_OK(ssn.push_context("simple_english"));
-		ssn.next_sequence();
-		ssn.next_sequence();  // sequence == 2
-
-		tagdb::session ssn2 = ssn;  // copy
-		TS_ASSERT_EQUALS(ssn2.context().size(), ssn.context().size());
-		TS_ASSERT_EQUALS(ssn2.context()[0], "simple_english");
-		TS_ASSERT_EQUALS(ssn2.sequence(), ssn.sequence());
-
-		tagdb::session ssn3(ssn);  // copy ctor
-		TS_ASSERT_EQUALS(ssn3.context()[0], "simple_english");
-		TS_ASSERT_EQUALS(ssn3.sequence(), ssn.sequence());
-	}
-
-	// Contract 3: url/referent overloads on tagdb::tagdb dispatch through an abstract pointer to the sqlite implementation
-	void test_url_referent_overloads_dispatch_through_abstract_pointer(void) {
-		TDB_CONS_INIT();
-		tagdb::tagdb *abstract_tdb = &tdb;
-
-		// url put through abstract pointer
-		tagd::url u("http://www.example.com/page");
-		TS_ASSERT_TAGD_OK(u.relation("about", "computer"));
-		TS_ASSERT_TAGD_OK(abstract_tdb->put(u, &ssn));
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
-
-		// url get through abstract pointer
-		tagd::url retrieved;
-		TS_ASSERT_TAGD_OK(abstract_tdb->get(retrieved, u.id(), &ssn));
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
-		TS_ASSERT_EQUALS(retrieved.id(), u.id());
-
-		// url del through abstract pointer
-		TS_ASSERT_TAGD_OK(abstract_tdb->del(u, &ssn));
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
-
-		// referent put and del through abstract pointer
-		tagd::referent r("having", HARD_TAG_HAS, "simple_english");
-		TS_ASSERT_TAGD_OK(abstract_tdb->put(r, &ssn));
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
-
-		TS_ASSERT_TAGD_OK(abstract_tdb->del(r, &ssn));
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
-	}
-
 
 };
 
@@ -465,14 +445,14 @@ public:
 	// get_stmt() on a never-prepared key must return nullptr, not a garbage pointer
 	void test_get_stmt_returns_null_when_unprepared() {
 		TagdbSqliteStmtTest tdb;
-		TS_ASSERT_TAGD_OK(tdb.init(db_fname));
+		TS_ASSERT_TAGD_OK(tdb.open({tagdb::storage_kind::memory}));
 		TS_ASSERT_EQUALS(tdb.expose_get_stmt(tagdb::stmt_t::GET), nullptr);
 	}
 
 	// prepare() must return TAGD_OK and produce a non-null cached pointer
 	void test_prepare_returns_ok_and_caches_stmt() {
 		TagdbSqliteStmtTest tdb;
-		TS_ASSERT_TAGD_OK(tdb.init(db_fname));
+		TS_ASSERT_TAGD_OK(tdb.open({tagdb::storage_kind::memory}));
 		tagd::code tc = tdb.expose_prepare(tagdb::stmt_t::GET, GET_SQL, "get_tag");
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_DIFFERS(tdb.expose_get_stmt(tagdb::stmt_t::GET), nullptr);
@@ -481,7 +461,7 @@ public:
 	// second prepare() must reset+clear, not re-prepare — same pointer, TAGD_OK
 	void test_prepare_idempotent_same_pointer() {
 		TagdbSqliteStmtTest tdb;
-		TS_ASSERT_TAGD_OK(tdb.init(db_fname));
+		TS_ASSERT_TAGD_OK(tdb.open({tagdb::storage_kind::memory}));
 
 		TS_ASSERT_TAGD_OK(tdb.expose_prepare(tagdb::stmt_t::GET, GET_SQL, "get_tag"));
 		sqlite3_stmt *first = tdb.expose_get_stmt(tagdb::stmt_t::GET);
@@ -496,7 +476,7 @@ public:
 	// get_stmt() must be a pure lookup with no side effects — same pointer every call
 	void test_get_stmt_stable_no_side_effects() {
 		TagdbSqliteStmtTest tdb;
-		TS_ASSERT_TAGD_OK(tdb.init(db_fname));
+		TS_ASSERT_TAGD_OK(tdb.open({tagdb::storage_kind::memory}));
 		TS_ASSERT_TAGD_OK(tdb.expose_prepare(tagdb::stmt_t::GET, GET_SQL, "get_tag"));
 
 		sqlite3_stmt *p1 = tdb.expose_get_stmt(tagdb::stmt_t::GET);
@@ -510,21 +490,21 @@ public:
 	// bind_* without prior prepare() must return TS_INTERNAL_ERR, not crash or UB
 	void test_bind_text_null_guard() {
 		TagdbSqliteStmtTest tdb;
-		TS_ASSERT_TAGD_OK(tdb.init(db_fname));
+		TS_ASSERT_TAGD_OK(tdb.open({tagdb::storage_kind::memory}));
 		tagd::code tc = tdb.expose_bind_text(tagdb::stmt_t::GET, 1, "foo", "test");
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_INTERNAL_ERR");
 	}
 
 	void test_bind_int_null_guard() {
 		TagdbSqliteStmtTest tdb;
-		TS_ASSERT_TAGD_OK(tdb.init(db_fname));
+		TS_ASSERT_TAGD_OK(tdb.open({tagdb::storage_kind::memory}));
 		tagd::code tc = tdb.expose_bind_int(tagdb::stmt_t::GET, 1, 42, "test");
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_INTERNAL_ERR");
 	}
 
 	void test_bind_null_null_guard() {
 		TagdbSqliteStmtTest tdb;
-		TS_ASSERT_TAGD_OK(tdb.init(db_fname));
+		TS_ASSERT_TAGD_OK(tdb.open({tagdb::storage_kind::memory}));
 		tagd::code tc = tdb.expose_bind_null(tagdb::stmt_t::GET, 1, "test");
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_INTERNAL_ERR");
 	}
@@ -532,7 +512,7 @@ public:
 	// public API: repeated get() calls must return consistent results (exercises idempotent prepare path)
 	void test_repeated_get_correct_results() {
 		TagdbSqliteStmtTest tdb;
-		TS_ASSERT_TAGD_OK(tdb.init(db_fname));
+		TS_ASSERT_TAGD_OK(tdb.open({tagdb::storage_kind::memory}));
 		populate_tags(tdb);
 		tagdb::session ssn = test_session(tdb);
 

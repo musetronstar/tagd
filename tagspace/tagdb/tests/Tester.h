@@ -1,22 +1,19 @@
 #pragma once
 
 #include "TestCommon.h"
+#include "tagdb/storage.h"
 #include <type_traits>
 #include <utility>
 
 // Contract: [[nodiscard]] is a C++17 attribute; this build requires it
 static_assert(__has_cpp_attribute(nodiscard), "[[nodiscard]] required for tagdb method contracts");
 
-// Contract 1: tagdb::tagdb and tagdb::sqlite are execution-context types — not copyable or movable
+// Open backend handles have one owner, independently of their concrete implementation.
 static_assert(!std::is_copy_constructible_v<tagdb::tagdb>,  "tagdb::tagdb must not be copy-constructible");
 static_assert(!std::is_copy_assignable_v<tagdb::tagdb>,     "tagdb::tagdb must not be copy-assignable");
 static_assert(!std::is_move_constructible_v<tagdb::tagdb>,  "tagdb::tagdb must not be move-constructible");
 static_assert(!std::is_move_assignable_v<tagdb::tagdb>,     "tagdb::tagdb must not be move-assignable");
 
-static_assert(!std::is_copy_constructible_v<tagdb::sqlite>, "tagdb::sqlite must not be copy-constructible");
-static_assert(!std::is_copy_assignable_v<tagdb::sqlite>,    "tagdb::sqlite must not be copy-assignable");
-static_assert(!std::is_move_constructible_v<tagdb::sqlite>, "tagdb::sqlite must not be move-constructible");
-static_assert(!std::is_move_assignable_v<tagdb::sqlite>,    "tagdb::sqlite must not be move-assignable");
 static_assert(!std::is_assignable_v<decltype(std::declval<tagd::abstract_tag>().id()), tagd::id_string>,
 	"abstract_tag identity must remain constructor-only");
 
@@ -25,9 +22,77 @@ static_assert(!std::is_assignable_v<decltype(std::declval<tagd::abstract_tag>().
 class Tester : public CxxTest::TestSuite {
 	public:
 
+	// Contract 2: tagdb::session copy preserves context and sequence state (inherited from tagd::session)
+	void test_session_copy_preserves_state(void) {
+		TDB_CONS_INIT();
+
+		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("thing", "physical_object", "simple_english"), &ssn));
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
+
+		TS_ASSERT_TAGD_OK(ssn.push_context("simple_english"));
+		ssn.next_sequence();
+		ssn.next_sequence();  // sequence == 2
+
+		tagdb::session ssn2 = ssn;  // copy
+		TS_ASSERT_EQUALS(ssn2.context().size(), ssn.context().size());
+		TS_ASSERT_EQUALS(ssn2.context()[0], "simple_english");
+		TS_ASSERT_EQUALS(ssn2.sequence(), ssn.sequence());
+
+		tagdb::session ssn3(ssn);  // copy ctor
+		TS_ASSERT_EQUALS(ssn3.context()[0], "simple_english");
+		TS_ASSERT_EQUALS(ssn3.sequence(), ssn.sequence());
+	}
+
+	// Contract 3: url/referent overloads on tagdb::tagdb dispatch through an abstract pointer to the selected backend
+	void test_url_referent_overloads_dispatch_through_abstract_pointer(void) {
+		TDB_CONS_INIT();
+		tagdb::tagdb *abstract_tdb = &tdb;
+
+		// url put through abstract pointer
+		tagd::url u("http://www.example.com/page");
+		TS_ASSERT_TAGD_OK(u.relation("about", "computer"));
+		TS_ASSERT_TAGD_OK(abstract_tdb->put(u, &ssn));
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
+
+		// url get through abstract pointer
+		tagd::url retrieved;
+		TS_ASSERT_TAGD_OK(abstract_tdb->get(retrieved, u.id(), &ssn));
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
+		TS_ASSERT_EQUALS(retrieved.id(), u.id());
+
+		// url del through abstract pointer
+		TS_ASSERT_TAGD_OK(abstract_tdb->del(u, &ssn));
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
+
+		// referent put and del through abstract pointer
+		tagd::referent r("having", HARD_TAG_HAS, "simple_english");
+		TS_ASSERT_TAGD_OK(abstract_tdb->put(r, &ssn));
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
+
+		TS_ASSERT_TAGD_OK(abstract_tdb->del(r, &ssn));
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TAGD_OK");
+	}
+
+
+	void test_interface_lifecycle_and_rank() {
+		auto owner = tagdb::make_backend();
+		tagdb::tagdb& db = *owner;
+		TS_ASSERT_TAGD_OK(db.open({tagdb::storage_kind::memory}));
+
+		tagd::rank rank;
+		TS_ASSERT_TAGD_OK(db.lookup_rank(rank, HARD_TAG_ENTITY));
+		tagd::predicate_set predicates;
+		predicates.emplace(HARD_TAG_HAS, HARD_TAG_ENTITY);
+		TS_ASSERT_TAGD_OK(db.order_predicates(predicates));
+
+		db.close();
+		TS_ASSERT_DIFFERS(db.lookup_rank(rank, HARD_TAG_ENTITY), tagd::TAGD_OK);
+	}
+
 	void test_boolean_storage_and_duplicates(void) {
-		tagdb_type tdb;
-		TS_ASSERT_TAGD_OK(tdb.init(":memory:"));
+		auto owner = tagdb::make_backend();
+		tagdb::tagdb& tdb = *owner;
+		TS_ASSERT_TAGD_OK(tdb.open({tagdb::storage_kind::memory}));
 		for (const auto id : {HARD_TAG_TRUE, HARD_TAG_FALSE}) {
 			tagd::abstract_tag t;
 			TS_ASSERT_TAGD_OK(tdb.get(t, id, nullptr));
@@ -165,8 +230,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_init(void) {
-		tagdb_type tdb;
-		tagd::code tc = tdb.init(db_fname);
+		auto owner = tagdb::make_backend();
+		tagdb::tagdb& tdb = *owner;
+		tagd::code tc = tdb.open({tagdb::storage_kind::memory});
 
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 
@@ -178,8 +244,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_put_emits_consumable_tagdb_event(void) {
-		tagdb_type tdb;
-		TS_ASSERT_EQUALS(tdb.init(db_fname), tagd::TAGD_OK)
+		auto owner = tagdb::make_backend();
+		tagdb::tagdb& tdb = *owner;
+		TS_ASSERT_EQUALS(tdb.open({tagdb::storage_kind::memory}), tagd::TAGD_OK)
 		define_test_sub_relators(tdb);
 
 		std::stringstream log_ss;
@@ -210,8 +277,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_put_get_rank(void) {
-		tagdb_type tdb;
-		TS_ASSERT_TAGD_OK(tdb.init(db_fname));
+		auto owner = tagdb::make_backend();
+		tagdb::tagdb& tdb = *owner;
+		TS_ASSERT_TAGD_OK(tdb.open({tagdb::storage_kind::memory}));
 		define_test_sub_relators(tdb);
 
 		tagd::abstract_tag a = test_tag("physical_object", HARD_TAG_ENTITY);
@@ -561,8 +629,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_query_referents(void) {
-		tagdb_type tdb;
-		TS_ASSERT_TAGD_OK(tdb.init(db_fname));
+		auto owner = tagdb::make_backend();
+		tagdb::tagdb& tdb = *owner;
+		TS_ASSERT_TAGD_OK(tdb.open({tagdb::storage_kind::memory}));
 		auto ssn = test_session(tdb);
 		size_t num_referents = populate_tags(tdb);
 
@@ -1273,8 +1342,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_move_entity(void) {
-		tagdb_type tdb;
-		TS_ASSERT_TAGD_OK(tdb.init(db_fname));
+		auto owner = tagdb::make_backend();
+		tagdb::tagdb& tdb = *owner;
+		TS_ASSERT_TAGD_OK(tdb.open({tagdb::storage_kind::memory}));
 		define_test_sub_relators(tdb);
 		tagdb::session ssn = test_session(tdb);
 
@@ -1507,44 +1577,6 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT(tag_set_exists(S, "whale"));
 	}
 
-	void test_search(void) {
-		TDB_CONS_INIT();
-
-		std::string terms = "mammal can swim";
-		tagd::tag_set S;
-		tagd::code tc = tdb.search(S, terms);
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT_EQUALS(S.size(), 1);
-		TS_ASSERT(tag_set_exists(S, "whale"));
-
-		S.clear();
-		terms = "has fangs";
-		tc = tdb.search(S, terms);
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT_EQUALS(S.size(), 2);
-		TS_ASSERT(tag_set_exists(S, "spider"));
-		TS_ASSERT(tag_set_exists(S, "snake"));
-
-		S.clear();
-		terms = "has teeth";
-		tc = tdb.search(S, terms);
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT_EQUALS(S.size(), 1);
-		TS_ASSERT(tag_set_exists(S, "mammal"));
-		// fangs are teeth, but don't match FTS for teeth
-		TS_ASSERT(!tag_set_exists(S, "spider"));
-		TS_ASSERT(!tag_set_exists(S, "snake"));
-
-		S.clear();
-		terms = "mammal has can";
-		tc = tdb.search(S, terms);
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT_EQUALS(S.size(), 4);
-		TS_ASSERT(tag_set_exists(S, "dog"));
-		TS_ASSERT(tag_set_exists(S, "cat"));
-		TS_ASSERT(tag_set_exists(S, "whale"));
-		TS_ASSERT(tag_set_exists(S, "bat"));
-	}
 
 	void test_query_search(void) {
 		TDB_CONS_INIT();
@@ -1793,8 +1825,9 @@ class Tester : public CxxTest::TestSuite {
 /// URI TESTS ///
 
 	void test_put_url(void) {
-		tagdb_type tdb;
-		tagd::code tc = tdb.init(db_fname);
+		auto owner = tagdb::make_backend();
+		tagdb::tagdb& tdb = *owner;
+		tagd::code tc = tdb.open({tagdb::storage_kind::memory});
 		auto ssn = test_session(tdb);
 		populate_tags(tdb);
 
@@ -1823,8 +1856,9 @@ class Tester : public CxxTest::TestSuite {
 	}
 
 	void test_get_hduri(void) {
-		tagdb_type tdb;
-		tagd::code tc = tdb.init(db_fname);
+		auto owner = tagdb::make_backend();
+		tagdb::tagdb& tdb = *owner;
+		tagd::code tc = tdb.open({tagdb::storage_kind::memory});
 		auto ssn = test_session(tdb);
 		populate_tags(tdb);
 

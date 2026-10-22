@@ -1,3 +1,5 @@
+include ../../tagspace/backend.mk
+
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -pedantic -O3
 BUILD_DIR = ../bin
@@ -12,7 +14,7 @@ LIBTAGL = $(TAGL_DIR)/lib/libtagl.a
 LIBTAGSPACE = $(TAGSPACE_DIR)/lib/libtagspace.a
 
 INC = -I../include -I$(TAGD_DIR)/include -I$(TAGL_DIR)/include -I$(TAGSPACE_DIR)/include -I ../
-LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagspace -L $(TAGL_DIR)/lib -ltagl -L $(TAGD_DIR)/lib -ltagd -lsqlite3 -levent -lreadline
+LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagspace -L $(TAGL_DIR)/lib -ltagl -L $(TAGD_DIR)/lib -ltagd $(TAGSPACE_BACKEND_LIBS) -levent -lreadline
 
 OBJS = tagsh.o main.o
 DEPS = $(OBJS:.o=.d)
@@ -37,3 +39,6 @@ $(BIN) : tagsh.o main.o $(LIBTAGD) $(LIBTAGL) $(LIBTAGSPACE)
 
 clean :
 	rm -f *.o *.d $(BIN)
+
+# Public backend-neutral location types accompany the tagspace API.
+INC += $(TAGSPACE_CPPFLAGS)

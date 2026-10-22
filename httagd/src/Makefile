@@ -1,3 +1,5 @@
+include ../../tagspace/backend.mk
+
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -fpermissive -O3
 
@@ -22,7 +24,7 @@ LFLAGS = -L $(TAGSPACE_DIR)/lib -ltagspace \
 		 -L $(TAGL_DIR)/lib -ltagl \
 		 -L $(TAGD_DIR)/lib -ltagd \
 		 -L $(TAGSH_DIR)/lib -ltagsh \
-		 -lsqlite3 -levent -lreadline -lctemplate_nothreads
+		 $(TAGSPACE_BACKEND_LIBS) -levent -lreadline -lctemplate_nothreads
 
 ifdef EVHTP_SRC_DIR
 	INC += -I$(EVHTP_SRC_DIR)/include -I$(EVHTP_SRC_DIR)/build/include
@@ -64,3 +66,6 @@ clean :
 	rm -f *.o *.d
 	rm -f *.inc
 	rm -f $(BIN) $(CLIENT_BIN)
+
+# Public backend-neutral location types accompany the tagspace API.
+INC += $(TAGSPACE_CPPFLAGS)

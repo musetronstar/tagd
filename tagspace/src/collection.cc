@@ -1,3 +1,4 @@
+#include "tagdb/storage.h"
 #include "tagspace-config.h"
 
 #include <filesystem>
@@ -48,8 +49,8 @@ tagd::code config::normalize_source(const std::string& input, const std::string&
 	if (path.empty() || path.find('\0') != std::string::npos)
 		return error(TS_MISUSE, "invalid source path");
 	fs::path file(path);
-	if (file.extension() != TAGSPACE_DB_SUFFIX && file.extension() != TAGSPACE_TAGL_SUFFIX)
-		return error(TS_MISUSE, "source requires .db or .tagl extension");
+	if (!tagdb::accepts_storage_file(path) && file.extension() != TAGSPACE_TAGL_SUFFIX)
+		return error(TS_MISUSE, "source requires a supported storage file or .tagl extension");
 
 	std::error_code ec;
 	if (file.is_relative())
@@ -520,7 +521,7 @@ tagd::code config::open_tagspace(const std::string& target, const std::string& a
 	if (action == source_action::register_only) {
 		// Registering the tagspace tag does not require opening its database or executing TAGL.
 		rc = TAGD_OK;
-	} else if (fs::path(path).extension() == TAGSPACE_DB_SUFFIX) {
+	} else if (tagdb::accepts_storage_file(path)) {
 		auto db = std::make_shared<tagspace::persistent>();
 		rc = action == source_action::create ? db->create_file(path) : db->open_file(path);
 		opened = db;
@@ -589,8 +590,8 @@ tagd::code config::open_database(const std::string& input, bool create,
 	auto rc = normalize_source(input, {}, resolved);
 	if (rc != TAGD_OK)
 		return rc;
-	if (fs::path(resolved).extension() != TAGSPACE_DB_SUFFIX)
-		return error(TS_MISUSE, "--db requires a .db source");
+	if (!tagdb::accepts_storage_file(resolved))
+		return error(TS_MISUSE, "--db requires a supported storage source");
 
 	std::shared_ptr<tagspace> opened;
 	return open_tagspace(resolved, "", opened, nullptr, {}, tagspace_access::local,

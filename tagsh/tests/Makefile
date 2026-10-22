@@ -1,3 +1,5 @@
+include ../../tagspace/backend.mk
+
 SHELL_TESTER = ./tester.exp
 LOG_UNIT_TESTER = ./log-tester
 DRIVER_UNIT_TESTER = ./driver-tester
@@ -6,7 +8,7 @@ VALGRIND = valgrind --leak-check=full --error-exitcode=1
 CXXTEST = cxxtestgen --error-printer
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3 -Wno-write-strings
 INC = -I../include -I../../tagd/include -I../../tagl/include -I../../tagspace/include
-LFLAGS = -L../lib -ltagsh -L../../tagspace/lib -ltagspace -L../../tagl/lib -ltagl -L../../tagd/lib -ltagd -lsqlite3 -levent -lreadline
+LFLAGS = -L../lib -ltagsh -L../../tagspace/lib -ltagspace -L../../tagl/lib -ltagl -L../../tagd/lib -ltagd $(TAGSPACE_BACKEND_LIBS) -levent -lreadline
 
 all: tests
 
@@ -55,3 +57,6 @@ config_unit_tests: ConfigTester.h ../lib/libtagsh.a ../../tagspace/lib/libtagspa
 	$(CXXTEST) ConfigTester.h -o config-tester.cpp
 	g++ $(CXXFLAGS) config-tester.cpp -o config-tester $(INC) -Wl,--start-group $(LFLAGS) -Wl,--end-group
 	./config-tester
+
+# Public backend-neutral location types accompany the tagspace API.
+INC += $(TAGSPACE_CPPFLAGS)

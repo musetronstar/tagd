@@ -6,12 +6,13 @@
 
 void TAGSPACE_SET_LOGGER(tagd::logger*);
 
+namespace tagdb { struct storage_location; }
+
 namespace tagd {
 
 void tagspace_install_logger_validator();
 std::string default_tagd_home();
 bool valid_tagspace_name(const std::string&);
-inline constexpr char TAGSPACE_DB_SUFFIX[] = ".db";
 inline constexpr char TAGSPACE_TAGL_SUFFIX[] = ".tagl";
 // Creation, source validation, and discovery must agree on the home layout.
 std::string tagspaces_directory(const std::string& home);
@@ -30,6 +31,7 @@ class stored_tagspace : public tagspace {
 
 protected:
 	stored_tagspace();
+	[[nodiscard]] tagd::code initialize_location(const tagdb::storage_location&);
 	[[nodiscard]] tagd::code initialize_memory();
 	[[nodiscard]] tagd::code initialize_file(const std::string&, bool create = false);
 	[[nodiscard]] tagd::code initialize(
@@ -78,6 +80,10 @@ public:
 \*/
 class tagspace::persistent final : public stored_tagspace {
 public:
+	// Location interpretation stays with the selected backend, including non-file resources.
+	[[nodiscard]] tagd::code open_location(const tagdb::storage_location& location) {
+		return initialize_location(location);
+	}
 	// Direct-file opening never creates storage.
 	[[nodiscard]] tagd::code open_file(const std::string& path) {
 		return initialize_file(path);
@@ -94,8 +100,8 @@ public:
 
 /*\
 |*| memory provides an independent tagspace that lasts as long as this object.
-|*| It uses SQLite :memory: so queries, including full-text search, behave like
-|*| queries on a persistent tagspace. No database file is created.
+|*| The selected backend supplies volatile storage with the same query contract.
+|*| Its contents do not survive closing the tagspace.
 \*/
 class tagspace::memory final : public stored_tagspace {
 public:

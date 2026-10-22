@@ -1,3 +1,5 @@
+include ../backend.mk
+
 INCLUDE_TAGSPACE = ../include
 INCLUDE_TAGD = ../../tagd/include
 
@@ -5,7 +7,7 @@ CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 INC = -I$(INCLUDE_TAGSPACE) -I$(INCLUDE_TAGD)
 LIBTAGD = ../../tagd/lib/libtagd.a
 LIBTAGSPACE = ../lib/libtagspace.a
-LFLAGS = -L../lib -ltagspace -L../../tagd/lib -ltagd -lsqlite3
+LFLAGS = -L../lib -ltagspace -L../../tagd/lib -ltagd $(TAGSPACE_BACKEND_LIBS)
 CXXTEST = cxxtestgen --error-printer
 
 all: tagspace_memory_tests storage_tests config_tests collection_tests
@@ -37,3 +39,6 @@ collection_tests: $(LIBTAGSPACE) $(LIBTAGD) CollectionTester.h
 	$(CXXTEST) CollectionTester.h -o collection-tester.cpp
 	g++ $(CXXFLAGS) collection-tester.cpp -o collection-tester $(INC) $(LFLAGS)
 	./collection-tester
+
+# Public backend-neutral location types accompany the tagspace API.
+INC += $(TAGSPACE_CPPFLAGS)

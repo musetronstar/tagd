@@ -12,7 +12,7 @@ TAGL semantics are specified by `../../docs/TAGL-spec.md`.
 | `tagd::hard_tagspace` | Reads the hard tags and ranks generated from `hard-tags.h`. | Hard tags are shared by all tagspaces and cannot be modified at runtime. |
 | `tagd::stored_tagspace` | Owns a private backend and forwards operations to it. | Backend types, handles, and headers stay inside the `tagspace/` module. |
 | `tagd::tagspace::persistent` | Creates or opens a named tagspace under a tagd home directory. | Persistent data must survive destruction of the C++ object. |
-| `tagd::tagspace::memory` | Opens an independent SQLite `:memory:` database. | It provides the same storage and full-text search behavior without a database file. |
+| `tagd::tagspace::memory` | Opens independent volatile storage through the backend interface. | It provides the same storage and full-text search behavior without a database file. |
 | `tagd::session` | Holds session identity, event sequence, and errors. | Event identity and errors are useful to modules that do not work with tags. |
 | `tagd::session_factory` | Generates core session identities and timestamps. | Core session constructors use the same identity-generation code. |
 | `tagd::tagspace_session` | Adds referent context and a tag-membership callback to `session`. | Tag operations need context and access to their tagspace as well as event identity. |
@@ -50,6 +50,75 @@ session. Internal storage errors are reported on the tagspace object. Callers
 can share an error list, as httagd does for each request. Sharing the list does
 not share each object's return code. The storage wrapper keeps its own code
 consistent with the backend code.
+
+## Storage backend contract
+
+`stored_tagspace::impl` owns `std::unique_ptr<tagdb::tagdb>` returned by
+`make_backend()`. No tagspace implementation subclasses a concrete backend.
+Lifecycle, rank lookup, predicate ordering, contextual resolution, and error
+attachment are available through the abstract interface. The base provides
+backend-independent overload forwarding and error-list attachment; it has no
+storage handles or SQL dependencies.
+
+`storage_location` distinguishes memory, file, and remote resources and an
+existing/create mode. Resource interpretation belongs to the selected backend.
+`tagspace::persistent::open_location()` accepts this backend-neutral value
+(declared in `tagdb/storage.h`), so another backend needs no new tagspace
+opening API. Remote locations are representable, but the shipped backend rejects them with
+`TS_NOT_IMPLEMENTED`; no network or credential handling is implemented.
+`open_named()` owns named-store creation and cleanup. Backend factory functions
+supply the named layout and recognize local storage files. Collections still
+interpret TAGL file sources themselves. No data is renamed or migrated.
+
+`dump_terms()` describes vocabulary and part-of-speech information;
+`dump_search()` describes searchable content. These are optional diagnostics
+with `TS_NOT_IMPLEMENTED` defaults, not promises about backend table layouts.
+Hard-tag table IDs are one-based declaration-order indices, with zero invalid;
+a backend may map these to its own identifiers. They are not persistent row
+addresses imposed on another storage engine.
+
+Each backend composes `canonical_cache`. It supplies loaders for rank, identity,
+and complete direct predicates, plus predicate ordering within its active read
+snapshot. Cache entries and retention policy remain private to the component.
+The component owns completeness/admission, byte accounting, LRU eviction,
+expiry, and per-read rank reuse. Cache configuration and metrics are available
+on the backend interface for diagnostics and contract testing; ordinary tagspace
+callers do not manage caching.
+
+`snapshot_source` and `read_scope` define paired read hooks. Every begin, even
+one returning an error, receives an end. Nested scopes share the outer read
+view. The backend must pin a consistent view and invalidate mismatched retained
+data before `canonical_cache::begin(true)`. If retained data cannot be validated,
+it uses `begin(false)`; operation-local memoization is a separate choice and must
+be disabled during mutation. Expiry runs after the read is pinned. The outermost
+end calls `canonical_cache::end()`, releases its owned view, and invalidates any
+changes detected around release. A version token without a pinned view does
+not satisfy this contract. Mutation entry and exit both clear the cache,
+including failure paths. Failed cleanup must prevent subsequent writes into an
+abandoned transaction and record an error. These rules are backend obligations;
+the common cache deliberately does not guess transaction semantics.
+
+### Adding a compiled backend
+
+1. Implement `tagdb::tagdb`, including its lifecycle and diagnostics/control
+   methods, and compose `canonical_cache`. Implement the read hooks with the
+   storage engine's snapshot and change-detection mechanism.
+2. Supply `make_backend()` and the storage-location factory functions from the
+   selected backend module, rather than editing tagspace or application code.
+3. Provide its `tagspace/tagdb/<backend>/Makefile`, `src/Makefile`, and
+   `backend.mk` defining `TAGSPACE_BACKEND_LIBS`. Select it with
+   `TAGDB_BACKEND=<backend>` on make. Rebuild cleanly when switching backends;
+   archives must not retain objects from the previous selection.
+4. Run the generic `Tester.h` and `CanonicalCacheTester.h` suites through the
+   factory. Engine-specific SQL, WAL, statement inspection, and fault-injection
+   tests are selected only for SQLite.
+
+`AlternativeBackendTester.h` supplies a test-only map backend for flat tags and
+direct predicates. It copies an immutable read view, uses the same cache, and
+exercises abstract ownership, nested ordering, reuse, invalidation, and detached
+results. Unsupported operations fail explicitly. A separate test executable
+links this fixture and cache contracts against core/cache objects without any
+SQLite include path or library. It is not a second production backend.
 
 ## Logging
 
@@ -90,14 +159,16 @@ caller-supplied filesystem path.
 ## Integration
 
 `tagl`, `tagsh`, and `httagd` include public tagspace headers and link
-`libtagspace.a` (plus the required system library). They do not open database
-files or include backend headers. Logging identifiers can name the backend
+`libtagspace.a` and `TAGSPACE_BACKEND_LIBS` from `tagspace/backend.mk`.
+`TAGSPACE_CPPFLAGS` publishes the backend-neutral location header include path. Applications do not open storage directly or include
+concrete backend headers. Logging identifiers can name the backend
 without giving applications access to backend storage types.
 
 `--tagspace ID` opens existing storage, `--create` requires that option and
 creates new storage, and `--home DIR` changes the default home. Options are
 order-independent. Without `--tagspace`, both applications use memory storage.
-Each process operates on one selected tagspace. The former `--db` option is removed.
+`--db` opens a direct backend-recognized storage file or file URL, bypassing
+home lookup. Configuration and collections can select among opened tagspaces.
 
 ## Predicate ordering and canonical caching
 
@@ -113,7 +184,7 @@ performs no storage lookup and captures no tagspace or cache lifetime. The
 existing `rank_comparator()` returns that same comparator; explicit preparation
 uses `order_predicates()`. Ordinary GET, query, and dump paths prepare values
 automatically. Rank lookup with a status result distinguishes the empty root,
-a missing tag, and a storage error; SQLite reads only the rank column.
+a missing tag, and a storage error; rank-only requests do not load whole tags.
 
 Query condition evaluation retains its existing semantic order and selected
 predicates. Ordering results does not turn a partial predicate query into a full
@@ -158,10 +229,10 @@ the rank without loading it separately. Rank-only requests never load identity
 fields or predicates. GET reconstructs URLs and applies contextual substitution
 and synthetic `_refers_to` markers after loading canonical data. An unloaded
 predicate component differs from a complete empty set. Inherited GET retains
-its recursive SQL query and nearest-ancestor masking; inherited and query-selected
+nearest-ancestor masking; inherited and query-selected
 predicates never populate the direct-predicate cache.
 Direct predicates are retained as compact canonical rows of relator, object,
-and literal modifier text, matching the current storage schema. No indexed
+and literal modifier text. No indexed
 `predicate_set`, contextual labels, or private ordering allocations are retained
 in these rows. Each returned set constructs its own indexes and resolves ranks
 within the current read snapshot. This keeps retained storage smaller, at the
@@ -201,6 +272,10 @@ including errors and rollback paths. Internal mutation reads cannot publish
 cache entries. Close/reopen releases entries.
 
 ### SQLite snapshots and diagnostics
+
+The SQLite backend owns `.db` recognition, named filenames, `:memory:`,
+exclusive file reservation, sidecar checks, and rollback of owned files.
+Inherited predicates use its existing recursive SQL.
 
 Raw backend SQL also invalidates, including schema changes that do not change
 SQLite's row counter. Reads pin a

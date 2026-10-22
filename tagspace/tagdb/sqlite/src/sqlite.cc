@@ -1033,52 +1033,16 @@ tagd::code sqlite::get(tagd::url& get_url, tagd::id_view id, session* ssn, flags
 
 tagd::code sqlite::get_relations(tagd::predicate_set& P, const tagd::id_string& id,
 	session* ssn, flags_t flags) {
-	// Inherited results include ancestor rows and masking, not complete direct assertions.
-	const bool direct = !(flags & F_INCLUDE_INHERITED_PREDICATES);
-	std::optional<cache_entry> entry;
-	std::vector<canonical_predicate> rows;
-	bool loaded = false;
-
-	// If no rank/identity entry fits the budget, direct rows bypass admission too.
-	if (direct && _cacheable) {
-		if (auto found = _cache_index.find(id); found != _cache_index.end()) {
-			auto it = found->second;
-			if (it->predicates) {
-				++_predicate_hits;
-				for (const auto& p : *it->predicates) {
-					P.emplace(p.relator, p.object, p.modifier);
-				}
-				it->used = _cache_now();
-				_cache.splice(_cache.begin(), _cache, it);
-				loaded = true;
-			} else if (it->status == tagd::TAGD_OK) {
-				// Rank resolution can evict this entry; retain an owned admission candidate.
-				entry = *it;
-			}
-		}
-	}
-
-	if (!loaded) {
-		auto rc = load_predicates(rows, id, ssn, flags);
-		if (rc != tagd::TAGD_OK)
-			return rc;
-		for (const auto& p : rows) {
-			P.emplace(p.relator, p.object, p.modifier);
-		}
-	}
-
-	if (!P.empty()) {
-		auto rc = order_predicates(P);
-		if (rc != tagd::TAGD_OK)
-			return rc;
-	}
-
-	if (entry) {
-		// Publish only complete direct rows after successful loading and rank resolution.
-		entry->predicates = std::move(rows);
-		entry->used = _cache_now();
-		retain(std::move(*entry));
-	}
+	// Inherited results are not complete direct assertions and cannot populate this cache.
+	auto rc = _canonical.predicates(P, id, !(flags & F_INCLUDE_INHERITED_PREDICATES),
+		[&](auto& rows) {
+			return load_predicates(rows, id, ssn, flags);
+		},
+		[this](auto& values) {
+			return order_predicates(values);
+		});
+	if (rc != tagd::TAGD_OK)
+		return rc;
 
 	// GET treats this sentinel with an empty set as a successful tag with no predicates.
 	if (P.empty())
@@ -1092,7 +1056,7 @@ tagd::code sqlite::get_relations(tagd::predicate_set& P, const tagd::id_string& 
 
 tagd::code sqlite::load_predicates(std::vector<canonical_predicate>& rows,
 	const tagd::id_string& id, session* ssn, flags_t flags) {
-	++_predicate_reads;
+	_canonical.record_predicate_read();
 
 	const bool inherited = flags & F_INCLUDE_INHERITED_PREDICATES;
 	const auto statement = inherited ? stmt_t::GET_INHERITED_RELATIONS : stmt_t::GET_RELATIONS;
@@ -1290,7 +1254,7 @@ tagd::code sqlite::refers(tagd::id_string &refers, const tagd::id_string& refers
 			_operation_refers_context = ssn->context();
 		}
 		if (auto found = _operation_refers.find(refers_to); found != _operation_refers.end()) {
-			++_referent_hits;
+			_canonical.record_referent_hit();
 			if (!found->second)
 				return tagd::TS_NOT_FOUND;
 
@@ -1323,7 +1287,7 @@ tagd::code sqlite::refers(tagd::id_string &refers, const tagd::id_string& refers
 		const int F_REFERS = 0;
 
 		sqlite3_stmt *stmt = get_stmt(stmt_t::REFERS);
-		++_referent_reads;
+		_canonical.record_referent_read();
 		int s_rc = sqlite3_step(stmt);
 		if (s_rc == SQLITE_ROW) {
 			refers = (const char *) sqlite3_column_text(stmt, F_REFERS);

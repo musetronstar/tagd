@@ -3,6 +3,8 @@
 #include "tagd.h"
 #include "tagdb.h"
 #include "sqlite3.h"
+#include "tagdb/canonical-cache.h"
+#include "tagdb/read-snapshot.h"
 #include <functional>
 #include <unordered_map>
 #include <utility>
@@ -13,7 +15,7 @@
 
 namespace tagdb {
 
-typedef sqlite3_int64 rowid_t;
+static_assert(std::is_same_v<rowid_t, sqlite3_int64>);
 
 typedef std::function<tagd::id_string(const tagd::id_string&)> id_transform_func_t;
 
@@ -64,7 +66,7 @@ struct stmt_t_hash {
 	}
 };
 
-class sqlite: public tagdb {
+class sqlite: public tagdb, private snapshot_source {
 	public:
 		sqlite() = default;
 		// Database handles and cached statements must remain owned by this object.
@@ -78,55 +80,15 @@ class sqlite: public tagdb {
 		std::string _db_fname;
 
 	private:
-		using cache_clock = std::chrono::steady_clock;
-
-		struct canonical_identity {
-			tagd::id_string sub_relator, super_object;
-			tagd::part_of_speech pos = tagd::POS_UNKNOWN;
-		};
-
-		// Stored columns exclude caller-specific labels, container indexes, and ordering keys.
-		struct canonical_predicate {
-			tagd::id_string relator, object, modifier;
-		};
-
-		struct cache_entry {
-			tagd::id_string id;
-			tagd::rank value;
-			tagd::code status = tagd::TS_NOT_FOUND;
-			size_t bytes = 0;
-			cache_clock::time_point used;
-			std::optional<canonical_identity> identity = std::nullopt;
-			// Disengaged means unloaded; an engaged empty vector is a complete empty result.
-			std::optional<std::vector<canonical_predicate>> predicates = std::nullopt;
-		};
-
-		// A tagspace and its sessions require serialized access, including reads that mutate this cache.
-		std::list<cache_entry> _cache;
-		// Views refer to stable list-node IDs and are erased before the corresponding nodes.
-		std::map<tagd::id_view, std::list<cache_entry>::iterator, std::less<>> _cache_index;
-		size_t _cache_bytes = 0;
-
-		static constexpr size_t DEFAULT_CACHE_BYTES = 256 * 1024;
-		static constexpr size_t DEFAULT_CACHE_ENTRIES = 1024;
-		static constexpr auto DEFAULT_CACHE_IDLE = std::chrono::minutes(5);
-
-		size_t _cache_byte_limit = DEFAULT_CACHE_BYTES;
-		size_t _cache_entry_limit = DEFAULT_CACHE_ENTRIES;
-		cache_clock::duration _cache_idle = DEFAULT_CACHE_IDLE;
-		std::function<cache_clock::time_point()> _cache_now = cache_clock::now;
-
-		size_t _rank_reads = 0, _rank_hits = 0, _predicate_reads = 0, _identity_reads = 0;
-		size_t _identity_hits = 0, _predicate_hits = 0;
-		size_t _referent_reads = 0, _referent_hits = 0;
+		using cache_clock = canonical_cache::cache_clock;
+		using canonical_identity = canonical_cache::canonical_identity;
+		using canonical_predicate = canonical_cache::canonical_predicate;
+		canonical_cache _canonical;
 
 		unsigned _read_depth = 0, _mutation_depth = 0;
 		bool _read_transaction = false, _cacheable = false;
 		int _cache_data_version = -1;
 		sqlite3_int64 _cache_changes = 0;
-
-		// Per-operation reuse remains independent of the bounded retained cache.
-		std::map<tagd::id_string, std::pair<tagd::code, tagd::rank>, std::less<>> _operation_ranks;
 
 		// Context-specific substitutions are temporary and never enter canonical cache entries.
 		tagd::id_vec _operation_refers_context;
@@ -142,30 +104,15 @@ class sqlite: public tagdb {
 		// Invalidate retained and per-operation data together so no stale lookup survives.
 		void clear_cache();
 
-		// Admit canonical components within the budget without discarding already loaded components.
-		void retain(cache_entry);
-
 		tagd::code load_identity(canonical_identity&, tagd::rank&, const tagd::id_string&);
 		tagd::code load_predicates(std::vector<canonical_predicate>&,
 			const tagd::id_string&, session*, flags_t);
 
-		tagd::code begin_read();
+		tagd::code begin_read() override;
 
 		// Only the outermost read releases the snapshot; cleanup errors stay on the backend.
-		void end_read();
+		void end_read() override;
 
-		// Balance nested reads on every exit path, including failed operations.
-		class read_scope {
-			// The borrowed backend must outlive this scope so its snapshot can be released.
-			sqlite& _owner;
-
-		public:
-			tagd::code status;
-			explicit read_scope(sqlite& owner);
-			~read_scope();
-			read_scope(const read_scope&) = delete;
-			read_scope& operator=(const read_scope&) = delete;
-		};
 
 		class mutation_scope {
 			// The borrowed backend must outlive this guard for invalidation after failed writes too.
@@ -204,9 +151,14 @@ class sqlite: public tagdb {
 		}
 
 	public:
+		using cache_metrics = canonical_cache::cache_metrics;
+		cache_metrics cache_status() const override;
+		void configure_cache(size_t bytes, size_t entries,
+			std::chrono::steady_clock::duration idle,
+			std::function<std::chrono::steady_clock::time_point()> now) override;
 		virtual ~sqlite();
-		[[nodiscard]] tagd::code lookup_rank(tagd::rank&, tagd::id_view);
-		[[nodiscard]] tagd::code order_predicates(tagd::predicate_set&);
+		[[nodiscard]] tagd::code lookup_rank(tagd::rank&, tagd::id_view) override;
+		[[nodiscard]] tagd::code order_predicates(tagd::predicate_set&) override;
 
 		// init db file
 		[[nodiscard]] tagd::code init(const std::string&, bool create_missing = true);
@@ -215,7 +167,12 @@ class sqlite: public tagdb {
 		[[nodiscard]] tagd::code open();
 
 		// wont fail if already closed
-		void close();
+		[[nodiscard]] tagd::code open_named(const std::string&, const std::string&,
+			open_mode) override;
+		void close() override;
+		[[nodiscard]] tagd::code open(const storage_location&) override;
+		[[nodiscard]] tagd::code resolve_referents(tagd::abstract_tag&,
+			const tagd::abstract_tag&, session*) override;
 
 		// get into tag given id
 		[[nodiscard]] tagd::code get(tagd::abstract_tag&, tagd::id_view, session*, flags_t = 0) override;
@@ -231,7 +188,7 @@ class sqlite: public tagdb {
 		[[nodiscard]] tagd::code del(const tagd::url&, session *, flags_t = 0) override;
 		[[nodiscard]] tagd::code del(const tagd::referent&, session *, flags_t = 0) override;
 
-// --- tagdb abstraction boundary: methods below are sqlite implementation detail, not part of tagdb::tagdb ---
+// Backend helpers alongside the remaining storage-interface overrides.
 
 		tagd::part_of_speech term_pos(tagd::id_view t) {
 			return this->term_pos(t, NULL);
@@ -263,14 +220,6 @@ class sqlite: public tagdb {
 		tagd::code dump_uridb_relations(std::ostream& = std::cout);
 
 	protected:
-		struct cache_metrics {
-			size_t entries, bytes, rank_reads, rank_hits, predicate_reads, identity_reads;
-			size_t identity_hits, predicate_hits, referent_reads, referent_hits;
-		};
-		cache_metrics cache_status() const;
-		void configure_cache(size_t bytes, size_t entries,
-			std::chrono::steady_clock::duration idle,
-			std::function<std::chrono::steady_clock::time_point()> now);
 		// returns the part of speech that was inserted or updated, or a duplicate, POS_UNKNOWN on error
 		tagd::part_of_speech put_term(const tagd::id_string&, const tagd::part_of_speech);
 		tagd::part_of_speech term_pos(tagd::id_view, rowid_t*);

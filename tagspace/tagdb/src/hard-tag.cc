@@ -16,10 +16,7 @@ std::vector<const char *>& hard_tag_rows_storage() {
 	static std::vector<const char *> rows = []() {
 		std::vector<const char *> values;
 		values.reserve(tagd::HARD_TAG_AXIOMS.size() + 1);
-		/*
-		 * Row 0 stays empty so hard-tag row ids match the historical sqlite ids
-		 * starting at 1 without rewriting the bootstrap callers.
-		 */
+		// Zero is the invalid hard-tag table index; declaration-order identifiers start at one.
 		values.push_back("");
 		for (const tagd::hard_tag_axiom& axiom : tagd::HARD_TAG_AXIOMS)
 			values.push_back(axiom.id.data());

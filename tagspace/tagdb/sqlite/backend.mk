@@ -1,0 +1,1 @@
+TAGSPACE_BACKEND_LIBS = -lsqlite3

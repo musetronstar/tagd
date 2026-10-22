@@ -3,7 +3,7 @@ CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 
 TAGDDIR =../../../../tagd
 INC = -I../include -I../../include -I$(TAGDDIR)/include
-SRCS = sqlite.cc rank-cache.cc
+SRCS = sqlite.cc read-snapshot.cc storage.cc
 OBJS=$(SRCS:.cc=.o)
 DEPS=$(OBJS:.o=.d)
 BIN = tagdb
