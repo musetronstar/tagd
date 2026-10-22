@@ -268,7 +268,7 @@ void overlay(abstract_tag& target, const predicate_set& relations, bool assertio
 	for (const auto& p : relations) {
 		if (assertions && p.modifier.empty() && target.related(p.relator, p.object))
 			continue;
-		std::erase_if(target.relations, [&](const auto& existing) {
+		erase_if(target.relations, [&](const auto& existing) {
 			return existing.relator == p.relator && existing.object == p.object;
 		});
 		target.relations.insert(p);
@@ -497,7 +497,7 @@ tagd::code config::del(const abstract_tag& input, tagspace_session* ssn, flags_t
 				// Match storage's deletion precondition before previewing its effect.
 				if (!(p.modifier.empty() ? candidate.related(p.relator, p.object) : candidate.related(p)))
 					continue;
-				std::erase_if(candidate.relations, [&](const auto& existing) {
+				erase_if(candidate.relations, [&](const auto& existing) {
 					return existing.relator == p.relator && existing.object == p.object;
 				});
 				if (!p.modifier.empty())

@@ -75,7 +75,11 @@ tagd code terms are surrounded in markdown with backticks as `inline code`.
   optional `modifier` using an operator.
 
 * `modifier`: a UTF-8 byte string value bound to an `object`.
-  A NULL value indicates a bare object with no modifier
+  A NULL value indicates a bare object with no modifier.
+  Current modifier types are literals, not tags: their values never undergo
+  contextual referent encoding/decoding, even when they match a referent or tag ID.
+  PUT, GET, QUERY, and DELETE use these literal values. Previously stored bytes
+  remain authoritative; older substitutions cannot recover the original spelling.
 
 * `quantifier`: a numeric subtype of a`modifier`
    (CURRENT: number stored as UTF-8 text)
@@ -327,6 +331,23 @@ TODO: preserve the distinction between an absent (NULL) modifier and explicit
 empty text (`= ""`) throughout parsing, predicate types, storage, and serialization.
 The current representation conflates them; that limitation is not the intended
 meaning of explicit empty text.
+
+Returned predicates and their TAGL serialization use ascending relator rank,
+then object rank, then the modifier's literal UTF-8 bytes. An absent modifier
+comes first; `10` precedes `2` even for numeric modifiers. Ranks are compared
+as binary path bytes, not dotted display strings. Operator and modifier-type
+metadata break otherwise equal keys without discarding distinct assertions.
+Contextual referent spelling does not change this order. Dumps preserve their
+dependency-safe declaration stages and subject order while ordering each
+subject's predicates by these same keys.
+
+Returned tags are snapshots: later moves, deletions, cache eviction, or closing
+the tagspace do not alter an earlier result's values or order. New retrievals
+use current ranks. An unresolved relator or object makes canonical resolution
+fail through the existing error interface. Context-free values use immutable
+hard-tag ranks where available and deterministic identifier order otherwise.
+Modifier equality and numeric query comparisons retain their existing meanings;
+literal ordering does not change numeric duplicate detection.
 
 A valid PUT that changes stored state returns `TAGD_OK`. Reasserting an existing
 identity and relations without changing any values, including modifiers, returns

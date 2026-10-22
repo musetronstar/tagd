@@ -14,6 +14,138 @@ class StorageTester : public CxxTest::TestSuite {
 	std::filesystem::path root;
 
 public:
+	void test_ordered_results_across_sessions_targets_and_storage_lifetimes() {
+		tagd::abstract_tag retained;
+		std::string serialized;
+		{
+			tagd::tagspace::memory first, second;
+			TS_ASSERT_EQUALS(first.init(), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(second.init(), tagd::TAGD_OK);
+			for (auto* db : {&first, &second}) {
+				const auto ids = db == &first ? std::vector{"z", "a"} : std::vector{"a", "z"};
+				for (const auto id : ids) {
+					TS_ASSERT_EQUALS(db->put(tagd::abstract_tag(id, tagd::HARD_TAG_SUB,
+						tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
+				}
+
+				tagd::abstract_tag subject("subject", tagd::HARD_TAG_SUB,
+					tagd::HARD_TAG_ENTITY, tagd::POS_TAG);
+				TS_ASSERT_EQUALS(subject.relation(tagd::HARD_TAG_HAS, "a"), tagd::TAGD_OK);
+				TS_ASSERT_EQUALS(subject.relation(tagd::HARD_TAG_HAS, "z"), tagd::TAGD_OK);
+				TS_ASSERT_EQUALS(db->put(subject), tagd::TAGD_OK);
+			}
+
+			auto session = first.get_session();
+			auto copy = session;
+			TS_ASSERT_EQUALS(first.get(retained, "subject", &session), tagd::TAGD_OK);
+			serialized = retained.str();
+
+			tagd::abstract_tag loaded;
+			TS_ASSERT_EQUALS(first.get(loaded, "subject", &copy), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(loaded.str(), serialized);
+			session.membership([&second](tagd::id_view id) {
+				return second.exists(id);
+			});
+			TS_ASSERT_EQUALS(second.get(loaded, "subject", &session), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(loaded.relations.begin()->object, "a");
+			TS_ASSERT_EQUALS(first.get(loaded, "subject"), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(loaded.relations.begin()->object, "z");
+
+			tagd::predicate_set missing{{tagd::HARD_TAG_HAS, "missing"}};
+			const auto before = missing;
+			TS_ASSERT_EQUALS(first.order_predicates(missing), tagd::TS_NOT_FOUND);
+			TS_ASSERT_EQUALS(first.code(), tagd::TS_NOT_FOUND);
+			TS_ASSERT_EQUALS(missing, before);
+
+			tagd::predicate_set root{{tagd::HARD_TAG_HAS, tagd::HARD_TAG_ENTITY}};
+			TS_ASSERT_EQUALS(first.order_predicates(root), tagd::TAGD_OK);
+		}
+		TS_ASSERT_EQUALS(retained.str(), serialized);
+		TS_ASSERT_EQUALS(retained.relations.begin()->object, "z");
+	}
+
+	void test_rank_order_is_transparent_and_snapshots_survive_moves() {
+		tagd::tagspace::memory db;
+		TS_ASSERT_EQUALS(db.init(), tagd::TAGD_OK);
+		for (const auto id : {"z_rel", "a_rel", "z_object", "a_object", "subject", "context"}) {
+			TS_ASSERT_EQUALS(db.put(tagd::abstract_tag(id, tagd::HARD_TAG_SUB,
+				tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
+		}
+
+		tagd::abstract_tag input("subject");
+		TS_ASSERT_EQUALS(input.relation("a_rel", "a_object", "2"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(input.relation("z_rel", "a_object", "10"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(input.relation("z_rel", "z_object"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(db.put(input), tagd::TAGD_OK);
+
+		tagd::abstract_tag old;
+		TS_ASSERT_EQUALS(db.get(old, "subject"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(old.relations.begin()->relator, "z_rel");
+		TS_ASSERT_EQUALS(old.relations.begin()->object, "z_object");
+		TS_ASSERT_EQUALS(db.put(tagd::referent("zzz", "z_rel", "context")), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(db.put(tagd::referent("aaa", "a_rel", "context")), tagd::TAGD_OK);
+
+		auto ssn = db.get_session();
+		TS_ASSERT_EQUALS(ssn.push_context("context"), tagd::TAGD_OK);
+
+		tagd::abstract_tag encoded;
+		TS_ASSERT_EQUALS(db.get(encoded, "subject", &ssn), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(encoded.relations.begin()->relator, "zzz");
+		TS_ASSERT_EQUALS(db.put(tagd::abstract_tag("z_rel", tagd::HARD_TAG_SUB,
+			"a_rel", tagd::POS_TAG)), tagd::TAGD_OK);
+		tagd::abstract_tag fresh;
+		TS_ASSERT_EQUALS(db.get(fresh, "subject"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(fresh.relations.begin()->relator, "a_rel");
+		TS_ASSERT_EQUALS(old.relations.begin()->relator, "z_rel");
+		TS_ASSERT_EQUALS(fresh, old);
+
+		auto old_key = *old.relations.begin();
+		auto found = fresh.relations.lower_bound(old_key);
+		TS_ASSERT(found != fresh.relations.end());
+		if (found != fresh.relations.end()) {
+			TS_ASSERT_EQUALS(found->relator, old_key.relator);
+			TS_ASSERT_EQUALS(found->object, old_key.object);
+		}
+		TS_ASSERT_EQUALS(db.put(tagd::abstract_tag("z_object", tagd::HARD_TAG_SUB,
+			"a_object", tagd::POS_TAG)), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(db.get(fresh, "subject"), tagd::TAGD_OK);
+
+		auto it = fresh.relations.begin();
+		TS_ASSERT_EQUALS((++it)->object, "a_object");
+		TS_ASSERT_EQUALS(old.relations.begin()->object, "z_object");
+	}
+
+	void test_rank_lookup_observes_other_connections() {
+		const auto file = (root / "ranks.db").string();
+		tagd::tagspace::persistent first, second;
+		TS_ASSERT_EQUALS(first.create_file(file), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(first.put(tagd::abstract_tag("z", tagd::HARD_TAG_SUB,
+			tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(first.put(tagd::abstract_tag("a", tagd::HARD_TAG_SUB,
+			tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(second.open_file(file), tagd::TAGD_OK);
+
+		tagd::abstract_tag subject("subject", tagd::HARD_TAG_SUB,
+			tagd::HARD_TAG_ENTITY, tagd::POS_TAG);
+		TS_ASSERT_EQUALS(subject.relation(tagd::HARD_TAG_HAS, "a"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(subject.relation(tagd::HARD_TAG_HAS, "z"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(first.put(subject), tagd::TAGD_OK);
+
+		tagd::abstract_tag old, fresh;
+		TS_ASSERT_EQUALS(first.get(old, "subject"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(old.relations.begin()->object, "z");
+
+		tagd::rank before, after;
+		TS_ASSERT_EQUALS(first.lookup_rank(before, "z"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(second.put(tagd::abstract_tag("z", tagd::HARD_TAG_SUB,
+			"a", tagd::POS_TAG)), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(first.lookup_rank(after, "z"), tagd::TAGD_OK);
+		TS_ASSERT(before != after);
+		TS_ASSERT_EQUALS(first.get(fresh, "subject"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(fresh.relations.begin()->object, "a");
+		TS_ASSERT_EQUALS(old.relations.begin()->object, "z");
+	}
+
 	void test_tagspace_creates_stack_and_heap_sessions() {
 		tagd::tagspace::memory ts;
 		TS_ASSERT_EQUALS(ts.init(), tagd::TAGD_OK);

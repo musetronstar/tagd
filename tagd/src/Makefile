@@ -3,7 +3,7 @@ CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 CFLAGS ?= -std=c99 -Wall -Wextra -O3
 
 INC =  -I../include
-SRCS = tagd.cc rank.cc utf8.cc url.cc io.cc file.cc event.cc logger.cc hard-tagspace.cc
+SRCS = predicate-set.cc tagd.cc rank.cc utf8.cc url.cc io.cc file.cc event.cc logger.cc hard-tagspace.cc
 CSRCS = ulid.c
 CODES_H = ../include/tagd/codes.h
 HARD_TAGS_H = ../include/tagd/hard-tags.h

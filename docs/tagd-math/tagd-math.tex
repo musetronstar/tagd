@@ -691,14 +691,14 @@ bundle conditions is a separate mathematical construction.
 \end{developmentnote}
 
 \begin{implementationnote}
-Currently, \texttt{predicate::operator<} compares relator and object
-identifiers as strings (including \texttt{relator < p.relator}) and delegates
-modifier comparison to \texttt{cmp\_modifier\_lt} \cite{tagdcc}.
-The planned rank-aware ordering uses the relator's rank, then the object's
-rank; the proposed final tie-breaker is lexicographic comparison of the
-modifier literal, when present. Rank lookup and modifier comparison policy
-remain part of this migration \cite{tagdh}. This aligns predicate indexing
-with the hierarchy. For Alexandrov topologies on $E$ and $T$, continuity of
+The \texttt{predicate\_set} iteration order uses the relator's rank, then
+the object's rank, then the modifier's literal UTF-8 bytes; an absent
+modifier precedes a present value. Operator and modifier-type metadata
+break otherwise equal keys. Canonical ranks are resolved before contextual
+referent encoding and retained privately by returned snapshot values.
+Comparators perform no storage access. Numeric membership equivalence remains
+separate from this literal ordering \cite{tagdcc,tagdh}. This aligns predicate
+iteration with the hierarchy. For Alexandrov topologies on $E$ and $T$, continuity of
 $\pi$ additionally requires an order on $E$ for which
 $(t,q)\leq_E(t',q')$ implies $t\sqsubseteq t'$; sorting alone does not
 establish this condition or local triviality.

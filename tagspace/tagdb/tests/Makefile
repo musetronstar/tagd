@@ -23,7 +23,7 @@ valgrind: TESTER = $(VALGRIND) $(BIN)
 valgrind: debug
 
 build: $(LIBTAGD) $(LIBTAGDB_SQLITE)
-	$(CXXTEST) Tester.h SqliteTester.h -o $(SRC)
+	$(CXXTEST) Tester.h SqliteTester.h CanonicalCacheTester.h -o $(SRC)
 	g++ $(CXXFLAGS) -o $(BIN) $(SRC) $(INC) $(LFLAGS)
 	$(TESTER)
 

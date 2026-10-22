@@ -7,7 +7,8 @@ LIBTAGD = ../lib/libtagd.a
 LFLAGS = -L../lib -ltagd
 CXXTEST = cxxtestgen --error-printer
 
-all: tag_tests domain_tests url_tests event_tests file_tests logger_tests hard_tag_tests
+all: tag_tests predicate_allocation_tests domain_tests url_tests event_tests \
+	file_tests logger_tests hard_tag_tests
 
 debug: CXXFLAGS += -g -O0
 debug: all
@@ -66,6 +67,7 @@ hard_tag_tests: $(LIBTAGD) HardTagTester.h
 	$(HARD_TAG_TESTER)
 
 clean:
+	rm -f predicate-allocation-tester
 	rm -f tester.cpp tester
 	rm -f url-tester.cpp url-tester
 	rm -f event-tester.cpp event-tester
@@ -73,3 +75,8 @@ clean:
 	rm -f file-tester.cpp file-tester
 	rm -f logger-tester.cpp logger-tester
 	rm -f hard-tag-tester.cpp hard-tag-tester
+
+.PHONY: predicate_allocation_tests
+predicate_allocation_tests: $(LIBTAGD) PredicateAllocationTester.cc
+	g++ $(CXXFLAGS) PredicateAllocationTester.cc -o predicate-allocation-tester $(INC) $(LFLAGS)
+	./predicate-allocation-tester

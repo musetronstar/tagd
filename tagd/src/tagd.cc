@@ -231,16 +231,11 @@ const char* predicate::op_c_str() const {
 
 // TODO consider comparing modifier strings numerically using GMP <https://gmplib.org>, etc.
 bool predicate::operator<(const predicate& p) const {
-	return (
-		relator < p.relator
-		|| (
-			(relator == p.relator && object < p.object)
-			|| (
-				object == p.object
-				&& cmp_modifier_lt(*this, p)
-				)
-			)
-		);
+	if (relator != p.relator)
+		return relator < p.relator;
+	if (object != p.object)
+		return object < p.object;
+	return cmp_modifier_lt(*this, p);
 }
 
 bool predicate::operator==(const predicate& p) const {
@@ -441,10 +436,8 @@ bool abstract_tag::operator==(const abstract_tag& rhs) const {
 		&& _super_object == rhs._super_object
 		&& _pos == rhs._pos
 		&& _rank == rhs._rank
-		// std::equal will return true if first is subset of last
-		&& relations.size() == rhs.relations.size()
-		&& std::equal(relations.begin(), relations.end(),
-					rhs.relations.begin())
+		// Snapshot ranks may differ without changing the predicates' semantic values.
+		&& relations == rhs.relations
 	);
 }
 

@@ -407,6 +407,113 @@ class driver_tester : public TAGL::driver {
 class Tester : public CxxTest::TestSuite {
 	public:
 
+	void test_rank_order_survives_get_query_and_dump_round_trip() {
+		tagd::tagspace::memory source;
+		TS_ASSERT_TAGD_OK(source.init());
+		for (const auto id : {"z_rel", "a_rel"}) {
+			TS_ASSERT_TAGD_OK(source.put(tagd::abstract_tag(id, HARD_TAG_SUB,
+				HARD_TAG_RELATOR, tagd::POS_RELATOR)));
+		}
+		for (const auto id : {"z_object", "a_object", "subject"}) {
+			TS_ASSERT_TAGD_OK(source.put(tagd::abstract_tag(id, HARD_TAG_SUB,
+				HARD_TAG_ENTITY, tagd::POS_TAG)));
+		}
+
+		tagd::abstract_tag input("subject");
+		TS_ASSERT_TAGD_OK(input.relation("a_rel", "z_object", "2"));
+		TS_ASSERT_TAGD_OK(input.relation("z_rel", "a_object", "10"));
+		TS_ASSERT_TAGD_OK(input.relation("z_rel", "z_object", "2"));
+		TS_ASSERT_TAGD_OK(source.put(input));
+
+		tagd::abstract_tag loaded;
+		TS_ASSERT_TAGD_OK(source.get(loaded, "subject"));
+
+		const std::string grouped = "z_rel z_object = 2, a_object = 10";
+		TS_ASSERT_DIFFERS(loaded.str().find(grouped), std::string::npos);
+		TS_ASSERT(loaded.str().find(grouped) < loaded.str().find("a_rel z_object"));
+
+		tagd::interrogator query(HARD_TAG_WHAT);
+		query.relations = loaded.relations;
+
+		tagd::tag_set results;
+		TS_ASSERT_TAGD_OK(source.query(results, query));
+		TS_ASSERT_EQUALS(results.size(), 1);
+		for (const auto& result : results) {
+			// Predicate queries retain their existing first-condition result selection.
+			TS_ASSERT_EQUALS(result.relations.size(), 1);
+			TS_ASSERT(result.related("a_rel", "z_object", "2"));
+		}
+
+		tagd::interrogator search(HARD_TAG_WHAT);
+		TS_ASSERT_TAGD_OK(search.relation(HARD_TAG_HAS, HARD_TAG_TERMS, "subject"));
+		results.clear();
+		TS_ASSERT_TAGD_OK(source.query(results, search));
+		TS_ASSERT_EQUALS(results.size(), 1);
+		for (const auto& result : results) {
+			TS_ASSERT_EQUALS(result.relations, loaded.relations);
+			TS_ASSERT_DIFFERS(result.str().find(grouped), std::string::npos);
+		}
+
+		std::ostringstream dump;
+		TS_ASSERT_TAGD_OK(source.dump(dump));
+		TS_ASSERT_DIFFERS(dump.str().find(grouped), std::string::npos);
+		tagd::tagspace::memory restored;
+		TS_ASSERT_TAGD_OK(restored.init());
+		callback_tester reader(&restored);
+		TAGL::driver reload(&restored, &reader);
+		TS_ASSERT_TAGD_OK(reload.execute(dump.str()));
+		TS_ASSERT_TAGD_OK(reader.last_code);
+
+		tagd::abstract_tag round_trip;
+		TS_ASSERT_TAGD_OK(restored.get(round_trip, "subject"));
+		TS_ASSERT_EQUALS(round_trip, loaded);
+		TS_ASSERT_EQUALS(round_trip.str(), loaded.str());
+
+		std::ostringstream again;
+		TS_ASSERT_TAGD_OK(restored.dump(again));
+		TS_ASSERT_EQUALS(again.str(), dump.str());
+	}
+
+	void test_literal_modifiers_survive_context_and_dump_round_trip() {
+		tagd::tagspace::memory source;
+		TS_ASSERT_TAGD_OK(source.init());
+		for (const auto id : {"context", "dog", "first", "second"}) {
+			TS_ASSERT_TAGD_OK(source.put(tagd::abstract_tag(id, HARD_TAG_SUB,
+				HARD_TAG_ENTITY, tagd::POS_TAG)));
+		}
+		TS_ASSERT_TAGD_OK(source.put(tagd::referent("perro", "dog", "context")));
+
+		auto ssn = source.get_session();
+		TS_ASSERT_TAGD_OK(ssn.push_context("context"));
+		callback_tester writer(&source);
+		TAGL::driver input(&source, &writer, &ssn);
+		TS_ASSERT_TAGD_OK(input.execute(">> first _has _message = \"perro\";"));
+		TS_ASSERT_TAGD_OK(writer.last_code);
+		TS_ASSERT_TAGD_OK(input.execute(">> second _has _message = \"dog\";"));
+		TS_ASSERT_TAGD_OK(writer.last_code);
+
+		std::ostringstream dump;
+		TS_ASSERT_TAGD_OK(source.dump(dump));
+		tagd::tagspace::memory restored;
+		TS_ASSERT_TAGD_OK(restored.init());
+		callback_tester reader(&restored);
+		TAGL::driver reload(&restored, &reader);
+		TS_ASSERT_TAGD_OK(reload.execute(dump.str()));
+		TS_ASSERT_TAGD_OK(reader.last_code);
+		TS_ASSERT_EQUALS(reader.cmd_error_calls, 0);
+
+		auto restored_ssn = restored.get_session();
+		TS_ASSERT_TAGD_OK(restored_ssn.push_context("context"));
+		for (const auto id : {"first", "second"}) {
+			const auto literal = std::string_view(id) == "first" ? "perro" : "dog";
+			for (auto session : {&restored_ssn, static_cast<tsp_session_t*>(nullptr)}) {
+				tagd::abstract_tag loaded;
+				TS_ASSERT_TAGD_OK(restored.get(loaded, id, session));
+				TS_ASSERT(loaded.related(HARD_TAG_HAS, HARD_TAG_MESSAGE, literal));
+			}
+		}
+	}
+
 	void test_execution_context_types_are_non_copyable_and_non_movable(void) {
 		TS_ASSERT(!std::is_copy_constructible_v<TAGL::driver>);
 		TS_ASSERT(!std::is_move_constructible_v<TAGL::driver>);

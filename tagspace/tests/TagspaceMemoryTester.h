@@ -10,6 +10,116 @@
 
 class TagspaceMemoryTester : public CxxTest::TestSuite {
 public:
+	void test_modifier_referent_collisions_remain_literal() {
+		for (const auto literal : {"perro", "dog"}) {
+			tagd::tagspace::memory ts;
+			TS_ASSERT_EQUALS(ts.init(), tagd::TAGD_OK);
+			for (const auto id : {"context", "dog", "subject"}) {
+				TS_ASSERT_EQUALS(ts.put(tagd::abstract_tag(id, tagd::HARD_TAG_SUB,
+					tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
+			}
+			for (const auto& ref : {
+				tagd::referent("perro", "dog", "context"),
+				tagd::referent("selected", "subject", "context"),
+				tagd::referent("says", tagd::HARD_TAG_HAS, "context"),
+				tagd::referent("text", tagd::HARD_TAG_MESSAGE, "context")}) {
+				TS_ASSERT_EQUALS(ts.put(ref), tagd::TAGD_OK);
+			}
+
+			auto ssn = ts.get_session();
+			TS_ASSERT_EQUALS(ssn.push_context("context"), tagd::TAGD_OK);
+
+			tagd::abstract_tag input("selected"), resolved;
+			TS_ASSERT_EQUALS(input.relation("says", "text", literal), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(ts.resolve_referents(resolved, input, &ssn), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(resolved.id(), "subject");
+			TS_ASSERT(resolved.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, literal));
+			TS_ASSERT_EQUALS(ts.put(input, &ssn), tagd::TAGD_OK);
+
+			tagd::abstract_tag stored, encoded;
+			TS_ASSERT_EQUALS(ts.get(stored, "subject"), tagd::TAGD_OK);
+			TS_ASSERT(stored.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, literal));
+			TS_ASSERT_EQUALS(ts.get(encoded, "selected", &ssn), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(encoded.id(), "selected");
+			TS_ASSERT(encoded.related("says", "text", literal));
+			TS_ASSERT_EQUALS(ts.get(stored, "subject", &ssn,
+				tagd::F_NO_TRANSFORM_REFERENTS), tagd::TAGD_OK);
+			TS_ASSERT(stored.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, literal));
+
+			TS_ASSERT_EQUALS(ts.put(tagd::abstract_tag("child", tagd::HARD_TAG_SUB,
+				"subject", tagd::POS_TAG)), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(ts.get(encoded, "child", &ssn,
+				tagd::F_INCLUDE_INHERITED_PREDICATES), tagd::TAGD_OK);
+			TS_ASSERT(encoded.related("says", "text", literal));
+
+			tagd::interrogator query(tagd::HARD_TAG_INTERROGATOR);
+			TS_ASSERT_EQUALS(query.relation("says", "text", literal), tagd::TAGD_OK);
+
+			tagd::tag_set results;
+			TS_ASSERT_EQUALS(ts.query(results, query, &ssn), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(results.size(), 1);
+			for (const auto& result : results) {
+				TS_ASSERT_EQUALS(result.id(), "selected");
+				TS_ASSERT(result.related("says", "text", literal));
+			}
+
+			// Neither spelling may match the other through a contextual referent.
+			const auto other = std::string_view(literal) == "perro" ? "dog" : "perro";
+			query.relations.clear();
+			TS_ASSERT_EQUALS(query.relation("says", "text", other), tagd::TAGD_OK);
+			results.clear();
+			TS_ASSERT_EQUALS(ts.query(results, query, &ssn), tagd::TS_NOT_FOUND);
+			TS_ASSERT(results.empty());
+
+			tagd::abstract_tag removal("selected");
+			removal.relations = query.relations;
+			TS_ASSERT_EQUALS(ts.del(removal, &ssn), tagd::TS_NOT_FOUND);
+			TS_ASSERT_EQUALS(ts.get(stored, "subject"), tagd::TAGD_OK);
+			TS_ASSERT(stored.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, literal));
+
+			std::ostringstream dump;
+			TS_ASSERT_EQUALS(ts.dump(dump), tagd::TAGD_OK);
+
+			tagd::abstract_tag expected("subject");
+			TS_ASSERT_EQUALS(expected.relation(tagd::HARD_TAG_HAS,
+				tagd::HARD_TAG_MESSAGE, literal), tagd::TAGD_OK);
+			TS_ASSERT_DIFFERS(dump.str().find(">> " + expected.str()), std::string::npos);
+
+			TS_ASSERT_EQUALS(ts.del(input, &ssn), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(ts.get(stored, "subject"), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(stored.relations.size(), 1);
+			for (const auto& p : stored.relations) {
+				TS_ASSERT(p.modifier.empty());
+			}
+		}
+	}
+
+	void test_url_modifiers_preserve_referent_spellings() {
+		tagd::tagspace::memory ts;
+		TS_ASSERT_EQUALS(ts.init(), tagd::TAGD_OK);
+		for (const auto id : {"context", "dog"}) {
+			TS_ASSERT_EQUALS(ts.put(tagd::abstract_tag(id, tagd::HARD_TAG_SUB,
+				tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
+		}
+		TS_ASSERT_EQUALS(ts.put(tagd::referent("https", "dog", "context")), tagd::TAGD_OK);
+
+		auto ssn = ts.get_session();
+		TS_ASSERT_EQUALS(ssn.push_context("context"), tagd::TAGD_OK);
+
+		tagd::url page("https://example.com/path");
+		TS_ASSERT_EQUALS(page.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "dog"),
+			tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(ts.put(page, &ssn), tagd::TAGD_OK);
+		for (auto session : {&ssn, static_cast<tagd::tagspace_session*>(nullptr)}) {
+			tagd::url loaded;
+			TS_ASSERT_EQUALS(ts.get(loaded, page.id(), session), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(loaded.id(), page.id());
+			TS_ASSERT_EQUALS(loaded.scheme(), "https");
+			TS_ASSERT(loaded.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_SCHEME, "https"));
+			TS_ASSERT(loaded.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "dog"));
+		}
+	}
+
 	void test_subordinate_relator_change_preserves_rank() {
 		tagd::tagspace::memory ts;
 		TS_ASSERT_EQUALS(ts.init(), tagd::TAGD_OK);

@@ -6,6 +6,56 @@
 
 class ConfigTester : public CxxTest::TestSuite {
 public:
+	void test_config_use_alias_is_a_literal_modifier() {
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init(""), tagd::TAGD_OK);
+
+		// Startup aliases belong to _config; one referent/target pair has one context.
+		TS_ASSERT_EQUALS(cfg.put(tagd::referent("mem", tagd::HARD_TAG_DEFAULT,
+			tagd::HARD_TAG_CONFIG)), tagd::TAGD_OK);
+		auto ssn = cfg.get_session();
+		TS_ASSERT_EQUALS(ssn.push_context(tagd::HARD_TAG_CONFIG), tagd::TAGD_OK);
+
+		tagd::abstract_tag change("default_config");
+		TS_ASSERT_EQUALS(change.relation(tagd::HARD_TAG_USE, tagd::HARD_TAG_DEFAULT, "mem"),
+			tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cfg.put(change, &ssn), tagd::TAGD_OK);
+
+		tagd::abstract_tag loaded;
+		TS_ASSERT_EQUALS(cfg.get(loaded, "default_config"), tagd::TAGD_OK);
+		TS_ASSERT(loaded.related(tagd::HARD_TAG_USE, tagd::HARD_TAG_DEFAULT, "mem"));
+
+		tagd::id_string id;
+		TS_ASSERT_EQUALS(cfg.startup_target(id), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cfg.resolve_tagspace("mem", id), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(id, tagd::HARD_TAG_DEFAULT);
+	}
+
+	void test_config_modifier_referent_collisions_remain_literal() {
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init(""), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cfg.put(tagd::abstract_tag("context", tagd::HARD_TAG_SUB,
+			tagd::HARD_TAG_CONFIG, tagd::POS_TAG)), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cfg.put(tagd::referent("prompt", tagd::HARD_TAG_CONFIG_PROMPT,
+			"context")), tagd::TAGD_OK);
+		auto ssn = cfg.get_session();
+		TS_ASSERT_EQUALS(ssn.push_context("context"), tagd::TAGD_OK);
+
+		for (const auto literal : {"prompt", tagd::HARD_TAG_CONFIG_PROMPT.data()}) {
+			tagd::abstract_tag change("default_config");
+			TS_ASSERT_EQUALS(change.relation(tagd::HARD_TAG_HAS, "prompt", literal),
+				tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(cfg.put(change, &ssn), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(cfg.prompt(), literal);
+
+			tagd::abstract_tag loaded;
+			TS_ASSERT_EQUALS(cfg.get(loaded, "default_config", &ssn), tagd::TAGD_OK);
+			TS_ASSERT(loaded.related(tagd::HARD_TAG_HAS, "prompt", literal));
+			TS_ASSERT_EQUALS(cfg.del(change, &ssn), tagd::TAGD_OK);
+			TS_ASSERT(cfg.prompt().empty());
+		}
+	}
+
 	void test_file_profiles_are_selected_after_loading() {
 		tagd::config cfg;
 		TS_ASSERT_EQUALS(cfg.init(""), tagd::TAGD_OK);

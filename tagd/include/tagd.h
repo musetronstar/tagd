@@ -10,6 +10,9 @@
 #include <string>
 #include <string_view>
 #include <set>
+#include <map>
+#include <functional>
+#include <compare>
 #include <vector>
 #include <memory> // for shared_ptr
 #include <atomic>
@@ -26,6 +29,11 @@ using id_string = std::string;     // owning string
 using id_view = std::string_view;  // non-owning read-only <pointer + size> to c-string
 const static id_string EMPTY_ID;     // for returning empty `const id_string&`
 
+/*
+ * TODO(TAGL-types): Replace modifier text and its independent type field
+ * with the shared TAGL value class; type() derives from its active alternative.
+ * See workspace TASKS.d/2026-10-22-TAGL-types-and-modifiers.md.
+ */
 struct predicate {
 	id_string relator;
 	id_string object;
@@ -50,31 +58,285 @@ struct predicate {
 	static bool cmp_modifier_eq(const predicate& rhs, const predicate& lhs); // returns whether rhs == lhs
 	const char* op_c_str() const;
 
-	/*\
-	|*| TODO: Activation and canonical ordering
-	|*| Currently orders by relator, object (string comparison), then modifier as a
-	|*| literal tiebreaker via cmp_modifier_lt. Safe for unranked predicates.
-	|*| Planned: canonical tagspace dump() requires rank-aware ordering — relator and
-	|*| object are tag ids whose ranks, once assigned via tagspace lookup, define the
-	|*| canonical predicate sequence within a predicate_set.
-	|*| modifier is always a literal value and is not rank-promoted.
-	|*| Resolution depends on the same activation/comparator design as abstract_tag::operator<.
-	|*| When and where the rank lookup take place is TBD.
-	\*/
-	/*
-	 * Orders predicates in predicate_set; operator== compares their full contents.
-	 * noexcept not safe: cmp_modifier_lt calls std::stold which throws on malformed numeric strings
-	 */
+	// Numeric comparison remains the membership contract, independently of output order.
 	bool operator<(const predicate& p) const;
 	bool operator==(const predicate& p) const;
 	bool operator!=(const predicate& p) const;
 	bool empty() const;
+	static bool canonical_less(const predicate&, const predicate&);
+
+private:
+	friend class predicate_set;
+	struct order_keys {
+		id_string relator_id, object_id;
+		rank relator_rank, object_rank;
+	};
+	// Values own their immutable ranks; public label edits invalidate the matching key.
+	std::shared_ptr<const order_keys> _order;
 };
 
 std::ostream& operator<<(std::ostream&, const predicate&);
 
-typedef std::set<predicate> predicate_set;
+/*
+ * Iteration uses literal order; membership retains numeric modifier equivalence.
+ * Nodes and const iterators have std::set lifetimes. Indexed string membership
+ * is logarithmic; numeric membership scans only the matching relator/object/operator
+ * group because numeric equivalence is not an interval in literal byte order.
+ */
+class predicate_set {
+public:
+	struct key_compare {
+		bool operator()(const predicate& a, const predicate& b) const {
+			return predicate::canonical_less(a, b);
+		}
+	};
+	using value_compare = key_compare;
+	using value_type = predicate;
+	using key_type = predicate;
+	using allocator_type = std::allocator<predicate>;
+	using size_type = size_t;
+	using difference_type = std::ptrdiff_t;
+	using reference = const predicate&;
+	using const_reference = const predicate&;
+	using pointer = const predicate*;
+	using const_pointer = const predicate*;
+private:
+	using storage = std::set<predicate, key_compare>;
+	storage _values;
+
+	struct iterator_compare {
+		bool operator()(storage::const_iterator a, storage::const_iterator b) const {
+			return predicate::canonical_less(*a, *b);
+		}
+	};
+
+	struct group_compare {
+		bool operator()(const predicate&, const predicate&) const;
+	};
+
+	// Index iterators refer to owned nodes; remove them before erasing or extracting nodes.
+	using candidates = std::set<storage::const_iterator, iterator_compare>;
+	std::map<predicate, candidates, group_compare> _members;
+	using rank_index = std::map<id_string, candidates, std::less<>>;
+	rank_index _relators, _objects;
+
+	void index(storage::const_iterator);
+	void unindex(storage::const_iterator);
+	void rebuild_indexes();
+	predicate lookup_key(const predicate&) const;
+public:
+	using iterator = storage::const_iterator;
+	using const_iterator = iterator;
+	using reverse_iterator = storage::const_reverse_iterator;
+	using const_reverse_iterator = reverse_iterator;
+	using node_type = storage::node_type;
+	struct insert_return_type {
+		iterator position;
+		bool inserted;
+		node_type node;
+	};
+	predicate_set() = default;
+	explicit predicate_set(key_compare compare, const allocator_type& allocator = {})
+		: _values(compare, allocator) {
+	}
+
+	explicit predicate_set(const allocator_type& allocator) : _values(allocator) {
+	}
+
+	predicate_set(const predicate_set&);
+	predicate_set(predicate_set&&) noexcept;
+	predicate_set& operator=(const predicate_set&);
+	predicate_set& operator=(predicate_set&&) noexcept;
+	predicate_set(const predicate_set&, const allocator_type&);
+	predicate_set(predicate_set&&, const allocator_type&) noexcept;
+	template<class Input> predicate_set(Input first, Input last) {
+		insert(first, last);
+	}
+
+	predicate_set(std::initializer_list<predicate> values) {
+		insert(values.begin(), values.end());
+	}
+
+	template<class Input> predicate_set(Input first, Input last, key_compare compare,
+		const allocator_type& allocator = {}) : _values(compare, allocator) {
+		insert(first, last);
+	}
+
+	template<class Input> predicate_set(Input first, Input last, const allocator_type& allocator)
+		: predicate_set(first, last, key_compare{}, allocator) {
+	}
+
+	predicate_set(std::initializer_list<predicate> values, key_compare compare,
+		const allocator_type& allocator = {})
+		: predicate_set(values.begin(), values.end(), compare, allocator) {
+	}
+
+	predicate_set(std::initializer_list<predicate> values, const allocator_type& allocator)
+		: predicate_set(values.begin(), values.end(), key_compare{}, allocator) {
+	}
+
+	predicate_set& operator=(std::initializer_list<predicate> values) {
+		predicate_set replacement(values, get_allocator());
+		swap(replacement);
+		return *this;
+	}
+
+	iterator begin() const noexcept {
+		return _values.begin();
+	}
+
+	iterator end() const noexcept {
+		return _values.end();
+	}
+
+	iterator cbegin() const noexcept {
+		return begin();
+	}
+
+	iterator cend() const noexcept {
+		return end();
+	}
+
+	reverse_iterator rbegin() const noexcept {
+		return _values.rbegin();
+	}
+
+	reverse_iterator rend() const noexcept {
+		return _values.rend();
+	}
+
+	reverse_iterator crbegin() const noexcept {
+		return rbegin();
+	}
+
+	reverse_iterator crend() const noexcept {
+		return rend();
+	}
+
+	bool empty() const noexcept {
+		return _values.empty();
+	}
+
+	size_t size() const noexcept {
+		return _values.size();
+	}
+
+	size_t max_size() const noexcept {
+		return _values.max_size();
+	}
+
+	allocator_type get_allocator() const {
+		return _values.get_allocator();
+	}
+
+	key_compare key_comp() const {
+		return {};
+	}
+
+	value_compare value_comp() const {
+		return {};
+	}
+
+	void clear() noexcept {
+		_members.clear();
+		_relators.clear();
+		_objects.clear();
+		_values.clear();
+	}
+
+	void swap(predicate_set& other) noexcept {
+		_values.swap(other._values);
+		_members.swap(other._members);
+		_relators.swap(other._relators);
+		_objects.swap(other._objects);
+	}
+
+	friend void swap(predicate_set& a, predicate_set& b) noexcept {
+		a.swap(b);
+	}
+
+	iterator find(const predicate&) const;
+	bool contains(const predicate& p) const {
+		return find(p) != end();
+	}
+
+	size_t count(const predicate& p) const {
+		return contains(p) ? 1 : 0;
+	}
+
+	std::pair<iterator, bool> insert(const predicate&);
+	insert_return_type insert(node_type&&);
+	iterator insert(iterator, node_type&&);
+	iterator insert(iterator, const predicate& p) {
+		return insert(p).first;
+	}
+
+	template<class Input> void insert(Input first, Input last) {
+		for (; first != last; ++first) {
+			insert(*first);
+		}
+	}
+
+	void insert(std::initializer_list<predicate> values) {
+		insert(values.begin(), values.end());
+	}
+
+	template<class... Args> std::pair<iterator, bool> emplace(Args&&... args) {
+		return insert(predicate(std::forward<Args>(args)...));
+	}
+
+	template<class... Args> iterator emplace_hint(iterator, Args&&... args) {
+		return emplace(std::forward<Args>(args)...).first;
+	}
+
+	iterator erase(iterator);
+	iterator erase(iterator first, iterator last);
+
+	size_t erase(const predicate&);
+	node_type extract(iterator);
+
+	node_type extract(const predicate& p) {
+		auto it = find(p);
+		return it == end() ? node_type{} : extract(it);
+	}
+
+	void merge(predicate_set&);
+	void merge(predicate_set&& other) {
+		merge(other);
+	}
+
+	iterator lower_bound(const predicate& p) const {
+		return _values.lower_bound(lookup_key(p));
+	}
+
+	iterator upper_bound(const predicate& p) const {
+		return _values.upper_bound(lookup_key(p));
+	}
+
+	std::pair<iterator, iterator> equal_range(const predicate& p) const {
+		return _values.equal_range(lookup_key(p));
+	}
+
+	bool operator==(const predicate_set&) const;
+	std::weak_ordering operator<=>(const predicate_set&) const;
+	// Rebinding is atomic on lookup failure and invalidates iterators only on success.
+	[[nodiscard]] code order(const std::function<code(rank&, id_view)>&);
+	// Context encoding changes displayed labels, never the resolved ordering keys.
+	void transform(const std::function<id_string(const id_string&)>&);
+};
 typedef std::pair<predicate_set::iterator,bool> predicate_pair;
+
+// ADL provides the standard erase_if operation for this user-defined container.
+template<class Predicate> size_t erase_if(predicate_set& values, Predicate pred) {
+	const auto before = values.size();
+	for (auto it = values.begin(); it != values.end();) {
+		if (pred(*it))
+			it = values.erase(it);
+		else
+			++it;
+	}
+	return before - values.size();
+}
 
 // make predicate and insert relator, object, modifier
 void insert_predicate(predicate_set&, id_view, id_view, id_view);

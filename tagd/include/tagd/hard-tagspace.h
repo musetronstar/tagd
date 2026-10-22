@@ -29,6 +29,7 @@ public:
 
 	size_t merge(tag_set&, const tag_set&) = delete;
 
+	using const_tagspace::lookup_rank;
 	[[nodiscard]] rank lookup_rank(id_view id) const override;
 	[[nodiscard]] part_of_speech lookup_pos(id_view id) const override;
 	[[nodiscard]] bool contains(id_view ancestor, id_view descendant) const override;

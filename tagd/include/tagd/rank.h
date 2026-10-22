@@ -76,6 +76,11 @@ class rank {
 		~rank() {}
 		void clear() { _data.clear(); }
 
+		// Capacity counts encoded bytes, matching size(), rather than hierarchy levels.
+		size_t capacity() const noexcept {
+			return _data.capacity();
+		}
+
 		rank& operator=(const rank& rhs) { _data = rhs._data; return *this; }
 		bool operator<(const rank& rhs) const { return _data < rhs._data; }
 		bool operator==(const rank& rhs) const { return _data == rhs._data; }

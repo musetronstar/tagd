@@ -384,6 +384,19 @@ test_server_log "log_level_httagd_error_file_request_code" \
 #	 "GET" "/_/test?c=_file" "" \
 #	 "FILE_TEXT"
 
+# HTTP response formatting must retain rank order despite reversed identifier order.
+foreach {id parent} {
+	z_order_rel _rel a_order_rel _rel
+	z_order_object _entity a_order_object _entity
+} {
+	test "order_declare_$id" "PUT" "/_/$id" ">> $id _sub $parent;" "200 OK"
+}
+test "order_put_subject" "PUT" "/_/order_subject" \
+	{>> order_subject _sub _entity a_order_rel z_order_object z_order_rel a_order_object, z_order_object;} \
+	"200 OK"
+test "order_get_subject" "GET" "/_/order_subject" "" \
+	{z_order_rel z_order_object, a_order_object[\r\n]+a_order_rel z_order_object}
+
 close
 wait
 

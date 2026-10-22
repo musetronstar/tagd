@@ -1,6 +1,8 @@
 #pragma once
 
 #include "TestCommon.h"
+#include <filesystem>
+#include <unistd.h>
 
 class BooleanOccurrenceDatabase : public tagdb::sqlite {
 public:
@@ -9,6 +11,352 @@ public:
 
 class SqliteTester : public CxxTest::TestSuite {
 public:
+	void test_canonical_identity_cache_loads_on_demand() {
+		class database : public tagdb::sqlite {
+		public:
+			using ::tagdb::sqlite::configure_cache;
+			using ::tagdb::sqlite::cache_status;
+		};
+		database db;
+		TS_ASSERT_TAGD_OK(db.init(":memory:"));
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("subject", HARD_TAG_SUB,
+			HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+
+		const auto initial = db.cache_status();
+		tagd::rank rank;
+		TS_ASSERT_TAGD_OK(db.lookup_rank(rank, "subject"));
+		TS_ASSERT_EQUALS(db.cache_status().identity_reads, initial.identity_reads);
+		TS_ASSERT_EQUALS(db.cache_status().predicate_reads, initial.predicate_reads);
+
+		tagd::abstract_tag first, second;
+		TS_ASSERT_TAGD_OK(db.get(first, "subject", nullptr));
+		const auto loaded = db.cache_status();
+		TS_ASSERT_EQUALS(loaded.identity_reads, initial.identity_reads + 1);
+		TS_ASSERT_TAGD_OK(db.get(second, "subject", nullptr));
+		TS_ASSERT_EQUALS(db.cache_status().identity_reads, loaded.identity_reads);
+		TS_ASSERT_EQUALS(first.str(), second.str());
+		TS_ASSERT_EQUALS(first.rank(), rank);
+
+		db.configure_cache(0, 0, std::chrono::minutes(1), std::chrono::steady_clock::now);
+		const auto disabled = db.cache_status().identity_reads;
+		TS_ASSERT_TAGD_OK(db.get(second, "subject", nullptr));
+		TS_ASSERT_TAGD_OK(db.get(second, "subject", nullptr));
+		TS_ASSERT_EQUALS(db.cache_status().identity_reads, disabled + 2);
+		TS_ASSERT_EQUALS(first.str(), second.str());
+		TS_ASSERT_EQUALS(db.cache_status().entries, 0);
+	}
+
+	void test_canonical_identity_cache_invalidation_and_expiry() {
+		class database : public tagdb::sqlite {
+		public:
+			using ::tagdb::sqlite::configure_cache;
+			using ::tagdb::sqlite::cache_status;
+			using ::tagdb::sqlite::exec;
+		};
+		database db;
+		TS_ASSERT_TAGD_OK(db.init(":memory:"));
+		for (const auto id : {"parent", "subject"}) {
+			TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag(id, HARD_TAG_SUB,
+				HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+		}
+		auto now = std::chrono::steady_clock::time_point{};
+		db.configure_cache(4096, 1, std::chrono::seconds(10), [&now] {
+			return now;
+		});
+
+		tagd::abstract_tag original, result;
+		TS_ASSERT_TAGD_OK(db.get(original, "subject", nullptr));
+		TS_ASSERT_TAGD_OK(db.get(result, "parent", nullptr));
+		const auto evicted = db.cache_status().identity_reads;
+		TS_ASSERT_TAGD_OK(db.get(result, "subject", nullptr));
+		TS_ASSERT_EQUALS(db.cache_status().identity_reads, evicted + 1);
+		now += std::chrono::seconds(11);
+		TS_ASSERT_TAGD_OK(db.get(result, "subject", nullptr));
+		TS_ASSERT_EQUALS(db.cache_status().identity_reads, evicted + 2);
+
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("subject", HARD_TAG_SUB,
+			"parent", tagd::POS_TAG), nullptr));
+		TS_ASSERT_TAGD_OK(db.get(result, "subject", nullptr));
+		TS_ASSERT_EQUALS(result.super_object(), "parent");
+		TS_ASSERT_DIFFERS(result.rank(), original.rank());
+		TS_ASSERT_EQUALS(original.super_object(), HARD_TAG_ENTITY);
+
+		// Failed reads must not establish a reusable identity or alter the caller's snapshot.
+		TS_ASSERT_TAGD_OK(db.exec("UPDATE tags SET rank=x'FF' WHERE tag=tid('subject')"));
+		const auto before_error = db.cache_status().identity_reads;
+		const auto saved = result.str();
+		TS_ASSERT_EQUALS(db.get(result, "subject", nullptr), tagd::RANK_ERR);
+		TS_ASSERT_EQUALS(db.get(result, "subject", nullptr), tagd::RANK_ERR);
+		TS_ASSERT_EQUALS(db.cache_status().identity_reads, before_error + 2);
+		TS_ASSERT_EQUALS(result.str(), saved);
+	}
+
+	void test_rank_ordering_pins_snapshot_across_external_commit() {
+		class database : public tagdb::sqlite {
+		public:
+			using ::tagdb::sqlite::configure_cache;
+			using ::tagdb::sqlite::exec;
+		};
+		char pattern[] = "/tmp/tagd-rank-snapshot-XXXXXX";
+		auto* directory = mkdtemp(pattern);
+		TS_ASSERT(directory != nullptr);
+		if (!directory)
+			return;
+		struct cleanup {
+			std::filesystem::path path;
+			~cleanup() {
+				std::filesystem::remove_all(path);
+			}
+		} remove{directory};
+
+		const auto path = (remove.path / "ranks.db").string();
+		database first, second;
+		TS_ASSERT_TAGD_OK(first.init(path));
+		TS_ASSERT_TAGD_OK(first.exec("PRAGMA journal_mode=WAL"));
+		for (const auto id : {"z", "a"}) {
+			TS_ASSERT_TAGD_OK(first.put(tagd::abstract_tag(id, HARD_TAG_SUB,
+				HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+		}
+		TS_ASSERT_TAGD_OK(second.init(path));
+		bool mutate = false;
+		// begin_read samples the clock after pinning, so this write cannot change the active snapshot.
+		first.configure_cache(4096, 10, std::chrono::minutes(1), [&] {
+			if (mutate) {
+				mutate = false;
+				TS_ASSERT_TAGD_OK(second.put(tagd::abstract_tag("z", HARD_TAG_SUB,
+					"a", tagd::POS_TAG), nullptr));
+			}
+			return std::chrono::steady_clock::now();
+		});
+
+		tagd::predicate_set values{{HARD_TAG_HAS, "z"}, {HARD_TAG_HAS, "a"}};
+		TS_ASSERT_TAGD_OK(first.order_predicates(values));
+		TS_ASSERT_EQUALS(values.begin()->object, "z");
+		mutate = true;
+		TS_ASSERT_TAGD_OK(first.order_predicates(values));
+		TS_ASSERT(!mutate);
+		TS_ASSERT_EQUALS(values.begin()->object, "z");
+
+		const auto retained = values;
+		TS_ASSERT_TAGD_OK(first.order_predicates(values));
+		TS_ASSERT_EQUALS(values.begin()->object, "a");
+		first.close();
+		TS_ASSERT_EQUALS(retained.begin()->object, "z");
+	}
+
+	void test_rank_cache_disabled_errors_and_mutation_boundaries() {
+		class database : public tagdb::sqlite {
+		public:
+			using ::tagdb::sqlite::configure_cache;
+			using ::tagdb::sqlite::cache_status;
+			using ::tagdb::sqlite::exec;
+		};
+		database db;
+		TS_ASSERT_TAGD_OK(db.init(":memory:"));
+		for (const auto id : {"z", "a", "subject", "context"}) {
+			TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag(id, HARD_TAG_SUB,
+				HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+		}
+
+		tagd::predicate_set values{{"z", "a", "10"}, {"z", "a", "2"}, {"a", "z"}};
+		const auto predicate_reads = db.cache_status().predicate_reads;
+		db.configure_cache(0, 0, std::chrono::seconds(1), std::chrono::steady_clock::now);
+
+		const auto reads = db.cache_status().rank_reads;
+		TS_ASSERT_TAGD_OK(db.order_predicates(values));
+		TS_ASSERT_EQUALS(db.cache_status().rank_reads, reads + 2);
+		TS_ASSERT_EQUALS(db.cache_status().predicate_reads, predicate_reads);
+		TS_ASSERT_EQUALS(db.cache_status().entries, 0);
+
+		auto uncached = values;
+		db.configure_cache(4096, 10, std::chrono::seconds(60), std::chrono::steady_clock::now);
+		TS_ASSERT_TAGD_OK(db.order_predicates(values));
+
+		const auto warm = db.cache_status().rank_reads;
+		TS_ASSERT_TAGD_OK(db.order_predicates(values));
+		TS_ASSERT_EQUALS(db.cache_status().rank_reads, warm);
+		TS_ASSERT(std::equal(values.begin(), values.end(), uncached.begin(), uncached.end()));
+		TS_ASSERT(db.cache_status().bytes <= 4096);
+
+		tagd::rank r;
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "z"));
+
+		// DDL on this connection does not increment SQLite's total_changes counter.
+		TS_ASSERT_TAGD_OK(db.exec("ALTER TABLE tags RENAME TO hidden_tags"));
+		TS_ASSERT_DIFFERS(db.lookup_rank(r, "z"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(db.cache_status().entries, 0);
+		TS_ASSERT_TAGD_OK(db.exec("ALTER TABLE hidden_tags RENAME TO tags"));
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "z"));
+
+		tagd::abstract_tag subject("subject");
+		TS_ASSERT_TAGD_OK(subject.relation("z", "a", "literal"));
+		TS_ASSERT_TAGD_OK(db.put(subject, nullptr));
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "z"));
+		TS_ASSERT_EQUALS(db.del(tagd::abstract_tag("z"), nullptr), tagd::TS_RELATION_DEPENDENCY);
+		TS_ASSERT_EQUALS(db.cache_status().entries, 0);
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "z"));
+		TS_ASSERT_TAGD_OK(db.put(tagd::referent("alias", "z", "context"), nullptr));
+		TS_ASSERT_EQUALS(db.cache_status().entries, 0);
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "z"));
+		TS_ASSERT_TAGD_OK(db.del(tagd::referent("alias", "z", "context"), nullptr));
+		TS_ASSERT_EQUALS(db.cache_status().entries, 0);
+		TS_ASSERT_EQUALS(db.lookup_rank(r, "later"), tagd::TS_NOT_FOUND);
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("later", HARD_TAG_SUB,
+			HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "later"));
+		TS_ASSERT_TAGD_OK(db.del(tagd::abstract_tag("later"), nullptr));
+		TS_ASSERT_EQUALS(db.lookup_rank(r, "later"), tagd::TS_NOT_FOUND);
+
+		tagd::abstract_tag snapshot;
+		TS_ASSERT_TAGD_OK(db.get(snapshot, "subject", nullptr));
+
+		const auto text = snapshot.str();
+		TS_ASSERT_TAGD_OK(db.exec("UPDATE tags SET rank=x'FF' WHERE tag=tid('a')"));
+
+		const auto before_error = db.cache_status().rank_reads;
+		const auto invalid = db.lookup_rank(r, "a");
+		TS_ASSERT_DIFFERS(invalid, tagd::TAGD_OK);
+		TS_ASSERT_DIFFERS(invalid, tagd::TS_NOT_FOUND);
+		TS_ASSERT_EQUALS(db.lookup_rank(r, "a"), invalid);
+		TS_ASSERT_EQUALS(db.cache_status().rank_reads, before_error + 2);
+		TS_ASSERT_EQUALS(db.get(snapshot, "subject", nullptr), invalid);
+		TS_ASSERT_EQUALS(snapshot.str(), text);
+
+		auto ssn = test_session(db);
+		TS_ASSERT_EQUALS(db.get(snapshot, "subject", &ssn), invalid);
+		TS_ASSERT_EQUALS(ssn.code(), invalid);
+	}
+
+	void test_rank_lookup_cache_bounds_and_invalidation() {
+		class database : public tagdb::sqlite {
+		public:
+			using ::tagdb::sqlite::configure_cache;
+			using ::tagdb::sqlite::cache_status;
+			using ::tagdb::sqlite::exec;
+		};
+		database db;
+		TS_ASSERT_TAGD_OK(db.init(":memory:"));
+		for (const auto id : {"z", "a", "child"}) {
+			TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag(id, HARD_TAG_SUB,
+				id == std::string_view("child") ? "z" : HARD_TAG_ENTITY,
+				tagd::POS_TAG), nullptr));
+		}
+
+		auto now = std::chrono::steady_clock::time_point{};
+		db.configure_cache(4096, 2, std::chrono::seconds(10), [&now] {
+			return now;
+		});
+
+		tagd::rank r, original;
+		const auto reads = db.cache_status().rank_reads;
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, HARD_TAG_ENTITY));
+		TS_ASSERT(r.empty());
+		TS_ASSERT_EQUALS(db.cache_status().rank_reads, reads);
+		TS_ASSERT_TAGD_OK(db.lookup_rank(original, "child"));
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "child"));
+		TS_ASSERT_EQUALS(db.cache_status().rank_reads, reads + 1);
+		TS_ASSERT_EQUALS(db.lookup_rank(r, "missing"), tagd::TS_NOT_FOUND);
+		TS_ASSERT_EQUALS(db.lookup_rank(r, "missing"), tagd::TS_NOT_FOUND);
+		TS_ASSERT_EQUALS(db.cache_status().rank_reads, reads + 2);
+		TS_ASSERT_EQUALS(db.cache_status().entries, 2);
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "child"));
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "a"));
+
+		const auto after_eviction = db.cache_status().rank_reads;
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "child"));
+		TS_ASSERT_EQUALS(db.cache_status().rank_reads, after_eviction);
+		TS_ASSERT_EQUALS(db.lookup_rank(r, "missing"), tagd::TS_NOT_FOUND);
+		TS_ASSERT_EQUALS(db.cache_status().rank_reads, after_eviction + 1);
+		now += std::chrono::seconds(11);
+		TS_ASSERT(db.exists("child"));
+		TS_ASSERT_EQUALS(db.cache_status().entries, 0);
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "child"));
+		TS_ASSERT_EQUALS(db.cache_status().entries, 1);
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("z", HARD_TAG_SUB, "a",
+			tagd::POS_TAG), nullptr));
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "child"));
+		TS_ASSERT(r != original);
+
+		const auto moved = r;
+		TS_ASSERT_TAGD_OK(db.exec("BEGIN"));
+		TS_ASSERT_TAGD_OK(db.exec("UPDATE tags SET rank='temporary' WHERE tag=tid('child')"));
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "child"));
+		TS_ASSERT(r != moved);
+		TS_ASSERT_TAGD_OK(db.exec("ROLLBACK"));
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "child"));
+		TS_ASSERT_EQUALS(r, moved);
+		db.configure_cache(1, 2, std::chrono::seconds(10), [&now] {
+			return now;
+		});
+		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "child"));
+		TS_ASSERT_EQUALS(db.cache_status().entries, 0);
+		TS_ASSERT_EQUALS(db.cache_status().bytes, 0);
+		db.close();
+		TS_ASSERT_EQUALS(db.lookup_rank(r, "child"), tagd::TS_MISUSE);
+		TS_ASSERT_TAGD_OK(db.init(":memory:"));
+		TS_ASSERT_EQUALS(db.lookup_rank(r, "child"), tagd::TS_NOT_FOUND);
+	}
+
+	void test_referent_helpers_preserve_modifier_values_and_types() {
+		class referent_database : public tagdb::sqlite {
+		public:
+			using ::tagdb::sqlite::encode_referents;
+			using ::tagdb::sqlite::decode_referents;
+		};
+		referent_database tdb;
+		TS_ASSERT_TAGD_OK(tdb.init(":memory:"));
+		for (const auto id : {"context", "10"}) {
+			TS_ASSERT_TAGD_OK(tdb.put(tagd::abstract_tag(id, HARD_TAG_SUB,
+				HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+		}
+		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("ten", "10", "context"), nullptr));
+		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("text", HARD_TAG_MESSAGE, "context"), nullptr));
+
+		auto ssn = test_session(tdb);
+		TS_ASSERT_TAGD_OK(ssn.push_context("context"));
+
+		for (const auto type : {tagd::TYPE_INTEGER, tagd::TYPE_FLOAT, tagd::TYPE_STRING}) {
+			tagd::predicate_set canonical, encoded, decoded;
+			canonical.emplace(HARD_TAG_HAS, HARD_TAG_MESSAGE, "10", tagd::OP_GT, type);
+			tdb.encode_referents(encoded, canonical, &ssn);
+			TS_ASSERT_EQUALS(encoded.size(), 1);
+			for (const auto& p : encoded) {
+				TS_ASSERT_EQUALS(p.object, "text");
+				TS_ASSERT_EQUALS(p.modifier, "10");
+				TS_ASSERT_EQUALS(p.opr8r, tagd::OP_GT);
+				TS_ASSERT_EQUALS(p.modifier_type, type);
+			}
+			tdb.decode_referents(decoded, encoded, &ssn);
+			TS_ASSERT_EQUALS(decoded, canonical);
+		}
+
+		tagd::predicate_set literal, decoded;
+		literal.emplace(HARD_TAG_HAS, "text", "ten");
+		tdb.decode_referents(decoded, literal, &ssn);
+		TS_ASSERT_EQUALS(decoded.size(), 1);
+		for (const auto& p : decoded) {
+			TS_ASSERT_EQUALS(p.object, HARD_TAG_MESSAGE);
+			TS_ASSERT_EQUALS(p.modifier, "ten");
+		}
+
+		for (const auto value : {"2", "10"}) {
+			tagd::abstract_tag subject(value == std::string_view("2") ? "small" : "large",
+				HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+			TS_ASSERT_TAGD_OK(subject.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, value));
+			TS_ASSERT_TAGD_OK(tdb.put(subject, nullptr));
+		}
+
+		const tagd::predicate numeric(HARD_TAG_HAS, "text", "2",
+			tagd::OP_GT, tagd::TYPE_INTEGER);
+		tagd::tag_set results;
+		TS_ASSERT_TAGD_OK(tdb.related(results, numeric, &ssn));
+		TS_ASSERT_EQUALS(results.size(), 1);
+		for (const auto& result : results) {
+			TS_ASSERT_EQUALS(result.id(), "large");
+			TS_ASSERT(result.related(HARD_TAG_HAS, "text", "10"));
+		}
+	}
+
 	void test_boolean_occurrence_preserves_declared_pos() {
 		BooleanOccurrenceDatabase tdb;
 		TS_ASSERT_TAGD_OK(tdb.init(":memory:"));
@@ -20,7 +368,9 @@ public:
 			TS_ASSERT_TAGD_OK(tdb.put(tagd::abstract_tag(id, HARD_TAG_SUB, parent, tagd::POS_UNKNOWN), nullptr));
 			TS_ASSERT_EQUALS(tdb.term_pos_occurence(id, nullptr, false), pos);
 			TS_ASSERT_TAGD_OK(tdb.put(tagd::abstract_tag(child, HARD_TAG_SUB, id, tagd::POS_UNKNOWN), nullptr));
-			tagd::tagspace_session ssn([&tdb](tagd::id_view term) { return tdb.exists(term); });
+			tagd::tagspace_session ssn([&tdb](tagd::id_view term) {
+				return tdb.exists(term);
+			});
 			const auto occurrence = tdb.term_pos_occurence(id, &ssn, true);
 			TS_ASSERT(occurrence & pos);
 			TS_ASSERT(occurrence & tagd::POS_SUB_OBJECT);

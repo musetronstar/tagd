@@ -6,6 +6,10 @@
 #include <functional>
 #include <unordered_map>
 #include <utility>
+#include <chrono>
+#include <list>
+#include <map>
+#include <optional>
 
 namespace tagdb {
 
@@ -15,7 +19,12 @@ typedef std::function<tagd::id_string(const tagd::id_string&)> id_transform_func
 
 // each enumerator names one prepared statement; cache key for lazy init
 enum class stmt_t {
+	DATA_VERSION,
+	READ_BEGIN,
+	READ_PIN,
+	READ_ROLLBACK,
 	GET,
+	RANK,
 	EXISTS,
 	TERM_POS,
 	TERM_ID_POS,
@@ -69,6 +78,106 @@ class sqlite: public tagdb {
 		std::string _db_fname;
 
 	private:
+		using cache_clock = std::chrono::steady_clock;
+
+		struct canonical_identity {
+			tagd::id_string sub_relator, super_object;
+			tagd::part_of_speech pos = tagd::POS_UNKNOWN;
+		};
+
+		// Stored columns exclude caller-specific labels, container indexes, and ordering keys.
+		struct canonical_predicate {
+			tagd::id_string relator, object, modifier;
+		};
+
+		struct cache_entry {
+			tagd::id_string id;
+			tagd::rank value;
+			tagd::code status = tagd::TS_NOT_FOUND;
+			size_t bytes = 0;
+			cache_clock::time_point used;
+			std::optional<canonical_identity> identity = std::nullopt;
+			// Disengaged means unloaded; an engaged empty vector is a complete empty result.
+			std::optional<std::vector<canonical_predicate>> predicates = std::nullopt;
+		};
+
+		// A tagspace and its sessions require serialized access, including reads that mutate this cache.
+		std::list<cache_entry> _cache;
+		// Views refer to stable list-node IDs and are erased before the corresponding nodes.
+		std::map<tagd::id_view, std::list<cache_entry>::iterator, std::less<>> _cache_index;
+		size_t _cache_bytes = 0;
+
+		static constexpr size_t DEFAULT_CACHE_BYTES = 256 * 1024;
+		static constexpr size_t DEFAULT_CACHE_ENTRIES = 1024;
+		static constexpr auto DEFAULT_CACHE_IDLE = std::chrono::minutes(5);
+
+		size_t _cache_byte_limit = DEFAULT_CACHE_BYTES;
+		size_t _cache_entry_limit = DEFAULT_CACHE_ENTRIES;
+		cache_clock::duration _cache_idle = DEFAULT_CACHE_IDLE;
+		std::function<cache_clock::time_point()> _cache_now = cache_clock::now;
+
+		size_t _rank_reads = 0, _rank_hits = 0, _predicate_reads = 0, _identity_reads = 0;
+		size_t _identity_hits = 0, _predicate_hits = 0;
+		size_t _referent_reads = 0, _referent_hits = 0;
+
+		unsigned _read_depth = 0, _mutation_depth = 0;
+		bool _read_transaction = false, _cacheable = false;
+		int _cache_data_version = -1;
+		sqlite3_int64 _cache_changes = 0;
+
+		// Per-operation reuse remains independent of the bounded retained cache.
+		std::map<tagd::id_string, std::pair<tagd::code, tagd::rank>, std::less<>> _operation_ranks;
+
+		// Context-specific substitutions are temporary and never enter canonical cache entries.
+		tagd::id_vec _operation_refers_context;
+		std::map<tagd::id_string, std::optional<tagd::id_string>, std::less<>> _operation_refers;
+
+		// Detect commits from other connections; -1 means the version could not be read.
+		int data_version();
+
+		// Reuse SQL for starting, pinning, or releasing a read snapshot.
+		// Each statement key must always identify the same SQL.
+		tagd::code snapshot_statement(stmt_t, const char*);
+
+		// Invalidate retained and per-operation data together so no stale lookup survives.
+		void clear_cache();
+
+		// Admit canonical components within the budget without discarding already loaded components.
+		void retain(cache_entry);
+
+		tagd::code load_identity(canonical_identity&, tagd::rank&, const tagd::id_string&);
+		tagd::code load_predicates(std::vector<canonical_predicate>&,
+			const tagd::id_string&, session*, flags_t);
+
+		tagd::code begin_read();
+
+		// Only the outermost read releases the snapshot; cleanup errors stay on the backend.
+		void end_read();
+
+		// Balance nested reads on every exit path, including failed operations.
+		class read_scope {
+			// The borrowed backend must outlive this scope so its snapshot can be released.
+			sqlite& _owner;
+
+		public:
+			tagd::code status;
+			explicit read_scope(sqlite& owner);
+			~read_scope();
+			read_scope(const read_scope&) = delete;
+			read_scope& operator=(const read_scope&) = delete;
+		};
+
+		class mutation_scope {
+			// The borrowed backend must outlive this guard for invalidation after failed writes too.
+			sqlite& _owner;
+
+		public:
+			explicit mutation_scope(sqlite& owner);
+			~mutation_scope();
+			mutation_scope(const mutation_scope&) = delete;
+			mutation_scope& operator=(const mutation_scope&) = delete;
+		};
+
 		// performing init() operations
 		bool _doing_init = false;
 		bool _create_missing = true;
@@ -96,6 +205,8 @@ class sqlite: public tagdb {
 
 	public:
 		virtual ~sqlite();
+		[[nodiscard]] tagd::code lookup_rank(tagd::rank&, tagd::id_view);
+		[[nodiscard]] tagd::code order_predicates(tagd::predicate_set&);
 
 		// init db file
 		[[nodiscard]] tagd::code init(const std::string&, bool create_missing = true);
@@ -152,6 +263,14 @@ class sqlite: public tagdb {
 		tagd::code dump_uridb_relations(std::ostream& = std::cout);
 
 	protected:
+		struct cache_metrics {
+			size_t entries, bytes, rank_reads, rank_hits, predicate_reads, identity_reads;
+			size_t identity_hits, predicate_hits, referent_reads, referent_hits;
+		};
+		cache_metrics cache_status() const;
+		void configure_cache(size_t bytes, size_t entries,
+			std::chrono::steady_clock::duration idle,
+			std::function<std::chrono::steady_clock::time_point()> now);
 		// returns the part of speech that was inserted or updated, or a duplicate, POS_UNKNOWN on error
 		tagd::part_of_speech put_term(const tagd::id_string&, const tagd::part_of_speech);
 		tagd::part_of_speech term_pos(tagd::id_view, rowid_t*);

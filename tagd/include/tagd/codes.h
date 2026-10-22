@@ -63,6 +63,15 @@ typedef enum {
 |*| order of operations for tagd::predicates
 |*| for operators and data types
 \*/
+/*
+ * TODO(tag-modifiers): Add a tag-valued modifier type with tagspace validation
+ * and contextual referent resolution. Existing primitive types remain literal.
+ * TODO(TAGL-types): Define shared TAGL primitive types and their precedence;
+ * neither variant indices nor enum declaration order define serialized types.
+ * Numeric values are finite only; future _NaN/_infinity tags denote concepts,
+ * not primitive numbers. Use Erlang as the fallback for numeric comparison.
+ * See workspace TASKS.d/2026-10-22-TAGL-types-and-modifiers.md.
+ */
 typedef enum {
 	TYPE_INTEGER,
 	TYPE_FLOAT,

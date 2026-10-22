@@ -50,8 +50,12 @@ inline constexpr std::string_view HARD_TAG_TRUE{"_true"};		/// HARD_TAG_SUB HARD
 inline constexpr std::string_view HARD_TAG_FALSE{"_false"};		/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_FALSE
 
 /*
- * TODO The scanner currently identifies INTEGER and FLOAT *syntactically*.
- * Define these tags representing number when ready/needed
+ * TODO(TAGL-types): Give TAGL primitive types corresponding semantic hard tags.
+ * Add _string, _null, and _tag; consider _boolean above _true and _false.
+ * The scanner currently recognizes numeric syntax without retaining its type.
+ * Activate the numeric declarations below with the shared TAGL value model.
+ * Defer _NaN/_infinity until needed; semantic tags do not admit nonfinite numbers.
+ * See workspace TASKS.d/2026-10-22-TAGL-types-and-modifiers.md.
  */
 //inline constexpr std::string_view HARD_TAG_NUMBER{"_number"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
 //inline constexpr std::string_view HARD_TAG_INTEGER{"_integer"};	/// HARD_TAG_SUB HARD_TAG_NUMBER tagd::POS_TAG

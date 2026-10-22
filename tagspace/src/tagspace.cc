@@ -419,6 +419,18 @@ tagd::code tagspace::persistent::create(const std::string& name) {
 	return create(name, default_home());
 }
 
+tagd::code stored_tagspace::lookup_rank(rank& r, id_view id) const {
+	if (!prepare())
+		return code();
+	return finish(_impl->db.lookup_rank(r, id));
+}
+
+tagd::code stored_tagspace::order_predicates(predicate_set& values) const {
+	if (!prepare())
+		return code();
+	return finish(_impl->db.order_predicates(values));
+}
+
 tagd::code stored_tagspace::resolve_referents(abstract_tag& result,
 	const abstract_tag& input, tagspace_session* ssn) {
 	if (!prepare())

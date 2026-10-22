@@ -40,6 +40,9 @@ protected:
 
 public:
 	~stored_tagspace() override;
+	using const_tagspace::lookup_rank;
+	[[nodiscard]] tagd::code lookup_rank(rank&, id_view) const override;
+	[[nodiscard]] tagd::code order_predicates(predicate_set&) const override;
 	// Sessions borrow this object's address; open storage has a single owner.
 	stored_tagspace(const stored_tagspace&) = delete;
 	stored_tagspace& operator=(const stored_tagspace&) = delete;

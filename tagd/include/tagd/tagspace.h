@@ -113,6 +113,8 @@ public:
 	virtual ~const_tagspace() = default;
 
 	[[nodiscard]] virtual tagd::rank lookup_rank(id_view id) const;
+	[[nodiscard]] virtual tagd::code lookup_rank(rank&, id_view) const;
+	[[nodiscard]] virtual tagd::code order_predicates(predicate_set&) const;
 	[[nodiscard]] virtual part_of_speech lookup_pos(id_view id) const;
 	[[nodiscard]] virtual bool contains(id_view ancestor, id_view descendant) const;
 

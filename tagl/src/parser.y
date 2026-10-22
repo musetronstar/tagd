@@ -746,6 +746,12 @@ object_list ::= object .
 object ::= modified_object .
 object ::= bare_object .
 
+/*
+ * TODO(TAGL-types): Construct shared TAGL values with their primitive types.
+ * Preserve omission versus explicit NULL until PUT applies the command;
+ * bare PUT preserves a value, while explicit NULL clears it.
+ * See workspace TASKS.d/2026-10-22-TAGL-types-and-modifiers.md.
+ */
 %type op { tagd::operator_t }
 modified_object ::= lhs_object(l) op(o) rhs_object(r) .
 {
@@ -755,6 +761,11 @@ modified_object ::= lhs_object(l) op(o) rhs_object(r) .
 lhs_object(o) ::= TAG(T) .
 { o = T; }
 
+/*
+ * TODO(tag-modifiers): Add a tag-valued modifier expression, possibly _tag("id"),
+ * that validates membership in the active tagspace and retains the tag type.
+ * Only that type may undergo referent encoding/decoding; literals must not.
+ */
 rhs_object(o) ::= quantifier(q) .
 { o = q; }
 rhs_object(o) ::= MODIFIER(M) .

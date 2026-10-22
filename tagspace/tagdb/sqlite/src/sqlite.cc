@@ -376,6 +376,7 @@ sqlite::~sqlite() {
 
 
 tagd::code sqlite::init(const std::string& fname, bool create_missing) {
+	mutation_scope mutation(*this);
 	_create_missing = create_missing;
 	_doing_init = true;
 	this->_init(fname);
@@ -873,6 +874,8 @@ tagd::code sqlite::open() {
 }
 
 void sqlite::close() {
+	clear_cache();
+	_cache_data_version = -1;
 	if (_db == nullptr)
 		return;
 
@@ -886,6 +889,9 @@ void sqlite::close() {
 }
 
 tagd::code sqlite::get(tagd::abstract_tag& t, tagd::id_view term, session* ssn, flags_t flags) {
+	read_scope snapshot(*this);
+	if (snapshot.status != tagd::TAGD_OK)
+		return snapshot.status;
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 	tagdb_debug_scope debug_scope(this, ssn);
 	tagd::id_string term_id(term);
@@ -925,30 +931,15 @@ tagd::code sqlite::get(tagd::abstract_tag& t, tagd::id_view term, session* ssn, 
 	}
 	OK_OR_RET_SSN_INT_ERR_ACTION("tagdb:get:decode_referent");
 
-	this->prepare(stmt_t::GET,
-		"SELECT idt(tag), pos, idt(sub_relator), idt(super_object), rank "
-		"FROM tags WHERE tag = tid(?)",
-		"get_tag"
-	);
-	OK_OR_RET_SSN_INT_ERR_ACTION("tagdb:get:get_tag");
-
-	this->bind_text(stmt_t::GET, 1, id.c_str(), "get_tag_id");
-	OK_OR_RET_SSN_INT_ERR_ACTION("tagdb:get:get_tag_id");
-
-	const int F_ID = 0;
-	const int F_POS = 1;
-	const int F_SUB_REL = 2;
-	const int F_SUB_OBJ = 3;
-	const int F_RANK = 4;
-
+	canonical_identity identity;
+	tagd::rank rank;
+	const auto identity_rc = load_identity(identity, rank, id);
 	id_transform_func_t f_transform =
-		(!ssn || (flags & F_NO_TRANSFORM_REFERENTS)) ?  f_passthrough : this->f_encode_referent(ssn);
+		(!ssn || (flags & F_NO_TRANSFORM_REFERENTS)) ? f_passthrough : this->f_encode_referent(ssn);
 
-	sqlite3_stmt *stmt = get_stmt(stmt_t::GET);
-	int s_rc = sqlite3_step(stmt);
-	if (s_rc == SQLITE_ROW) {
-		const std::string tag_id{(const char*) sqlite3_column_text(stmt, F_ID)};
-		auto pos = (tagd::part_of_speech) sqlite3_column_int(stmt, F_POS);
+	if (identity_rc == tagd::TAGD_OK) {
+		const auto& tag_id = id;
+		const auto pos = identity.pos;
 		tagd::id_string rebuilt_id;
 		if (pos == tagd::POS_URL) {
 			// convert hduri to url
@@ -962,15 +953,19 @@ tagd::code sqlite::get(tagd::abstract_tag& t, tagd::id_view term, session* ssn, 
 
 		tagd::abstract_tag semantic(
 			rebuilt_id,
-			f_transform((const char*) sqlite3_column_text(stmt, F_SUB_REL)),
-			f_transform((const char*) sqlite3_column_text(stmt, F_SUB_OBJ)),
+			f_transform(identity.sub_relator),
+			f_transform(identity.super_object),
 			pos
 		);
-		tagd::rank rank = make_rank((const char*) sqlite3_column_text(stmt, F_RANK));
 		tagd::abstract_tag populated =
 			rank.empty() ? std::move(semantic) : tagd::abstract_tag(semantic, rank);
 
-		this->get_relations(populated.relations, id, ssn, flags);
+		const auto relations_rc = this->get_relations(populated.relations, id, ssn, flags);
+		// An empty relation set is valid; unresolved components in a nonempty set are not.
+		if (relations_rc != tagd::TAGD_OK
+			&& !(relations_rc == tagd::TS_NOT_FOUND && populated.relations.empty())) {
+			RET_SSN_CODE(relations_rc);
+		}
 		OK_OR_RET_SSN_INT_ERR_ACTION("tagdb:get:get_relations");
 
 		// if id was transformed via referent, add a _refers_to the orignal id
@@ -978,17 +973,19 @@ tagd::code sqlite::get(tagd::abstract_tag& t, tagd::id_view term, session* ssn, 
 		// universally and programmatically (the id will be easily recognizable
 		// as a referent due to the presence of a _refers_to predicate)
 		if (!(flags & F_NO_TRANSFORM_REFERENTS)) {
-			// TODO(cpp23-return-contracts): check whether failure to add _refers_to
-			// should make this get() fail. It is currently ignored.
-			if (id != populated.id())
-				(void)populated.relation(HARD_TAG_REFERS_TO, id);
+			if (id != populated.id()) {
+				tagd::predicate_set marker{{HARD_TAG_REFERS_TO, id}};
+				auto rc = order_predicates(marker);
+				if (rc != tagd::TAGD_OK)
+					return rc;
+				populated.relations.insert(marker.begin(), marker.end());
+			}
 		}
 
 		t = std::move(populated);
 
-	} else if (s_rc == SQLITE_ERROR) {
-		this->ferror(tagd::TS_INTERNAL_ERR, "tagdb:get:get_tag_step failed: %s", sqlite3_errmsg(_db));
-		RET_SSN_FERROR(tagd::TS_INTERNAL_ERR, "tagdb:get:get_tag_step error for id: %s", id.c_str());
+	} else if (identity_rc != tagd::TS_NOT_FOUND) {
+		RET_SSN_CODE(identity_rc);
 	} else {
 		if (term_pos & tagd::POS_REFERS) {
 			RET_SSN_FERROR(tagd::TS_AMBIGUOUS,
@@ -1007,6 +1004,9 @@ tagd::code sqlite::get(tagd::abstract_tag& t, tagd::id_view term, session* ssn, 
 }
 
 tagd::code sqlite::get(tagd::url& get_url, tagd::id_view id, session* ssn, flags_t flags) {
+	read_scope snapshot(*this);
+	if (snapshot.status != tagd::TAGD_OK)
+		return snapshot.status;
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 	tagd::id_string owned_id(id);
 
@@ -1031,7 +1031,68 @@ tagd::code sqlite::get(tagd::url& get_url, tagd::id_view id, session* ssn, flags
 	RET_SSN_CODE(tagd::TAGD_OK);
 }
 
-tagd::code sqlite::get_relations(tagd::predicate_set& P, const tagd::id_string& id, session *ssn, flags_t flags) {
+tagd::code sqlite::get_relations(tagd::predicate_set& P, const tagd::id_string& id,
+	session* ssn, flags_t flags) {
+	// Inherited results include ancestor rows and masking, not complete direct assertions.
+	const bool direct = !(flags & F_INCLUDE_INHERITED_PREDICATES);
+	std::optional<cache_entry> entry;
+	std::vector<canonical_predicate> rows;
+	bool loaded = false;
+
+	// If no rank/identity entry fits the budget, direct rows bypass admission too.
+	if (direct && _cacheable) {
+		if (auto found = _cache_index.find(id); found != _cache_index.end()) {
+			auto it = found->second;
+			if (it->predicates) {
+				++_predicate_hits;
+				for (const auto& p : *it->predicates) {
+					P.emplace(p.relator, p.object, p.modifier);
+				}
+				it->used = _cache_now();
+				_cache.splice(_cache.begin(), _cache, it);
+				loaded = true;
+			} else if (it->status == tagd::TAGD_OK) {
+				// Rank resolution can evict this entry; retain an owned admission candidate.
+				entry = *it;
+			}
+		}
+	}
+
+	if (!loaded) {
+		auto rc = load_predicates(rows, id, ssn, flags);
+		if (rc != tagd::TAGD_OK)
+			return rc;
+		for (const auto& p : rows) {
+			P.emplace(p.relator, p.object, p.modifier);
+		}
+	}
+
+	if (!P.empty()) {
+		auto rc = order_predicates(P);
+		if (rc != tagd::TAGD_OK)
+			return rc;
+	}
+
+	if (entry) {
+		// Publish only complete direct rows after successful loading and rank resolution.
+		entry->predicates = std::move(rows);
+		entry->used = _cache_now();
+		retain(std::move(*entry));
+	}
+
+	// GET treats this sentinel with an empty set as a successful tag with no predicates.
+	if (P.empty())
+		return tagd::TS_NOT_FOUND;
+
+	id_transform_func_t f_transform =
+		(!ssn || (flags & F_NO_TRANSFORM_REFERENTS)) ? f_passthrough : this->f_encode_referent(ssn);
+	P.transform(f_transform);
+	return tagd::TAGD_OK;  // don't set session code on non-public methods
+}
+
+tagd::code sqlite::load_predicates(std::vector<canonical_predicate>& rows,
+	const tagd::id_string& id, session* ssn, flags_t flags) {
+	++_predicate_reads;
 
 	const bool inherited = flags & F_INCLUDE_INHERITED_PREDICATES;
 	const auto statement = inherited ? stmt_t::GET_INHERITED_RELATIONS : stmt_t::GET_RELATIONS;
@@ -1066,9 +1127,6 @@ tagd::code sqlite::get_relations(tagd::predicate_set& P, const tagd::id_string& 
 	const int F_OBJECT = 1;
 	const int F_MODIFIER = 2;
 
-	id_transform_func_t f_transform =
-		(!ssn || (flags & F_NO_TRANSFORM_REFERENTS)) ?  f_passthrough : this->f_encode_referent(ssn);
-
 	int s_rc;
 	/*
 	 * TODO: reconcile child predicate masking with Alexandrov topology/MLTT
@@ -1081,28 +1139,24 @@ tagd::code sqlite::get_relations(tagd::predicate_set& P, const tagd::id_string& 
 	while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
 		const tagd::id_string relator((const char*) sqlite3_column_text(stmt, F_RELATOR));
 		const tagd::id_string object((const char*) sqlite3_column_text(stmt, F_OBJECT));
-		// Resolve canonical keys before referent encoding can change their spelling.
+		// Mask by canonical IDs before referent encoding can change their spelling.
 		if (inherited && !seen.emplace(relator, object).second)
 			continue;
-		auto p = tagd::predicate(
-			f_transform(relator),
-			f_transform(object)
-		);
+
+		canonical_predicate p{relator, object, {}};
 		if (sqlite3_column_type(stmt, F_MODIFIER) != SQLITE_NULL) {
-			p.modifier = f_transform( (const char*) sqlite3_column_text(stmt, F_MODIFIER) );
+			p.modifier = (const char*) sqlite3_column_text(stmt, F_MODIFIER);
 		}
-		P.insert(p);
+		rows.push_back(std::move(p));
 	}
 
-	if (s_rc == SQLITE_ERROR) {
+	if (s_rc != SQLITE_DONE) {
 		this->ferror(tagd::TS_INTERNAL_ERR, "tagdb:get_relations:step failed: %s", sqlite3_errmsg(_db));
 		RET_SSN_FERROR(tagd::TS_INTERNAL_ERR, "tagdb:get_relations:step error for id: %s", id.c_str());
 	}
 
-	if (P.empty())
-		return tagd::TS_NOT_FOUND;
-
-	return tagd::TAGD_OK;  // don't set session code on non-public methods
+	sqlite3_reset(stmt);
+	return tagd::TAGD_OK;
 }
 
 tagd::part_of_speech sqlite::term_pos(tagd::id_view id, rowid_t *term_id) {
@@ -1171,6 +1225,12 @@ tagd::part_of_speech sqlite::term_id_pos(rowid_t term_id, std::string *term) {
 }
 
 tagd::part_of_speech sqlite::pos(tagd::id_view id, session *ssn, flags_t flags) {
+	read_scope snapshot(*this);
+	if (snapshot.status != tagd::TAGD_OK) {
+		if (ssn)
+			ssn->code(snapshot.status);
+		return tagd::POS_UNKNOWN;
+	}
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 	tagd::id_string term(id);
 
@@ -1222,6 +1282,23 @@ tagd::code sqlite::refers(tagd::id_string &refers, const tagd::id_string& refers
 	assert(!refers_to.empty());
 	if(!ssn || ssn->context().empty()) return tagd::TS_NOT_FOUND;
 
+	const bool memoize = _read_depth && !_mutation_depth;
+	if (memoize) {
+		// Nested calls can use another session; equal context contents have equal substitution rules.
+		if (_operation_refers_context != ssn->context()) {
+			_operation_refers.clear();
+			_operation_refers_context = ssn->context();
+		}
+		if (auto found = _operation_refers.find(refers_to); found != _operation_refers.end()) {
+			++_referent_hits;
+			if (!found->second)
+				return tagd::TS_NOT_FOUND;
+
+			refers = *found->second;
+			return tagd::TAGD_OK;
+		}
+	}
+
 	for (auto it = ssn->context().rbegin(); it != ssn->context().rend(); ++it) {
 		this->prepare(stmt_t::REFERS,
 			"SELECT idt(refers) "
@@ -1246,16 +1323,22 @@ tagd::code sqlite::refers(tagd::id_string &refers, const tagd::id_string& refers
 		const int F_REFERS = 0;
 
 		sqlite3_stmt *stmt = get_stmt(stmt_t::REFERS);
+		++_referent_reads;
 		int s_rc = sqlite3_step(stmt);
 		if (s_rc == SQLITE_ROW) {
 			refers = (const char *) sqlite3_column_text(stmt, F_REFERS);
+			sqlite3_reset(stmt);
+			if (memoize)
+				_operation_refers.emplace(refers_to, refers);
 			return tagd::TAGD_OK;
-		} else if (s_rc == SQLITE_ERROR) {
+		} else if (s_rc != SQLITE_DONE) {
 			return this->ferror(tagd::TS_INTERNAL_ERR, "refers failed: %s", sqlite3_errmsg(_db));
-			OK_OR_RET_SSN_INT_ERR_ACTION("tagdb:refers:step");
 		}
+		sqlite3_reset(stmt);
 	}
 
+	if (memoize)
+		_operation_refers.emplace(refers_to, std::nullopt);
 	return tagd::TS_NOT_FOUND;
 }
 
@@ -1305,6 +1388,9 @@ tagd::code sqlite::refers_to(tagd::id_string &refers_to, const tagd::id_string& 
  * on error, error set and returns false
  */
 bool sqlite::exists(tagd::id_view id, flags_t flags) {
+	read_scope snapshot(*this);
+	if (snapshot.status != tagd::TAGD_OK)
+		return false;
 	if (!(flags & F_NO_RESET)) this->reset(nullptr);
 	tagd::id_string term(id);
 
@@ -1330,6 +1416,7 @@ bool sqlite::exists(tagd::id_view id, flags_t flags) {
 
 // tagd::TS_NOT_FOUND returned if destination undefined
 tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t flags) {
+	mutation_scope mutation(*this);
 	// Internal write reads must describe stored assertions, not inherited values.
 	flags &= ~F_INCLUDE_INHERITED_PREDICATES;
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
@@ -1463,6 +1550,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t 
 }
 
 tagd::code sqlite::put(const tagd::url& u, session *ssn, flags_t flags) {
+	mutation_scope mutation(*this);
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 
 	if (!u.ok())
@@ -1480,6 +1568,7 @@ tagd::code sqlite::put(const tagd::url& u, session *ssn, flags_t flags) {
 }
 
 tagd::code sqlite::put(const tagd::referent& r, session *ssn, flags_t flags) {
+	mutation_scope mutation(*this);
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 
 	RET_SSN_CODE(this->insert_referent(r, ssn, flags));
@@ -1503,6 +1592,7 @@ void tag_affected(std::set<tagd::id_string>& terms_affected, const tagd::abstrac
 }
 
 tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags) {
+	mutation_scope mutation(*this);
 	// Inherited predicates are read results, never local deletion targets.
 	flags &= ~F_INCLUDE_INHERITED_PREDICATES;
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
@@ -1581,7 +1671,13 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags)
 		this->delete_fts_tag(del_tag.id());
 		OK_OR_ROLLBACK_RET_SSN_INT_ERR_ACTION("tagdb:del:delete_fts_tag");
 
-		this->delete_tag(del_tag.id(), ssn);
+		const auto deleted = this->delete_tag(del_tag.id(), ssn);
+		if (deleted != tagd::TAGD_OK) {
+			// Preserve the failure and undo preceding deletes even without a session.
+			this->finalize();
+			this->exec("ROLLBACK");
+			RET_SSN_CODE(deleted);
+		}
 		OK_OR_ROLLBACK_RET_SSN_INT_ERR_ACTION("tagdb:del:delete_tag");
 
 		// referents affected
@@ -1646,6 +1742,7 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags)
 }
 
 tagd::code sqlite::del(const tagd::url& u, session *ssn, flags_t flags) {
+	mutation_scope mutation(*this);
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 
 	if (!u.ok())
@@ -1663,6 +1760,7 @@ tagd::code sqlite::del(const tagd::url& u, session *ssn, flags_t flags) {
 }
 
 tagd::code sqlite::del(const tagd::referent& r, session *ssn, flags_t flags) {
+	mutation_scope mutation(*this);
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 
 	sqlite3_stmt *stmt = nullptr;
@@ -2058,6 +2156,10 @@ tagd::code sqlite::delete_tag(const tagd::id_string& id, session *ssn) {
 		return tagd::TAGD_OK;
 	} else if (s_rc == SQLITE_CONSTRAINT) {
 		TAGDB_LOG_DEBUG( "SQLITE_CONSTRAINT: " << sqlite3_errmsg(_db) << std::endl );
+		// Sessions are optional; dependency failures must still permit rollback.
+		if (!ssn)
+			return this->ferror(tagd::TS_RELATION_DEPENDENCY,
+				"cannot delete tag with dependencies: %s", id.c_str());
 		// set error for cause of FK constraint failure
 		this->term_pos_occurence(id, ssn, true);
 
@@ -2520,9 +2622,11 @@ tagd::code sqlite::insert_relations(const tagd::abstract_tag& t, flags_t flags) 
 		OK_OR_RET_ERR();
 
 		/*
-		 * TODO: distinguish an absent (NULL) modifier from explicit empty text
-		 * throughout TAGL parsing, predicate types, storage, and serialization.
-		 * Both currently arrive here as an empty string; bare PUT must not erase data.
+		 * TODO(TAGL-types): Persist TAGL type and value separately from PUT intent.
+		 * Preserve on bare PUT, clear on explicit NULL, and retain empty strings.
+		 * Replace the pre-beta representation directly; no compatibility migration.
+		 * Both absent and empty currently arrive here as an empty string.
+		 * See workspace TASKS.d/2026-10-22-TAGL-types-and-modifiers.md.
 		 */
 		if (it->modifier.empty()) {
 			this->bind_null(stmt_t::INSERT_RELATIONS, 4, "insert NULL modifier");
@@ -2708,15 +2812,15 @@ void sqlite::encode_referent(tagd::id_string &to, const tagd::id_string &from, s
 	to = from;
 }
 
-void sqlite::encode_referents(tagd::predicate_set&to, const tagd::predicate_set&from, session* ssn) {
-	for (auto it = from.begin(); it != from.end(); ++it) {
-		tagd::predicate p;
-		this->encode_referent(p.relator, it->relator, ssn);
-		this->encode_referent(p.object, it->object, ssn);
-		if (!it->modifier.empty())
-			this->encode_referent(p.modifier, it->modifier, ssn);
-		to.insert(p);
-	}
+/*
+ * TODO(tag-modifiers): Modifiers must not undergo referent encoding/decoding
+ * until modifier types are extended with a tag type. Only that future type
+ * may resolve referents; existing literal types must retain their values.
+ */
+void sqlite::encode_referents(tagd::predicate_set& to, const tagd::predicate_set& from, session* ssn) {
+	auto encoded = from;
+	encoded.transform(this->f_encode_referent(ssn));
+	to.insert(encoded.begin(), encoded.end());
 }
 
 tagd::abstract_tag sqlite::encode_referents(const tagd::abstract_tag& from, session* ssn) {
@@ -2761,9 +2865,6 @@ void sqlite::decode_referents(tagd::predicate_set& to, const tagd::predicate_set
 		tagd::predicate p = *it; // retain type, opr8r
 		this->decode_referent(p.relator, it->relator, ssn);
 		this->decode_referent(p.object, it->object, ssn);
-		// TODO only modifiers of type TAG should be decoded (not primitive numbers, empty strings, etc.)
-		if (!it->modifier.empty())
-			this->decode_referent(p.modifier, it->modifier, ssn);
 		to.insert(p);
 	}
 }
@@ -2811,17 +2912,17 @@ tagd::interrogator sqlite::decode_referents(const tagd::interrogator& from, sess
 }
 
 tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const tagd::id_string& sup, session* ssn, flags_t flags) {
-	tagd::predicate p;
+	read_scope snapshot(*this);
+	if (snapshot.status != tagd::TAGD_OK)
+		return snapshot.status;
+	tagd::predicate p = rel;
 	tagd::id_string super_object;
 	if (!ssn || (flags & F_NO_TRANSFORM_REFERENTS)) {
-		p = rel;
 		super_object = sup;
 	} else {
 		this->decode_referent(super_object, sup, ssn);
 		this->decode_referent(p.relator, rel.relator, ssn);
 		this->decode_referent(p.object, rel.object, ssn);
-		this->decode_referent(p.modifier, rel.modifier, ssn);
-		p.opr8r = rel.opr8r;
 	}
 
 	int pos_i = 0;  // binding position
@@ -2943,16 +3044,20 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 			rank.empty() ? std::move(semantic) : tagd::abstract_tag(semantic, rank);
 
 		auto pred = tagd::predicate(
-			f_transform( (const char*) sqlite3_column_text(stmt, F_RELATOR) ),
-			f_transform( (const char*) sqlite3_column_text(stmt, F_OBJECT) )
+			(const char*) sqlite3_column_text(stmt, F_RELATOR),
+			(const char*) sqlite3_column_text(stmt, F_OBJECT)
 		);
 
 		if (sqlite3_column_type(stmt, F_MODIFIER) != SQLITE_NULL) {
-			pred.modifier = f_transform( (const char*) sqlite3_column_text(stmt, F_MODIFIER) );
+			pred.modifier = (const char*) sqlite3_column_text(stmt, F_MODIFIER);
 		}
 		// TODO(cpp23-return-contracts): handle relation() failure when loading rows.
 		// It is currently ignored, so an invalid relation can be omitted.
 		(void)populated.relation(pred);
+		auto ordered = order_predicates(populated.relations);
+		if (ordered != tagd::TAGD_OK)
+			return ordered;
+		populated.relations.transform(f_transform);
 
 		TAGDB_LOG_DEBUG( "related R.insert: " << populated << std::endl );
 
@@ -2970,6 +3075,9 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 }
 
 tagd::code sqlite::get_children(tagd::tag_set& R, const tagd::id_string& super_object, session *ssn, flags_t flags) {
+	read_scope snapshot(*this);
+	if (snapshot.status != tagd::TAGD_OK)
+		return snapshot.status;
 	this->prepare(stmt_t::GET_CHILDREN,
 		"SELECT idt(tag), idt(sub_relator), idt(super_object), pos, rank "
 		"FROM tags WHERE super_object = tid(?) "
@@ -3027,6 +3135,9 @@ tagd::code sqlite::get_children(tagd::tag_set& R, const tagd::id_string& super_o
 }
 
 tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& intr) {
+	read_scope snapshot(*this);
+	if (snapshot.status != tagd::TAGD_OK)
+		return snapshot.status;
 	TAGDB_LOG_DEBUG( "sqlite::query: " << intr << std::endl );
 
 	tagd::id_string refers, refers_to, context;
@@ -3196,6 +3307,11 @@ tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& i
 			(const char*) sqlite3_column_text(stmt, F_CONTEXT)
 		);
 
+		auto ordered = order_predicates(r.relations);
+		if (ordered != tagd::TAGD_OK) {
+			sqlite3_finalize(stmt);
+			return ordered;
+		}
 		auto pr = R.insert(r);
 		assert( pr.second );
 	}
@@ -3211,6 +3327,9 @@ tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& i
 }
 
 tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& q, session *ssn, flags_t flags) {
+	read_scope snapshot(*this);
+	if (snapshot.status != tagd::TAGD_OK)
+		return snapshot.status;
 	// Full-text search loads matches through GET; query results remain direct.
 	flags &= ~F_INCLUDE_INHERITED_PREDICATES;
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
@@ -3245,7 +3364,13 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& q, session 
 
 	size_t n = 0;
 	tagd::tag_set S;  // related per predicate
-	for (auto p : intr.relations) {
+	/*
+	 * Query intersection retains predicates from its first condition. Preserve
+	 * semantic condition order independently of the returned snapshot's rank order.
+	 */
+	std::vector<tagd::predicate> conditions(intr.relations.begin(), intr.relations.end());
+	std::sort(conditions.begin(), conditions.end());
+	for (const auto& p : conditions) {
 		S.clear();
 
 		if (p.object == HARD_TAG_TERMS) {
@@ -3282,6 +3407,9 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& q, session 
 }
 
 tagd::code sqlite::search(tagd::tag_set& R, const std::string &terms, flags_t flags) {
+	read_scope snapshot(*this);
+	if (snapshot.status != tagd::TAGD_OK)
+		return snapshot.status;
 	//TODO use the id (who, what, when, where, why, how_many...)
 	// to distinguish types of queries
 
@@ -3471,6 +3599,9 @@ tagd::code sqlite::dump_terms(std::ostream& os) {
 }
 
 tagd::code sqlite::dump(std::ostream& os) {
+	read_scope snapshot(*this);
+	if (snapshot.status != tagd::TAGD_OK)
+		return snapshot.status;
 	this->reset(nullptr);
 
 	/*
@@ -3563,6 +3694,12 @@ tagd::code sqlite::dump(std::ostream& os) {
 
 		if (t == nullptr || t->id() != id) {
 			if (t != nullptr) {
+				auto ordered = order_predicates(t->relations);
+				if (ordered != tagd::TAGD_OK) {
+					delete t;
+					sqlite3_finalize(stmt);
+					return ordered;
+				}
 				os << ">> " << *t << std::endl << std::endl;
 				delete t;
 			}
@@ -3589,6 +3726,12 @@ tagd::code sqlite::dump(std::ostream& os) {
 	}
 
 	if (t != nullptr) {
+		auto ordered = order_predicates(t->relations);
+		if (ordered != tagd::TAGD_OK) {
+			delete t;
+			sqlite3_finalize(stmt);
+			return ordered;
+		}
 		os << ">> " << *t << std::endl;
 		delete t;
 	}
@@ -3768,6 +3911,8 @@ tagd::code sqlite::child_ranks(tagd::rank_set& R, const tagd::id_string& super_o
 }
 
 tagd::code sqlite::exec(const char *sql, const char *label) {
+	// Internal SQL can mutate schema or data without a public PUT/DELETE call.
+	mutation_scope mutation(*this);
 	// ROLLBACK must execute even while the triggering operation's error is recorded.
 	auto rc = this->open();
 	if (rc != tagd::TAGD_OK)

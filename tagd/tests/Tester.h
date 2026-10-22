@@ -105,6 +105,297 @@ inline tagd::relator make_test_relator(tagd::id_view id, tagd::id_view super_obj
 class Tester : public CxxTest::TestSuite {
 	public:
 
+	void test_predicate_indexes_follow_node_and_value_lifetimes() {
+		tagd::predicate_set values{{"r", "o", "1"}, {"r", "o", "2"}, {"s", "o"}};
+		auto resolve = [](tagd::rank& r, tagd::id_view id) {
+			return r.init(id == "r" ? "a" : id == "s" ? "b" : "c");
+		};
+		TS_ASSERT_TAGD_OK(values.order(resolve));
+
+		// Copies must index their own nodes, even after the original nodes disappear.
+		tagd::predicate_set copy(values, values.get_allocator());
+		values.clear();
+		TS_ASSERT(copy.contains({"r", "o", "1"}));
+		TS_ASSERT_EQUALS(copy.lower_bound({"r", "o", "2"})->modifier, "2");
+
+		auto node = copy.extract(tagd::predicate("r", "o", "1"));
+		const auto* address = &node.value();
+		node.value().modifier = "3";
+
+		auto inserted = copy.insert(std::move(node));
+		TS_ASSERT(inserted.inserted);
+		TS_ASSERT_EQUALS(&*inserted.position, address);
+		TS_ASSERT(!copy.contains({"r", "o", "1"}));
+		TS_ASSERT(copy.contains({"r", "o", "3"}));
+
+		values = copy;
+
+		tagd::predicate_set moved(std::move(copy), values.get_allocator());
+		copy.emplace("new", "object");
+		TS_ASSERT(!moved.contains({"new", "object"}));
+		TS_ASSERT_EQUALS(values, moved);
+
+		copy = std::move(moved);
+		moved.emplace("fresh", "object");
+		TS_ASSERT_EQUALS(copy, values);
+		TS_ASSERT(!copy.contains({"fresh", "object"}));
+
+		auto first = copy.begin();
+		auto last = std::next(first, 2);
+		copy.erase(first, last);
+		TS_ASSERT_EQUALS(copy.size(), 1);
+		TS_ASSERT(!copy.contains({"r", "o", "3"}));
+		TS_ASSERT(copy.contains({"s", "o"}));
+
+		copy.swap(values);
+		TS_ASSERT(copy.contains({"r", "o", "3"}));
+		TS_ASSERT_EQUALS(values.size(), 1);
+
+		copy.transform([](const auto& id) {
+			return "encoded_" + id;
+		});
+		TS_ASSERT(!copy.contains({"r", "o", "3"}));
+		TS_ASSERT(copy.contains({"encoded_r", "encoded_o", "3"}));
+	}
+
+	void test_predicate_membership_keeps_numeric_and_empty_contracts() {
+		tagd::predicate_set values;
+		values.emplace("r", "o", "2", tagd::OP_EQ, tagd::TYPE_INTEGER);
+		values.emplace("r", "o", "10", tagd::OP_EQ, tagd::TYPE_INTEGER);
+		values.emplace("r", "o", "2", tagd::OP_GT, tagd::TYPE_INTEGER);
+		values.emplace("r", "o", "2");
+		values.emplace("r", "o", "");
+
+		const tagd::predicate numeric("r", "o", "02.0", tagd::OP_EQ, tagd::TYPE_FLOAT);
+		TS_ASSERT_EQUALS(values.find(numeric)->modifier, "2");
+		TS_ASSERT(!values.insert(numeric).second);
+		TS_ASSERT_EQUALS(values.size(), 5);
+		TS_ASSERT(values.contains({"r", "o", "", tagd::OP_GT, tagd::TYPE_FLOAT}));
+		TS_ASSERT(!values.contains({"r", "o", "02"}));
+
+		// Hinted duplicate insertion must leave ownership in the supplied node handle.
+		tagd::predicate_set source{numeric};
+		auto node = source.extract(source.begin());
+		const auto* address = &node.value();
+		TS_ASSERT_EQUALS(values.insert(values.end(), std::move(node))->modifier, "2");
+		TS_ASSERT(!node.empty());
+		TS_ASSERT_EQUALS(&node.value(), address);
+
+		source.insert(std::move(node));
+		source.emplace("another", "object");
+		values.merge(source);
+		TS_ASSERT_EQUALS(source.size(), 1);
+		TS_ASSERT(source.contains(numeric));
+		TS_ASSERT(values.contains({"another", "object"}));
+
+		TS_ASSERT_EQUALS(values.erase(numeric), 1);
+		TS_ASSERT(!values.contains(numeric));
+		TS_ASSERT(values.contains({"r", "o", "2"}));
+	}
+
+	void test_predicate_set_comparison_uses_semantic_order_across_groups() {
+		tagd::predicate_set left;
+		left.emplace("r", "o", "");
+		left.emplace("r", "o", "10", tagd::OP_EQ, tagd::TYPE_INTEGER);
+		left.emplace("r", "o", "2", tagd::OP_EQ, tagd::TYPE_FLOAT);
+		left.emplace("r", "o", "2", tagd::OP_GT, tagd::TYPE_INTEGER);
+		left.emplace("r", "o", "2");
+
+		auto right = left;
+		TS_ASSERT((left <=> right) == std::weak_ordering::equivalent);
+		TS_ASSERT_EQUALS(left, right);
+
+		right.erase({"r", "o", "10", tagd::OP_EQ, tagd::TYPE_INTEGER});
+		right.emplace("r", "o", "11", tagd::OP_EQ, tagd::TYPE_FLOAT);
+		TS_ASSERT((left <=> right) == std::weak_ordering::less);
+		TS_ASSERT((right <=> left) == std::weak_ordering::greater);
+		TS_ASSERT(left != right);
+
+		// Removing the empty value exposes numeric order, not literal "10" before "2".
+		left.erase(left.begin());
+		TS_ASSERT((left <=> right) == std::weak_ordering::greater);
+	}
+
+	void test_rank_indexes_expire_with_their_last_predicate() {
+		tagd::predicate_set values{{"r", "o", "1"}, {"r", "o", "2"}};
+		auto resolve = [](tagd::rank& r, tagd::id_view id) {
+			return r.init(id == "r" ? "a" : "b");
+		};
+		TS_ASSERT_TAGD_OK(values.order(resolve));
+
+		values.erase(values.begin());
+		TS_ASSERT_EQUALS(values.lower_bound({"r", "o", "2"})->modifier, "2");
+
+		values.erase(values.begin());
+		values.emplace("r", "o", "2");
+		values.emplace("a", "o", "2");
+		TS_ASSERT_EQUALS(values.begin()->relator, "a");
+
+		// Partial knowledge must not invent a rank for a new component.
+		tagd::predicate_set ranked{{"r", "o", "1"}};
+		TS_ASSERT_TAGD_OK(ranked.order(resolve));
+		ranked.emplace("r", "unknown", "2");
+		TS_ASSERT(ranked.lower_bound({"r", "unknown", "2"}) != ranked.end());
+		TS_ASSERT_EQUALS(ranked.lower_bound({"r", "unknown", "2"})->object, "unknown");
+	}
+
+	void test_predicate_comparison_respects_earlier_keys() {
+		const tagd::predicate a("a", "same", "z");
+		const tagd::predicate b("b", "same", "a");
+		TS_ASSERT(a < b);
+		TS_ASSERT(!(b < a));
+	}
+
+	void test_predicate_set_nodes_and_mixed_snapshots() {
+		tagd::predicate_set first{{"first", "object", "2"}};
+		tagd::predicate_set second{{"second", "object", "2"}};
+		auto resolve = [](tagd::rank& r, tagd::id_view) {
+			return r.init("a");
+		};
+		TS_ASSERT_TAGD_OK(first.order(resolve));
+		TS_ASSERT_TAGD_OK(second.order(resolve));
+		first.insert(second.begin(), second.end());
+		TS_ASSERT_EQUALS(first.size(), 2);
+
+		const auto* retained = &*first.begin();
+		auto node = first.extract(first.begin());
+		TS_ASSERT_EQUALS(&node.value(), retained);
+
+		tagd::predicate_set destination(first.key_comp(), first.get_allocator());
+		auto inserted = destination.insert(std::move(node));
+		TS_ASSERT(inserted.inserted);
+		TS_ASSERT(inserted.node.empty());
+		TS_ASSERT_EQUALS(&*inserted.position, retained);
+
+		destination.merge(first);
+		TS_ASSERT(first.empty());
+		TS_ASSERT_EQUALS(destination.size(), 2);
+		TS_ASSERT_EQUALS(&*destination.begin(), retained);
+
+		auto duplicate = second.extract(second.begin());
+		auto rejected = destination.insert(std::move(duplicate));
+		TS_ASSERT(!rejected.inserted);
+		TS_ASSERT(!rejected.node.empty());
+		TS_ASSERT_EQUALS(second.insert(second.end(), std::move(rejected.node))->relator, "second");
+		first = {tagd::predicate("third", "object")};
+		TS_ASSERT_EQUALS(first.size(), 1);
+		TS_ASSERT((first <=> first) == std::weak_ordering::equivalent);
+		TS_ASSERT((destination <=> first) == std::weak_ordering::less);
+		TS_ASSERT((first <=> destination) == std::weak_ordering::greater);
+	}
+
+	void test_canonical_predicate_comparator_laws_and_literal_ties() {
+		tagd::predicate_set values;
+		for (const auto text : {"", "10", "2", "-1", "é", "a\"b"}) {
+			values.emplace("z", "object", text);
+		}
+		values.emplace("z", "object", "2", tagd::OP_GT, tagd::TYPE_STRING);
+		values.emplace("z", "object", "2", tagd::OP_EQ, tagd::TYPE_INTEGER);
+		values.emplace("a", "object", "0");
+
+		auto resolve = [](tagd::rank& r, tagd::id_view id) {
+			return r.init(id == "z" ? "a" : id == "a" ? "b" : "c");
+		};
+		TS_ASSERT_TAGD_OK(values.order(resolve));
+		TS_ASSERT_EQUALS(values.size(), 9);
+
+		auto compare = values.key_comp();
+		for (const auto& a : values) {
+			TS_ASSERT(!compare(a, a));
+			for (const auto& b : values) {
+				TS_ASSERT(!(compare(a, b) && compare(b, a)));
+				for (const auto& c : values) {
+					if (compare(a, b) && compare(b, c))
+						TS_ASSERT(compare(a, c));
+					if (!compare(a, b) && !compare(b, a)
+						&& !compare(b, c) && !compare(c, b)) {
+						TS_ASSERT(!compare(a, c) && !compare(c, a));
+					}
+				}
+			}
+		}
+
+		auto it = values.begin();
+		TS_ASSERT_EQUALS((it++)->modifier, "");
+		TS_ASSERT_EQUALS((it++)->modifier, "-1");
+		TS_ASSERT_EQUALS((it++)->modifier, "10");
+		TS_ASSERT_EQUALS(it->modifier, "2");
+
+		auto before = values;
+		values.transform([](const auto& id) {
+			return id == "z" ? "zz" : id;
+		});
+		TS_ASSERT_EQUALS(values.begin()->relator, "zz");
+		TS_ASSERT_EQUALS(before.begin()->relator, "z");
+
+		auto edited = *before.begin();
+		edited.relator = "new";
+
+		tagd::predicate_set mixed{edited, *before.begin()};
+		mixed.transform([](const auto& id) {
+			return id;
+		});
+		TS_ASSERT_EQUALS(mixed.begin()->relator, "z");
+	}
+
+	void test_predicate_ordering_snapshot_and_membership() {
+		tagd::predicate_set values;
+		values.emplace("a_rel", "a_object", "2", tagd::OP_EQ, tagd::TYPE_INTEGER);
+		values.emplace("a_rel", "a_object", "10", tagd::OP_EQ, tagd::TYPE_INTEGER);
+		values.emplace("z_rel", "z_object");
+		values.emplace("z_rel", "a_object");
+		values.emplace("a_rel", "z_object");
+		TS_ASSERT(!values.emplace("a_rel", "a_object", "02",
+			tagd::OP_EQ, tagd::TYPE_INTEGER).second);
+
+		size_t reads = 0;
+
+		auto resolve = [&reads](tagd::rank& r, tagd::id_view id) {
+			++reads;
+			if (id == "missing") {
+				return tagd::TS_NOT_FOUND;
+			}
+			(void)r.init(id.front() == 'z' ? "a" : "b");
+			return tagd::TAGD_OK;
+		};
+		TS_ASSERT_TAGD_OK(values.order(resolve));
+		TS_ASSERT_EQUALS(reads, 4);
+
+		auto it = values.begin();
+		TS_ASSERT_EQUALS(it->relator, "z_rel");
+		TS_ASSERT_EQUALS((++it)->object, "a_object");
+		TS_ASSERT_EQUALS((++it)->object, "z_object");
+		TS_ASSERT_EQUALS((++it)->modifier, "10");
+		TS_ASSERT_EQUALS((++it)->modifier, "2");
+
+		const tagd::predicate key("a_rel", "a_object", "02",
+			tagd::OP_EQ, tagd::TYPE_INTEGER);
+		TS_ASSERT(values.find(key) != values.end());
+		TS_ASSERT_EQUALS(values.count(key), 1);
+
+		const tagd::predicate ten("a_rel", "a_object", "10",
+			tagd::OP_EQ, tagd::TYPE_INTEGER);
+		TS_ASSERT_EQUALS(values.lower_bound(ten)->modifier, "10");
+		TS_ASSERT_EQUALS(values.upper_bound(ten)->modifier, "2");
+
+		auto copy = values;
+		auto retained = values.begin();
+		values.emplace("unresolved", "missing");
+		TS_ASSERT_EQUALS(retained->relator, "z_rel");
+		TS_ASSERT_EQUALS(values.order(resolve), tagd::TS_NOT_FOUND);
+		TS_ASSERT_EQUALS(values.begin()->relator, "z_rel");
+		TS_ASSERT_EQUALS(copy.size(), 5);
+		TS_ASSERT_EQUALS(copy.erase(key), 1);
+
+		auto moved = std::move(copy);
+		values.swap(moved);
+		TS_ASSERT_EQUALS(values.size(), 4);
+		TS_ASSERT_EQUALS(std::distance(values.rbegin(), values.rend()), 4);
+		TS_ASSERT_EQUALS(erase_if(values, [](const auto& p) {
+			return p.relator == "z_rel";
+		}), 2);
+	}
+
 	void test_utf8_read(void) {
 		std::string str;
 		size_t pos = 0;

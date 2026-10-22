@@ -526,6 +526,20 @@ try {
 	file delete -force $direct_tmp
 }
 
+# The CLI must serialize ordinary retrieved predicates and dumps in rank order.
+set order_program {
+	>> z_order_rel _sub _rel;
+	>> a_order_rel _sub _rel;
+	>> z_order_object _sub _entity;
+	>> a_order_object _sub _entity;
+	>> order_subject _sub _entity
+		a_order_rel z_order_object z_order_rel a_order_object, z_order_object;
+	<< order_subject;
+}
+test_cli "predicate_rank_order" \
+	[concat $no_home [list ../bin/tagsh --tagl $order_program --dump]] 1 \
+	{z_order_rel z_order_object, a_order_object[\r\n]+a_order_rel z_order_object}
+
 if {$ERRORS} {
 	puts "$ERRORS errors."
 } else {
