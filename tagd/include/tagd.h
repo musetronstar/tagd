@@ -24,7 +24,8 @@
 
 namespace tagd {
 
-const size_t MAX_TAG_LEN = 2112;   // We are the Priests of the Temples of Syrinx
+// Generated link IDs include a complete encoded source URL and revision.
+const size_t MAX_TAG_LEN = 8192;
 using id_string = std::string;     // owning string
 using id_view = std::string_view;  // non-owning read-only <pointer + size> to c-string
 const static id_string EMPTY_ID;     // for returning empty `const id_string&`

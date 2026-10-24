@@ -1,0 +1,7 @@
+empty	application/octet-stream
+text.txt	text/plain
+random.bin	application/octet-stream
+pixel.png	image/png
+truncated-png.bin	application/octet-stream
+misleading-pdf.bin	application/octet-stream
+late.bin	application/x-tagd-late	late.magic

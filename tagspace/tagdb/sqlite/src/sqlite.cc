@@ -395,6 +395,7 @@ tagd::code sqlite::_init(const std::string& fname) {
 	_db_fname = fname;
 
 	this->close();	// won't fail if not open
+	_write_poisoned = false;
 	(void)this->open();	// open will create db if not exists
 	OK_OR_RET_ERR();
 
@@ -1380,6 +1381,9 @@ bool sqlite::exists(tagd::id_view id, flags_t flags) {
 
 // tagd::TS_NOT_FOUND returned if destination undefined
 tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t flags) {
+	if (_write_poisoned) {
+		return error(tagd::TS_INTERNAL_ERR, "commit outcome unknown; reopen and check storage");
+	}
 	mutation_scope mutation(*this);
 	// Internal write reads must describe stored assertions, not inherited values.
 	flags &= ~F_INCLUDE_INHERITED_PREDICATES;
@@ -1514,6 +1518,9 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t 
 }
 
 tagd::code sqlite::put(const tagd::url& u, session *ssn, flags_t flags) {
+	if (_write_poisoned) {
+		return error(tagd::TS_INTERNAL_ERR, "commit outcome unknown; reopen and check storage");
+	}
 	mutation_scope mutation(*this);
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 
@@ -1532,6 +1539,9 @@ tagd::code sqlite::put(const tagd::url& u, session *ssn, flags_t flags) {
 }
 
 tagd::code sqlite::put(const tagd::referent& r, session *ssn, flags_t flags) {
+	if (_write_poisoned) {
+		return error(tagd::TS_INTERNAL_ERR, "commit outcome unknown; reopen and check storage");
+	}
 	mutation_scope mutation(*this);
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 
@@ -1556,6 +1566,9 @@ void tag_affected(std::set<tagd::id_string>& terms_affected, const tagd::abstrac
 }
 
 tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags) {
+	if (_write_poisoned) {
+		return error(tagd::TS_INTERNAL_ERR, "commit outcome unknown; reopen and check storage");
+	}
 	mutation_scope mutation(*this);
 	// Inherited predicates are read results, never local deletion targets.
 	flags &= ~F_INCLUDE_INHERITED_PREDICATES;
@@ -1706,6 +1719,9 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags)
 }
 
 tagd::code sqlite::del(const tagd::url& u, session *ssn, flags_t flags) {
+	if (_write_poisoned) {
+		return error(tagd::TS_INTERNAL_ERR, "commit outcome unknown; reopen and check storage");
+	}
 	mutation_scope mutation(*this);
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 
@@ -1724,6 +1740,9 @@ tagd::code sqlite::del(const tagd::url& u, session *ssn, flags_t flags) {
 }
 
 tagd::code sqlite::del(const tagd::referent& r, session *ssn, flags_t flags) {
+	if (_write_poisoned) {
+		return error(tagd::TS_INTERNAL_ERR, "commit outcome unknown; reopen and check storage");
+	}
 	mutation_scope mutation(*this);
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 
@@ -2876,6 +2895,11 @@ tagd::interrogator sqlite::decode_referents(const tagd::interrogator& from, sess
 }
 
 tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const tagd::id_string& sup, session* ssn, flags_t flags) {
+	/*
+	 * TODO(filepile-integrity): The optional-filter query plan scans relations for
+	 * both filepile history and content lookup. Measure queries with only active
+	 * filters before adding indexes in the verification/cache follow-on.
+	 */
 	read_scope snapshot(*this);
 	if (snapshot.status != tagd::TAGD_OK)
 		return snapshot.status;
@@ -3590,6 +3614,21 @@ tagd::code sqlite::dump(std::ostream& os) {
 	const int F_SUB_OBJ = 2;
 	int F_POS = 3;
 
+	// Both dump passes reconstruct the same persisted URL classification.
+	const auto stored_url = [this](tagd::url& value, const tagd::id_string& id,
+		const tagd::id_string& parent) {
+		tagd::HDURI decoded(id);
+		if (!decoded.ok())
+			return this->ferror(decoded.code(), "invalid stored URL: %s", id.c_str());
+
+		value = parent == tagd::HARD_TAG_FILE_STORED
+			? tagd::url(decoded.id(), parent) : tagd::url(decoded.id());
+		if (!value.ok())
+			return this->ferror(value.code(), "invalid stored URL: %s", id.c_str());
+
+		return tagd::TAGD_OK;
+	};
+
 	std::vector<tagd::abstract_tag> custom_sub_relations;
 	int s_rc;
 	while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
@@ -3599,8 +3638,17 @@ tagd::code sqlite::dump(std::ostream& os) {
 		// ignore hard tags
 		if (id[0] == '_') continue;
 
-		// URL component predicates below emit the complete URL without duplicating its header.
-		if (pos == tagd::POS_URL) continue;
+		// Links can precede URLs in rank order; declare every identity before predicates.
+		if (pos == tagd::POS_URL) {
+			tagd::url u;
+			tc = stored_url(u, id, (const char*)sqlite3_column_text(stmt, F_SUB_OBJ));
+			if (tc != tagd::TAGD_OK) {
+				sqlite3_finalize(stmt);
+				return tc;
+			}
+			os << ">> " << u << std::endl << std::endl;
+			continue;
+		}
 
 		tagd::abstract_tag t(
 				id,
@@ -3625,10 +3673,27 @@ tagd::code sqlite::dump(std::ostream& os) {
 		os << ">> " << t << std::endl << std::endl;
 	}
 
+	// URL PUT reconstructs component predicates; repeating those alone is a duplicate PUT.
+	auto emit_predicates = [this, &os](tagd::abstract_tag& value) {
+		if (value.pos() == tagd::POS_URL) {
+			tagd::predicate_set implicit;
+			tagd::url::insert_url_part_relations(implicit, static_cast<const tagd::url&>(value));
+			for (const auto& p : implicit) {
+				value.relations.erase(p);
+			}
+		}
+		if (value.relations.empty())
+			return tagd::TAGD_OK;
+		auto rc = order_predicates(value.relations);
+		if (rc == tagd::TAGD_OK)
+			os << ">> " << value << std::endl << std::endl;
+		return rc;
+	};
+
 	// dump relations
 	stmt = nullptr;
 	tc = prepare_stmt(this, _db, &stmt,
-		"SELECT idt(subject), idt(relator), idt(object), idt(modifier), pos "
+		"SELECT idt(subject), idt(relator), idt(object), idt(modifier), pos, idt(super_object) "
 		"FROM relations, tags "
 		"WHERE subject = tag "
 		"ORDER BY rank",
@@ -3646,6 +3711,7 @@ tagd::code sqlite::dump(std::ostream& os) {
 	F_POS = 4;
 
 	tagd::abstract_tag *t = nullptr;
+	tagd::id_string previous_subject;
 	while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
 		tagd::id_string id{(const char*) sqlite3_column_text(stmt, F_ID)};
 		tagd::part_of_speech pos{(tagd::part_of_speech) sqlite3_column_int(stmt, F_POS)};
@@ -3656,20 +3722,27 @@ tagd::code sqlite::dump(std::ostream& os) {
 
 		// A mutable subject's predicates remain data even when their objects are hard tags.
 
-		if (t == nullptr || t->id() != id) {
+		if (t == nullptr || previous_subject != id) {
+			// Stored subject IDs are HDURIs, while URL objects expose canonical URLs.
+			previous_subject = id;
 			if (t != nullptr) {
-				auto ordered = order_predicates(t->relations);
+				auto ordered = emit_predicates(*t);
 				if (ordered != tagd::TAGD_OK) {
 					delete t;
 					sqlite3_finalize(stmt);
 					return ordered;
 				}
-				os << ">> " << *t << std::endl << std::endl;
 				delete t;
 			}
 
 			if (pos == tagd::POS_URL) {
-				t = new tagd::HDURI(id);
+				tagd::url u;
+				tc = stored_url(u, id, (const char*)sqlite3_column_text(stmt, 5));
+				if (tc != tagd::TAGD_OK) {
+					sqlite3_finalize(stmt);
+					return tc;
+				}
+				t = new tagd::url(u);
 			} else {
 				t = new tagd::abstract_tag(id);
 			}
@@ -3690,13 +3763,12 @@ tagd::code sqlite::dump(std::ostream& os) {
 	}
 
 	if (t != nullptr) {
-		auto ordered = order_predicates(t->relations);
+		auto ordered = emit_predicates(*t);
 		if (ordered != tagd::TAGD_OK) {
 			delete t;
 			sqlite3_finalize(stmt);
 			return ordered;
 		}
-		os << ">> " << *t << std::endl;
 		delete t;
 	}
 
@@ -3875,6 +3947,9 @@ tagd::code sqlite::child_ranks(tagd::rank_set& R, const tagd::id_string& super_o
 }
 
 tagd::code sqlite::exec(const char *sql, const char *label) {
+	if (_write_poisoned) {
+		return error(tagd::TS_INTERNAL_ERR, "commit outcome unknown; reopen and check storage");
+	}
 	// Internal SQL can mutate schema or data without a public PUT/DELETE call.
 	mutation_scope mutation(*this);
 	// ROLLBACK must execute even while the triggering operation's error is recorded.

@@ -1,9 +1,12 @@
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
+
+# Project libraries report errors explicitly; tests retain their own compiler flags.
+override CXXFLAGS += -fno-exceptions
 CFLAGS ?= -std=c99 -Wall -Wextra -O3
 
 INC =  -I../include
-SRCS = predicate-set.cc tagd.cc rank.cc utf8.cc url.cc io.cc file.cc event.cc logger.cc hard-tagspace.cc
+SRCS = sha256.cc datetime.cc predicate-set.cc tagd.cc rank.cc utf8.cc url.cc io.cc file.cc event.cc logger.cc hard-tagspace.cc
 CSRCS = ulid.c
 CODES_H = ../include/tagd/codes.h
 HARD_TAGS_H = ../include/tagd/hard-tags.h

@@ -3,6 +3,9 @@ include ../../tagspace/backend.mk
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -fpermissive -O3
 
+# Project libraries report errors explicitly; tests retain their own compiler flags.
+override CXXFLAGS += -fno-exceptions
+
 PRG_DIR = ../..
 TAGD_DIR = $(PRG_DIR)/tagd
 TAGL_DIR = $(PRG_DIR)/tagl

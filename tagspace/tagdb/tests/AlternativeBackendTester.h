@@ -188,6 +188,16 @@ public:
 
 class AlternativeBackendTester : public CxxTest::TestSuite {
 public:
+	void test_unsupported_atomic_put_does_not_mutate() {
+		MapBackend db;
+		TS_ASSERT_EQUALS(db.open({tagdb::storage_kind::memory}), tagd::TAGD_OK);
+		TS_ASSERT(!db.supports_atomic_put());
+		tagd::abstract_tag tag("absent", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+		const tagd::abstract_tag* tags[] = {&tag};
+		TS_ASSERT_EQUALS(db.put_batch(tags, nullptr), tagd::TS_NOT_IMPLEMENTED);
+		TS_ASSERT(!db.exists("absent"));
+	}
+
 	void test_owned_backend_cache_ordering_and_invalidation() {
 		auto owner = std::make_unique<MapBackend>();
 		auto* concrete = owner.get();

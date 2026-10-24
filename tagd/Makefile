@@ -23,13 +23,14 @@ tagd: force_look
 	@make -C $(SRC_DIR) $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 	@printf '[build] %s\n' 'tagd/src/domain'
 	@make -C $(SRC_DIR)/domain $(TARGET) CXXFLAGS="$(CXXFLAGS)"
+	@make -C $(SRC_DIR)/magic $(TARGET) CXXFLAGS="$(CXXFLAGS)"
 
 libtagd: tagd $(LIB)
 
-$(LIB): $(wildcard $(SRC_DIR)/*.o $(SRC_DIR)/domain/*.o)
+$(LIB): tagd $(wildcard $(SRC_DIR)/*.o $(SRC_DIR)/domain/*.o $(SRC_DIR)/magic/*.o)
 	@printf '[ar] %s\n' 'tagd/libtagd.a'
 	@[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
-	ar rcs $(LIB) $(SRC_DIR)/*.o $(SRC_DIR)/domain/*.o
+	ar rcs $(LIB) $(SRC_DIR)/*.o $(SRC_DIR)/domain/*.o $(SRC_DIR)/magic/*.o
 
 tests: force_look libtagd
 	@printf '[test] %s\n' 'tagd'
@@ -43,4 +44,5 @@ clean:
 	rm -rf  $(BUILD_DIR)
 	@make -C $(SRC_DIR) clean
 	@make -C $(SRC_DIR)/domain clean
+	@make -C $(SRC_DIR)/magic clean
 	@make -C $(TEST_DIR) clean

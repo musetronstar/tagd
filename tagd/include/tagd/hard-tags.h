@@ -77,6 +77,18 @@ inline constexpr std::string_view HARD_TAG_REFERS_TO{"_refers_to"};	/// HARD_TAG
 // relation that defines the context of a _referent
 inline constexpr std::string_view HARD_TAG_CONTEXT{"_context"};	/// HARD_TAG_SUB HARD_TAG_RELATOR tagd::POS_CONTEXT
 
+// Filepile links separate source observations from shared content identity.
+inline constexpr std::string_view HARD_TAG_LINK{"_link"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_LINK_FILEPILE{"_link:filepile"};	/// HARD_TAG_SUB HARD_TAG_LINK tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_TO{"_to"};	/// HARD_TAG_SUB HARD_TAG_RELATOR tagd::POS_RELATOR
+inline constexpr std::string_view HARD_TAG_REVISION{"_revision"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_MTIME{"_mtime"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_STORED_TIME{"_stored_time"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_HASH{"_hash"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_HASH_SHA256{"_hash:SHA-256"};	/// HARD_TAG_SUB HARD_TAG_HASH tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_FILE_SIZE{"_file_size"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_MEDIA_TYPE{"_media_type"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+
 /***** messages *****/
 inline constexpr std::string_view HARD_TAG_MESSAGE{"_message"};		/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_TERMS{"_terms"};		/// HARD_TAG_SUB HARD_TAG_MESSAGE tagd::POS_TAG
@@ -142,6 +154,7 @@ inline constexpr std::string_view HARD_TAG_ERROR_URL_ERR_HOST{"_error:url_err_ho
 inline constexpr std::string_view HARD_TAG_ERROR_URL_ERR_PORT{"_error:url_err_port"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_ERROR_URL_ERR_PATH{"_error:url_err_path"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_ERROR_URL_ERR_USER{"_error:url_err_user"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_ERROR_HDURI_ERR{"_error:hduri_err"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_ERROR_TS_NOT_FOUND{"_error:ts_not_found"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_ERROR_TS_DUPLICATE{"_error:ts_duplicate"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_ERROR_TS_SUB_UNK{"_error:ts_sub_unk"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
@@ -194,6 +207,7 @@ inline constexpr std::string_view HARD_TAG_SCHEME{"_scheme"};	/// HARD_TAG_SUB H
  * a URL having a _path is not necessarily a _file
  */
 inline constexpr std::string_view HARD_TAG_FILE{"_file"};	/// HARD_TAG_SUB HARD_TAG_URL tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_FILE_STORED{"_file:stored"};	/// HARD_TAG_SUB HARD_TAG_FILE tagd::POS_TAG
 
 /*
  * Append new declarations so existing generated row IDs and ranks do not move.
@@ -322,6 +336,7 @@ using tagd::HARD_TAG_ERROR_URL_ERR_HOST;
 using tagd::HARD_TAG_ERROR_URL_ERR_PORT;
 using tagd::HARD_TAG_ERROR_URL_ERR_PATH;
 using tagd::HARD_TAG_ERROR_URL_ERR_USER;
+using tagd::HARD_TAG_ERROR_HDURI_ERR;
 using tagd::HARD_TAG_ERROR_TS_NOT_FOUND;
 using tagd::HARD_TAG_ERROR_TS_DUPLICATE;
 using tagd::HARD_TAG_ERROR_TS_SUB_UNK;

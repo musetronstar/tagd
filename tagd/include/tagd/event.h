@@ -10,8 +10,8 @@
 |*|   0    1    2         3       4          5        6
 |*| time!host!principal!program!session_id!sequence!event_type_tag
 |*|
-|*| time is UTC/Zulu ISO 8601 with milliseconds:
-|*| YYYY-MM-DDTHH:MM:SS.mmmZ
+|*| time is UTC/Zulu ISO 8601 with nanoseconds for generated values:
+|*| YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ
 \*/
 const std::string EVURI_SCHEME{"ev:"};
 const std::string ERRURI_SCHEME{"err:"};

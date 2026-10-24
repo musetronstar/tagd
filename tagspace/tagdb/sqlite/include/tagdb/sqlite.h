@@ -126,6 +126,7 @@ class sqlite: public tagdb, private snapshot_source {
 		};
 
 		// performing init() operations
+		bool _write_poisoned = false;
 		bool _doing_init = false;
 		bool _create_missing = true;
 
@@ -177,6 +178,11 @@ class sqlite: public tagdb, private snapshot_source {
 		// get into tag given id
 		[[nodiscard]] tagd::code get(tagd::abstract_tag&, tagd::id_view, session*, flags_t = 0) override;
 		[[nodiscard]] tagd::code get(tagd::url&, tagd::id_view, session*, flags_t = 0) override;
+
+		bool supports_atomic_put() const override { return true; }
+		[[nodiscard]] tagd::code prepare_store() override;
+		[[nodiscard]] tagd::code put_batch(std::span<const tagd::abstract_tag* const>,
+			session*, flags_t = 0) override;
 
 		// put tag, will overrite existing (move + update)
 		[[nodiscard]] tagd::code put(const tagd::abstract_tag&, session *, flags_t = 0) override;

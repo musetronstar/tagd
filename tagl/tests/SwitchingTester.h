@@ -27,6 +27,162 @@ class SwitchingTester : public CxxTest::TestSuite {
 		}
 	};
 public:
+	void test_malformed_hduri_does_not_mutate_storage() {
+		tagd::tagspace::memory source;
+		TS_ASSERT_EQUALS(source.init(), tagd::TAGD_OK);
+		writer cb;
+		TAGL::driver input(&source, &cb);
+		TS_ASSERT_EQUALS(input.execute(">> http://example.com/;"), tagd::TAGD_OK);
+		std::ostringstream before;
+		TS_ASSERT_EQUALS(source.dump(before), tagd::TAGD_OK);
+
+		for (const auto hduri : {"hd:com!example!!/%20!!!!!!http",
+			"hd:com!example!!/a?b!!!!!!http", "hd:com!example!http"}) {
+			input.clear_errors();
+			TS_ASSERT_EQUALS(input.execute(">> " + std::string(hduri) + ";"), tagd::HDURI_ERR);
+			std::ostringstream after;
+			TS_ASSERT_EQUALS(source.dump(after), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(after.str(), before.str());
+		}
+	}
+
+	void test_distinct_url_identities_survive_storage_and_dump_load() {
+		tagd::tagspace::memory source, target;
+		TS_ASSERT_EQUALS(source.init(), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(target.init(), tagd::TAGD_OK);
+		writer cb;
+		TAGL::driver input(&source, &cb);
+		const std::vector<std::string> ids{
+			"http://example.com/a!b?x=1#f", "http://example.com/a%21b?x=1#f",
+			"http://example.com/a%2521b?x=1#f", "http://joe:@example.com/",
+			"http://joe:%00@example.com/", "file:///tmp/a%21b", "file:///tmp/a%2521b",
+			"file:///tmp/" + std::string(2100, '%')
+		};
+		for (const auto& id : ids) {
+			const tagd::url url(id);
+			TS_ASSERT_EQUALS(input.execute(">> " + url.hduri() + " _has _message = \"" + id + "\";"),
+				tagd::TAGD_OK);
+		}
+
+		std::ostringstream text;
+		TS_ASSERT_EQUALS(source.dump(text), tagd::TAGD_OK);
+		TAGL::driver output(&target, &cb);
+		TS_ASSERT_EQUALS(output.execute(text.str()), tagd::TAGD_OK);
+		for (auto* space : {&source, &target}) {
+			for (const auto& id : ids) {
+				tagd::url fetched;
+				const tagd::url expected(id);
+				TS_ASSERT_EQUALS(space->get(fetched, expected.hduri()), tagd::TAGD_OK);
+				TS_ASSERT_EQUALS(fetched.id(), id);
+				TS_ASSERT_EQUALS(fetched.path(), expected.path());
+				TS_ASSERT_EQUALS(fetched.query(), expected.query());
+				TS_ASSERT(fetched.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, id));
+			}
+		}
+	}
+
+	void test_filepile_escaped_names_survive_reopen_and_dump_load() {
+		auto pattern = (std::filesystem::temp_directory_path() / "tagl-hduri-XXXXXX").string();
+		const auto* directory = mkdtemp(pattern.data());
+		if (!directory) {
+			throw std::runtime_error("cannot create test directory");
+		}
+		const std::filesystem::path root(directory);
+		struct cleanup {
+			std::filesystem::path path;
+			~cleanup() {
+				std::filesystem::remove_all(path);
+			}
+		} remove{root};
+		std::ofstream(root / "a!b") << "bang";
+		std::ofstream(root / "a%21b") << "percent";
+		const std::string first = "file://" + root.string() + "/a%21b";
+		const std::string second = "file://" + root.string() + "/a%2521b";
+		tagd::store_result one, two;
+		{
+			tagd::tagspace::persistent source;
+			TS_ASSERT_EQUALS(source.create("files", root.string()), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(source.store(one, tagd::url(first)), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(source.store(two, tagd::url(second)), tagd::TAGD_OK);
+			TS_ASSERT_DIFFERS(one.link, two.link);
+			TS_ASSERT_DIFFERS(one.stored.id(), two.stored.id());
+		}
+
+		tagd::tagspace::persistent reopened;
+		TS_ASSERT_EQUALS(reopened.init("files", root.string()), tagd::TAGD_OK);
+		tagd::store_result repeated;
+		TS_ASSERT_EQUALS(reopened.store(repeated, tagd::url(first)), tagd::TS_DUPLICATE);
+		TS_ASSERT_EQUALS(repeated.link, one.link);
+		TS_ASSERT_EQUALS(reopened.store(repeated, tagd::url(second)), tagd::TS_DUPLICATE);
+		TS_ASSERT_EQUALS(repeated.link, two.link);
+		std::ofstream(root / "a!b") << "changed bang";
+		tagd::store_result next;
+		TS_ASSERT_EQUALS(reopened.store(next, tagd::url(first)), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(next.revision, 2U);
+		TS_ASSERT_EQUALS(reopened.store(repeated, tagd::url(second)), tagd::TS_DUPLICATE);
+		TS_ASSERT_EQUALS(repeated.revision, 1U);
+
+		std::ostringstream text;
+		TS_ASSERT_EQUALS(reopened.dump(text), tagd::TAGD_OK);
+
+		tagd::tagspace::memory target;
+		TS_ASSERT_EQUALS(target.init(), tagd::TAGD_OK);
+		writer cb;
+		TAGL::driver loader(&target, &cb);
+		TS_ASSERT_EQUALS(loader.execute(text.str()), tagd::TAGD_OK);
+		for (const auto* result : {&one, &two, &next}) {
+			tagd::url fetched;
+			TS_ASSERT_EQUALS(target.get(fetched, result->source.id()), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(fetched.id(), result->source.id());
+			const auto embedded = result->link.substr(5, result->link.rfind('#') - 5);
+			TS_ASSERT_EQUALS(tagd::url(embedded).id(), result->source.id());
+
+			tagd::abstract_tag link;
+			TS_ASSERT_EQUALS(target.get(link, result->link), tagd::TAGD_OK);
+			TS_ASSERT(link.related(tagd::HARD_TAG_FROM, result->source.hduri()));
+			TS_ASSERT(link.related(tagd::HARD_TAG_TO, result->stored.hduri()));
+			TS_ASSERT(link.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_REVISION,
+				std::to_string(result->revision)));
+		}
+	}
+
+	void test_stored_file_dump_round_trip() {
+		tagd::tagspace::memory source, target;
+		TS_ASSERT_EQUALS(source.init(), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(target.init(), tagd::TAGD_OK);
+		tagd::url file("file:///tmp/stored.bin", tagd::HARD_TAG_FILE_STORED);
+		TS_ASSERT_EQUALS(source.put(file), tagd::TAGD_OK);
+		std::ostringstream dump;
+		TS_ASSERT_EQUALS(source.dump(dump), tagd::TAGD_OK);
+		writer cb;
+		TAGL::driver d(&target, &cb);
+		TS_ASSERT_EQUALS(d.execute(dump.str()), tagd::TAGD_OK);
+		tagd::url fetched;
+		TS_ASSERT_EQUALS(target.get(fetched, file.id()), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(fetched.super_object(), tagd::HARD_TAG_FILE_STORED);
+	}
+
+	void test_tag_id_byte_bounds_survive_dump_load() {
+		tagd::tagspace::memory source, target;
+		TS_ASSERT_EQUALS(source.init(), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(target.init(), tagd::TAGD_OK);
+		std::string id;
+		for (size_t i = 0; i < tagd::MAX_TAG_LEN / 2; ++i) {
+			id += "é";
+		}
+		TS_ASSERT_EQUALS(id.size(), tagd::MAX_TAG_LEN);
+		TS_ASSERT_EQUALS(source.put(tagd::abstract_tag(id, tagd::HARD_TAG_SUB,
+			tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(source.put(tagd::abstract_tag(id + "x", tagd::HARD_TAG_SUB,
+			tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TS_ERR_MAX_TAG_LEN);
+		std::ostringstream text;
+		TS_ASSERT_EQUALS(source.dump(text), tagd::TAGD_OK);
+		writer cb;
+		TAGL::driver d(&target, &cb);
+		TS_ASSERT_EQUALS(d.execute(text.str()), tagd::TAGD_OK);
+		TS_ASSERT(target.exists(id));
+	}
+
 	void test_addressed_tagdurls_preserve_active_selection() {
 		tagd::config cfg;
 		TS_ASSERT_EQUALS(cfg.init(""), tagd::TAGD_OK);

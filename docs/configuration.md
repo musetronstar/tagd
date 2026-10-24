@@ -312,3 +312,16 @@ A tagdurl starts with its target, for example `/animals/donkey` or `/_/donkey`.
 one statement. In HTTP, each request starts from the fixed server default.
 See [tagdurl addressing](TAGL-spec.md#tagdurl-addressing) for description reads,
 request restrictions, and migration.
+
+## Filepile home
+
+Tagsh `--store URL` and interactive `.store URL` use the active persistent
+tagspace and effective home. Content is shared at `<home>/filepile/`; it does
+not live below an individual tagspace directory. Physical home aliases resolve
+to one root, and generated URLs percent-encode path bytes.
+
+`--db` disables filepile storage with `TS_MISUSE`, explaining the unavailable
+home. `_config`, `_default`, and all other volatile targets also reject storage,
+even if a home is available. These restrictions do not change ordinary tagspace
+operations. See [Filepile storage](filepile.md) for the sequential-process
+contract, diagnostics, metadata, and publication guarantees.

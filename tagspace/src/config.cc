@@ -4,11 +4,19 @@
 #include <filesystem>
 #include <set>
 #include <limits>
-#include <stdexcept>
+#include <cstdio>
+#include <cstdlib>
 #include <vector>
 #include <algorithm>
 
 namespace tagd {
+
+// Typed getters require validated configuration; broken internal state cannot supply a value.
+[[noreturn]] static void invalid_configuration(const char* message) {
+	std::fprintf(stderr, "tagd configuration invariant: %s\n", message);
+	std::abort();
+}
+
 namespace {
 /*
  * Built-in settings and their application defaults. Every selected profile must
@@ -176,7 +184,7 @@ std::string config::value(id_view id) const {
 	if (_configspace.get(current, _subject_id, nullptr,
 		F_NO_TRANSFORM_REFERENTS | F_INCLUDE_INHERITED_PREDICATES | F_NO_NOT_FOUND_ERROR) != TAGD_OK
 		&& !_file_loading)
-		throw std::logic_error("configuration accessed before successful initialization");
+		invalid_configuration("configuration accessed before successful initialization");
 
 	for (const auto& p : current.relations) {
 		if (p.relator == HARD_TAG_HAS && p.object == id)
@@ -187,13 +195,13 @@ std::string config::value(id_view id) const {
 		if (setting)
 			return id == HARD_TAG_CONFIG_HOME ? _bootstrap_home : setting->initial;
 	}
-	throw std::logic_error("required configuration value missing");
+	invalid_configuration("required configuration value missing");
 }
 
 uint16_t config::bind_port() const {
 	uint16_t port = 0;
 	if (!valid_port(value(HARD_TAG_CONFIG_BIND_PORT), port))
-		throw std::logic_error("invalid stored configuration port");
+		invalid_configuration("invalid stored configuration port");
 	return port;
 }
 
@@ -396,7 +404,7 @@ void config::update_logger() {
 	logger candidate;
 	candidate.level(log_level::ERROR);
 	if (!parse_log_level_spec(value(HARD_TAG_CONFIG_LOG_LEVEL), candidate))
-		throw std::logic_error("invalid validated logger configuration");
+		invalid_configuration("invalid validated logger configuration");
 	_logger.levels(candidate);
 }
 

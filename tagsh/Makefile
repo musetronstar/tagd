@@ -38,3 +38,4 @@ force_look:
 clean:
 	rm -rf  $(BUILD_DIR) $(LIB_DIR)
 	@make -C $(SRC_DIR) clean
+	@make -C $(TEST_DIR) clean

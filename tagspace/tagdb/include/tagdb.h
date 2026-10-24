@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <span>
 #include <sstream>
 #include <stdint.h>
 #include "tagd.h"
@@ -112,6 +113,16 @@ class tagdb : public tagd::errorable {
 		 */
 		[[nodiscard]] virtual tagd::code get(tagd::url& u, tagd::id_view id, session* ssn, flags_t f = 0) {
 			return this->get(static_cast<tagd::abstract_tag&>(u), id, ssn, f);
+		}
+
+		virtual bool supports_atomic_put() const { return false; }
+		[[nodiscard]] virtual tagd::code prepare_store() {
+			return error(tagd::TS_NOT_IMPLEMENTED, "backend cannot provide durable atomic PUT");
+		}
+		// Borrowed tags keep their dynamic type and must outlive this synchronous operation.
+		[[nodiscard]] virtual tagd::code put_batch(
+			std::span<const tagd::abstract_tag* const>, session*, flags_t = 0) {
+			return error(tagd::TS_NOT_IMPLEMENTED, "backend does not support atomic PUT");
 		}
 
 		// put into db given tag

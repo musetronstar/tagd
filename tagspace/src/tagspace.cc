@@ -57,6 +57,10 @@ stored_tagspace::stored_tagspace() : _impl(std::make_unique<impl>()) {}
 // The destructor needs the full impl definition to delete the owned backend.
 stored_tagspace::~stored_tagspace() = default;
 
+tagdb::tagdb& stored_tagspace::backend() {
+	return *_impl->db;
+}
+
 bool stored_tagspace::prepare() const {
 	auto* self = const_cast<stored_tagspace*>(this);
 	if (!_impl->ready) {
@@ -87,6 +91,7 @@ tagd::code stored_tagspace::initialize_location(const tagdb::storage_location& l
 	_impl->db->attach_errors(*this);
 	_impl->db->report_errors = report_errors;
 	auto rc = _impl->db->open(location);
+	_persistent = location.kind != tagdb::storage_kind::memory;
 	_impl->ready = rc == TAGD_OK;
 	if (!_impl->ready)
 		_impl->db->close();
@@ -111,6 +116,8 @@ tagd::code stored_tagspace::initialize(const std::string& name,
 	clear_errors();
 	_impl->db->attach_errors(*this);
 	_impl->db->report_errors = report_errors;
+	_persistent = true;
+	_filepile_home = home;
 	auto rc = _impl->db->open_named(name, home,
 		create ? tagdb::open_mode::create : tagdb::open_mode::existing);
 	_impl->ready = rc == TAGD_OK;

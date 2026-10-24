@@ -36,11 +36,18 @@ const size_t HDURI_PASS = 8;
 const std::string HDURI_SCHEME{"hd:"};
 const char HDURI_DELIM = '!';
 const std::string HDURI_DELIM_ENCODED{"%21"};
+const std::string HDURI_PERCENT_ENCODED{"%25"};
+const std::string HDURI_EMPTY_PASSWORD{"%00"};
 //   hd:rpub!priv_label!rsub!path!query!fragment!port!user!pass!scheme
 const size_t HDURI_DELIM_COUNT = 9;
 
-std::string encode_hduri_delim(std::string);
-std::string decode_hduri_delim(std::string);
+// Each URL byte can expand to three bytes; separators and the empty-password marker are extra.
+const size_t HDURI_MAX_LEN = HDURI_DELIM_ENCODED.size() * URL_MAX_LEN + HDURI_SCHEME.size() +
+	HDURI_DELIM_COUNT + HDURI_EMPTY_PASSWORD.size();
+
+std::string encode_hduri_delim(id_view);
+// Decode one HDURI layer only; failure leaves the destination unchanged.
+[[nodiscard]] bool decode_hduri_delim(std::string&, id_view);
 
 const size_t HDURI_NUM_ELEMS = 9;
 
@@ -49,9 +56,9 @@ typedef unsigned short url_size_t;
 class url : public abstract_tag {
 	private:
 		/*
-			IMPORTANT, a non-zero value for *_len is the sole determiner of whether
-			a url component exists.  *_offset may be set during parsing, but will only
-			be considered if the *_len is set as well.
+			Component lengths select bytes in the canonical URL, not its HDURI encoding.
+			A nonzero password offset with zero length preserves an explicit empty
+			password; other offsets with zero length do not establish presence.
 		*/
 		// no need for _scheme_offset (always 0)
 		url_size_t _scheme_len = 0;
@@ -86,6 +93,15 @@ class url : public abstract_tag {
 		{
 			_code = URL_EMPTY;
 			this->init(u);
+		}
+
+		// Explicit stored-file classification must survive parsing and serialization.
+		url(id_view u, id_view classification) : url(u) {
+			if (ok() && scheme() == "file" && classification == HARD_TAG_FILE_STORED) {
+				_super_object = classification;
+			} else {
+				_code = TS_ERR;
+			}
 		}
 
 		const id_string& id() const { return _id; }

@@ -52,7 +52,7 @@ class Tester : public CxxTest::TestSuite {
 		actions.push_back({startup_action::kind::tagl, ".bogus"});
 
 		install_loggers(cfg);
-		TS_ASSERT_EQUALS(execute_startup_actions(shell, actions), 0)
+		TS_ASSERT_EQUALS(execute_startup_actions(shell, actions), tagd::TAGD_ERR)
 		TS_ASSERT_DIFFERS(log_ss.str().find("-- no such command: .bogus"), std::string::npos)
 		TS_ASSERT_DIFFERS(log_ss.str().find("-- tagsh code=TAGD_ERR"), std::string::npos)
 	}

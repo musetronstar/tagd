@@ -1,6 +1,9 @@
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 
+# Project libraries report errors explicitly; tests retain their own compiler flags.
+override CXXFLAGS += -fno-exceptions
+
 TAGDDIR =../../../tagd
 INC = -I../include -I$(TAGDDIR)/include
 SRCS = tagdb.cc canonical-cache.cc storage-name.cc

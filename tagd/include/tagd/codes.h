@@ -55,7 +55,10 @@ typedef enum {
 
 	TAGL_ERR,
 
-	HTTP_ERR
+	HTTP_ERR,
+
+	// Append new errors so existing shell exit codes keep their values.
+	HDURI_ERR
 } code;
 // TAGD_CODES_END
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tagd.h"
+#include "tagd/url.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -178,6 +179,18 @@ protected:
 	const_tagspace& operator=(const_tagspace&&) = delete;
 };
 
+enum class store_outcome { none, new_revision, unchanged };
+
+struct store_result {
+	url source;
+	url stored;
+	id_string link;
+	unsigned revision = 0;
+	store_outcome outcome = store_outcome::none;
+	// Advisory error objects never participate in tagspace/session failure state.
+	std::vector<tagd::error> warnings;
+};
+
 /*\
 |*| tagspace adds put, del, and merge to the read-only tagspace interface.
 |*| Applications use this type to work with memory or persistent tagspaces
@@ -189,6 +202,46 @@ public:
 	class persistent;
 
 	~tagspace() override = default;
+	/*
+	 * TODO(filepile-integrity): Verification before duplicate reporting remains
+	 * a future optimization site; every reused or duplicate-reported object is fully hashed.
+	 * F_IGNORE_DUPLICATES must not bypass verification or suppress integrity
+	 * errors. See workspace
+	 * TASKS.d/2026-10-23-filepile-integrity-and-verification-cache.md.
+	 */
+	/*
+	 * TODO(tagd-io): Filepile initially requires one process and one store at a
+	 * time per shared home. Concurrent writers can race revision allocation and
+	 * content publication; a broader tagd I/O design must coordinate them.
+	 * See workspace TASKS.d/2026-09-28-filepile-storage.md.
+	 */
+	/*
+	 * TODO(filepile-http): Add encapsulated httagd-client HTTP/HTTPS acquisition
+	 * behind store without changing its tagd::url public interface.
+	 * Reuse the client implementation without exposing transport types here.
+	 * See workspace TASKS.d/2026-10-23-http-filepile-storage.md.
+	 */
+	/*
+	 * TODO(filepile-permissions): Once roles and permissions exist, restrict
+	 * unauthorized mutations of _link:filepile instances and provide a superuser
+	 * unrestricted by authorization checks. Until then, links remain ordinary
+	 * mutable tags; editing _from, _to, or _revision can damage history and make
+	 * predicates disagree with a link ID. Roles and permissions are follow-on
+	 * work: workspace TASKS.d/2026-10-23-filepile-link-permissions.md.
+	 */
+
+	[[nodiscard]] virtual tagd::code store(store_result& result, const url&,
+		tagspace_session* ssn = nullptr, flags_t flags = 0) {
+		result = {};
+		if (!(flags & F_NO_RESET))
+			reset(ssn);
+		// TODO(persistent-config): Enable this only when configuration is durably stored.
+		const auto rc = error(TS_MISUSE,
+			"filepile storage requires a persistent tagspace; the active tagspace is volatile.");
+		if (ssn)
+			ssn->code(rc);
+		return rc;
+	}
 
 	virtual size_t merge(tag_set& A, const tag_set& B) {
 		return merge_containing_tags(A, B);

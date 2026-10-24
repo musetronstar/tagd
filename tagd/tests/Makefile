@@ -7,7 +7,7 @@ LIBTAGD = ../lib/libtagd.a
 LFLAGS = -L../lib -ltagd
 CXXTEST = cxxtestgen --error-printer
 
-all: tag_tests predicate_allocation_tests domain_tests url_tests event_tests \
+all: magic_tests  datetime_tests  tag_tests predicate_ownership_tests domain_tests url_tests event_tests \
 	file_tests logger_tests hard_tag_tests
 
 debug: CXXFLAGS += -g -O0
@@ -67,7 +67,9 @@ hard_tag_tests: $(LIBTAGD) HardTagTester.h
 	$(HARD_TAG_TESTER)
 
 clean:
-	rm -f predicate-allocation-tester
+	rm -f magic-tester.cpp magic-tester magic-evaluate
+	rm -f datetime_tests-tester.cpp datetime_tests-tester
+	rm -f predicate-ownership-tester
 	rm -f tester.cpp tester
 	rm -f url-tester.cpp url-tester
 	rm -f event-tester.cpp event-tester
@@ -76,7 +78,22 @@ clean:
 	rm -f logger-tester.cpp logger-tester
 	rm -f hard-tag-tester.cpp hard-tag-tester
 
-.PHONY: predicate_allocation_tests
-predicate_allocation_tests: $(LIBTAGD) PredicateAllocationTester.cc
-	g++ $(CXXFLAGS) PredicateAllocationTester.cc -o predicate-allocation-tester $(INC) $(LFLAGS)
-	./predicate-allocation-tester
+.PHONY: predicate_ownership_tests
+predicate_ownership_tests: $(LIBTAGD) PredicateOwnershipTester.cc
+	g++ $(CXXFLAGS) PredicateOwnershipTester.cc -o predicate-ownership-tester $(INC) $(LFLAGS)
+	./predicate-ownership-tester
+
+datetime_tests:
+	$(CXXTEST) DatetimeTester.h -o datetime_tests-tester.cpp
+	g++ $(CXXFLAGS) datetime_tests-tester.cpp -o datetime_tests-tester $(INC) $(LFLAGS)
+	./datetime_tests-tester
+
+magic_tests:
+	$(CXXTEST) MagicTester.h -o magic-tester.cpp
+	g++ $(CXXFLAGS) magic-tester.cpp -o magic-tester $(INC) $(LFLAGS) -lmagic -lcrypto
+	./magic-tester
+	perl GeneratorTester.pl
+
+magic_evaluation:
+	g++ $(CXXFLAGS) MagicEvaluation.cc -o magic-evaluate $(INC) $(LFLAGS) -lmagic -lcrypto
+	./magic-evaluate

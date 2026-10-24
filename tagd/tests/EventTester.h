@@ -48,7 +48,7 @@ class Tester : public CxxTest::TestSuite {
 		unsigned char decoded[16];
 		TS_ASSERT_EQUALS(ssn.id().size(), (size_t)26);
 		TS_ASSERT_EQUALS(ulid_decode(decoded, ssn.id().c_str()), 0);
-		TS_ASSERT(std::regex_match(ssn.started_at(), std::regex("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z")));
+		TS_ASSERT(std::regex_match(ssn.started_at(), std::regex("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{9}Z")));
 		TS_ASSERT_EQUALS(ssn.sequence(), (uint64_t)0);
 		TS_ASSERT_EQUALS(ssn.next_sequence(), (uint64_t)1);
 		TS_ASSERT_EQUALS(ssn.next_sequence(), (uint64_t)2);

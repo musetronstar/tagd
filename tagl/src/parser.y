@@ -491,6 +491,18 @@ interrogator ::= interrogator_type_id(i) .
 	emit_subject(tagl, i);
 }
 
+// A stored file is still a URL; preserve its explicit subtype when loading a dump.
+subject_sub_relation ::= URL(U) sub_relator_symbol(r) super_object_token(o) .
+{
+	const auto parent = o.str();
+	if (r.str() != tagd::HARD_TAG_TYPE_OF || parent != tagd::HARD_TAG_FILE_STORED) {
+		tagl->error(tagd::TAGL_ERR, "unsupported explicit URL classification");
+	} else {
+		tagl->delete_tag();
+		tagl->tag_ptr(new tagd::url(U.str(), parent));
+	}
+}
+
 subject_sub_relation ::= subject_type_id(s) sub_relator_symbol(r) super_object_token(o) .
 {
 	emit_subject(tagl, s, r, o);

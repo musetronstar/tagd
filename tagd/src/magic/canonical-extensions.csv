@@ -1,0 +1,5 @@
+mime,presence,expected,extension,rationale
+image/jpeg,present,jpe,jpg,Canonical JPEG suffix
+text/plain,present,in,txt,Canonical plain text suffix
+application/octet-stream,present,deploy,bin,Opaque byte fallback
+image/svg+xml,present,svgz,svg,Uncompressed SVG content

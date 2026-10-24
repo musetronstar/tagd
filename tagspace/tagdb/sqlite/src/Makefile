@@ -1,9 +1,12 @@
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 
+# Project libraries report errors explicitly; tests retain their own compiler flags.
+override CXXFLAGS += -fno-exceptions
+
 TAGDDIR =../../../../tagd
 INC = -I../include -I../../include -I$(TAGDDIR)/include
-SRCS = sqlite.cc read-snapshot.cc storage.cc
+SRCS = batch.cc sqlite.cc read-snapshot.cc storage.cc
 OBJS=$(SRCS:.cc=.o)
 DEPS=$(OBJS:.o=.d)
 BIN = tagdb

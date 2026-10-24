@@ -94,17 +94,11 @@ predicate_set& predicate_set::operator=(predicate_set&& other) noexcept {
 }
 
 void predicate_set::index(storage::const_iterator it) {
-	try {
-		_members[*it].insert(it);
-		if (it->_order && it->relator == it->_order->relator_id
-			&& it->object == it->_order->object_id) {
-			_relators[it->relator].insert(it);
-			_objects[it->object].insert(it);
-		}
-	} catch (...) {
-		// Roll back partial index allocation before the owning node can be removed.
-		unindex(it);
-		throw;
+	_members[*it].insert(it);
+	if (it->_order && it->relator == it->_order->relator_id
+		&& it->object == it->_order->object_id) {
+		_relators[it->relator].insert(it);
+		_objects[it->object].insert(it);
 	}
 }
 
@@ -175,12 +169,7 @@ std::pair<predicate_set::iterator, bool> predicate_set::insert(const predicate& 
 
 	auto result = _values.insert(lookup_key(p));
 	if (result.second) {
-		try {
-			index(result.first);
-		} catch (...) {
-			_values.erase(result.first);
-			throw;
-		}
+		index(result.first);
 	}
 
 	return result;
@@ -196,13 +185,7 @@ predicate_set::insert_return_type predicate_set::insert(node_type&& node) {
 	node.value() = lookup_key(node.value());
 	auto result = _values.insert(std::move(node));
 	if (result.inserted) {
-		try {
-			index(result.position);
-		} catch (...) {
-			// Allocation failure must not destroy a node supplied by the caller.
-			node = _values.extract(result.position);
-			throw;
-		}
+		index(result.position);
 	}
 
 	return {result.position, result.inserted, std::move(result.node)};
@@ -227,51 +210,15 @@ void predicate_set::merge(predicate_set& other) {
 		if (contains(*current))
 			continue;
 
-		// Retain source index nodes so allocation failure can restore ownership without allocation.
-		predicate original = *current;
-		auto member = other._members.find(original);
-		auto relator = other._relators.find(original.relator);
-		auto object = other._objects.find(original.object);
-		candidates* groups[] = {
-			&member->second,
-			relator == other._relators.end() ? nullptr : &relator->second,
-			object == other._objects.end() ? nullptr : &object->second
-		};
-		candidates::node_type saved[std::size(groups)];
-		for (size_t i = 0; i < std::size(groups); ++i) {
-			if (groups[i])
-				saved[i] = groups[i]->extract(current);
+		// Transfer the owning node and rebuild indexes for the destination snapshot.
+		const predicate original = *current;
+		auto node = other.extract(current);
+		auto result = insert(std::move(node));
+		if (!result.inserted) {
+			// A rejected transfer retains the source snapshot's ranks.
+			result.node.value() = original;
+			other.insert(std::move(result.node));
 		}
-
-		auto node = other._values.extract(current);
-		auto restore = [&] {
-			node.value() = std::move(original);
-			auto restored = other._values.insert(std::move(node));
-			for (size_t i = 0; i < std::size(groups); ++i) {
-				if (!saved[i].empty()) {
-					saved[i].value() = restored.position;
-					groups[i]->insert(std::move(saved[i]));
-				}
-			}
-		};
-
-		try {
-			auto result = insert(std::move(node));
-			if (!result.inserted) {
-				node = std::move(result.node);
-				restore();
-			}
-		} catch (...) {
-			restore();
-			throw;
-		}
-
-		if (member->second.empty())
-			other._members.erase(member);
-		if (relator != other._relators.end() && relator->second.empty())
-			other._relators.erase(relator);
-		if (object != other._objects.end() && object->second.empty())
-			other._objects.erase(object);
 	}
 }
 

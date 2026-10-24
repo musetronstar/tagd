@@ -46,3 +46,6 @@ lemon
 
 # vim Coc generated
 compile_commands.json
+
+# Detection evaluation executable (the source and fixtures are checked in).
+tagd/tests/magic-evaluate

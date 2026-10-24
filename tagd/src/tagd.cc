@@ -11,22 +11,9 @@
 
 #include "tagd.h"
 #include "tagd/ulid.h"
+#include "tagd/datetime.h"
 
 namespace tagd {
-
-static std::string utc_now_ms() {
-	using namespace std::chrono;
-	auto now = system_clock::now();
-	auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
-	auto t = system_clock::to_time_t(now);
-	std::tm tm;
-	gmtime_r(&t, &tm);
-
-	std::stringstream ss;
-	ss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%S")
-	   << '.' << std::setw(3) << std::setfill('0') << ms.count() << 'Z';
-	return ss.str();
-}
 
 static session_factory& default_session_factory() {
 	static session_factory factory;
@@ -67,7 +54,13 @@ session session_factory::create()
 		_impl->initialized = true;
 	}
 	ulid_generate(&_impl->generator, ulid);
-	return session(ulid, utc_now_ms());
+	std::string time;
+	auto rc = current_datetime(time);
+	session result(ulid, time);
+	if (rc != TAGD_OK) {
+		result.error(rc, "cannot obtain session start time");
+	}
+	return result;
 }
 
 session::session(const session& s) :
@@ -668,7 +661,7 @@ std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
 	if (t.id().find(EVURI_SCHEME) == 0 || t.id().find(ERRURI_SCHEME) == 0) {
 		os << t.id();
 	} else
-	if (!t.super_object().empty() && t.pos() != POS_URL) {  // urls' sub determined by nature of being a url
+	if (!t.super_object().empty() && (t.pos() != POS_URL || t.super_object() == HARD_TAG_FILE_STORED)) {  // Stored URLs retain their explicit classification
 		print_quotable(os, t.id());
 		os << ' ';
 		print_quotable(os, t.sub_relator());
@@ -935,6 +928,7 @@ const char* code_error_tag(tagd::code c) {
 		case tagd::URL_ERR_PORT: return HARD_TAG_ERROR_URL_ERR_PORT.data();
 		case tagd::URL_ERR_PATH: return HARD_TAG_ERROR_URL_ERR_PATH.data();
 		case tagd::URL_ERR_USER: return HARD_TAG_ERROR_URL_ERR_USER.data();
+		case tagd::HDURI_ERR: return HARD_TAG_ERROR_HDURI_ERR.data();
 		case tagd::TS_NOT_FOUND: return HARD_TAG_ERROR_TS_NOT_FOUND.data();
 		case tagd::TS_DUPLICATE: return HARD_TAG_ERROR_TS_DUPLICATE.data();
 		case tagd::TS_SUB_UNK: return HARD_TAG_ERROR_TS_SUB_UNK.data();

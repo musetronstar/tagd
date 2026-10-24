@@ -18,10 +18,20 @@ TAGL semantics are specified by `../../docs/TAGL-spec.md`.
 | `tagd::tagspace_session` | Adds referent context and a tag-membership callback to `session`. | Tag operations need context and access to their tagspace as well as event identity. |
 | `tagdb::tagdb` | Defines the internal storage interface. | A future backend can replace SQLite without changing application calls. |
 | `tagdb::sqlite` | Implements storage and full-text search using SQLite. | Database files, SQL, and SQLite handles belong inside this backend. |
+| `tagd::filepile::files` | Acquires, verifies, and publishes filepile content. | One store operation owns its descriptors and staging file. |
 
 The first three classes and the session classes live in the core `tagd/`
 module. The storage classes live in `tagspace/`, with the backend under
-`tagspace/tagdb/`. Public storage headers do not expose backend types.
+`tagspace/tagdb/` and filepile under `tagspace/filepile/`. Both internal modules
+have their own `include/`, `src/`, `tests/`, and Makefiles. Public storage headers
+do not expose their implementation types.
+
+Filepile's `src/filepile.cc` implements `stored_tagspace::store()`;
+`src/filepile-files.cc` implements acquisition and publication through the
+internal `include/filepile-files.h` interface. The public store/result contract
+remains in core `tagd/tagspace.h`. Filepile builds `lib/libfilepile.a`, and
+tagspace bundles its objects alongside the backend into `libtagspace.a`.
+Applications continue linking the public tagspace archive.
 
 ## Ownership and sessions
 
@@ -301,3 +311,17 @@ reuse. No public caller needs cache-management operations.
 New topological views, runtime tagspace selection in TAGL, tagspace-prefixed URLs,
 alternate backend configuration, and filepile storage are deferred. No PUT
 declaration of the named tagspace is created by initialization.
+
+## Atomic batch PUT
+
+`tagdb::put_batch` borrows an ordered span of tag pointers and completes
+synchronously. Objects retain their URL/referent types. A backend must advertise
+`supports_atomic_put()`; the default implementation rejects batches rather than
+performing separately committed PUTs. Duplicates follow the ordinary PUT flags.
+
+SQLite owns the transaction and invalidates caches on every mutation boundary.
+A failed batch rolls back the whole group. If commit/rollback completion cannot
+be established, the handle rejects further writes until explicitly reopened and
+checked. `prepare_store()` establishes durable persistent storage before filepile
+creates staging data; SQLite requires a persistent journal and verifies EXTRA
+synchronization. This is failure handling, not concurrent filepile coordination.

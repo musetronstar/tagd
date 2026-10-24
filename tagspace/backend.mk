@@ -3,3 +3,6 @@ TAGSPACE_CPPFLAGS := -I$(dir $(lastword $(MAKEFILE_LIST)))tagdb/include
 TAGDB_BACKEND ?= sqlite
 TAGDB_LIBRARY = tagdb-$(TAGDB_BACKEND)
 include $(dir $(lastword $(MAKEFILE_LIST)))tagdb/$(TAGDB_BACKEND)/backend.mk
+
+# Semantic store uses the shared detector and EVP hashing implementation.
+TAGSPACE_BACKEND_LIBS += -lmagic -lcrypto

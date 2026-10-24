@@ -19,6 +19,29 @@ public:
 
 class SqliteTester : public CxxTest::TestSuite {
 public:
+	void test_dump_rejects_invalid_stored_hduri() {
+		class database : public tagdb::sqlite {
+		public:
+			using ::tagdb::sqlite::exec;
+		};
+		database db;
+		TS_ASSERT_TAGD_OK(db.init(":memory:"));
+		TS_ASSERT_TAGD_OK(db.put(tagd::url("http://example.com/a%20b"), nullptr));
+
+		// Bypass URL validation to represent a persisted identity with incompatible escaping.
+		const std::string invalid = "hd:com!example!!/a%20b!!!!!!http";
+		const std::string sql = "UPDATE terms SET term='" + invalid +
+			"' WHERE term='hd:com!example!!/a%2520b!!!!!!http'";
+		TS_ASSERT_TAGD_OK(db.exec(sql.c_str()));
+		std::stringstream output;
+		TS_ASSERT_EQUALS(db.dump(output), tagd::HDURI_ERR);
+		TS_ASSERT(output.str().empty());
+		TS_ASSERT(db.has_errors());
+		std::stringstream errors;
+		db.print_errors(errors);
+		TS_ASSERT_DIFFERS(errors.str().find(invalid), std::string::npos);
+	}
+
 	void test_factory_locations_preserve_open_storage() {
 		auto owner = tagdb::make_backend();
 		auto& db = *owner;

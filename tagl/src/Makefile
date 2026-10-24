@@ -1,5 +1,8 @@
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
+
+# Project libraries report errors explicitly; tests retain their own compiler flags.
+override CXXFLAGS += -fno-exceptions
 YACC =
 RE2CFLAGS =
 

@@ -59,3 +59,21 @@ TAGL maps these parts of speech to boolean tokens. For example,
 `%% _ignore_duplicates _true;` enables duplicate suppression, while
 `%% _ignore_duplicates _false;` disables it. Numeric and unrelated values
 are rejected; there is no numeric-to-boolean conversion.
+
+### Filepile Vocabulary
+
+`_link:filepile` is beneath `_link`, beneath `_entity`; links use ordinary
+`POS_TAG`. `_from` and `_to` are relators. `_file:stored` is beneath `_file`
+and stored files retain `POS_URL`. `_revision`, `_mtime`, `_stored_time`,
+`_file_size`, and `_media_type` are metadata objects used with `_has`.
+`_hash:SHA-256` is beneath `_hash`; its modifier is a lowercase hex string.
+
+Generated link IDs may be up to 8192 bytes; source URLs retain the independent
+2112-byte limit. Generated session/event and filepile timestamps now use UTC
+with nine fractional digits. Existing explicit timestamp strings are unchanged.
+
+`_error:hduri_err` identifies malformed HDURI component encoding. HDURI escapes
+literal percent signs independently of URL escaping; this changes persisted URL
+and filepile link identities containing percent sequences. See
+[HDURI identity encoding](../docs/TAGL-spec.md#hduri-identity-encoding) for the
+current format, limits, and pre-beta recreation requirements.

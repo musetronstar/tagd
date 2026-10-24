@@ -17,6 +17,7 @@ tests:
 	$(MAKE) shell_tests
 
 unit_tests:
+	$(MAKE) filepile_unit_tests
 	$(MAKE) driver_unit_tests
 	$(MAKE) log_unit_tests
 	$(MAKE) config_unit_tests
@@ -25,6 +26,7 @@ no-home.so: no-home.cc
 	$(CXX) -shared -fPIC $< -o $@
 
 shell_tests: no-home.so
+	python3 FilepileSystemTester.py
 	$(SHELL_TESTER)
 
 system_tests: shell_tests
@@ -60,3 +62,11 @@ config_unit_tests: ConfigTester.h ../lib/libtagsh.a ../../tagspace/lib/libtagspa
 
 # Public backend-neutral location types accompany the tagspace API.
 INC += $(TAGSPACE_CPPFLAGS)
+
+filepile_unit_tests:
+	$(CXXTEST) FilepileInvocationTester.h -o filepile-tester.cpp
+	g++ $(CXXFLAGS) filepile-tester.cpp -o filepile-tester $(INC) -Wl,--start-group $(LFLAGS) -Wl,--end-group
+	./filepile-tester
+
+clean:
+	rm -f *-tester *-tester.cpp no-home.so

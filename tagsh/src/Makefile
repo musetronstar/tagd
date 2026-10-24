@@ -2,6 +2,9 @@ include ../../tagspace/backend.mk
 
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -pedantic -O3
+
+# Project libraries report errors explicitly; tests retain their own compiler flags.
+override CXXFLAGS += -fno-exceptions
 BUILD_DIR = ../bin
 BIN = $(BUILD_DIR)/tagsh
 

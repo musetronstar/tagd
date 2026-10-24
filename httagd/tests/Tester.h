@@ -306,6 +306,19 @@ class callback_tester : public TAGL::callback {
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_tag_link_preserves_invalid_url_identity() {
+		const std::string name = "test_tag_link_preserves_invalid_url_identity";
+		TS_ASSERT(ctemplate::StringToTemplateCache(name, "{{id}}|{{id_lnk}}",
+			ctemplate::DO_NOT_STRIP));
+		for (const std::string invalid : {"hd:com!example!!/a%20b!!!!!!http",
+			"http://example.com:", "mailto://joe@example.com"}) {
+			httagd::tagd_template tpl(name);
+			tpl.set_tag_link(url_query_map_t{}, "id", invalid);
+			TS_ASSERT_TAGD_OK(tpl.expand(name));
+			TS_ASSERT_EQUALS(tpl.output_str(), invalid + "|/_/" + tagd::uri_encode(invalid));
+		}
+	}
+
 
 	// These translator tests receive the operation path after shared target dispatch.
 	// Full addressed HTTP paths and policy are exercised by addressing.exp.

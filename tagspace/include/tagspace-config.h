@@ -21,6 +21,13 @@ enum class tagspace_access { local, registered_only, registered_with_config,
  * address. Private storage prevents TAGL callers from bypassing validation.
  */
 class config final : public tagspace {
+	/*
+	 * TODO(persistent-config): Add validated, permission-controlled .db storage
+	 * before enabling filepile for _config; volatile associations would be lost.
+	 * Filepile requires persistent semantic storage for every target; reject this
+	 * volatile _config with TS_MISUSE before mutation.
+	 * See workspace TASKS.d/2026-10-23-persistent-config-tagspace.md.
+	 */
 	mutable tagspace::memory _configspace;
 	id_string _subject_id{CONFIG_SUBJECT};
 	bool _runtime = false;
@@ -88,6 +95,7 @@ public:
 	[[nodiscard]] tagd::code list_tagspaces(std::ostream&, const tagspace*);
 
 	// Typed accessors require successful init(); callers receive owned string values.
+	// Violating this internal invariant is fatal; input validation returns error codes.
 	// Default configuration subject; --config-id selects another tag.
 	static constexpr id_view CONFIG_SUBJECT = "default_config";
 	[[nodiscard]] tagd::code init(const std::string& home);

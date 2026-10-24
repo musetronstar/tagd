@@ -94,7 +94,7 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 			tpl.set_value("id", u.id());
 		else
 			tpl.set_value("id", this_tag.id());
-		if (this_tag.related("type", "image_jpeg"))
+		if (u.ok() && this_tag.related("type", "image_jpeg"))
 			tpl.set_value_show_section("img_src", u.id(), "has_img");
 	} else {
 		tpl.set_value("id", this_tag.id());
@@ -112,8 +112,10 @@ tagd::code fill_tag(transaction& tx, const view&, tagd_template& tpl, const tagd
 		for (auto pred : this_tag.relations) {
 			if (pred.relator == "img_src" && tagd::url::looks_like_hduri(pred.object)) {
 				tagd::HDURI u(pred.object);
-				img_urls.insert(u);
-				continue;
+				if (u.ok()) {
+					img_urls.insert(u);
+					continue;
+				}
 			}
 
 			if (pred.relator != last_relator) {
@@ -220,7 +222,7 @@ tagd::code fill_tree(transaction& tx, const view&, tagd_template& tpl, const tag
 	/*
 	if (this_tag.pos() == tagd::POS_URL) {
 		tagd::HDURI hduri(this_tag.id());
-		tpl.set_value("id", hduri.id());
+		tpl.set_value("id", hduri.ok() ? hduri.id() : this_tag.id());
 	} else {
 		tpl.set_value("id", this_tag.id());
 	}
@@ -373,7 +375,7 @@ get_handler_t browse_handler(
 
 		if (this_tag.pos() == tagd::POS_URL) {
 			tagd::HDURI u(this_tag.id());
-			main_tpl->set_value("id", u.id());
+			main_tpl->set_value("id", u.ok() ? u.id() : this_tag.id());
 		} else {
 			main_tpl->set_value("id", this_tag.id());
 		}

@@ -13,7 +13,7 @@ LFLAGS = -L../lib -l$(TAGDB_LIBRARY) -L$(TAGD_DIR)/lib -ltagd $(TAGSPACE_BACKEND
 
 # SQL diagnostics and fault injection belong only to the SQLite implementation.
 ifeq ($(TAGDB_BACKEND),sqlite)
-BACKEND_TESTS = SqliteTester.h SqliteCacheTester.h
+BACKEND_TESTS = SqliteTester.h SqliteCacheTester.h BatchTester.h
 endif
 
 SRC = tester.cc

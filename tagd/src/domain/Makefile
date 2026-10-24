@@ -1,6 +1,9 @@
 # Use flags from top-level, or defaults if called directly
 CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 
+# Project libraries report errors explicitly; tests retain their own compiler flags.
+override CXXFLAGS += -fno-exceptions
+
 GPERF=public-suffix.gperf
 GPERF_H=public-suffix.gperf.h
 OBJS=domain.o

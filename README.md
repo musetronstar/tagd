@@ -21,6 +21,11 @@ integration with other services.
 
 All tokens in TAGL are **UTF-8** labels.
 
+Project library sources compile with C++ exceptions disabled. Fallible operations
+return error codes; fallible initialization uses `init()`. Library allocation-failure
+exception recovery is unsupported. Configuration getters require successful
+initialization; an internal invariant violation reports a diagnostic and aborts.
+
 ### TAGL Tutorial
 
 This tutorial is intended to be read through, or followed by performing the
@@ -32,8 +37,10 @@ then launch **tagsh** - the tagd shell:
 	cd tagsh
 	bin/tagsh
 
-With no `--tagspace` option, tagsh uses an in-memory tagspace.
+Without a configured startup target or `--tagspace`, tagsh uses an in-memory tagspace.
 `tagsh -h` shows usage and options.
+Redirected input now stops at the first TAGL or shell-command error and exits
+nonzero; earlier versions could continue and exit successfully.
 
 To create a persistent named tagspace, then reopen it:
 
@@ -42,7 +49,7 @@ bin/tagsh --tagspace Zoology --create
 bin/tagsh --tagspace Zoology
 ```
 
-`--create` requires `--tagspace` and fails if its database already exists.
+Named `--create` requires `--tagspace` and fails if its database already exists.
 Without `--create`, a missing tagspace is an error. Option order is irrelevant.
 Use `--home DIR` to override the default `~/.tagd`; data resides at
 `<home>/tagspaces/<name>/<name>.db`. Creation makes missing parent directories
@@ -61,9 +68,19 @@ Runtime edits never persist automatically. See [Application Configuration](docs/
 for the schema, precedence, and runtime restrictions.
 
 The same options apply to httagd, which also defaults to in-memory storage.
-Both programs operate on one tagspace selected at startup. TAGL switching,
-named-tagspace URL prefixes, and filepile storage are future work. The former
-`--db` option is removed.
+TAGL supports tagspace switching and named-tagspace URL prefixes; see the
+[TAGL specification](docs/TAGL-spec.md). `--db PATH` opens a direct database and
+disables home lookup. Tagsh exposes local filepile storage through `--store URL`
+and interactive `.store URL`; see [Filepile storage](docs/filepile.md).
+
+```sh
+bin/tagsh --home /data/tagd --tagspace Photos --create --noshell
+bin/tagsh --home /data/tagd --tagspace Photos --store file:///photos/a.jpg --noshell
+```
+
+Filepile requires persistent storage and a home directory. Calls sharing a home
+must run sequentially in one process. HTTP acquisition and native TAGL STORE
+remain deferred.
 
 
 
@@ -904,7 +921,7 @@ successful builds and tests on other platforms.
 
 To Build:
 
-	sudo apt install build-essential gperf libnet-idn-encode-perl re2c lemon libreadline-dev libsqlite3-dev libevent-dev libevhtp-dev libssl-dev libctemplate-dev
+	sudo apt install build-essential gperf libmagic-dev libmagic-mgc libnet-idn-encode-perl re2c lemon libreadline-dev libsqlite3-dev libevent-dev libevhtp-dev libssl-dev libctemplate-dev
 
 For Testing:
 
@@ -919,3 +936,19 @@ Building and Testing:
 
 In the pursuit of Universal love, peace, and harmony, this is free software
 committed to the public domain as [CC0](http://creativecommons.org/publicdomain/zero/1.0/).
+
+### Shared content detection
+
+Core tagd provides bounded sample detection (`tagd/magic.h`), incremental EVP
+SHA-256 (`tagd/sha256.h`), and UTC nanosecond formatting (`tagd/datetime.h`).
+Detection/hash consumers link `-lmagic -lcrypto`; building requires the development
+headers for libmagic and OpenSSL, plus Perl and gperf. The default explicit magic
+database is `/usr/share/misc/magic.mgc`; callers can supply another trusted path.
+The `MAGIC` environment variable does not select the database.
+
+The MIME-to-extension table is generated offline from pinned CSV and reviewed
+corrections in `tagd/src/magic/`. See its `PROVENANCE.md` for update rules.
+`make -C tagd/tests magic_evaluation` prints a sample-size comparison report;
+fixture expectations are independent of libmagic and inaccurate classifications
+are reported rather than hidden. Detection is advisory metadata, not content
+validation or a sandbox.

@@ -656,6 +656,67 @@ can declare a URL without artificial predicates, in any tagspace:
 An HDURI spelling may be used for the same URL. This general declaration rule
 also supplies the file URL objects used by tagspace `_from` predicates.
 
+### HDURI identity encoding
+
+HDURI retains the `hd:` scheme and ten fields, separated by nine `!` delimiters:
+
+```text
+hd:rpub!priv_label!rsub!path!query!fragment!port!user!pass!scheme
+```
+
+The public suffix and subdomain labels are reversed to group related hosts.
+If domain decomposition would lose host bytes, the complete host occupies
+`priv_label` and the other two host fields are empty. The original host is
+preserved, including leading/trailing dots and hosts exceeding domain lookup
+limits.
+
+Each component escapes literal `%` as `%25` and literal `!` as `%21`.
+Decoding removes exactly this one layer; it does not decode URL percent escapes.
+For example:
+
+| URL | HDURI |
+| --- | --- |
+| `http://example.com/a!b` | `hd:com!example!!/a%21b!!!!!!http` |
+| `http://example.com/a%21b` | `hd:com!example!!/a%2521b!!!!!!http` |
+
+Identity is the ID produced by ordinary URL parsing, including its existing
+scheme/host case handling. HDURI does not introduce further normalization:
+percent-escape spelling, explicit ports, UTF-8 bytes, and empty versus absent
+query/fragment components remain distinct. The `mailto:` form reconstructs
+without `//`; `mailto://` is rejected because the layout does not encode both
+forms separately. The `hd:` scheme is reserved for HDURI input.
+Explicit empty ports (a trailing `:` in the authority) are rejected with
+`URL_ERR_PORT`; the component layout represents absent ports and nonempty ports.
+
+Only canonical fields, as produced by `hduri()`, are accepted. Different host
+groupings or noncanonical scheme/host case are rejected. General URL parsing
+accepts the `hd:` prefix case-insensitively and normalizes it to `hd:`;
+the HDURI-specific constructor requires the literal `hd:` prefix.
+
+An empty password field means no password. The complete password field `%00`
+means an explicitly empty password; literal password text `%00` is `%2500`.
+The sentinel is invalid in other fields. Invalid field counts, escapes, or
+component boundaries return `HDURI_ERR` (`_error:hduri_err`). Empty payloads,
+missing schemes, and invalid reconstructed URLs retain their ordinary URI/URL
+error codes.
+
+The decoded URL limit remains 2112 bytes. HDURI input has a separate conservative
+bound of 6351 bytes: three times the URL limit, plus the `hd:` prefix, nine
+separators, and the empty-password marker. Decoding independently checks the
+URL limit. This also leaves room for filepile's `link:` prefix and `#999` suffix
+within the 8192-byte tag-ID limit.
+
+**Pre-beta encoding break:** escaping `%` changes HDURIs and generated filepile
+link IDs containing percent sequences. Recreate affected persisted identities
+from authoritative original URLs before using them with this encoding. There is
+no version marker, legacy detection, or automatic migration. Old collisions
+cannot be reversed reliably; saved old strings that happen to satisfy the new
+grammar cannot be identified as old input. No user data is rewritten or deleted
+automatically.
+Dump reports an invalid stored HDURI, including its stored ID, as an error rather
+than emitting a blank URL subject. A failed dump may contain earlier rows and
+must not be used as a complete export.
+
 ## 12. Errors
 
 * Errors are represented as tags
@@ -761,3 +822,16 @@ tagspace named dog; it never falls back to reading dog from the active target.
 Update external scripts and stored URL values explicitly; databases are not
 automatically rewritten. Root searches can use `/_/*/?q=...`. The HTTP client
 still accepts arbitrary complete URLs without rewriting them.
+
+### Stored-file URL classification
+
+A filepile URL retains its ordinary URL behavior while recording the explicit
+`_file:stored` subtype. Dump/load preserves that classification:
+
+```tagl
+>> file:///home/user/.tagd/filepile/aa/bb/content.bin _type_of _file:stored;
+```
+
+This declaration records semantics only; it does not acquire bytes or perform
+filepile storage. Ordinary URL declarations continue deriving their default type
+from the URL scheme.

@@ -1,8 +1,11 @@
 #include <cassert>
+#include <algorithm>
+#include <memory>
 #include <cctype>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <strings.h>  // strcasecmp
 
 
 #include "tagd/url.h"
@@ -11,6 +14,18 @@ namespace tagd {
 
 tagd::code url::init(id_view u) {
 	if (u.size() == 0) return _code;  // URL_EMPTY
+
+	// HDURI escaping can exceed the URL byte limit even when the decoded URL fits.
+	if (u.size() >= HDURI_SCHEME.size() && (u[0] == 'h' || u[0] == 'H') &&
+		(u[1] == 'd' || u[1] == 'D') && u[2] == ':') {
+		if (u.size() > HDURI_MAX_LEN)
+			return code(URL_MAX_LEN);
+
+		if (u.starts_with(HDURI_SCHEME))
+			return init_hduri(u);
+
+		return init_hduri(HDURI_SCHEME + std::string(u.substr(HDURI_SCHEME.size())));
+	}
 	if (u.size() > URL_MAX_LEN) return code(URL_MAX_LEN);
 
 	auto url_str = std::string(u);  // copy becuase we lower scheme
@@ -23,19 +38,19 @@ tagd::code url::init(id_view u) {
 
 // scheme
 	for (; i < sz; i++) {
-		url_str[i] = tolower(url_str[i]);
+		url_str[i] = tolower(static_cast<unsigned char>(url_str[i]));
 		if (url_str[i] == ':') {
 			if (i == 0)
 				return code(URL_ERR_SCHEME);
 
 			_scheme_len = i;
 			if (url_str.substr(i, 3) == "://") {
+				// Only the nonhierarchical mailto form has a reversible component layout.
+				if (f_scheme() == "mailto")
+					return code(URL_ERR_SCHEME);
 				i += 3;
 				goto authority;
 			}
-
-			if (url_str.substr(0, HDURI_SCHEME.size()) == HDURI_SCHEME)
-				return this->init_hduri(url_str);
 
 			if (url_str.substr(0, i) == "mailto") {
 				// techically a uri, but lets allow it
@@ -163,6 +178,9 @@ pass:
 	_host_len = _user_len;
 	_port_offset = _pass_offset;
 	_port_len = i - _port_offset;
+	// The layout has no empty-port sentinel, so a trailing ':' must not lose identity.
+	if (_port_len == 0)
+		return code(URL_ERR_PORT);
 	_user_offset = _user_len = _pass_offset = _pass_len = 0;  // no user:pass
 
 	goto url_ok;
@@ -228,6 +246,8 @@ port:
 
 	// no path, query, fragment
 	_port_len = i - _port_offset;
+	if (_port_len == 0)
+		return code(URL_ERR_PORT);
 	goto url_ok;
 
 path:
@@ -272,7 +292,7 @@ fragment:
 url_ok:
 	// lower host
 	for (i = _host_offset; i < (_host_offset + _host_len); i++)
-		url_str[i] = tolower(url_str[i]);
+		url_str[i] = tolower(static_cast<unsigned char>(url_str[i]));
 	_id = url_str;
 	// a file: scheme url identifies materialized content;
 	// the url object provides the subordinate relation, never the user
@@ -283,6 +303,24 @@ url_ok:
 	return this->code(TAGD_OK);
 }
 
+namespace {
+std::string hduri_host(const std::string& rpub, const std::string& priv,
+	const std::string& rsub) {
+	std::string host = reverse_labels(rsub);
+	for (const auto& part : {priv, reverse_labels(rpub)}) {
+		if (part.empty()) {
+			continue;
+		}
+		if (!host.empty()) {
+			host += '.';
+		}
+		host += part;
+	}
+
+	return host;
+}
+} // namespace
+
 tagd::code url::init_hduri(id_view uri) {
 	if (uri.substr(0, HDURI_SCHEME.size()) != HDURI_SCHEME)
 		return code(URI_ERR_SCHEME);
@@ -292,7 +330,7 @@ tagd::code url::init_hduri(id_view uri) {
 	auto sz = hduri.size();
 	if (sz == 0) return _code;  // URL_EMPTY
 
-	if (sz > URL_MAX_LEN) return code(URL_MAX_LEN);
+	if (uri.size() > HDURI_MAX_LEN) return code(URL_MAX_LEN);
 
 	// find scheme (at the end)
 	auto i = sz;
@@ -305,24 +343,36 @@ tagd::code url::init_hduri(id_view uri) {
 	if (i == 0) return code(URL_ERR_SCHEME);
 
 	// scheme is after the last delim
-	std::stringstream ss_url;
-	ss_url << decode_hduri_delim(std::string(hduri.substr(i + 1)));
+	std::string scheme;
+	if (!decode_hduri_delim(scheme, hduri.substr(i + 1)) || scheme.empty())
+		return code(HDURI_ERR);
 
-	_scheme_len = sz - (i+1);
+	// A reconstructed URL must not dispatch back into HDURI parsing.
+	if (strcasecmp(scheme.c_str(), "hd") == 0 || scheme.find(':') != std::string::npos)
+		return code(HDURI_ERR);
+
+	std::stringstream ss_url;
+	ss_url << scheme;
+
+	_scheme_len = scheme.size();
 	sz = _scheme_len;  // reuse sz for url now
 
-	std::string* elems[HDURI_NUM_ELEMS] = { nullptr };
+	// Fields remain owned when validation returns early.
+	std::unique_ptr<std::string> elems[HDURI_NUM_ELEMS];
+	bool empty_password = false;
 
 	{
 		// we will split on the hduri before !scheme
 		const auto s = hduri.substr(0, i);
+		if (std::count(s.begin(), s.end(), HDURI_DELIM) != HDURI_NUM_ELEMS - 1)
+			return code(HDURI_ERR);
 
 		size_t idx, j;
 		idx = j = i = 0;
 		for ( ; i < s.size() && j < s.size() && idx < HDURI_NUM_ELEMS; j++) {
 			if (s[j] == HDURI_DELIM) {
 				if ((j-i) > 0) {
-					elems[idx] = new std::string(s.substr(i, (j-i)));
+					elems[idx] = std::make_unique<std::string>(s.substr(i, (j-i)));
 				} // else remain NULL
 				idx++;
 				i = j + 1;
@@ -331,19 +381,31 @@ tagd::code url::init_hduri(id_view uri) {
 
 		// if last char is delim, we have a trailing blank string indicating a blank password (not NULL)
 		if (s[s.size()-1] == HDURI_DELIM) {
-			elems[idx] = new std::string();
+			elems[idx] = std::make_unique<std::string>();
 		} else {
 			if (i <= s.size()) {
-				elems[idx] = new std::string(s.substr(i));
+				elems[idx] = std::make_unique<std::string>(s.substr(i));
 			}
+		}
+
+		// an encoded NULL (%00) denotes an empty password; literal %00 is %2500
+		empty_password = elems[HDURI_PASS] && *(elems[HDURI_PASS]) == HDURI_EMPTY_PASSWORD;
+
+		// decode once, in place, so the offset arithmetic below counts URL bytes
+		for (idx = 0; idx < HDURI_NUM_ELEMS; idx++) {
+			if (!elems[idx] || (idx == HDURI_PASS && empty_password))
+				continue;
+			if (!decode_hduri_delim(*(elems[idx]), *(elems[idx])))
+				return code(HDURI_ERR);
 		}
 	}
 
-	ss_url << "://";
-	sz += 3;
+	const bool mailto = (scheme == "mailto");
+	ss_url << (mailto ? ":" : "://");
+	sz += (mailto ? 1 : 3);
 
 	if (elems[HDURI_USER]) {
-		ss_url << decode_hduri_delim(*(elems[HDURI_USER]));
+		ss_url << *(elems[HDURI_USER]);
 		_user_offset = sz;
 		_user_len = elems[HDURI_USER]->size();
 		sz += _user_len;
@@ -353,7 +415,7 @@ tagd::code url::init_hduri(id_view uri) {
 			//   http://user:@example.com
 			// versus a non-existant password
 			//   http://user@example.com
-			if (*(elems[HDURI_PASS]) == "%00") { // literal empty password
+			if (empty_password) { // literal empty password
 				ss_url << ':';
 				_pass_offset = sz + 1;
 				_pass_len = 0;  // literal empty passwd gets offset but zero len
@@ -361,7 +423,7 @@ tagd::code url::init_hduri(id_view uri) {
 			} else {
 				_pass_len = elems[HDURI_PASS]->size();
 				if (_pass_len > 0) {
-					ss_url << ':' << decode_hduri_delim(*(elems[HDURI_PASS]));
+					ss_url << ':' << *(elems[HDURI_PASS]);
 					_pass_offset = sz + 1;
 					sz += _pass_len + 1;
 				}
@@ -373,7 +435,7 @@ tagd::code url::init_hduri(id_view uri) {
 	}
 
 	if (elems[HDURI_RSUB]) {
-		ss_url << reverse_labels(decode_hduri_delim(*(elems[HDURI_RSUB])));
+		ss_url << reverse_labels(*(elems[HDURI_RSUB]));
 		_host_offset = sz;
 		_host_len = elems[HDURI_RSUB]->size();
 		sz += _host_len;
@@ -386,7 +448,7 @@ tagd::code url::init_hduri(id_view uri) {
 			_host_len++;  sz++;
 		}
 
-		ss_url << decode_hduri_delim(*(elems[HDURI_PRIV]));
+		ss_url << *(elems[HDURI_PRIV]);
 		_host_len += elems[HDURI_PRIV]->size();
 		sz += elems[HDURI_PRIV]->size();
 	}
@@ -398,43 +460,52 @@ tagd::code url::init_hduri(id_view uri) {
 			_host_len++;  sz++;
 		}
 
-		ss_url << reverse_labels(decode_hduri_delim(*(elems[HDURI_RPUB])));
+		ss_url << reverse_labels(*(elems[HDURI_RPUB]));
 		_host_len += elems[HDURI_RPUB]->size();
 		sz += elems[HDURI_RPUB]->size();
 	}
 
 	if (elems[HDURI_PORT]) {
-		ss_url << ':' << decode_hduri_delim(*(elems[HDURI_PORT]));
+		ss_url << ':' << *(elems[HDURI_PORT]);
 		_port_offset = sz + 1;
 		_port_len = elems[HDURI_PORT]->size();
 		sz += elems[HDURI_PORT]->size() + 1;
 	}
 
 	if (elems[HDURI_PATH]) {
-		ss_url << decode_hduri_delim(*(elems[HDURI_PATH]));
+		ss_url << *(elems[HDURI_PATH]);
 		_path_offset = sz;
 		_path_len = elems[HDURI_PATH]->size();
 		sz += elems[HDURI_PATH]->size();
 	}
 
 	if (elems[HDURI_QUERY]) {
-		ss_url << decode_hduri_delim(*(elems[HDURI_QUERY]));
+		ss_url << *(elems[HDURI_QUERY]);
 		_query_offset = sz;
 		_query_len = elems[HDURI_QUERY]->size();
 		sz += elems[HDURI_QUERY]->size();
 	}
 
 	if (elems[HDURI_FRAGMENT]) {
-		ss_url << decode_hduri_delim(*(elems[HDURI_FRAGMENT]));
+		ss_url << *(elems[HDURI_FRAGMENT]);
 		_fragment_offset = sz;
 		_fragment_len = elems[HDURI_FRAGMENT]->size();
 		sz += elems[HDURI_FRAGMENT]->size() + 1;
 	}
 
-	for( i = 0; i < HDURI_NUM_ELEMS; i++ )
-		if (elems[i] != nullptr) delete elems[i];
+	/*
+	 * Re-encoding must reproduce the canonical fields. Otherwise punctuation in
+	 * one field could change another field's meaning during URL reconstruction.
+	 */
+	const auto id = ss_url.str();
+	url check(id);
+	if (!check.ok())
+		return code(check.code());
+	if (check.hduri() != uri)
+		return code(HDURI_ERR);
 
-	_id = ss_url.str();
+	_id = id;
+
 	// a file: scheme url identifies materialized content;
 	// the url object provides the subordinate relation, never the user
 	if (this->scheme() == "file") {
@@ -444,29 +515,53 @@ tagd::code url::init_hduri(id_view uri) {
 	return code(TAGD_OK);
 }
 
-std::string encode_hduri_delim(std::string elem) {
-	size_t pos = 0;
-	while ((pos = elem.find(HDURI_DELIM, pos)) != std::string::npos) {
-		elem.replace(pos, 1, HDURI_DELIM_ENCODED);
-		pos += HDURI_DELIM_ENCODED.length();
+std::string encode_hduri_delim(id_view elem) {
+	std::string encoded;
+	encoded.reserve(elem.size());
+	for (const char c : elem) {
+		if (c == '%') {
+			encoded += HDURI_PERCENT_ENCODED;
+		} else if (c == HDURI_DELIM) {
+			encoded += HDURI_DELIM_ENCODED;
+		} else {
+			encoded += c;
+		}
 	}
-	return elem;
+
+	return encoded;
 }
 
-std::string decode_hduri_delim(std::string elem) {
-	size_t pos = 0;
-	while ((pos = elem.find(HDURI_DELIM_ENCODED, pos)) != std::string::npos) {
-		elem.replace(pos, HDURI_DELIM_ENCODED.length(), 1, HDURI_DELIM);  // replace encoded str with 1 char delim
-		pos++;  // length of char
+bool decode_hduri_delim(std::string& result, id_view elem) {
+	std::string decoded;
+	for (size_t i = 0; i < elem.size(); ++i) {
+		if (elem[i] == HDURI_DELIM)
+			return false;
+		if (elem[i] != '%') {
+			decoded += elem[i];
+			continue;
+		}
+
+		const auto escape = elem.substr(i, HDURI_DELIM_ENCODED.size());
+		if (escape == HDURI_DELIM_ENCODED) {
+			decoded += HDURI_DELIM;
+		} else if (escape == HDURI_PERCENT_ENCODED) {
+			decoded += '%';
+		} else {
+			return false;
+		}
+		// Advancing over source bytes prevents recursively decoding literal percent sequences.
+		i += escape.size() - 1;
 	}
-	return elem;
+
+	result = std::move(decoded);
+	return true;
 }
 
 // A Hierarchical URI Decomposition (HDURI) is composed of:
 //
 //  rpub!priv_label!rsub!path!query!fragment!port!user!pass!scheme
 //
-//  '!' characters in any url parts must be encoded (%21)
+//  '%' and '!' in URL parts are encoded as %25 and %21; decode exactly one layer.
 //
 //  http://sub2.sub1.example.co.uk/a/b/c?id=foo&x=123#summary
 //                     ||  ||
@@ -491,7 +586,18 @@ std::string url::hduri() const {
 	std::stringstream ss;
 	ss << HDURI_SCHEME;
 
-	tagd::domain d(this->host());
+	const auto host = this->host();
+	tagd::domain d(host);
+	std::string pub = d.pub();
+	std::string priv = d.priv_label();
+	std::string sub = d.sub();
+
+	// Domain classification can trim dots or reject long hosts; URL identity must retain those bytes.
+	if (hduri_host(reverse_labels(pub), priv, reverse_labels(sub)) != host) {
+		pub.clear();
+		priv = host;
+		sub.clear();
+	}
 
 	auto hduri_elem_f = [&ss](const std::string &elem, bool rev_labels=false) {
 		ss << HDURI_DELIM;
@@ -499,11 +605,11 @@ std::string url::hduri() const {
 			ss << encode_hduri_delim(rev_labels ? reverse_labels(elem) : elem);
 	};
 
-	if (!d.pub().empty())
-		ss << encode_hduri_delim(reverse_labels(d.pub()));
+	if (!pub.empty())
+		ss << encode_hduri_delim(reverse_labels(pub));
 
-	hduri_elem_f(d.priv_label());
-	hduri_elem_f(d.sub(), true);
+	hduri_elem_f(priv);
+	hduri_elem_f(sub, true);
 	hduri_elem_f(this->path());
 	hduri_elem_f(this->query());
 	hduri_elem_f(this->fragment());
@@ -512,7 +618,7 @@ std::string url::hduri() const {
 
 	// we have to distinguish between "no password" and "blank password"
 	if (_pass_offset != 0 && _pass_len == 0)
-		   ss << HDURI_DELIM << "%00"; // :<blank pass>
+		   ss << HDURI_DELIM << HDURI_EMPTY_PASSWORD; // :<blank pass>
 	else
 		   hduri_elem_f(this->pass());
 

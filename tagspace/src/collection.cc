@@ -524,6 +524,8 @@ tagd::code config::open_tagspace(const std::string& target, const std::string& a
 	} else if (tagdb::accepts_storage_file(path)) {
 		auto db = std::make_shared<tagspace::persistent>();
 		rc = action == source_action::create ? db->create_file(path) : db->open_file(path);
+		db->filepile_home(home(), _home_disabled ? "--db disables home directory lookup."
+			: "no home directory is configured.");
 		opened = db;
 	} else {
 		auto mem = std::make_shared<tagspace::memory>();
@@ -662,6 +664,12 @@ tagd::code config::close_tagspace(const std::string& target, const std::string& 
 
 // Call after description or effective-home mutations. Alias-only writes cannot change source identity.
 void config::refresh_sources() {
+	// Runtime configuration changes also select the home used by already-open storage.
+	for (auto& [id, instance] : _opened) {
+		if (auto* stored = dynamic_cast<stored_tagspace*>(instance.get()))
+			stored->filepile_home(home(), _home_disabled ? "--db disables home directory lookup."
+				: "no home directory is configured.");
+	}
 	tag_set tags;
 	if (descriptions(tags) != TAGD_OK)
 		return;

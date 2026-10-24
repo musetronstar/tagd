@@ -134,14 +134,7 @@ void canonical_cache::retain(cache_entry entry) {
 
 	// Publish the replacement only after both owning node and index allocation succeed.
 	_cache.push_front(std::move(entry));
-	decltype(_cache_index)::iterator found;
-	bool inserted;
-	try {
-		std::tie(found, inserted) = _cache_index.emplace(_cache.front().id, _cache.begin());
-	} catch (...) {
-		_cache.pop_front();
-		throw;
-	}
+	const auto [found, inserted] = _cache_index.emplace(_cache.front().id, _cache.begin());
 	if (!inserted) {
 		auto old = found->second;
 		_cache_bytes -= old->bytes;

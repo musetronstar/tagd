@@ -116,6 +116,125 @@ bool url_user_test(std::string u,
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_hduri_preserves_distinct_url_identities() {
+		std::set<std::string> encoded;
+		for (const auto path : {"/a!b", "/a%21b", "/a%2521b", "/a%b", "/a%25b"}) {
+			const tagd::url source("http://example.com" + std::string(path));
+			TS_ASSERT_EQUALS(source.code(), tagd::TAGD_OK);
+			TS_ASSERT(encoded.insert(source.hduri()).second);
+			TS_ASSERT_EQUALS(tagd::url(source.hduri()).id(), source.id());
+		}
+
+		TS_ASSERT_EQUALS(tagd::url("http://example.com/a%21b").hduri(),
+			"hd:com!example!!/a%2521b!!!!!!http");
+	}
+
+	void test_hduri_round_trip_components_and_presence() {
+		for (const auto input : {
+			"http://example.com/a!b?x=1#f",
+			"http://u!%21:p!%00@sub!%21.example.com:8!%21/a!%21?x=!%25#f!%21",
+			"x!%21://example.com/日本語?é=%21#😀",
+			"http://joe@example.com", "http://joe:@example.com",
+			"http://joe:%00@example.com", "http://joe:%2500@example.com",
+			"http://example.com", "http://example.com/", "http://example.com?",
+			"http://example.com#", "http://example.com?#", "http://example.com:80",
+			"http://localhost/", "http://127.0.0.1/", "http://sub.example.unknown/",
+			"http://.example.com/", "http://example.com./", "http://../",
+			"http://sub..example.com/", "http://日本語.example.com/",
+			"mailto:joe!%21@example.com?subject=%25#f",
+			"file:///tmp/a%21b", "file:///tmp/a%2521b", "file:///tmp/日本語",
+			"HTTP://EXAMPLE.COM/Case%2f?Case=%2F#Case"
+		}) {
+			const tagd::url source(input);
+			TS_ASSERT_EQUALS(source.code(), tagd::TAGD_OK);
+			std::string encoded = source.hduri();
+			for (unsigned round = 0; round < 3; ++round) {
+				const tagd::url decoded(encoded);
+				TS_ASSERT_EQUALS(decoded.code(), tagd::TAGD_OK);
+				if (!decoded.ok()) {
+					break;
+				}
+
+				TS_ASSERT_EQUALS(decoded.id(), source.id());
+				TS_ASSERT_EQUALS(decoded.scheme(), source.scheme());
+				TS_ASSERT_EQUALS(decoded.host(), source.host());
+				TS_ASSERT_EQUALS(decoded.port(), source.port());
+				TS_ASSERT_EQUALS(decoded.user(), source.user());
+				TS_ASSERT_EQUALS(decoded.pass(), source.pass());
+				TS_ASSERT_EQUALS(decoded.pass_empty(), source.pass_empty());
+				TS_ASSERT_EQUALS(decoded.path(), source.path());
+				TS_ASSERT_EQUALS(decoded.query(), source.query());
+				TS_ASSERT_EQUALS(decoded.fragment(), source.fragment());
+				TS_ASSERT_EQUALS(decoded.hduri(), encoded);
+				encoded = decoded.hduri();
+			}
+		}
+	}
+
+	void test_hduri_password_sentinel_is_not_literal_text() {
+		std::set<std::string> encoded;
+		for (const auto authority : {"joe@example.com", "joe:@example.com",
+			"joe:%00@example.com", "joe:%2500@example.com"}) {
+			const tagd::url source("http://" + std::string(authority));
+			TS_ASSERT(encoded.insert(source.hduri()).second);
+			TS_ASSERT_EQUALS(tagd::url(source.hduri()).id(), source.id());
+		}
+
+		TS_ASSERT_EQUALS(tagd::url("http://joe:%00@example.com").hduri(),
+			"hd:com!example!!!!!!joe!%2500!http");
+	}
+
+	void test_malformed_hduri_is_rejected() {
+		TS_ASSERT_EQUALS(std::string(tagd::code_error_tag(tagd::HDURI_ERR)), "_error:hduri_err");
+		for (const auto input : {
+			"hd:com!example!http", "hd:com!example!!/%!!!!!!http",
+			"hd:com!example!!/%2!!!!!!http", "hd:com!example!!/%2g!!!!!!http",
+			"hd:com!example!!/%20!!!!!!http", "hd:com!example!!/%00!!!!!!http",
+			"hd:com!example!!/!!!!joe!x%00!http", "hd:com!example!!!!!!!%00!http",
+			"hd:com!example!!/!x!!!!!http", "hd:com!example!!/!!x!!!!http",
+			"hd:com!example!!/a?b!!!!!!http", "hd:com!example!!/!!!!!!",
+			"hd:com!example!!/!!!!!!hd", "hd:com!example!!/!!!!!!!http"
+		}) {
+			const tagd::url decoded(input);
+			TS_ASSERT_DIFFERS(decoded.code(), tagd::TAGD_OK);
+			TS_ASSERT(decoded.empty());
+		}
+	}
+
+	void test_hduri_requires_canonical_fields() {
+		TS_ASSERT_EQUALS(tagd::url("HD:com!example!!/!!!!!!http").id(), "http://example.com/");
+		for (const auto input : {"hd:COM!example!!/!!!!!!http",
+			"hd:com!example!!/!!!!!!HTTP", "hd:!!com.example!/!!!!!!http",
+			"hd:com!example!!/!!!!!!Hd", "hd:com!example!!/!!!!!!hd:other"}) {
+			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::HDURI_ERR);
+		}
+	}
+
+	void test_url_rejects_forms_without_reversible_hduri_fields() {
+		TS_ASSERT_EQUALS(tagd::url("mailto://joe@example.com").code(), tagd::URL_ERR_SCHEME);
+		for (const auto input : {"http://example.com:", "http://joe@example.com:"}) {
+			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::URL_ERR_PORT);
+		}
+	}
+
+	void test_hduri_byte_limits_include_encoding_expansion() {
+		for (const auto byte : {'!', '%', 'a'}) {
+			const std::string prefix = "http://example.com/";
+			const tagd::url source(prefix + std::string(tagd::URL_MAX_LEN - prefix.size(), byte));
+			TS_ASSERT_EQUALS(source.code(), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(tagd::url(source.hduri()).id(), source.id());
+			TS_ASSERT_EQUALS(tagd::HDURI(source.hduri()).id(), source.id());
+			TS_ASSERT_EQUALS(tagd::url(source.id() + "a").code(), tagd::URL_MAX_LEN);
+		}
+
+		const tagd::url long_host("http://" + std::string(300, 'a') + "/");
+		TS_ASSERT_EQUALS(tagd::url(long_host.hduri()).id(), long_host.id());
+		const std::string oversized = "hd:com!example!!/" +
+			std::string(tagd::URL_MAX_LEN, 'a') + "!!!!!!http";
+		TS_ASSERT_EQUALS(tagd::url(oversized).code(), tagd::URL_MAX_LEN);
+		TS_ASSERT_EQUALS(tagd::url("hd:" + std::string(tagd::HDURI_MAX_LEN, 'a')).code(),
+			tagd::URL_MAX_LEN);
+	}
 
 	void test_simple(void) {
 		tagd::url a("http://example.com");
@@ -232,12 +351,25 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagd::encode_hduri_delim("!"), "%21" );
 		TS_ASSERT_EQUALS( tagd::encode_hduri_delim("some!label!!to"), "some%21label%21%21to" );
 		TS_ASSERT_EQUALS( tagd::encode_hduri_delim("/!path/to"), "/%21path/to" );
+		TS_ASSERT_EQUALS(tagd::encode_hduri_delim("!%21%25%2521%00"),
+			"%21%2521%2525%252521%2500");
 	}
 
 	void test_decode_hduri_delim(void) {
-		TS_ASSERT_EQUALS( tagd::decode_hduri_delim("%21"), "!" );
-		TS_ASSERT_EQUALS( tagd::decode_hduri_delim("some%21label%21%21to"), "some!label!!to" );
-		TS_ASSERT_EQUALS( tagd::decode_hduri_delim("/%21path/to"), "/!path/to" );
+		std::string decoded;
+		TS_ASSERT(tagd::decode_hduri_delim(decoded, "%21"));
+		TS_ASSERT_EQUALS(decoded, "!");
+		TS_ASSERT(tagd::decode_hduri_delim(decoded, "some%21label%21%21to"));
+		TS_ASSERT_EQUALS(decoded, "some!label!!to");
+		TS_ASSERT(tagd::decode_hduri_delim(decoded, "/%21path/to"));
+		TS_ASSERT_EQUALS(decoded, "/!path/to");
+		TS_ASSERT(tagd::decode_hduri_delim(decoded, "%21%2521%2525%252521%2500"));
+		TS_ASSERT_EQUALS(decoded, "!%21%25%2521%00");
+
+		for (const auto input : {"%", "%2", "%2g", "%20", "%00", "!"}) {
+			TS_ASSERT(!tagd::decode_hduri_delim(decoded, input));
+			TS_ASSERT_EQUALS(decoded, "!%21%25%2521%00");
+		}
 	}
 
 	void test_tilde_path(void) {

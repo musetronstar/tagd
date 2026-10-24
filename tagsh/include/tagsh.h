@@ -42,6 +42,8 @@ class tagsh {
 		tagd::code _last_code = tagd::TAGD_OK;
 
 	public:
+		enum class input_origin { script, terminal };
+
 		std::string prompt() const {
 			return _batch ? std::string{} : _config.prompt();
 		}
@@ -80,17 +82,18 @@ class tagsh {
 		const tagd::tagspace* tsp() const { return _driver.tsp(); }
 		tagd::code select_startup(const cmd_args&);
 		void configuration_loading(bool value) { _driver.configuration_loading(value); }
-		void command(const std::string&);
+		void command(const std::string&, input_origin = input_origin::script);
+		[[nodiscard]] tagd::code store(const std::string&);
 		int interpret_readline();
 		int interpret(std::istream&);
-		int interpret(const std::string&);  // tagl statement
+		int interpret(const std::string&, input_origin = input_origin::script);  // tagl statement
 		int interpret_fname(const std::string&, bool ignore_duplicates = false);  // filename
 		tagd::code last_code() const { return (_last_code == tagd::TAGD_OK ? _driver.tsp()->code() : _last_code); }
 		void last_code(tagd::code code) { _last_code = code; }
 		void set_output(std::ostream& os) { out = &os; }
 		void dump() { _driver.tsp()->dump(); }
 		void dump_file(const std::string&, bool = true);
-		static int error(const char *errfmt, ...);
+		int error(const char *errfmt, ...);
 		static void cmd_show();
 };
 
@@ -102,7 +105,7 @@ struct cmd_handler {
 typedef std::map< std::string, cmd_handler > cmd_handler_map_t;
 
 struct startup_action {
-	enum class kind { tagl, file, stdin_stream };
+	enum class kind { tagl, file, stdin_stream, store };
 	kind type;
 	std::string input;
 };

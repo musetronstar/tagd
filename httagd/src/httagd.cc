@@ -867,10 +867,10 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 
 	if ( tagd::url::looks_like_hduri(val) ) {
 		tagd::HDURI u(val);
-		f_set_vals(u.id(), tagd::uri_encode(u.hduri()));
+		f_set_vals(u.ok() ? u.id() : val, tagd::uri_encode(u.ok() ? u.hduri() : val));
 	} else if ( tagd::url::looks_like_url(val) ) {
 		tagd::url u(val);
-		f_set_vals(u.id(), tagd::uri_encode(u.hduri()));
+		f_set_vals(u.ok() ? u.id() : val, tagd::uri_encode(u.ok() ? u.hduri() : val));
 	} else {
 		f_set_vals(val, tagd::uri_encode(val));
 	}
