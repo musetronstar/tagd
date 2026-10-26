@@ -1,0 +1,6 @@
+# track only the LaTeX source, its build recipe, and the published PDF
+*
+!.gitignore
+!Makefile
+!tagd-math.tex
+!tagd-math.pdf
