@@ -27,7 +27,7 @@ class tagsh_callback : public TAGL::callback {
 		void cmd_put(const tagd::abstract_tag&);
 		void cmd_store(const tagd::abstract_tag&) override;
 		void cmd_delete_storage(const tagd::abstract_tag&) override;
-		void cmd_del(const tagd::abstract_tag&);
+		void cmd_delete(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&);
 		void cmd_error();
 

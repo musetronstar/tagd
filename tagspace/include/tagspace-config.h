@@ -150,6 +150,9 @@ public:
 	std::string default_view() const {
 		return value(HARD_TAG_CONFIG_DEFAULT_VIEW);
 	}
+	std::string fallback_error_view() const {
+		return value(HARD_TAG_CONFIG_FALLBACK_ERROR_VIEW);
+	}
 	std::string prompt() const {
 		return value(HARD_TAG_CONFIG_PROMPT);
 	}

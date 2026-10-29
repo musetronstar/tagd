@@ -809,8 +809,8 @@ void driver::do_callback() {
 			_callback->cmd_delete_storage(*_tag);
 			break;
 		case TOK_CMD_DELETE:
-			TAGL_LOG_TRACE( "callback::cmd_del: " << *_tag << std::endl )
-			_callback->cmd_del(*_tag);
+			TAGL_LOG_TRACE( "callback::cmd_delete: " << *_tag << std::endl )
+			_callback->cmd_delete(*_tag);
 			break;
 		case TOK_CMD_QUERY:
 			TAGL_LOG_TRACE( "callback::cmd_query: " << *_tag << std::endl )

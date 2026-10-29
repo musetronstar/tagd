@@ -67,7 +67,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 			void cmd_put(const tagd::abstract_tag&) override {
 				++mutations;
 			}
-			void cmd_del(const tagd::abstract_tag&) override {
+			void cmd_delete(const tagd::abstract_tag&) override {
 				++mutations;
 			}
 			void cmd_store(const tagd::abstract_tag&) override {
@@ -227,7 +227,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS(cb.last_tag->id(), "dog")
 	}
 
-	void test_cmd_del_tag(void) {
+	void test_cmd_delete_tag(void) {
 		tagspace_tester tsp;
 		callback_tester cb(&tsp);
 		TAGL::driver tagl(&tsp, &cb);

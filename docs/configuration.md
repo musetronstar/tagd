@@ -113,9 +113,19 @@ valid. Ordinary runtime PUT retains normal `TS_DUPLICATE` behavior.
 | `_config:tpl_dir` | `./app/tpl/` | Template directory; editable |
 | `_config:www_dir` | `./app/www/` | Static-file directory; editable |
 | `_config:favicon` | Absent | Explicit filename, or derive `favicon.ico` under current www directory |
-| `_config:default_view` | Absent | View name, or the existing HTTP default view |
+| `_config:default_view` | Absent | Registered view name, or built-in `tagl`; editable |
+| `_config:fallback_error_view` | Absent | Registered ERROR view name, or built-in `tagl`; editable |
 | `_config:prompt` | `tagd> ` | Prompt text; empty suppresses the prompt |
 | `_config:echo_result_code` | `_true` | `_true` or `_false`; editable |
+
+Before serving, httagd checks both view settings against the registered app views.
+Unknown default views and fallback names without an ERROR handler fail startup
+with `TS_NOT_FOUND`; absent settings and `tagl` are valid. View configuration is
+read per request. If a fallback stops resolving, errors use built-in TAGL text.
+
+The optional `httagd/app/config.tagl` selects `browse.html` for fallback errors:
+run `httagd --config app/config.tagl` from the httagd directory. This file replaces
+the home configuration source; it is not an extra layer of automatic app defaults.
 
 The three fixed settings become immutable after startup configuration and storage
 selection, before user `-t`/`-f` actions and the REPL or server loop. Attempts to

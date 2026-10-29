@@ -45,6 +45,7 @@ const setting settings[] = {
 	{HARD_TAG_CONFIG_WWW_DIR, "./app/www/", false},
 	{HARD_TAG_CONFIG_FAVICON, "", false},
 	{HARD_TAG_CONFIG_DEFAULT_VIEW, "", false},
+	{HARD_TAG_CONFIG_FALLBACK_ERROR_VIEW, "", false},
 	{HARD_TAG_CONFIG_PROMPT, "tagd> ", false},
 	{HARD_TAG_CONFIG_ECHO_RESULT_CODE, HARD_TAG_TRUE.data(), false}
 };

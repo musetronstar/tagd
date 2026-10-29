@@ -189,6 +189,27 @@ proc test_cli {n cmd success {pattern {}}} {
 	}
 }
 
+# Count complete error representations, not a prefix that could hide a second body.
+proc test_response {name method url status marker count {body {}}} {
+	global ERRORS
+	# Expect keeps draining the debug server's PTY while curl runs.
+	spawn -noecho curl -sS --max-time 5 -D - -X $method $url --data $body
+	set child $spawn_id
+	match_max -i $child 65536
+	expect -i $child -timeout 10 eof
+	set output $expect_out(buffer)
+	set result [wait -i $child]
+	if {[llength $result] == 4 && [lindex $result 2] == 0 && [lindex $result 3] == 0
+		&& [regexp "HTTP/1.1 $status" $output]
+		&& [regexp -all -- $marker $output] == $count} {
+		test_pass $name
+	} else {
+		test_fail $name
+		puts $output
+		incr ERRORS
+	}
+}
+
 test_exec_fail "httagd_trace_removed" \
 	 "../bin/httagd --trace" \
 	 {httagd: --trace has been retired; use --log-level with _role:httagd:debug}
@@ -471,7 +492,7 @@ foreach {query error} {c=absent ts_not_found c=type_context, tagl_err} {
 }
 
 # HEAD's length must describe GET's representation for both built-in and HTML views.
-foreach path {/_/type_subject /_/type_subject?v=browse.html /_/,type_source/} {
+foreach path {/_/type_subject /_/type_subject?v=browse.html /_/,type_source/ / /?v=browse.html} {
 	set get_headers [exec curl -sS --max-time 5 -D - -o /dev/null "http://localhost:2112$path"]
 	set head_headers [exec curl -sS --max-time 5 -I "http://localhost:2112$path"]
 	if {[regexp {HTTP/1.1 200} $get_headers] && [regexp {HTTP/1.1 200} $head_headers]
@@ -486,8 +507,127 @@ foreach path {/_/type_subject /_/type_subject?v=browse.html /_/,type_source/} {
 	}
 }
 
+# An app ERROR handler is selected explicitly or through configuration, never implicitly.
+test "view_unconfigured_error_is_tagl" "GET" "/_/_entity?v=missing-view" "" \
+	{Content-Type: text/plain; charset=utf-8}
+test "view_own_error_is_html" "GET" "/_/missing-tag?v=browse.html" "" \
+	{Content-Type: text/html; charset=utf-8}
+
+foreach {path marker} {
+	/ {This is tagd}
+	/?v=tagl {This is tagd}
+	/?v=tag.html {This is tagd}
+	/?v=browse.html {DOCTYPE HTML}
+} {
+	test_response "view_root_$path" GET "http://localhost:2112$path" 200 $marker 1
+}
+test_response view_root_unknown GET {http://localhost:2112/?v=missing} 404 {>> err:} 1
+test_response view_root_search_rejected GET {http://localhost:2112/?s=dog} 400 {_error:ts_misuse} 1
+test_response view_root_empty_search_rejected GET {http://localhost:2112/?s=} 400 {_error:ts_misuse} 1
+test_response view_root_empty_query_rejected GET {http://localhost:2112/?q=} 400 {>> err:} 1
+test_response view_root_invalid_context GET {http://localhost:2112/?c=missing} 404 {>> err:} 1
+test_response view_partial_query GET {http://localhost:2112/_/mammal/?v=tag.html} 200 {dog, cat, whale} 1
+foreach path {/_/missing-tag /_/_entity?v=missing /_/_entity/?v=missing} {
+	test_response "view_single_tagl_error_$path" GET "http://localhost:2112$path" 404 {>> err:} 1
+}
+test_response view_single_own_error GET {http://localhost:2112/_/missing-tag?v=browse.html} 404 {DOCTYPE HTML} 1
+
+# Typos fail before writes; a registered family without write handlers uses TAGL.
+test_response view_put_typo PUT {http://localhost:2112/_/view_new?v=missing} 404 {>> err:} 1 \
+	{>> view_new _sub _entity;}
+test_response view_put_typo_absent GET {http://localhost:2112/_/view_new} 404 {>> err:} 1
+test_response view_put_partial PUT {http://localhost:2112/_/view_new?v=browse.html} 200 {>> err:} 0 \
+	{>> view_new _sub _entity;}
+test_response view_delete_typo DELETE {http://localhost:2112/_/view_new?v=missing} 404 {>> err:} 1
+test_response view_delete_typo_preserved GET {http://localhost:2112/_/view_new} 200 {view_new _sub _entity} 1
+test_response view_delete_partial DELETE {http://localhost:2112/_/view_new?v=browse.html} 200 {>> err:} 0
+test_response view_delete_partial_absent GET {http://localhost:2112/_/view_new} 404 {>> err:} 1
+
+# Empty QUERY is a value, so its status must not abort a general TAGL body.
+test_response empty_query_setup POST http://localhost:2112/ 200 {>> err:} 0 \
+	{>> empty_query_leaf _sub _entity;}
+foreach view {tagl tag.html} {
+	test_response "empty_query_body_$view" GET \
+		"http://localhost:2112/_/empty_query_leaf/?v=$view" 404 {Content-Length: 0} 1
+}
+test_response empty_query_app_result GET \
+	{http://localhost:2112/_/empty_query_leaf/?v=browse.html} 404 {<small>0</small>} 1
+foreach {view subject} {
+	tagl after_empty_tagl
+	tag.html after_empty_partial
+	browse.html after_empty_app
+} {
+	test_response "empty_query_batch_$view" POST "http://localhost:2112/?v=$view" \
+		200 {>> err:} 0 "?? _what _sub empty_query_leaf; >> $subject _sub _entity;"
+	test_response "empty_query_batch_stored_$view" GET "http://localhost:2112/_/$subject" \
+		200 "$subject _sub _entity" 1
+}
+
 close
 wait
+
+
+# View settings must resolve before the listener starts.
+set view_tmp [exec mktemp -d /tmp/httagd-view-config-XXXXXX]
+try {
+	foreach {setting value} {
+		_config:default_view missing-view
+		_config:fallback_error_view missing-errors
+	} {
+		set config [file join $view_tmp invalid.tagl]
+		set stream [open $config w]
+		puts $stream ">> default_config _sub _config _has $setting = \"$value\";"
+		close $stream
+		test_cli "view_invalid_startup_$setting" \
+			[list ../bin/httagd --home $view_tmp --config $config \
+				--bind-addr 127.0.0.1 --tpl-dir ../app/tpl --www-dir ./www] \
+			0 "configured.*view.*not found: $value"
+	}
+	set listener [socket -server {apply {{channel host port} {close $channel}}} -myaddr 127.0.0.1 0]
+	set port [lindex [fconfigure $listener -sockname] 2]
+	close $listener
+	spawn -noecho ../bin/httagd --home $view_tmp --config ../app/config.tagl --default-view tag.html \
+		--bind-addr 127.0.0.1 --bind-port $port --tpl-dir ../app/tpl --www-dir ./www \
+		--log-level emergency,_role:httagd:notice
+	set view_server $spawn_id
+	set view_pid [exp_pid -i $view_server]
+	try {
+		set ready 0
+		expect {
+			-i $view_server -timeout $STARTUP_TIMEOUT
+			-re {httagd start} {set ready 1}
+			eof {}
+			timeout {}
+		}
+		if {!$ready} {
+			test_fail "view_configured_startup"
+			incr ERRORS
+		} else {
+			test_response view_default_get GET "http://127.0.0.1:$port/_/_entity" 200 {<h1 id="tag-id">_entity} 1
+			test_response view_default_query GET "http://127.0.0.1:$port/_/_entity/" 200 {DOCTYPE HTML} 0
+			test_response view_default_root GET "http://127.0.0.1:$port/" 200 {This is tagd} 1
+			test_response view_default_put PUT "http://127.0.0.1:$port/_/view_default" 200 {DOCTYPE HTML} 0 \
+				{>> view_default _sub _entity;}
+			test_response view_default_delete DELETE "http://127.0.0.1:$port/_/view_default" 200 {DOCTYPE HTML} 0
+			test_cli "view_configured_fallback_is_html" \
+				[list curl -sS --max-time 5 -D - \
+					"http://127.0.0.1:$port/_/_entity?v=missing-view"] \
+				1 {Content-Type: text/html; charset=utf-8.*DOCTYPE HTML}
+			foreach path {/_/_entity?v=missing-view /_/_entity/?v=missing-view} {
+				test_response "view_single_configured_error_$path" GET \
+					"http://127.0.0.1:$port$path" 404 {DOCTYPE HTML} 1
+			}
+			test_response view_explicit_tagl_error GET \
+				"http://127.0.0.1:$port/_/missing-tag?v=tagl" 404 {>> err:} 1
+		}
+	} finally {
+		catch {exec kill -TERM $view_pid}
+		catch {close -i $view_server}
+		wait -i $view_server
+	}
+} finally {
+	file delete -force $view_tmp
+}
 
 
 # HTTP application CLI contracts belong to this module, after tagsh in build order.

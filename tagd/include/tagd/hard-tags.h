@@ -247,6 +247,8 @@ inline constexpr std::string_view HARD_TAG_DEFAULT{"_default"};	/// HARD_TAG_SUB
 
 inline constexpr std::string_view HARD_TAG_ERROR_TS_CONTRADICTION{"_error:ts_contradiction"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
 
+inline constexpr std::string_view HARD_TAG_CONFIG_FALLBACK_ERROR_VIEW{"_config:fallback_error_view"};	/// HARD_TAG_SUB HARD_TAG_CONFIG tagd::POS_TAG
+
 // A hard_tag_axiom is one point in the invariant hard-tag subspace.
 struct hard_tag_axiom {
 	std::string_view id;

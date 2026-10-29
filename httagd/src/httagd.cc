@@ -352,41 +352,35 @@ tagd::code httagl::scan_request_tagdurl(const request& req) {
 
 void callback::default_cmd_put(const tagd::abstract_tag& t) {
 	auto ssn = _tx->drvr->session_ptr();
-	if ( _tx->tsp()->put(t, ssn, _driver->flags) != tagd::TAGD_OK) {
-		std::stringstream ss;
-		ssn->print_errors(ss);
-		_tx->res->add(ss.str());
-	}
+	const auto tc = _tx->tsp()->put(t, ssn, _driver->flags);
+	if (tc != tagd::TAGD_OK)
+		output_errors(tc);
 }
 
-void callback::default_cmd_del(const tagd::abstract_tag& t) {
+void callback::default_cmd_delete(const tagd::abstract_tag& t) {
 	auto ssn = _tx->drvr->session_ptr();
-	if (_tx->tsp()->del(t, ssn, _driver->flags) != tagd::TAGD_OK) {
-		std::stringstream ss;
-		ssn->print_errors(ss);
-		_tx->res->add(ss.str());
-	}
+	const auto tc = _tx->tsp()->del(t, ssn, _driver->flags);
+	if (tc != tagd::TAGD_OK)
+		output_errors(tc);
 }
 
 void callback::default_cmd_query(const tagd::interrogator& q) {
 	tagd::tag_set T;
 	auto ssn = _tx->drvr->session_ptr();
-	std::stringstream ss;
-
-	if (_tx->tsp()->query(T, q, ssn, _driver->flags) == tagd::TAGD_OK) {
-		tagd::print_tag_ids(T, ss);
-		ss << std::endl;
-	} else {
-		ssn->print_errors(ss);
+	const auto tc = _tx->tsp()->query(T, q, ssn, _driver->flags);
+	// An empty QUERY result has a status, but must not add a batch-stopping error.
+	const bool empty_result = tc == tagd::TS_NOT_FOUND && T.empty() && !_tx->size();
+	if (tc != tagd::TAGD_OK && !empty_result) {
+		output_errors(tc);
+		return;
 	}
 
-	if (ss.str().size())
-		_tx->res->add(ss.str());
-}
+	if (T.empty())
+		return;
 
-void callback::default_cmd_error() {
 	std::stringstream ss;
-	_driver->print_errors(ss);
+	tagd::print_tag_ids(T, ss);
+	ss << std::endl;
 	_tx->res->add(ss.str());
 }
 
@@ -582,24 +576,39 @@ std::string transaction::effective_opt_view() const {
 	return view_opt;
 }
 
+bool callback::resolve_view(view& result, view_action action) {
+	const auto tc = _tx->vws->resolve(result, {_tx->effective_opt_view(), action});
+	if (tc != tagd::TAGD_OK) {
+		output_errors(tc);
+		return false;
+	}
+
+	return true;
+}
+
 void callback::output_errors(tagd::code ret_tc) {
+	// The driver may redispatch the shared errors after a command already rendered them.
+	if (_errors_rendered)
+		return;
+	_errors_rendered = true;
+
+	// A failing handler may return only a code; retain it when creating the diagnostic.
 	if (!_tx->size())
-		_tx->ferror(tagd::TS_INTERNAL_ERR, "no errors to output, returned: %s", tagd::code_str(ret_tc));
+		_tx->ferror(ret_tc == tagd::TAGD_OK ? tagd::TS_INTERNAL_ERR : ret_tc,
+			"operation failed: %s", tagd::code_str(ret_tc));
 
 	HTTAGD_LOG_ERRORS(tagd::log_level::ERROR, *_tx);
 
-	// get the error_function view
-	view vw;
-	auto b = _tx->vws->report_errors;
-	_tx->vws->report_errors = false;
-	tagd::code tc = _tx->vws->get(vw, error_view_id(_tx->effective_opt_view()));
-	_tx->vws->report_errors = b;
-
-	// call error_function_t for the errorable object
-	if (tc == tagd::TAGD_OK)
-		tc = vw.error_function(*_tx, vw, *_tx);
-	else
-		tc = _tx->vws->fallback_error_view.error_function(*_tx, _tx->vws->fallback_error_view, *_tx);
+	const auto selected = _tx->effective_opt_view();
+	const auto* stored = _tx->vws->find(error_view_id(selected));
+	// Built-in TAGL supplies its own ERROR representation, even with an app fallback.
+	if (!stored && selected != DEFAULT_VIEW) {
+		// Configuration remains the source of truth, including local runtime edits.
+		const auto fallback = _tx->svr->configuration().fallback_error_view();
+		stored = _tx->vws->find(error_view_id(fallback));
+	}
+	view vw = stored ? *stored : default_error_view;
+	const auto tc = vw.error_function(*_tx, vw, *_tx);
 
 	// add plain text errors if the call failed
 	if (tc != tagd::TAGD_OK)
@@ -629,7 +638,7 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 	if (tc == tagd::TAGD_OK) {
 		ss << *T << std::endl;
 	} else {
-		ssn->print_errors(ss);
+		output_errors(tc);
 	}
 
 	if (ss.str().size()) {
@@ -650,8 +659,10 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 void callback::cmd_get(const tagd::abstract_tag& t) {
 	HTTAGD_LOG_DEBUG("httagd cmd_get");
 
-	std::string view_name = _tx->effective_opt_view();
-	if (view_name == DEFAULT_VIEW)
+	view vw;
+	if (!resolve_view(vw, view_action::GET))
+		return;
+	if (vw.action() == view_action::UNDEF)
 		return this->default_cmd_get(t);
 
 	/*
@@ -676,10 +687,6 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 	}
 	RET_IF_ERR();
 
-	view vw;
-	tc = _tx->vws->get(vw, get_view_id(view_name));
-	RET_IF_ERR();
-
 	tc = vw.get_function(*_tx, vw, *T);
 	RET_IF_ERR();
 
@@ -688,37 +695,57 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 }
 
 void callback::cmd_put(const tagd::abstract_tag& t) {
-	return this->default_cmd_put(t);
+	view vw;
+	if (!resolve_view(vw, view_action::PUT))
+		return;
 
-	// TODO get handler and call put_function
+	if (vw.action() == view_action::UNDEF)
+		return this->default_cmd_put(t);
+
+	auto ssn = _tx->drvr->session_ptr();
+	auto tc = _tx->tsp()->put(t, ssn, _driver->flags);
+	// The representation describes committed storage; rendering cannot roll it back.
+	if (tc == tagd::TAGD_OK)
+		tc = vw.put_function(*_tx, vw, t);
+
+	if (tc != tagd::TAGD_OK)
+		output_errors(tc);
 }
 
-void callback::cmd_del(const tagd::abstract_tag& t) {
-	return this->default_cmd_del(t);
+void callback::cmd_delete(const tagd::abstract_tag& t) {
+	view vw;
+	if (!resolve_view(vw, view_action::DELETE))
+		return;
 
-	// TODO get handler and call del_function
+	if (vw.action() == view_action::UNDEF)
+		return this->default_cmd_delete(t);
+
+	auto ssn = _tx->drvr->session_ptr();
+	auto tc = _tx->tsp()->del(t, ssn, _driver->flags);
+	// As with PUT, a failed deletion has no success representation.
+	if (tc == tagd::TAGD_OK)
+		tc = vw.delete_function(*_tx, vw, t);
+
+	if (tc != tagd::TAGD_OK)
+		output_errors(tc);
 }
 
 
 void callback::cmd_query(const tagd::interrogator& q) {
 	HTTAGD_LOG_DEBUG("httagd cmd_query");
 
-	std::string view_name = _tx->effective_opt_view();
-	if (view_name == DEFAULT_VIEW)
+	view vw;
+	if (!resolve_view(vw, view_action::QUERY))
+		return;
+	if (vw.action() == view_action::UNDEF)
 		return this->default_cmd_query(q);
 
 	tagd::tag_set R;
 	auto ssn = _tx->drvr->session_ptr();
 	tagd::code tc = _tx->tsp()->query(R, q, ssn, _driver->flags);
-
-	if (tc != tagd::TAGD_OK) {
-		this->output_errors(tc);
-		return;
-	}
-
-	view vw;
-	tc = _tx->vws->get(vw, query_view_id(view_name));
-	if (tc != tagd::TAGD_OK) {
+	// App QUERY handlers represent empty sets too; genuine diagnostics still fail.
+	const bool empty_result = tc == tagd::TS_NOT_FOUND && R.empty() && !_tx->size();
+	if (tc != tagd::TAGD_OK && !empty_result) {
 		this->output_errors(tc);
 		return;
 	}
@@ -733,9 +760,6 @@ void callback::cmd_query(const tagd::interrogator& q) {
 void callback::cmd_error() {
 	HTTAGD_LOG_DEBUG("httagd cmd_error");
 
-	if (_tx->effective_opt_view() == DEFAULT_VIEW)
-		return this->default_cmd_error();
-
 	this->output_errors(_tx->code());
 }
 
@@ -743,18 +767,13 @@ void callback::cmd_error() {
 void callback::empty() {
 	HTTAGD_LOG_DEBUG("httagd empty");
 
-	std::string view_name = _tx->effective_opt_view();
-	if (view_name == DEFAULT_VIEW)
+	view vw;
+	if (!resolve_view(vw, view_action::EMPTY))
+		return;
+	if (vw.action() == view_action::UNDEF)
 		return this->default_empty();
 
-	view vw;
-	tagd::code tc = _tx->vws->get(vw, empty_view_id(view_name));
-	if (tc != tagd::TAGD_OK) {
-		this->output_errors(tc);
-		return;
-	}
-
-	tc = vw.empty_function(*_tx, vw);
+	const auto tc = vw.empty_function(*_tx, vw);
 	if (tc != tagd::TAGD_OK) {
 		this->output_errors(tc);
 		return;
@@ -899,6 +918,20 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	  .share_errors(*vws)
 	  .share_errors(ssn);
 
+	// Root reads without a search are EMPTY, not incomplete tagdurl statements.
+	const bool root_read = req.has_root_path()
+		&& (method == htp_method_GET || method == htp_method_HEAD);
+	const bool root_empty = root_read && !req.query_map().contains(TAGL::QUERY_OPT_SEARCH);
+	if (root_read && req.query_map().contains("s")) {
+		tagl.error(tagd::TS_MISUSE, "root search with ?s= is not supported");
+	} else if (root_empty) {
+		req.method = method == htp_method_HEAD ? tagd::HTTP_HEAD : tagd::HTTP_GET;
+		// EMPTY still uses the request's validated referent context.
+		tagd::id_vec contexts;
+		if (TAGL::tagdurl_contexts(req.tagdurl(), contexts, tagl) == tagd::TAGD_OK)
+			tagl.apply_tagdurl_context(contexts);
+	}
+
 	// Shared parsing determines the operation; transport policy cannot change its meaning.
 	if (!req.has_root_path()) {
 		TAGL::tagdurl_address address;
@@ -928,6 +961,8 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	 */
 	if (tagl.has_errors())
 		tagl.do_callback();
+	else if (root_empty)
+		CB.empty();
 	else
 		tagl.execute(tx);
 

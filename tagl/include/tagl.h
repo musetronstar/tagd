@@ -91,7 +91,7 @@ class callback {
 		virtual void cmd_put(const tagd::abstract_tag&) = 0;
 		virtual void cmd_store(const tagd::abstract_tag&);
 		virtual void cmd_delete_storage(const tagd::abstract_tag&);
-		virtual void cmd_del(const tagd::abstract_tag&) = 0;
+		virtual void cmd_delete(const tagd::abstract_tag&) = 0;
 		virtual void cmd_query(const tagd::interrogator&) = 0;
 		virtual void cmd_error() = 0;
 		virtual void finish() {} // optional, can be overridden

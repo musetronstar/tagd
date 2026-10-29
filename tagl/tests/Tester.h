@@ -352,7 +352,7 @@ class callback_tester : public TAGL::callback {
 			}
 		}
 
-			void cmd_del(const tagd::abstract_tag& t) {
+			void cmd_delete(const tagd::abstract_tag& t) {
 				if (t.id() == t.super_object()) {
 					last_code = _tsp->error(tagd::TS_MISUSE, "id cannot be the same as sub");
 					return;

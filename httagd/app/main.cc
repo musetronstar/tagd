@@ -331,6 +331,10 @@ tagd::code fill_query(transaction& tx, const view&, tagd_template& tpl, const ta
 		}
 	}
 
+	// Empty QUERY results retain TS_NOT_FOUND for HTTP status without being errors.
+	if (results.empty() && tx.tsp()->code() == tagd::TS_NOT_FOUND && !tx.tsp()->size())
+		return tagd::TAGD_OK;
+
 	if (tx.tsp()->has_errors())
 		return tx.tsp()->code();
 
@@ -491,8 +495,6 @@ void init_viewspace(viewspace &vws) {
 	vws.put({QUERY_VIEW_ID, query_handler});
 	vws.put({ERROR_VIEW_ID, error_handler});
 
-	vws.fallback_error_view = {ERROR_VIEW_ID, error_handler};
-
 	// html partials
 	tpl_map[TAG_VIEW_ID] = TAG_TPL;
 	tpl_map[TAG_ERROR_VIEW_ID] = ERROR_TPL;
@@ -544,7 +546,7 @@ int main(int argc, char ** argv) {
 
 	viewspace vws(cfg);
 	init_viewspace(vws);
-	if (vws.has_errors()) {
+	if (vws.has_errors() || vws.validate_config() != tagd::TAGD_OK) {
 		vws.print_errors();
 		return vws.code();
 	}

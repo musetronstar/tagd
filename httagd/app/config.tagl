@@ -1,0 +1,2 @@
+>> default_config _sub _config _has
+	_config:fallback_error_view = "browse.html";

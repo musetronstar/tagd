@@ -42,13 +42,16 @@ all: build
 debug: CXXFLAGS += -g -O0
 debug: build
 
-DEPS = httagd.d httagd-client.d client-main.d
+DEPS = views.d httagd.d httagd-client.d client-main.d
 
-build : httagd.o httagd-client.o $(CLIENT_BIN)
+build : views.o httagd.o httagd-client.o $(CLIENT_BIN)
 
 # token to string case statements
 evhtp-results.inc: $(EVHTP_H)
 	grep '#define EVHTP_RES_[A-Z]' $< | awk '{printf "case %s: return \"%s\";\n", $$2, $$2;}' > $@
+
+views.o : views.cc
+	g++ $(CXXFLAGS) -MMD -MP -c -o $@ $< $(INC)
 
 httagd.o : httagd.cc evhtp-results.inc
 	g++ $(CXXFLAGS) -MMD -MP -c -o $@ $< $(INC) $(LIBEVHTP_INC)
@@ -59,9 +62,9 @@ httagd-client.o : httagd-client.cc
 client-main.o : client-main.cc
 	g++ $(CXXFLAGS) -MMD -MP -c -o $@ $< $(INC)
 
-$(CLIENT_BIN) : client-main.o httagd-client.o httagd.o
+$(CLIENT_BIN) : client-main.o httagd-client.o httagd.o views.o
 	[ -d $(BUILD_DIR) ] || mkdir $(BUILD_DIR)
-	g++ $(CXXFLAGS) -o $@ client-main.o httagd-client.o httagd.o -Wl,--start-group $(LFLAGS) -Wl,--end-group -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
+	g++ $(CXXFLAGS) -o $@ client-main.o httagd-client.o httagd.o views.o -Wl,--start-group $(LFLAGS) -Wl,--end-group -levhtp -levent -levent_pthreads -levent_openssl -lssl -lcrypto -lpthread -ldl -lrt
 
 -include $(DEPS)
 

@@ -144,7 +144,7 @@ class DriverTester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS(shell.last_code(), tagd::TS_DUPLICATE)
 	}
 
-	void test_cmd_del_not_found(void) {
+	void test_cmd_delete_not_found(void) {
 		init_runtime();
 		tagspace_type tsp;
 		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)
@@ -158,7 +158,7 @@ class DriverTester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS(shell.last_code(), tagd::TS_NOT_FOUND)
 	}
 
-	void test_cmd_del_existing(void) {
+	void test_cmd_delete_existing(void) {
 		init_runtime();
 		tagspace_type tsp;
 		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK)

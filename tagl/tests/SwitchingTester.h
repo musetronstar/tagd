@@ -22,7 +22,7 @@ class SwitchingTester : public CxxTest::TestSuite {
 			}
 		}
 
-		void cmd_del(const tagd::abstract_tag& t) override {
+		void cmd_delete(const tagd::abstract_tag& t) override {
 			_driver->code(_driver->tsp()->del(t, _driver->session_ptr()));
 		}
 	};

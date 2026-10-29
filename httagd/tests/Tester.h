@@ -1,10 +1,17 @@
 #include <cxxtest/TestSuite.h>
 #include <cstdio>
+#include <memory>
+#include <type_traits>
 #include "tagl.h"
 #include "tagspace.h"
 #include "httagd.h"
 
 #include <event2/buffer.h>
+
+template<typename Viewspace>
+concept accepts_temporary_view_result = requires(Viewspace& views, const httagd::view_id& id) {
+	views.get(httagd::view{}, id);
+};
 
 typedef std::map<tagd::id_string, tagd::abstract_tag> tag_map;
 typedef tagd::flags_t tsp_flags_t;
@@ -262,7 +269,7 @@ class callback_tester : public TAGL::callback {
 			last_code = _tsp->put(*last_tag, nullptr);
 		}
 
-		void cmd_del(const tagd::abstract_tag& t) {
+		void cmd_delete(const tagd::abstract_tag& t) {
 			if (t.id() == t.super_object()) {
 				last_code = _tsp->error(tagd::TS_MISUSE, "id cannot be the same as sub");
 				return;
@@ -304,8 +311,465 @@ class callback_tester : public TAGL::callback {
 	httagd::httagl tagl(&tsp, &ssn);
 
 
+class view_test_request : public httagd::request {
+public:
+	view_test_request(const std::string& selected) : request(tagd::HTTP_GET, "/") {
+		if (!selected.empty())
+			_query_map.emplace(TAGL::QUERY_OPT_VIEW, selected);
+	}
+};
+
+template<typename Test>
+void with_view_transaction(const std::string& selected, Test test) {
+	tagd::config cfg;
+	TS_ASSERT_TAGD_OK(cfg.init("/tmp/tagd-test-home"));
+	tagd::tagspace::memory tsp;
+	TS_ASSERT_TAGD_OK(tsp.init());
+	httagd::viewspace views(cfg);
+	httagd::server svr(&tsp, &views, cfg);
+	view_test_request req(selected);
+	// A real evbuffer exercises response rendering without opening a listener.
+	std::unique_ptr<evhtp_request_t, decltype(&evhtp_request_free)> raw(
+		evhtp_request_new(nullptr, nullptr), evhtp_request_free);
+	httagd::response res(raw.get());
+	httagd::transaction tx(&svr, &req, &res, &tsp, nullptr, &views);
+	auto ssn = tsp.get_session();
+	httagd::callback cb(&tx);
+	httagd::httagl driver(&tsp, &cb, &ssn);
+	tx.drvr = &driver;
+	// Match main_cb's shared error ownership, including later cmd_error delivery.
+	tx.share_errors(driver).share_errors(tsp).share_errors(views).share_errors(ssn);
+	test(tx, cb);
+}
+
+std::string view_response_body(httagd::transaction& tx) {
+	auto* buffer = tx.res->output_buffer();
+	std::string body(evbuffer_get_length(buffer), '\0');
+	evbuffer_copyout(buffer, body.data(), body.size());
+	return body;
+}
+
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_view_lookup_preserves_registered_handler() {
+		// Lookup preserves the registered handler and gives the caller a retained copy.
+		TS_ASSERT(!accepts_temporary_view_result<httagd::viewspace>);
+		tagd::config cfg;
+		TS_ASSERT_TAGD_OK(cfg.init("/tmp/tagd-test-home"));
+		httagd::viewspace views(cfg);
+		httagd::transaction tx(nullptr, nullptr, nullptr, nullptr, nullptr, &views);
+		unsigned calls = 0;
+		httagd::get_handler_t handler([&](httagd::transaction&, const httagd::view&,
+			const tagd::abstract_tag&) {
+			++calls;
+			return tagd::TAGD_OK;
+		});
+		TS_ASSERT_TAGD_OK(views.put({"test", handler}));
+
+		for (unsigned i = 0; i < 2; ++i) {
+			httagd::view result;
+			TS_ASSERT_TAGD_OK(views.get(result, httagd::get_view_id("test")));
+			TS_ASSERT_TAGD_OK(result.get_function(tx, result, tagd::abstract_tag("dog")));
+		}
+		TS_ASSERT_EQUALS(calls, 2u);
+	}
+
+	void test_view_copy_move_and_cross_action_assignment() {
+		using enum httagd::view_action;
+		// Moving an owning handler value must not require exception recovery.
+		TS_ASSERT(std::is_nothrow_move_constructible_v<httagd::view>);
+		TS_ASSERT(std::is_nothrow_move_assignable_v<httagd::view>);
+		httagd::transaction tx(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+		auto called = UNDEF;
+		auto handler = [&](httagd::view_action action) {
+			return [&, action](auto&&...) {
+				called = action;
+				return tagd::TAGD_OK;
+			};
+		};
+		const std::vector<httagd::view> originals{
+			{"test", httagd::empty_handler_t(handler(EMPTY))},
+			{"test", httagd::get_handler_t(handler(GET))},
+			{"test", httagd::put_handler_t(handler(PUT))},
+			{"test", httagd::delete_handler_t(handler(DELETE))},
+			{"test", httagd::query_handler_t(handler(QUERY))},
+			{"test", httagd::error_handler_t(handler(ERROR))}
+		};
+		auto invoke = [&](httagd::view& value, httagd::view_action action) {
+			TS_ASSERT_EQUALS(value.action(), action);
+			TS_ASSERT_EQUALS(value.name(), "test");
+			called = UNDEF;
+			tagd::abstract_tag tag("dog");
+			tagd::interrogator query;
+			tagd::tag_set results;
+			tagd::errorable errors;
+			auto rc = tagd::TAGD_ERR;
+			switch (action) {
+				case EMPTY: rc = value.empty_function(tx, value); break;
+				case GET: rc = value.get_function(tx, value, tag); break;
+				case PUT: rc = value.put_function(tx, value, tag); break;
+				case DELETE: rc = value.delete_function(tx, value, tag); break;
+				case QUERY: rc = value.query_function(tx, value, query, results); break;
+				case ERROR: rc = value.error_function(tx, value, errors); break;
+				case UNDEF: break;
+			}
+			TS_ASSERT_TAGD_OK(rc);
+			TS_ASSERT_EQUALS(called, action);
+		};
+
+		for (const auto& original : originals) {
+			httagd::view copied(original);
+			invoke(copied, original.action());
+			httagd::view moved(std::move(copied));
+			invoke(moved, original.action());
+
+			httagd::view assigned("other", httagd::get_handler_t(handler(GET)));
+			assigned = original;
+			invoke(assigned, original.action());
+			httagd::view move_assigned("other", httagd::put_handler_t(handler(PUT)));
+			move_assigned = std::move(assigned);
+			invoke(move_assigned, original.action());
+		}
+	}
+
+	void test_view_rejects_undefined_and_mismatched_actions() {
+		httagd::transaction tx(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+		tagd::abstract_tag tag("dog");
+		tagd::interrogator query;
+		tagd::tag_set results;
+		tagd::errorable errors;
+		httagd::view empty;
+		TS_ASSERT_EQUALS(empty.empty_function(tx, empty), tagd::TAGD_ERR);
+		TS_ASSERT_EQUALS(empty.get_function(tx, empty, tag), tagd::TAGD_ERR);
+		TS_ASSERT_EQUALS(empty.put_function(tx, empty, tag), tagd::TAGD_ERR);
+		TS_ASSERT_EQUALS(empty.delete_function(tx, empty, tag), tagd::TAGD_ERR);
+		TS_ASSERT_EQUALS(empty.query_function(tx, empty, query, results), tagd::TAGD_ERR);
+		TS_ASSERT_EQUALS(empty.error_function(tx, empty, errors), tagd::TAGD_ERR);
+
+		unsigned calls = 0;
+		httagd::view get("test", httagd::get_handler_t([&](auto&&...) {
+			++calls;
+			return tagd::TAGD_OK;
+		}));
+		TS_ASSERT_EQUALS(get.put_function(tx, get, tag), tagd::TAGD_ERR);
+		TS_ASSERT_EQUALS(calls, 0u);
+	}
+
+	void test_view_configuration_validation() {
+		tagd::config cfg;
+		TS_ASSERT_TAGD_OK(cfg.init("/tmp/tagd-test-home"));
+		httagd::viewspace views(cfg);
+		TS_ASSERT(cfg.fallback_error_view().empty());
+		TS_ASSERT_TAGD_OK(views.validate_config());
+		TS_ASSERT_TAGD_OK(views.put({"read-only", httagd::get_handler_t([](auto&&...) {
+			return tagd::TAGD_OK;
+		})}));
+		TS_ASSERT_TAGD_OK(views.put({"errors", httagd::error_handler_t([](auto&&...) {
+			return tagd::TAGD_OK;
+		})}));
+
+		TS_ASSERT_TAGD_OK(cfg.set(tagd::HARD_TAG_CONFIG_DEFAULT_VIEW, "read-only"));
+		TS_ASSERT_TAGD_OK(cfg.set(tagd::HARD_TAG_CONFIG_FALLBACK_ERROR_VIEW, "errors"));
+		TS_ASSERT_TAGD_OK(views.validate_config());
+		TS_ASSERT_EQUALS(cfg.fallback_error_view(), "errors");
+		TS_ASSERT(views.find(httagd::get_view_id("read-only")));
+		TS_ASSERT(!views.find(httagd::error_view_id("read-only")));
+		TS_ASSERT(!views.has_errors());
+
+		TS_ASSERT_TAGD_OK(cfg.set(tagd::HARD_TAG_CONFIG_FALLBACK_ERROR_VIEW, "read-only"));
+		TS_ASSERT_EQUALS(views.validate_config(), tagd::TS_NOT_FOUND);
+		views.clear_errors();
+		TS_ASSERT_TAGD_OK(cfg.set(tagd::HARD_TAG_CONFIG_FALLBACK_ERROR_VIEW, "tagl"));
+		TS_ASSERT_TAGD_OK(views.validate_config());
+		TS_ASSERT_TAGD_OK(cfg.set(tagd::HARD_TAG_CONFIG_DEFAULT_VIEW, "absent"));
+		TS_ASSERT_EQUALS(views.validate_config(), tagd::TS_NOT_FOUND);
+		views.clear_errors();
+		TS_ASSERT_TAGD_OK(cfg.set(tagd::HARD_TAG_CONFIG_DEFAULT_VIEW, "tagl"));
+		TS_ASSERT_TAGD_OK(views.validate_config());
+
+		cfg.start_runtime();
+		TS_ASSERT_TAGD_OK(cfg.set(tagd::HARD_TAG_CONFIG_FALLBACK_ERROR_VIEW, "errors"));
+		TS_ASSERT_EQUALS(cfg.fallback_error_view(), "errors");
+		TS_ASSERT_TAGD_OK(views.validate_config());
+	}
+
+	void test_view_resolution_and_reserved_name() {
+		using enum httagd::view_action;
+		tagd::config cfg;
+		TS_ASSERT_TAGD_OK(cfg.init("/tmp/tagd-test-home"));
+		httagd::viewspace views(cfg);
+		auto handler = [](auto&&...) {
+			return tagd::TAGD_OK;
+		};
+		for (const auto& registered : std::vector<httagd::view>{
+			{"complete", httagd::empty_handler_t(handler)},
+			{"complete", httagd::get_handler_t(handler)},
+			{"complete", httagd::put_handler_t(handler)},
+			{"complete", httagd::delete_handler_t(handler)},
+			{"complete", httagd::query_handler_t(handler)},
+			{"errors-only", httagd::error_handler_t(handler)}
+		}) {
+			TS_ASSERT_TAGD_OK(views.put(registered));
+		}
+
+		for (auto action : {EMPTY, GET, PUT, DELETE, QUERY}) {
+			httagd::view resolved;
+			TS_ASSERT_TAGD_OK(views.resolve(resolved, {"complete", action}));
+			TS_ASSERT_EQUALS(resolved.action(), action);
+			TS_ASSERT_EQUALS(resolved.name(), "complete");
+			TS_ASSERT_TAGD_OK(views.resolve(resolved, {"errors-only", action}));
+			TS_ASSERT_EQUALS(resolved.action(), UNDEF);
+			TS_ASSERT_TAGD_OK(views.resolve(resolved, {"tagl", action}));
+			TS_ASSERT_EQUALS(resolved.action(), UNDEF);
+			TS_ASSERT_EQUALS(views.resolve(resolved, {"missing", action}), tagd::TS_NOT_FOUND);
+			views.clear_errors();
+		}
+
+		TS_ASSERT_EQUALS(views.put({"tagl", httagd::get_handler_t(handler)}), tagd::TS_MISUSE);
+		TS_ASSERT(!views.contains_name("tagl"));
+	}
+
+	void test_callback_view_resolution_table() {
+		using enum httagd::view_action;
+		struct selection {
+			std::string requested;
+			std::string configured;
+		};
+		for (auto action : {EMPTY, GET, QUERY, PUT, DELETE}) {
+			for (const auto& choice : std::vector<selection>{
+				{"", ""}, {"tagl", "complete"}, {"complete", ""}, {"partial", ""},
+				{"missing", ""}, {"", "complete"}, {"", "partial"}
+			}) {
+				with_view_transaction(choice.requested, [&](auto& tx, auto& cb) {
+					TS_ASSERT_TAGD_OK(tx.svr->configuration().set(
+						tagd::HARD_TAG_CONFIG_DEFAULT_VIEW, choice.configured));
+					unsigned calls = 0;
+					auto handler = [&](auto&&...) {
+						++calls;
+						// Success views observe completed storage, never a proposed mutation.
+						if (action == PUT)
+							TS_ASSERT(tx.tsp()->exists("view_subject"));
+						if (action == DELETE)
+							TS_ASSERT(!tx.tsp()->exists("view_subject"));
+						tx.res->add(httagd::view_action_str(action));
+						return tagd::TAGD_OK;
+					};
+					for (const auto& registered : std::vector<httagd::view>{
+						{"complete", httagd::empty_handler_t(handler)},
+						{"complete", httagd::get_handler_t(handler)},
+						{"complete", httagd::query_handler_t(handler)},
+						{"complete", httagd::put_handler_t(handler)},
+						{"complete", httagd::delete_handler_t(handler)},
+						{"partial", httagd::error_handler_t(handler)}
+					}) {
+						TS_ASSERT_TAGD_OK(tx.vws->put(registered));
+					}
+
+					tagd::abstract_tag subject("view_subject", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+					const bool seeded = action == GET || action == QUERY || action == DELETE;
+					if (seeded)
+						TS_ASSERT_TAGD_OK(tx.tsp()->put(subject, tx.drvr->session_ptr()));
+					tagd::interrogator query(HARD_TAG_WHAT, HARD_TAG_SUB, HARD_TAG_ENTITY);
+					switch (action) {
+						case EMPTY: cb.empty(); break;
+						case GET: cb.cmd_get(subject); break;
+						case QUERY: cb.cmd_query(query); break;
+						case PUT: cb.cmd_put(subject); break;
+						case DELETE: cb.cmd_delete(tagd::abstract_tag(subject.id())); break;
+						default: TS_FAIL("unexpected action");
+					}
+
+					const auto body = view_response_body(tx);
+					if (choice.requested == "missing") {
+						TS_ASSERT_EQUALS(tx.most_severe(), tagd::TS_NOT_FOUND);
+						TS_ASSERT_EQUALS(calls, 0u);
+						TS_ASSERT_EQUALS(tx.tsp()->exists(subject.id()), seeded);
+						TS_ASSERT_DIFFERS(body.find("view not found: missing"), std::string::npos);
+						return;
+					}
+
+					TS_ASSERT_TAGD_OK(tx.most_severe());
+					const bool app = choice.requested == "complete"
+						|| (choice.requested.empty() && choice.configured == "complete");
+					TS_ASSERT_EQUALS(calls, app ? 1u : 0u);
+					TS_ASSERT_EQUALS(tx.tsp()->exists(subject.id()),
+						action == GET || action == QUERY || action == PUT);
+					if (app) {
+						TS_ASSERT_EQUALS(body, httagd::view_action_str(action));
+					} else if (action == EMPTY) {
+						TS_ASSERT_EQUALS(body, "This is tagd\n");
+					} else if (action == GET || action == QUERY) {
+						TS_ASSERT_DIFFERS(body.find(subject.id()), std::string::npos);
+					} else {
+						TS_ASSERT(body.empty());
+					}
+				});
+			}
+		}
+	}
+
+	void test_write_views_skip_failed_operations_and_render_errors_once() {
+		for (const bool put : {true, false}) {
+			with_view_transaction("write", [&](auto& tx, auto& cb) {
+				unsigned successes = 0;
+				unsigned errors = 0;
+				auto success = [&](auto&&...) {
+					++successes;
+					return tagd::TAGD_OK;
+				};
+				TS_ASSERT_TAGD_OK(tx.vws->put({"write", httagd::put_handler_t(success)}));
+				TS_ASSERT_TAGD_OK(tx.vws->put({"write", httagd::delete_handler_t(success)}));
+				TS_ASSERT_TAGD_OK(tx.vws->put({"write", httagd::error_handler_t([&](auto&&...) {
+					++errors;
+					tx.res->add("operation error");
+					return tagd::TAGD_OK;
+				})}));
+
+				if (put) {
+					cb.cmd_put(tagd::abstract_tag("view_subject", HARD_TAG_SUB, "missing", tagd::POS_TAG));
+				} else {
+					cb.cmd_delete(tagd::abstract_tag("view_subject"));
+				}
+				cb.cmd_error();
+				cb.cmd_error();
+				TS_ASSERT_DIFFERS(tx.most_severe(), tagd::TAGD_OK);
+				TS_ASSERT(!tx.tsp()->exists("view_subject"));
+				TS_ASSERT_EQUALS(successes, 0u);
+				TS_ASSERT_EQUALS(errors, 1u);
+				TS_ASSERT_EQUALS(view_response_body(tx), "operation error");
+			});
+		}
+	}
+
+	void test_write_view_failure_preserves_completed_operation() {
+		for (const bool put : {true, false}) {
+			with_view_transaction("write", [&](auto& tx, auto& cb) {
+				auto failure = [&](auto&&...) {
+					return tx.error(tagd::TAGD_ERR, "view rendering failed");
+				};
+				TS_ASSERT_TAGD_OK(tx.vws->put({"write", httagd::put_handler_t(failure)}));
+				TS_ASSERT_TAGD_OK(tx.vws->put({"write", httagd::delete_handler_t(failure)}));
+				tagd::abstract_tag subject("view_subject", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+				if (put) {
+					cb.cmd_put(subject);
+				} else {
+					TS_ASSERT_TAGD_OK(tx.tsp()->put(subject, tx.drvr->session_ptr()));
+					cb.cmd_delete(tagd::abstract_tag(subject.id()));
+				}
+				const auto body = view_response_body(tx);
+				cb.cmd_error();
+				TS_ASSERT_EQUALS(tx.most_severe(), tagd::TAGD_ERR);
+				TS_ASSERT_EQUALS(tx.tsp()->exists(subject.id()), put);
+				TS_ASSERT_DIFFERS(body.find("view rendering failed"), std::string::npos);
+				TS_ASSERT_EQUALS(view_response_body(tx), body);
+			});
+		}
+	}
+
+	void test_error_fallback_reads_current_configuration() {
+		for (const auto* fallback : {"", "tagl", "missing", "first", "second"}) {
+			with_view_transaction("read", [&](auto& tx, auto& cb) {
+				TS_ASSERT_TAGD_OK(tx.vws->put({"read", httagd::get_handler_t([](auto&&...) {
+					return tagd::TAGD_OK;
+				})}));
+				for (const auto* name : {"first", "second"}) {
+					TS_ASSERT_TAGD_OK(tx.vws->put({name, httagd::error_handler_t([&, name](auto&&...) {
+						tx.res->add(name);
+						return tagd::TAGD_OK;
+					})}));
+				}
+				auto& cfg = tx.svr->configuration();
+				if (*fallback)
+					TS_ASSERT_TAGD_OK(cfg.set(tagd::HARD_TAG_CONFIG_FALLBACK_ERROR_VIEW, "first"));
+				TS_ASSERT_TAGD_OK(tx.vws->validate_config());
+				cfg.start_runtime();
+				TS_ASSERT_TAGD_OK(cfg.set(tagd::HARD_TAG_CONFIG_FALLBACK_ERROR_VIEW, fallback));
+				cb.cmd_get(tagd::abstract_tag("missing"));
+				const auto body = view_response_body(tx);
+				cb.cmd_error();
+				TS_ASSERT_EQUALS(view_response_body(tx), body);
+				TS_ASSERT_EQUALS(tx.most_severe(), tagd::TS_NOT_FOUND);
+				if (std::string(fallback) == "first" || std::string(fallback) == "second") {
+					TS_ASSERT_EQUALS(body, fallback);
+				} else {
+					TS_ASSERT_DIFFERS(body.find(">> err:"), std::string::npos);
+				}
+			});
+		}
+	}
+
+	void test_empty_query_is_a_result_and_does_not_poison_later_commands() {
+		for (const auto* selected : {"tagl", "query", "partial"}) {
+			with_view_transaction(selected, [&](auto& tx, auto& cb) {
+				unsigned query_calls = 0;
+				unsigned error_calls = 0;
+				TS_ASSERT_TAGD_OK(tx.vws->put({"query", httagd::query_handler_t(
+					[&](auto&, const auto&, const auto&, const tagd::tag_set& results) {
+						++query_calls;
+						TS_ASSERT(results.empty());
+						tx.res->add("empty result");
+						return tagd::TAGD_OK;
+					})}));
+				for (const auto* name : {"query", "partial"}) {
+					TS_ASSERT_TAGD_OK(tx.vws->put({name, httagd::error_handler_t([&](auto&&...) {
+						++error_calls;
+						return tagd::TAGD_OK;
+					})}));
+				}
+
+				tagd::abstract_tag leaf("leaf", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+				TS_ASSERT_TAGD_OK(tx.tsp()->put(leaf, tx.drvr->session_ptr()));
+				cb.cmd_query(tagd::interrogator(HARD_TAG_WHAT, HARD_TAG_SUB, leaf.id()));
+				TS_ASSERT_EQUALS(tx.size(), 0u);
+				TS_ASSERT(!tx.drvr->has_errors());
+				TS_ASSERT_EQUALS(tx.drvr->session_ptr()->code(), tagd::TS_NOT_FOUND);
+				TS_ASSERT_EQUALS(query_calls, std::string(selected) == "query" ? 1u : 0u);
+				TS_ASSERT_EQUALS(view_response_body(tx),
+					std::string(selected) == "query" ? "empty result" : "");
+
+				cb.cmd_put(tagd::abstract_tag("after_empty", HARD_TAG_SUB, HARD_TAG_ENTITY,
+					tagd::POS_TAG));
+				TS_ASSERT(tx.tsp()->exists("after_empty"));
+				TS_ASSERT_EQUALS(tx.size(), 0u);
+				TS_ASSERT_TAGD_OK(tx.drvr->session_ptr()->code());
+				TS_ASSERT_EQUALS(error_calls, 0u);
+			});
+		}
+	}
+
+	void test_query_failure_still_uses_requested_family_error_view() {
+		for (const auto* selected : {"tagl", "query", "partial"}) {
+			with_view_transaction(selected, [&](auto& tx, auto& cb) {
+				unsigned query_calls = 0;
+				unsigned error_calls = 0;
+				TS_ASSERT_TAGD_OK(tx.vws->put({"query", httagd::query_handler_t([&](auto&&...) {
+					++query_calls;
+					return tagd::TAGD_OK;
+				})}));
+				for (const auto* name : {"query", "partial"}) {
+					TS_ASSERT_TAGD_OK(tx.vws->put({name, httagd::error_handler_t([&](auto&&...) {
+						++error_calls;
+						tx.res->add("query error");
+						return tagd::TAGD_OK;
+					})}));
+				}
+
+				// A query without any condition is misuse, unlike a valid query with no matches.
+				tagd::interrogator query(HARD_TAG_WHAT);
+				cb.cmd_query(query);
+				TS_ASSERT(tx.size() > 0);
+				TS_ASSERT_EQUALS(tx.most_severe(), tagd::TS_MISUSE);
+				const auto body = view_response_body(tx);
+				cb.cmd_error();
+				TS_ASSERT_EQUALS(query_calls, 0u);
+				TS_ASSERT_EQUALS(error_calls, std::string(selected) == "tagl" ? 0u : 1u);
+				TS_ASSERT_EQUALS(view_response_body(tx), body);
+				if (std::string(selected) != "tagl")
+					TS_ASSERT_EQUALS(body, "query error");
+			});
+		}
+	}
+
 	void test_type_query_methods_and_path_errors() {
 		for (const auto method : {tagd::HTTP_GET, tagd::HTTP_HEAD, tagd::HTTP_PUT,
 			tagd::HTTP_POST, tagd::HTTP_DELETE}) {

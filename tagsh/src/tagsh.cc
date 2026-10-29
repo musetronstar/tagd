@@ -162,10 +162,10 @@ void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 	add_history_lines_clear(_lines);
 }
 
-void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
+void tagsh_callback::cmd_delete(const tagd::abstract_tag& t) {
 	auto ssn = _driver->session_ptr();
 	log_driver_debug("driver statement command=CMD_DELETE subject=%s", t.id());
-	log_driver_debug("driver callback=cmd_del subject=%s", t.id());
+	log_driver_debug("driver callback=cmd_delete subject=%s", t.id());
 	tagd::code tc = _driver->tsp()->del(t, ssn, _driver->flags);
 
 	if (CMD_OK()) {
