@@ -306,6 +306,32 @@ class callback_tester : public TAGL::callback {
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_type_query_methods_and_path_errors() {
+		for (const auto method : {tagd::HTTP_GET, tagd::HTTP_HEAD, tagd::HTTP_PUT,
+			tagd::HTTP_POST, tagd::HTTP_DELETE}) {
+			for (const auto* path : {"/animal/", "/animal,legs/", "/,legs/"}) {
+				INIT_TSP_TAGL();
+				httagd::request req(method, path);
+				const auto rc = method == tagd::HTTP_PUT || method == tagd::HTTP_POST
+					? tagl.tagdurl_put(req) : tagl.scan_request_tagdurl(req);
+				TS_ASSERT_EQUALS(rc, method == tagd::HTTP_GET || method == tagd::HTTP_HEAD
+					? tagd::TAGD_OK : tagd::TS_MISUSE);
+			}
+			for (const auto* path : {"/dog,legs", "/,legs"}) {
+				INIT_TSP_TAGL();
+				httagd::request req(method, path);
+				const auto rc = method == tagd::HTTP_PUT || method == tagd::HTTP_POST
+					? tagl.tagdurl_put(req) : tagl.scan_request_tagdurl(req);
+				TS_ASSERT_EQUALS(rc, tagd::TS_MISUSE);
+			}
+			INIT_TSP_TAGL();
+			httagd::request req(method, "/animal,,legs/");
+			const auto rc = method == tagd::HTTP_PUT || method == tagd::HTTP_POST
+				? tagl.tagdurl_put(req) : tagl.scan_request_tagdurl(req);
+			TS_ASSERT_EQUALS(rc, tagd::TAGL_ERR);
+		}
+	}
+
 	void test_contradictions_map_to_http_conflict() {
 		TS_ASSERT_EQUALS(httagd::tagd_code_evhtp_res(tagd::TS_CONTRADICTION), EVHTP_RES_CONFLICT);
 	}

@@ -90,8 +90,8 @@ public:
 		_exists = std::move(exists);
 	}
 	tagd::code push_context(id_view);
-	// Lookup contexts may be absent in a target; only explicit SET requires membership.
-	void lookup_context(id_view id) { _context.emplace_back(id); }
+	// Restore saved contexts or project them for selector lookup before a target is known.
+	// User-supplied SET and tagdurl contexts require push_context membership checks.
 	void lookup_contexts(const id_vec& ids) { _context = ids; }
 	tagd::code pop_context();
 	tagd::code clear_context();

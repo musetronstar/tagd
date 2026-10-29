@@ -46,6 +46,8 @@ struct tagdurl_address {
 	bool description = false;
 	bool descendants = false;
 };
+tagd::code tagdurl_contexts(const std::string&, tagd::id_vec&, tagd::errorable&);
+
 tagd::code parse_tagdurl_address(const std::string&, tagdurl_address&, tagd::errorable&);
 
 struct text_token {
@@ -193,14 +195,9 @@ class driver : public tagd::errorable {
 		tagd::code set_config_profile(const std::string&);
 		void unset_context();
 		tagd::code select_tagdurl(const tagdurl_address&, std::string&, bool description_read);
-		void scan_addressed_tagdurl(const std::string&);
+		void scan_addressed_tagdurl(const std::string&, int command);
+		tagd::code apply_tagdurl_context(const tagd::id_vec&);
 		void fix_http_target() { _http_target = _selection->target; }
-		void push_lookup_context(const std::string& id) {
-			if (!_session)
-				own_session(tsp()->new_session());
-			_session->lookup_context(id);
-			++_context_level;
-		}
 		tagd::flags_t flags = 0;
 		tagd::id_string constrain_tag_id; // if set, the assigned _tag.id() must be equal to this
 
@@ -239,7 +236,8 @@ class driver : public tagd::errorable {
 		 * Not [[nodiscard]]: lemon-generated parser.cc calls this and discards; cannot change
 		 * that file without regenerating from parser.y.
 		 */
-		tagd::code scan_tagdurl(int, const std::string& path);
+		// HTTP PUT constrains its body; embedded TAGL instead needs the parsed subject.
+		tagd::code scan_tagdurl(int, const std::string& path, tagdurl_mode);
 		[[nodiscard]] tagd::code scan_tagdurl(tagd::http_method, const std::string& path);
 		int token() const { return _token; }
 		// Not const: downstream POS lookup may mutate diagnostic state on error paths.

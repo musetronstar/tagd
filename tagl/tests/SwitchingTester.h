@@ -27,6 +27,62 @@ class SwitchingTester : public CxxTest::TestSuite {
 		}
 	};
 public:
+	void test_tagdurl_types_use_query_order_and_statement_context() {
+		class query_reader : public writer {
+		public:
+			tagd::tag_set results;
+			tagd::id_vec contexts;
+			bool has(tagd::id_view id) const {
+				for (const auto& tag : results) {
+					if (tag.id() == id)
+						return true;
+				}
+				return false;
+			}
+			void cmd_query(const tagd::interrogator& q) override {
+				contexts = _driver->session_ptr()->context();
+				results.clear();
+				_driver->code(_driver->tsp()->query(results, q, _driver->session_ptr()));
+			}
+		} cb;
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init(""), tagd::TAGD_OK);
+		std::shared_ptr<tagd::tagspace> space;
+		TS_ASSERT_EQUALS(cfg.open_tagspace("_default", "", space), tagd::TAGD_OK);
+		auto session = space->get_session();
+		TAGL::driver input(space.get(), &cb, &session);
+		input.configure(cfg);
+		TS_ASSERT_EQUALS(input.execute(
+			">> animal _sub _entity; >> dog _sub animal; >> cat _sub animal;"
+			">> mobile _sub _entity; >> dog _type_of mobile;"
+			">> simple_english _sub _entity;"
+			">> movable _refers_to mobile _context simple_english;"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(input.execute("/_/animal/;"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cb.results.size(), 2u);
+		TS_ASSERT_EQUALS(input.execute("/_/,animal/;"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cb.results.size(), 3u);
+		TS_ASSERT(cb.has("animal"));
+		TS_ASSERT_EQUALS(input.execute("/_/animal,mobile/;"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cb.results.size(), 1u);
+		if (!cb.results.empty())
+			TS_ASSERT_EQUALS(cb.results.begin()->id(), "dog");
+		TS_ASSERT_EQUALS(input.execute("/_/,_entity/;"), tagd::TAGD_OK);
+		TS_ASSERT(cb.has(tagd::HARD_TAG_ENTITY));
+		TS_ASSERT(cb.has(tagd::HARD_TAG_TYPE_OF));
+		TS_ASSERT_EQUALS(input.execute("/_/,movable/?c=simple_english;"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cb.results.size(), 2u);
+		TS_ASSERT(cb.has("movable"));
+		TS_ASSERT_EQUALS(cb.contexts, tagd::id_vec{"simple_english"});
+		TS_ASSERT(input.session_ptr()->context().empty());
+		TS_ASSERT_EQUALS(input.execute("/_/,movable/;"), tagd::TS_NOT_FOUND);
+		TS_ASSERT(cb.results.empty());
+		input.clear_errors();
+		TS_ASSERT_EQUALS(input.parseln("%% _context simple_english;;"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(input.parseln("/_/,mobile/?c=absent;;"), tagd::TS_NOT_FOUND);
+		TS_ASSERT_EQUALS(input.session_ptr()->context(), tagd::id_vec{"simple_english"});
+		input.finish();
+	}
+
 	void test_explicit_url_declaration_preserves_decoded_components() {
 		class capture : public writer {
 		public:
@@ -503,7 +559,7 @@ public:
 		TS_ASSERT_EQUALS(d.tsp(), &cfg);
 
 		d.clear_errors();
-		TS_ASSERT_EQUALS(d.execute("/animals/_entity?c=absent;"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(d.execute("/animals/_entity?c=absent;"), tagd::TS_NOT_FOUND);
 		TS_ASSERT(d.session_ptr()->context().empty());
 	}
 

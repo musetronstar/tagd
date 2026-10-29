@@ -2,7 +2,7 @@
 
 # exp_internal 1   ;# diagnostics
 
-set spawn_httagd "spawn ../bin/httagd --log-level emergency,_role:httagd:debug --file ../../tagsh/tests/bootstrap.tagl --www-dir ./www"
+set spawn_httagd "spawn ../bin/httagd --log-level emergency,_role:httagd:debug --file ../../tagsh/tests/bootstrap.tagl --www-dir ./www --tpl-dir ../app/tpl"
 
 set MAX_ERRORS 3
 set ERRORS 0
@@ -384,6 +384,9 @@ test_server_log "log_level_httagd_error_file_request_code" \
 #	 "GET" "/_/test?c=_file" "" \
 #	 "FILE_TEXT"
 
+# No later assertion reads server logs; keep its PTY drained during request matrices.
+expect_background -i $server_spawn_id -re {.+} {}
+
 # HTTP response formatting must retain rank order despite reversed identifier order.
 foreach {id parent} {
 	z_order_rel _rel a_order_rel _rel
@@ -412,6 +415,76 @@ test "typology_query" "POST" "/" \
 test "typology_query_explicit" "POST" "/" \
 	{%% _include_inherited_predicates _false; ?? _what _has _message = shared;} \
 	{type_source, type_subject}
+
+# Query paths map to existing TAGL type predicates, including reflexive inheritance.
+test "types_post_body" "POST" "/_/type_post" {_sub _entity _type_of type_source} "200 OK"
+test "types_query" "GET" "/_/,type_source/" "" {type_source, type_subject, type_post}
+test_exec "types_query_head_has_no_body" \
+	[list curl -sS --ignore-content-length --max-time 5 -X HEAD -H {Connection: close} \
+		-o /dev/null --write-out {HTTP_STATUS:%{http_code} BODY_BYTES:%{size_download}} \
+		http://localhost:2112/_/,type_source/] {HTTP_STATUS:200 BODY_BYTES:0$}
+test_exec "types_invalid_head_has_no_body" \
+	[list curl -sS --ignore-content-length --max-time 5 -X HEAD -H {Connection: close} \
+		-o /dev/null --write-out {HTTP_STATUS:%{http_code} BODY_BYTES:%{size_download}} \
+		http://localhost:2112/_/type_subject,type_source] {HTTP_STATUS:400 BODY_BYTES:0$}
+test "types_query_sub_and_type" "GET" "/_/_entity,type_source/" "" {type_source, type_subject, type_post}
+foreach method {GET HEAD POST PUT DELETE} {
+	test "types_nonquery_$method" $method "/_/type_subject,type_source" "" {400 Bad Request}
+	test "types_bad_syntax_$method" $method "/_/type_subject,,type_source/" "" {400 Bad Request}
+}
+foreach method {POST PUT DELETE} {
+	foreach path {/_/type_source/ /_/,type_source/ /_/type_subject,type_source/} {
+		test "types_write_query_${method}_$path" $method $path {_has _message = unwanted} {_error:ts_misuse}
+	}
+}
+test "types_write_rejection_preserves_subject" "GET" "/_/type_subject" "" \
+	{type_subject _sub _entity[\r\n]+_type_of type_source[\r\n]+$}
+test "types_context_create" "POST" "/" \
+	{>> type_context _sub _entity; >> movable _refers_to type_source _context type_context;} "200 OK"
+test "types_context_query" "GET" "/_/,movable/?c=type_context" "" {movable, type_subject, type_post}
+test "types_context_post" "POST" "/_/type_context?c=type_context" {_has _message = contextual} "200 OK"
+test "types_context_delete" "DELETE" "/_/type_context?c=type_context" {_has _message = contextual} "200 OK"
+test "types_context_root_post" "POST" "/?c=type_context" {<< movable;} {movable _sub _entity}
+foreach method {GET POST PUT DELETE} {
+	test "types_missing_context_$method" $method "/_/type_subject?c=absent" "" {_error:ts_not_found}
+}
+
+# A rejected address must not execute even a self-contained statement in the body.
+foreach method {PUT POST DELETE} {
+	foreach {path error} {
+		/_/rejected_body,type_source ts_misuse
+		/_/type_source/ ts_misuse
+		/_/rejected_body?c=absent ts_not_found
+		/_/rejected_body?c=type_context,,type_context tagl_err
+	} {
+		test "rejected_statement_${method}_$path" $method $path \
+			{>> rejected_body _sub _entity;} "_error:$error"
+		test "rejected_statement_absent_${method}_$path" "GET" "/_/rejected_body" "" \
+			{404 Not Found}
+	}
+}
+foreach {query error} {c=absent ts_not_found c=type_context, tagl_err} {
+	test "rejected_root_statement_$query" "POST" "/?$query" \
+		{>> rejected_body _sub _entity;} "_error:$error"
+	test "rejected_root_statement_absent_$query" "GET" "/_/rejected_body" "" \
+		{404 Not Found}
+}
+
+# HEAD's length must describe GET's representation for both built-in and HTML views.
+foreach path {/_/type_subject /_/type_subject?v=browse.html /_/,type_source/} {
+	set get_headers [exec curl -sS --max-time 5 -D - -o /dev/null "http://localhost:2112$path"]
+	set head_headers [exec curl -sS --max-time 5 -I "http://localhost:2112$path"]
+	if {[regexp {HTTP/1.1 200} $get_headers] && [regexp {HTTP/1.1 200} $head_headers]
+		&& [regexp -nocase {Content-Length: ([0-9]+)} $get_headers -> get_length]
+		&& [regexp -nocase {Content-Length: ([0-9]+)} $head_headers -> head_length]
+		&& $get_length > 0 && $get_length == $head_length} {
+		test_pass "head_matches_get_length_$path"
+	} else {
+		test_fail "head_matches_get_length_$path"
+		puts "GET headers: $get_headers\nHEAD headers: $head_headers"
+		incr ERRORS
+	}
+}
 
 close
 wait

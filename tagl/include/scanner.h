@@ -13,6 +13,11 @@ const std::string QUERY_OPT_SEARCH{"q"};    // full text search
 const std::string QUERY_OPT_VIEW{"v"};      // view name
 const std::string QUERY_OPT_CONTEXT{"c"};   // tagspace context
 
+enum class tagdurl_mode {
+	resolve_subject,
+	constrain_body
+};
+
 class driver;
 
 // Keeps token text alive until parsing finishes, even when the scanner buffer refills.
@@ -126,10 +131,16 @@ class scanner {
 };
 
 class scanner::tagdurl : public scanner {
+	private:
+		int _command = -1;
+		tagdurl_mode _mode = tagdurl_mode::resolve_subject;
+		url_query_map_t _options;
+		tagd::id_vec _contexts;
+
 	public:
 		tagdurl(driver *d) : scanner(d) {}
 		void scan(const char*, size_t) override;
-		void scan(int cmd, const std::string& path);
+		void scan(int cmd, const std::string& path, tagdurl_mode);
 		void scan(tagd::http_method, const std::string& path);
 
 		// accapt HTTP method, returns TOK_CMD_*

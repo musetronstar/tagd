@@ -309,13 +309,25 @@ tagd::code driver::select_tagdurl(const tagdurl_address& address,
 		return tagd::TAGD_OK;
 	}
 
-	if (!address.query.empty()) {
-		url_query_map_t query;
-		tagd::url::parse_query(query, address.query.substr(1));
-		std::string context;
-		if (tagd::url::query_find(query, context, QUERY_OPT_CONTEXT) && !context.empty())
-			_session->lookup_context(context);
-	}
+	/*
+	 * Selector aliases use the requested context before the target is known.
+	 * This temporary lookup does not validate against config or retain contexts;
+	 * the scanner applies them once, with membership in the selected target.
+	 */
+	struct restore_context {
+		tagd::tagspace_session& session;
+		tagd::id_vec previous;
+		~restore_context() {
+			session.lookup_contexts(previous);
+		}
+	} restore{*_session, _session->context()};
+	auto contexts = restore.previous;
+	tagd::id_vec requested;
+	const auto context_rc = tagdurl_contexts(address.query, requested, *this);
+	if (context_rc != tagd::TAGD_OK)
+		return context_rc;
+	contexts.insert(contexts.end(), requested.begin(), requested.end());
+	_session->lookup_contexts(contexts);
 
 	// Description reads are config operations: authorize before resolving or discovering names.
 	if (description_read && address.description && _http && !_http_config_allowed) {
@@ -376,7 +388,7 @@ tagd::code driver::select_tagdurl(const tagdurl_address& address,
 	return tagd::TAGD_OK;
 }
 
-void driver::scan_addressed_tagdurl(const std::string& input) {
+void driver::scan_addressed_tagdurl(const std::string& input, int command) {
 	tagdurl_address address;
 	if (parse_tagdurl_address(input, address, *this) != tagd::TAGD_OK)
 		return;
@@ -384,18 +396,22 @@ void driver::scan_addressed_tagdurl(const std::string& input) {
 	// TODO: General scopes should share this statement-local selection lifetime.
 	if (_selection)
 		_tagdurl_previous = _selection->target;
-	if (_session)
-		_tagdurl_context = _session->context();
+	if (!_session)
+		own_session(tsp()->new_session());
+	_tagdurl_context = _session->context();
 	std::string operation;
 	if (select_tagdurl(address, operation, true) != tagd::TAGD_OK)
 		return;
 
 	// A separate parser prevents recursive reductions in the outer statement parser.
 	driver inner(tsp(), _session);
-	inner.scan_tagdurl(TOK_CMD_GET, operation);
+	inner.scan_tagdurl(command, operation, tagdurl_mode::resolve_subject);
 	inner.finish();
+	// The outer statement owns restoration after its callback, including lookup contexts.
+	inner._context_level = 0;
 	if (inner.has_errors()) {
 		copy_errors(inner);
+		code(inner.code());
 	} else if (inner.tag_ptr()) {
 		delete_tag();
 		tag_ptr(inner.tag_ptr());
@@ -515,6 +531,29 @@ tagd::code driver::push_context(tagd::id_view id) {
 	return tc;
 }
 
+tagd::code driver::apply_tagdurl_context(const tagd::id_vec& contexts) {
+	if (contexts.empty())
+		return tagd::TAGD_OK;
+	if (!_session)
+		own_session(tsp()->new_session());
+
+	const auto previous = _session->context();
+	const auto level = _context_level;
+	for (const auto& context : contexts) {
+		const auto rc = push_context(context);
+		if (rc != tagd::TAGD_OK) {
+			// A failed list must not leave a partially applied statement context.
+			_session->lookup_contexts(previous);
+			_context_level = level;
+			// HTTP already shares the session errors with this driver.
+			if (!has_errors())
+				copy_errors(*_session);
+			return code(rc);
+		}
+	}
+	return tagd::TAGD_OK;
+}
+
 void driver::clear_context_levels() {
 	// only pop the number of contexts pushed on the stack by this instance
 	if (_session != nullptr) {
@@ -623,10 +662,10 @@ int driver::lookup_pos(const std::string& s) {
 	return token;
 }
 
-tagd::code driver::scan_tagdurl(int cmd, const std::string& path) {
+tagd::code driver::scan_tagdurl(int cmd, const std::string& path, tagdurl_mode mode) {
 	this->init();
 	scanner::tagdurl sc(this);
-	sc.scan(cmd, path);
+	sc.scan(cmd, path, mode);
 	return this->code();
 }
 

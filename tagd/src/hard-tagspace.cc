@@ -172,7 +172,7 @@ tagd::code tagspace_session::push_context(tagd::id_view id) {
 
 	return this->ferror(
 		tagd::TS_NOT_FOUND,
-		"push_context failed: %.*s",
+		"unknown context: %.*s",
 		static_cast<int>(id.size()),
 		id.data()
 	);

@@ -1044,6 +1044,15 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( !tagd::url::query_find(qm, val, "haha") );
 	}
 
+	void test_query_value_literal_plus_and_form_spaces() {
+		url_query_map_t values;
+		TS_ASSERT_EQUALS(tagd::url::parse_query(values,
+			"?q=c%2B%2b+language%20guide&c=%252B&encoded=%26%3D"), 3u);
+		TS_ASSERT_EQUALS(values["q"], "c++ language guide");
+		TS_ASSERT_EQUALS(values["c"], "%2B");
+		TS_ASSERT_EQUALS(values["encoded"], "&=");
+	}
+
 	void test_looks_like(void) {
 		TS_ASSERT( tagd::url::looks_like_url("http://example.com") )
 		TS_ASSERT( tagd::url::looks_like_hduri("hd:com!example!http") )

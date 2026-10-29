@@ -921,11 +921,50 @@ slashes are errors. Unknown names return `TS_NOT_FOUND`; no storage is created.
 /petting_zoo/;      -- QUERY its description's descendants in _config
 ```
 
-The remaining path preserves existing predicate and search semantics, for
-example `/zoology/animal/legs,tail` or `/zoology/*/?q=can+bark`. Context `c`
-applies by spelling to both tagspace-alias and target-tag lookups. A context
-missing in either tagspace produces no match there, not a validation error.
-Explicit SET context commands still require a known context.
+A QUERY subject segment accepts an optional `super_object` followed by a
+comma-prefixed list of type objects. The slash after this segment is required:
+
+```tagl
+/_/mammal,quadruped/;           -- ?? _interrogator _sub mammal _type_of quadruped;
+/_/mammal,quadruped,carnivore/; -- adds _type_of carnivore
+/_/,quadruped/;                 -- ?? _interrogator _type_of quadruped;
+/_/,quadruped,carnivore/;       -- two type conditions without a subordinate condition
+```
+
+Tagdurls use `_sub` for the subordinate relation and `_type_of` for type
+relations; custom relators require TAGL. Type objects are plain tag IDs;
+URL/HDURI type objects are not supported yet. `*` cannot have a type list.
+The existing predicate segment and search options compose with these queries,
+for example `/zoology/mammal,quadruped/legs,tail?q=can+bark`.
+
+`/_/animal/` queries proper subordinate descendants of `animal`.
+`/_/,animal/` queries every tag inheriting from `animal`, including `animal`
+itself. `/_/,_entity/` includes all tags, including hard tags. These are the
+ordinary [§9 query semantics](#9-query-semantics), using the integrated order defined in
+[tagd math](tagd-math/tagd-math.tex).
+
+Outside QUERY a tagdurl names one tag. A type list without the QUERY slash is
+`TS_MISUSE`. QUERY paths with PUT/STORE or DELETE/DELETE_STORAGE, including
+HTTP PUT/POST/DELETE, are `TS_MISUSE` before any storage operation. HTTP GET
+and HEAD accept QUERY paths. Malformed type lists return `TAGL_ERR` before
+command validation; both error codes map to HTTP 400. Type changes belong in
+TAGL statements or HTTP bodies, never in the path.
+
+Context `?c=a,b` applies in list order like `%% _context a, b;`, for every
+command, and lasts for one embedded statement or HTTP request. Every context
+must exist in the operation's target tagspace; otherwise the operation returns
+`TS_NOT_FOUND` (HTTP 404). This includes operations targeting `_config`.
+Empty elements in a nonempty context list (`?c=,a`, `?c=a,,b`, `?c=a,`)
+are `TAGL_ERR` before command validation. An empty option (`?c=`) applies no
+context. Query option values use form decoding: `+` denotes a space and `%2B`
+denotes a literal `+`.
+Selector aliases also use these context spellings during resolution, without
+requiring them to exist in `_config`. Subject and object referents, including
+type objects, are decoded only when a context is set. `?q=` remains QUERY-only;
+root search is also supported.
+
+This replaces the earlier unchecked `?c=` behaviour: a context absent from
+the selected target is now an error, and DELETE now accepts validated contexts.
 
 Autoload uses the selected profile's `_config:tagdurl_autoload` setting, default
 `_false`. Registered descriptions can reopen their databases. With autoload

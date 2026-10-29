@@ -247,7 +247,7 @@ tagd::code httagl::execute(transaction& tx) {
 	switch(ev_method) {
 		case htp_method_HEAD:
 			tx.req->method = tagd::HTTP_HEAD;
-			// identical to GET request, but content body not added
+			// HEAD executes GET semantics; the response suppresses its body.
 			this->tagdurl_get(*tx.req);
 			break;
 		case htp_method_GET:
@@ -255,11 +255,13 @@ tagd::code httagl::execute(transaction& tx) {
 			this->tagdurl_get(*tx.req);
 			break;
 		case htp_method_PUT:
+			// TODO: HTTP PUT must replace the tag (RFC 9110 §9.3.4); it merges like POST.
 			tx.req->method = tagd::HTTP_PUT;
 			if (tx.req->has_root_path()) {
 				tx.error(tagd::HTTP_ERR, "tag id in path required for HTTP PUT");
 			} else {
-				this->tagdurl_put(*tx.req);
+				if (this->tagdurl_put(*tx.req) != tagd::TAGD_OK)
+					return code();
 				TAGL::driver::execute(tx.req->ev_req()->buffer_in);
 			}
 			break;
@@ -268,13 +270,23 @@ tagd::code httagl::execute(transaction& tx) {
 			// Keep HTTP path/body composition here; tagdurl translation remains
 			// one standalone tagdurl to one TAGL statement.
 			if (!tx.req->has_root_path()) {
-				this->tagdurl_put(*tx.req);	// put matches tagspace semantics, not http
+				// PUT here follows tagspace semantics, not HTTP replacement semantics.
+				if (this->tagdurl_put(*tx.req) != tagd::TAGD_OK)
+					return code();
+			} else {
+				// A general TAGL body still shares the request's validated lookup context.
+				tagd::id_vec contexts;
+				if (TAGL::tagdurl_contexts(tx.req->tagdurl(), contexts, *this) != tagd::TAGD_OK
+					|| apply_tagdurl_context(contexts) != tagd::TAGD_OK)
+					return code();
 			}
 			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
 			break;
 		case htp_method_DELETE:
+			// TODO: DELETE content cannot alter the request's meaning (RFC 9110 §9.3.5).
 			tx.req->method = tagd::HTTP_DELETE;
-			this->tagdurl_del(*tx.req);
+			if (this->tagdurl_del(*tx.req) != tagd::TAGD_OK)
+				return code();
 			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
 			break;
 /*
@@ -316,45 +328,11 @@ tagd::code httagl::tagdurl_put(const request& req) {
 	return this->scan_request_tagdurl(req);
 }
 
-tagd::code httagl::validate_request_tag_id_path(const request& req) {
-	this->init();
-
-	if (req.has_search_query()) {
-		this->error(tagd::TS_MISUSE, "unhandled command");
-		return this->code();
-	}
-
-	if (req.has_root_path()) {
-		this->error(tagd::TAGL_ERR, "tag id required in path");
-		return this->code();
-	}
-
-	if (req.path()[0] != '/') {
-		this->error(tagd::TAGL_ERR, "malformed path: no leading '/'");
-		return this->code();
-	}
-
-	const std::string id = req.path_tag_id();
-	if (id.empty()) {
-		this->error(tagd::TAGL_ERR, "tag id required in path");
-		return this->code();
-	}
-
-	if (id.substr(0, tagd::HDURI_SCHEME.size()) != tagd::HDURI_SCHEME &&
-		id.find('/') != std::string::npos) {
-		this->error(tagd::TAGL_ERR, "malformed path: trailing '/'");
-		return this->code();
-	}
-
-	return this->code();
-}
-
 tagd::code httagl::prepare_constrained_body_subject(const request& req) {
-	this->validate_request_tag_id_path(req);
+	this->scan_request_tagdurl(req);
 	if (this->has_errors())
 		return this->code();
 
-	this->constrain_tag_id = req.path_tag_id();
 	if (req.method == tagd::HTTP_POST) {
 		this->parse_tok(TOK_CMD_PUT, TAGL::EMPTY_VALUE);
 		this->parse_tok(this->lookup_pos(this->constrain_tag_id), this->constrain_tag_id);
@@ -463,6 +441,14 @@ void response::send_ev_reply(evhtp_res res) {
 	if (_reply_sent) {
 		LOG_ERROR( "reply already sent" << std::endl )
 		return;
+	}
+
+	// HEAD keeps GET's representation length but never sends a body, including QUERY/errors.
+	if (evhtp_request_get_method(_ev_req) == htp_method_HEAD) {
+		const auto length = evbuffer_get_length(_ev_req->buffer_out);
+		if (evhtp_header_find(_ev_req->headers_out, "Content-Length") == nullptr)
+			add_header_content_length(length);
+		evbuffer_drain(_ev_req->buffer_out, length);
 	}
 
 	HTTAGD_LOG_DEBUG("httagd send_ev_reply res=" << res << " name=" << evhtp_res_str(res));
@@ -646,13 +632,7 @@ void callback::default_cmd_get(const tagd::abstract_tag& t) {
 		ssn->print_errors(ss);
 	}
 
-	if (_tx->req->method == tagd::HTTP_HEAD) {
-		/* even though evhtp will not send content added for HEAD requests,
-		 * we will short circuit that by not adding content
-		 * _evhtp_create_reply() adds Content-Length header if not exists so lets create one
-		 */
-		_tx->res->add_header_content_length(ss.str().size());
-	} else if (ss.str().size()) {
+	if (ss.str().size()) {
 		_tx->res->add(ss.str());
 	}
 
@@ -675,12 +655,9 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 		return this->default_cmd_get(t);
 
 	/*
-	 * In the case of HEAD requests, we are still adding
-	 * content to the buffer just like GET requests.
-	 * This is because evhtp will count the bytes and add
-	 * a Content-Length header for us, even though the content
-	 * will not be sent to the client.
-	 * TODO surely, there must be a less wasteful way to do this.
+	 * Render GET's representation so HEAD retains the same metadata.
+	 * response::send_ev_reply suppresses the body for every view and error path.
+	 * TODO: Avoid rendering HEAD bodies when their metadata can be obtained directly.
 	 */
 
 	tagd::abstract_tag *T;
@@ -906,9 +883,6 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	transaction tx(svr, &req, &res, tsp, nullptr, vws);
 
 	auto ssn = tsp->get_session();
-	// URL lookup contexts need not exist in both _config and the target tagspace.
-	if (!req.query_opt_context().empty())
-		ssn.lookup_context(req.query_opt_context());
 
 	callback CB(&tx);
 	httagl tagl(tsp, &CB, &ssn);

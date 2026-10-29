@@ -146,6 +146,7 @@ class url : public abstract_tag {
 
 		// parse keys/vals from query string and populate map - returns num k/v pairs parsed
 		static size_t parse_query(url_query_map_t&, const std::string&);
+		static std::string decode_query_value(std::string);
 		static bool query_find(const url_query_map_t&, std::string& val, const std::string& key);
 
 		// insert url part relation into predicate_set

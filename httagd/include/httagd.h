@@ -229,10 +229,6 @@ class request {
 			return this->query_opt(TAGL::QUERY_OPT_SEARCH);
 		}
 
-		bool has_search_query() const {
-			return !this->query_opt_search().empty();
-		}
-
 		std::string query_opt_view() const {
 			return this->query_opt(TAGL::QUERY_OPT_VIEW);
 		}
@@ -259,10 +255,6 @@ class request {
 		}
 		bool has_root_path() const {
 			return operation_path().empty() || operation_path() == "/";
-		}
-
-		tagd::id_string path_tag_id() const {
-			return has_root_path() ? tagd::EMPTY_ID : tagd::uri_decode(operation_path().substr(1));
 		}
 
 		std::string tagdurl() const {
@@ -326,12 +318,7 @@ class httagl : public TAGL::driver {
 		tagd::code tagdurl_put(const request&);
 		tagd::code tagdurl_del(const request&);
 		tagd::code scan_request_tagdurl(const request&);
-		/*
-		 * HTTP PUT/POST path validation remains transport-side, separate from
-		 * standalone tagdurl-to-TAGL translation in tagl.
-		 */
-		tagd::code validate_request_tag_id_path(const request&);
-		// Prepare the HTTP POST/PUT body for the scanner.
+		// The tagdurl scanner validates the path; HTTP owns its composition with the body.
 		tagd::code prepare_constrained_body_subject(const request&);
 };
 

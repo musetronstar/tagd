@@ -129,8 +129,8 @@ void last_error_add_file_line_number(TAGL::driver *tagl) {
 	}
 }
 
-void scan_tagdurl(TAGL::driver *tagl, const std::string& tagdurl) {
-	tagl->scan_addressed_tagdurl(tagdurl);
+void scan_tagdurl(TAGL::driver *tagl, const std::string& tagdurl, int command = TOK_CMD_GET) {
+	tagl->scan_addressed_tagdurl(tagdurl, command);
 }
 
 } // %include
@@ -413,7 +413,7 @@ put_statement(c) ::= put_command(p) HDURI(U) .
 put_statement(c) ::= put_command(p) TAGDURL(U) .
 {
 	c = p;
-	scan_tagdurl(tagl, U.str());
+	scan_tagdurl(tagl, U.str(), p);
 }
 
 delete_command(c) ::= CMD_DELETE . { c = TOK_CMD_DELETE; }
@@ -438,7 +438,7 @@ del_statement(c) ::= delete_command(d) referent_relation . { c = d; }
 del_statement(c) ::= delete_command(d) TAGDURL(U) .
 {
 	c = d;
-	scan_tagdurl(tagl, U.str());
+	scan_tagdurl(tagl, U.str(), d);
 }
 
 del_subject_sub_err ::= subject_sub_relation .

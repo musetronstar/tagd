@@ -647,18 +647,18 @@ void insert_host_parts(tagd::predicate_set& P, const url& u) {
 	return;
 }
 
+std::string url::decode_query_value(std::string value) {
+	// Form '+' means space, but a percent-encoded '+' must remain literal.
+	for (auto& c : value) {
+		if (c == '+')
+			c = ' ';
+	}
+	return uri_decode(value);
+}
+
 size_t url::parse_query(url_query_map_t& M, const std::string& s) {
 	size_t init_map_sz = M.size();
 	size_t i = 0;
-
-	auto decode_query_value = [](std::string v) {
-		v = uri_decode(v);
-		for (size_t i = 0; i < v.size(); ++i) {
-			if (v[i] == '+')
-				v[i] = ' ';
-		}
-		return v;
-	};
 
 	// Optional leading '?' before the first query pair.
 	if (i < s.size() && s[i] == '?')

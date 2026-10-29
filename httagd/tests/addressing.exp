@@ -4,7 +4,7 @@ try {
 	set home [file join $addressing_tmp home]
 	foreach name {animals plants hidden} {
 		test_cli "address_create_$name" [list ../bin/httagd --home $home --tagspace $name --create \
-			--tagl ">> donkey _sub _entity _has _message = $name; >> targetonly _sub _entity; >> burro _refers_to donkey _context targetonly;" --dump] 1 {donkey}
+			--tagl ">> donkey _sub _entity _has _message = $name; >> targetonly _sub _entity; >> japanese _sub _entity; >> burro _refers_to donkey _context targetonly;" --dump] 1 {donkey}
 	}
 	file mkdir [file join $home tagspaces unopened]
 	set stream [open [file join $home tagspaces unopened unopened.db] w]
@@ -39,6 +39,9 @@ try {
 					test_cli "address_data_${default}_${autoload}_$name" [concat $curl [list "$origin/$name/donkey"]] 1 "_message = $name.*HTTP_STATUS:200$"
 				}
 				test_cli "address_context" [concat $curl [list "$origin/pz/donkey?c=japanese"]] 1 {plants.*HTTP_STATUS:200$}
+				test_cli "address_missing_context" [concat $curl [list "$origin/animals/donkey?c=absent"]] 1 {ts_not_found.*HTTP_STATUS:404$}
+				test_cli "address_context_list" [concat $curl [list "$origin/pz/donkey?c=targetonly,japanese"]] 1 {plants.*HTTP_STATUS:200$}
+				test_cli "address_context_does_not_leak" [concat $curl [list "$origin/pz/donkey"]] 1 {HTTP_STATUS:404$}
 				test_cli "address_target_only_context" [concat $curl [list "$origin/animals/burro?c=targetonly"]] 1 {_refers_to donkey.*HTTP_STATUS:200$}
 				test_cli "address_utf8_selector" [concat $curl [list "$origin/%E6%97%A5%E6%9C%AC/donkey"]] 1 {animals.*HTTP_STATUS:200$}
 				test_cli "address_decode_once" [concat $curl [list "$origin/%252e%252e/donkey"]] 1 {HTTP_STATUS:404$}
@@ -54,6 +57,7 @@ try {
 				test_cli "address_description" [concat $curl [list "$origin/animals"]] 1 "HTTP_STATUS:$description_status$"
 				test_cli "address_description_head" [concat $curl [list -I "$origin/animals"]] 1 "HTTP_STATUS:$description_status$"
 				if {$default eq "_config"} {
+					test_cli "address_config_missing_context" [concat $curl [list "$origin/_config/_entity?c=targetonly"]] 1 {ts_not_found.*HTTP_STATUS:404$}
 					test_cli "address_alias_description_canonical" [concat $curl [list "$origin/a"]] 1 {animals _sub _tagspace.*HTTP_STATUS:200$}
 					test_cli "address_config_body_description" [concat $curl [list -X POST --data {/animals;} "$origin/_config"]] 1 {animals _sub _tagspace.*HTTP_STATUS:200$}
 					test_cli "address_config_descendants" [concat $curl [list "$origin/_config/"]] 1 {default_config.*HTTP_STATUS:200$}
