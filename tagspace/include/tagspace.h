@@ -6,7 +6,7 @@
 
 void TAGSPACE_SET_LOGGER(tagd::logger*);
 
-namespace tagdb { struct storage_location; class tagdb; }
+namespace tagdb { struct storage_location; class tagdb; enum class relation_semantics; }
 
 namespace tagd {
 
@@ -35,6 +35,7 @@ class stored_tagspace : public tagspace {
 
 protected:
 	stored_tagspace();
+	explicit stored_tagspace(tagdb::relation_semantics);
 	[[nodiscard]] tagd::code initialize_location(const tagdb::storage_location&);
 	[[nodiscard]] tagd::code initialize_memory();
 	[[nodiscard]] tagd::code initialize_file(const std::string&, bool create = false);

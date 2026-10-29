@@ -306,6 +306,10 @@ class callback_tester : public TAGL::callback {
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_contradictions_map_to_http_conflict() {
+		TS_ASSERT_EQUALS(httagd::tagd_code_evhtp_res(tagd::TS_CONTRADICTION), EVHTP_RES_CONFLICT);
+	}
+
 	void test_tag_link_preserves_invalid_url_identity() {
 		const std::string name = "test_tag_link_preserves_invalid_url_identity";
 		TS_ASSERT(ctemplate::StringToTemplateCache(name, "{{id}}|{{id_lnk}}",

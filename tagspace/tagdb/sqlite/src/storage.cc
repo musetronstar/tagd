@@ -31,8 +31,8 @@ struct creation_guard {
 };
 }
 
-std::unique_ptr<tagdb> make_backend() {
-	return std::make_unique<sqlite>();
+std::unique_ptr<tagdb> make_backend(relation_semantics semantics) {
+	return std::make_unique<sqlite>(semantics);
 }
 
 std::string storage_directory(const std::string& home) {

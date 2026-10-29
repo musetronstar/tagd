@@ -30,6 +30,8 @@ using id_string = std::string;     // owning string
 using id_view = std::string_view;  // non-owning read-only <pointer + size> to c-string
 const static id_string EMPTY_ID;     // for returning empty `const id_string&`
 
+class predicate_set;
+
 /*
  * TODO(TAGL-types): Replace modifier text and its independent type field
  * with the shared TAGL value class; type() derives from its active alternative.
@@ -59,15 +61,17 @@ struct predicate {
 	static bool cmp_modifier_eq(const predicate& rhs, const predicate& lhs); // returns whether rhs == lhs
 	const char* op_c_str() const;
 
-	// Numeric comparison remains the membership contract, independently of output order.
+	// Numeric comparison expresses compatibility; predicate_set also distinguishes value types.
 	bool operator<(const predicate& p) const;
 	bool operator==(const predicate& p) const;
 	bool operator!=(const predicate& p) const;
 	bool empty() const;
 	static bool canonical_less(const predicate&, const predicate&);
+	bool specializes(const predicate& general) const;
 
 private:
 	friend class predicate_set;
+	friend void normalize_predicates(predicate_set&);
 	struct order_keys {
 		id_string relator_id, object_id;
 		rank relator_rank, object_rank;
@@ -79,7 +83,7 @@ private:
 std::ostream& operator<<(std::ostream&, const predicate&);
 
 /*
- * Iteration uses literal order; membership retains numeric modifier equivalence.
+ * Iteration uses literal order; membership retains modifier type and numeric value.
  * Nodes and const iterators have std::set lifetimes. Indexed string membership
  * is logarithmic; numeric membership scans only the matching relator/object/operator
  * group because numeric equivalence is not an interval in literal byte order.
@@ -327,6 +331,69 @@ public:
 };
 typedef std::pair<predicate_set::iterator,bool> predicate_pair;
 
+// Type assertions cannot carry a modifier, including an empty ordinary modifier.
+struct type_predicate {
+	id_string relator;
+	id_string object;
+
+	type_predicate(id_view r, id_view o) : relator(r), object(o) {}
+	bool operator==(const type_predicate& rhs) const {
+		return relator == rhs.relator && object == rhs.object;
+	}
+	bool operator<(const type_predicate&) const;
+
+private:
+	friend class type_predicate_set;
+	struct order_keys {
+		id_string relator_id, object_id;
+		rank relator_rank, object_rank;
+	};
+	// Borrow the ordinary-predicate snapshot contract: comparisons never read storage.
+	std::shared_ptr<const order_keys> _order;
+};
+
+class type_predicate_set {
+	using storage = std::set<type_predicate>;
+	storage _values;
+
+public:
+	using iterator = storage::const_iterator;
+	using const_iterator = iterator;
+	type_predicate_set() = default;
+	type_predicate_set(std::initializer_list<type_predicate> values) {
+		insert(values.begin(), values.end());
+	}
+	iterator begin() const { return _values.begin(); }
+	iterator end() const { return _values.end(); }
+	bool empty() const { return _values.empty(); }
+	size_t size() const { return _values.size(); }
+	void clear() {
+		_values.clear();
+	}
+	void swap(type_predicate_set& other) noexcept {
+		_values.swap(other._values);
+	}
+	iterator find(const type_predicate&) const;
+	bool contains(const type_predicate& value) const { return find(value) != end(); }
+	std::pair<iterator, bool> insert(const type_predicate&);
+	template<class Input> void insert(Input first, Input last) {
+		for (; first != last; ++first) {
+			insert(*first);
+		}
+	}
+	template<class... Args> std::pair<iterator, bool> emplace(Args&&... args) {
+		return insert(type_predicate(std::forward<Args>(args)...));
+	}
+	iterator erase(iterator it) {
+		return _values.erase(it);
+	}
+	size_t erase(const type_predicate&);
+	bool operator==(const type_predicate_set&) const;
+	// As with predicate_set, successful rebinding replaces nodes; failure preserves them.
+	[[nodiscard]] code order(const std::function<code(rank&, id_view)>&);
+	void transform(const std::function<id_string(const id_string&)>&);
+};
+
 // ADL provides the standard erase_if operation for this user-defined container.
 template<class Predicate> size_t erase_if(predicate_set& values, Predicate pred) {
 	const auto before = values.size();
@@ -365,13 +432,18 @@ size_t merge_tags_erase_diffs(tag_set& A, const tag_set& B);
 
 /*
  * Merges tags from B into A where an element of A contains B
- * or an element of B contains A.
+ * or an element of B contains A. Inputs must be compatible declarations
+ * ranked in the same snapshot. The more specific identity retains its type
+ * declarations and receives the normalized union of ordinary predicates.
  */
 size_t merge_containing_tags(tag_set& A, const tag_set& B);
 
 // every member in A deep equals (===) every member in B
 bool tag_set_equal(const tag_set& A, const tag_set& B);
 /************** end tag_set defs ************/
+
+// Normalize compatible predicates without changing their source declarations.
+void normalize_predicates(predicate_set&);
 
 class abstract_tag {
 	protected:
@@ -423,10 +495,12 @@ class abstract_tag {
 			_pos(sem._pos),
 			_rank(r),
 			_code(sem._code),
-			relations(sem.relations)
+			relations(sem.relations),
+			type_relations(sem.type_relations)
 		{};
 
 		predicate_set relations;
+		type_predicate_set type_relations;
 
 		// Exchange all tag fields without throwing.
 		void swap(abstract_tag&) noexcept;
@@ -440,6 +514,7 @@ class abstract_tag {
 				&& _super_object.empty()
 				&& _rank.empty()
 				&& relations.empty()
+				&& type_relations.empty()
 			);
 		}
 
@@ -471,6 +546,7 @@ class abstract_tag {
 		[[nodiscard]] tagd::code relation(id_view, id_view, id_view); // relator, object, modifier
 		[[nodiscard]] tagd::code relation(id_view, id_view, id_view, operator_t); // relator, object, modifier, opr8r
 		[[nodiscard]] tagd::code relation(id_view, id_view, id_view, operator_t, data_t); // relator, object, modifier, opr8r, modifier_type
+		[[nodiscard]] tagd::code type_relation(id_view relator, id_view object);
 
 		// TODO(cpp23-return-contracts): audit whether not_relation should also
 		// be [[nodiscard]] and require the same immediate-check discipline.
@@ -816,7 +892,7 @@ struct util {
 	// returns c string of formatted printf string, or NULL on failure
 	static char* csprintf(const char *, ...);
 	static char* csprintf(const char *, va_list&);
-	static std::string esc_and_quote(id_string);
+	static std::string esc_and_quote(id_string, bool force_quotes = false);
 };
 
 }  // namespace tagd

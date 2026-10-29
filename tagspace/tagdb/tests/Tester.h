@@ -320,7 +320,7 @@ class Tester : public CxxTest::TestSuite {
 		TDB_CONS_INIT();
 
 		tagd::abstract_tag dog = test_tag("dog", "mammal");
-		TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "legs", "4"))
+		TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER))
 		TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "tail"))
 		TS_ASSERT_TAGD_OK(dog.relation("can", "bark"))
 		tagd::abstract_tag t1;
@@ -492,7 +492,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd::abstract_tag c;
 		tc = tdb.get(c, "dog", &ssn);
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT(c.related(HARD_TAG_HAS, "legs", "4"));
+		TS_ASSERT(c.related(tagd::predicate(HARD_TAG_HAS, "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER)));
 		TS_ASSERT(!c.related(HARD_TAG_HAS, "tail"));
 		TS_ASSERT(!c.related("can", "bark"));
 
@@ -751,7 +751,7 @@ class Tester : public CxxTest::TestSuite {
 
 		tagd::abstract_tag b;
 		rc = tdb.get(b, "dog", &ssn);
-		TS_ASSERT(b.related("has", "legs", "4"))  // has _refers_to _has _context simple_english
+		TS_ASSERT(b.related(tagd::predicate("has", "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER)))  // has _refers_to _has _context simple_english
 		TS_ASSERT(b.related("has", "tail"));
 		TS_ASSERT(b.related("can", "bite"));
 		ssn.pop_context();
@@ -760,9 +760,9 @@ class Tester : public CxxTest::TestSuite {
 		tagd::abstract_tag c;
 		rc = tdb.get(c, "dog", &ssn);
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(rc), "TAGD_OK");
-		TS_ASSERT(!c.related("has", "legs", "4"));
+		TS_ASSERT(!c.related(tagd::predicate("has", "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER)));
 		TS_ASSERT(!c.related("has", "tail"));
-		TS_ASSERT(c.related(HARD_TAG_HAS, "legs", "4"));
+		TS_ASSERT(c.related(tagd::predicate(HARD_TAG_HAS, "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER)));
 		TS_ASSERT(c.related(HARD_TAG_HAS, "tail"));
 		TS_ASSERT(c.related("can", "bite"));
 
@@ -1240,7 +1240,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_TAGD_OK(tdb.put(bare, &ssn, tagdb::F_IGNORE_DUPLICATES));
 		tagd::abstract_tag loaded;
 		TS_ASSERT_TAGD_OK(tdb.get(loaded, "dog", &ssn));
-		TS_ASSERT(loaded.related(HARD_TAG_HAS, "legs", "4"));
+		TS_ASSERT(loaded.related(tagd::predicate(HARD_TAG_HAS, "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER)));
 		tagd::abstract_tag wrong = test_tag("dog");
 		TS_ASSERT_TAGD_OK(wrong.relation(HARD_TAG_HAS, "legs", "2"));
 		TS_ASSERT_EQUALS(tdb.del(wrong, &ssn), tagd::TS_NOT_FOUND);
@@ -1410,7 +1410,8 @@ class Tester : public CxxTest::TestSuite {
 		S.clear();
 		tc = tdb_related(tdb, S, tagd::predicate(HARD_TAG_RELATOR, "body_part"));
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT_EQUALS(S.size(), 8);
+		TS_ASSERT_EQUALS(S.size(), 9);
+		TS_ASSERT(tag_set_exists(S, "canary"));
 
 		S.clear();
 		tc = tdb_related(tdb, S, tagd::predicate("snarfs", "cockamamy"));
@@ -1420,7 +1421,8 @@ class Tester : public CxxTest::TestSuite {
 		S.clear();
 		tc = tdb_related(tdb, S, tagd::predicate("can", ""));
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT_EQUALS(S.size(), 5);
+		TS_ASSERT_EQUALS(S.size(), 6);
+		TS_ASSERT(tag_set_exists(S, "canary"));
 	}
 
 	void test_query(void) {
@@ -1480,7 +1482,11 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_TAGD_OK(s.relation(HARD_TAG_HAS, "teeth"))
 		tc = tdb.query(S, s, &ssn);
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT_EQUALS(S.size(), 3);
+		TS_ASSERT_EQUALS(S.size(), 7);
+		TS_ASSERT(tag_set_exists(S, "dog"));
+		TS_ASSERT(tag_set_exists(S, "cat"));
+		TS_ASSERT(tag_set_exists(S, "whale"));
+		TS_ASSERT(tag_set_exists(S, "bat"));
 		TS_ASSERT(tag_set_exists(S, "mammal"));
 		TS_ASSERT(tag_set_exists(S, "spider"));  // fangs are teeth
 		TS_ASSERT(tag_set_exists(S, "snake"));
@@ -1502,8 +1508,8 @@ class Tester : public CxxTest::TestSuite {
 
 		S.clear();
 		tagd::interrogator q1(HARD_TAG_WHAT);
-		TS_ASSERT_TAGD_OK(q1.relation(HARD_TAG_HAS, "legs", "2", tagd::OP_GT))
-		TS_ASSERT_TAGD_OK(q1.relation(HARD_TAG_HAS, "body_part", "8", tagd::OP_LT_EQ))
+		TS_ASSERT_TAGD_OK(q1.relation(HARD_TAG_HAS, "legs", "2", tagd::OP_GT, tagd::TYPE_INTEGER))
+		TS_ASSERT_TAGD_OK(q1.relation(HARD_TAG_HAS, "legs", "8", tagd::OP_LT_EQ, tagd::TYPE_INTEGER))
 		tc = tdb.query(S, q1, &ssn);
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
 		TS_ASSERT_EQUALS(S.size(), 3);
@@ -1514,13 +1520,13 @@ class Tester : public CxxTest::TestSuite {
 		int num = 0;
 		for(tagd::tag_set::iterator it = S.begin(); it != S.end(); ++it) {
 			if (it->id() == "dog") {
-				if (it->related(HARD_TAG_HAS, "legs", "4")) num++;
+				if (it->related(tagd::predicate(HARD_TAG_HAS, "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER))) num++;
 			}
 			else if (it->id() == "cat") {
-				if (it->related(HARD_TAG_HAS, "legs", "4")) num++;
+				if (it->related(tagd::predicate(HARD_TAG_HAS, "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER))) num++;
 			}
 			else if (it->id() == "spider") {
-				if (it->related(HARD_TAG_HAS, "legs", "8")) num++;
+				if (it->related(tagd::predicate(HARD_TAG_HAS, "legs", "8", tagd::OP_EQ, tagd::TYPE_INTEGER))) num++;
 			}
 		}
 		TS_ASSERT_EQUALS(num , 3);
@@ -1531,14 +1537,15 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_TAGD_OK(q2.relation("can", ""))
 		tc = tdb.query(S, q2, &ssn);
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK");
-		TS_ASSERT_EQUALS(S.size(), 5);
+		TS_ASSERT_EQUALS(S.size(), 6);
+		TS_ASSERT(tag_set_exists(S, "canary"));
 		TS_ASSERT(tag_set_exists(S, "dog"));
 		TS_ASSERT(tag_set_exists(S, "cat"));
 		TS_ASSERT(tag_set_exists(S, "whale"));
 		TS_ASSERT(tag_set_exists(S, "bat"));
 		TS_ASSERT(tag_set_exists(S, "bird"));
 
-		// TODO tagd::merge_containing tags fails to merge predicates
+		// Each match retains its complete explicit declaration.
 	}
 
 	void test_query_super_object(void) {
@@ -1797,7 +1804,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd::abstract_tag dog;
 		TS_ASSERT_TAGD_OK(tdb.get(dog, "dog", &ssn));
 		TS_ASSERT_EQUALS(dog.relations.size(), 3);
-		TS_ASSERT(dog.related(HARD_TAG_HAS, "legs", "4"));
+		TS_ASSERT(dog.related(tagd::predicate(HARD_TAG_HAS, "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER)));
 		TS_ASSERT(dog.related(HARD_TAG_HAS, "tail"));
 
 		tagd::predicate_set how;

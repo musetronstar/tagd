@@ -8,7 +8,7 @@ LFLAGS = -L../lib -ltagd
 CXXTEST = cxxtestgen --error-printer
 
 all: magic_tests  datetime_tests  tag_tests predicate_ownership_tests domain_tests url_tests event_tests \
-	file_tests logger_tests hard_tag_tests
+	file_tests logger_tests hard_tag_tests type_relation_tests
 
 debug: CXXFLAGS += -g -O0
 debug: all
@@ -67,6 +67,7 @@ hard_tag_tests: $(LIBTAGD) HardTagTester.h
 	$(HARD_TAG_TESTER)
 
 clean:
+	rm -f type-relation-tester.cpp type-relation-tester
 	rm -f magic-tester.cpp magic-tester magic-evaluate
 	rm -f datetime_tests-tester.cpp datetime_tests-tester
 	rm -f predicate-ownership-tester
@@ -82,6 +83,11 @@ clean:
 predicate_ownership_tests: $(LIBTAGD) PredicateOwnershipTester.cc
 	g++ $(CXXFLAGS) PredicateOwnershipTester.cc -o predicate-ownership-tester $(INC) $(LFLAGS)
 	./predicate-ownership-tester
+
+type_relation_tests: $(LIBTAGD) TypeRelationTester.h
+	$(CXXTEST) TypeRelationTester.h -o type-relation-tester.cpp
+	g++ $(CXXFLAGS) type-relation-tester.cpp -o type-relation-tester $(INC) $(LFLAGS)
+	./type-relation-tester
 
 datetime_tests:
 	$(CXXTEST) DatetimeTester.h -o datetime_tests-tester.cpp

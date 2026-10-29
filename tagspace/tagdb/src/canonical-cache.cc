@@ -195,7 +195,7 @@ tagd::code canonical_cache::predicates(tagd::predicate_set& P, const tagd::id_st
 			if (it->predicates) {
 				++_predicate_hits;
 				for (const auto& p : *it->predicates) {
-					P.emplace(p.relator, p.object, p.modifier);
+					P.emplace(p.relator, p.object, p.modifier, p.opr8r, p.modifier_type);
 				}
 				it->used = _cache_now();
 				_cache.splice(_cache.begin(), _cache, it);
@@ -212,7 +212,7 @@ tagd::code canonical_cache::predicates(tagd::predicate_set& P, const tagd::id_st
 		if (rc != tagd::TAGD_OK)
 			return rc;
 		for (const auto& p : rows) {
-			P.emplace(p.relator, p.object, p.modifier);
+			P.emplace(p.relator, p.object, p.modifier, p.opr8r, p.modifier_type);
 		}
 	}
 

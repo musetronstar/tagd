@@ -399,6 +399,9 @@ tagd::code sqlite::_init(const std::string& fname) {
 	(void)this->open();	// open will create db if not exists
 	OK_OR_RET_ERR();
 
+	if (check_storage_schema() != tagd::TAGD_OK)
+		return _code;
+
 	this->exec("BEGIN");
 
 	if (_code == tagd::TAGD_OK)
@@ -410,6 +413,26 @@ tagd::code sqlite::_init(const std::string& fname) {
 	if (_code == tagd::TAGD_OK)
 		this->create_relations_table();
 
+	if (_code == tagd::TAGD_OK) {
+		this->exec("CREATE TABLE IF NOT EXISTS type_relations ("
+			"subject INTEGER NOT NULL, type_relator INTEGER NOT NULL, type_object INTEGER NOT NULL, "
+			"PRIMARY KEY(subject,type_relator,type_object) ON CONFLICT FAIL, "
+			"FOREIGN KEY(subject) REFERENCES tags(tag), "
+			"FOREIGN KEY(type_relator) REFERENCES tags(tag), "
+			"FOREIGN KEY(type_object) REFERENCES tags(tag))");
+	}
+	if (_code == tagd::TAGD_OK) {
+		this->exec("CREATE INDEX IF NOT EXISTS idx_sub_relator ON tags(sub_relator)");
+	}
+	if (_code == tagd::TAGD_OK) {
+		this->exec("CREATE INDEX IF NOT EXISTS idx_type_object ON type_relations(type_object)");
+	}
+	if (_code == tagd::TAGD_OK) {
+		this->exec("CREATE INDEX IF NOT EXISTS idx_type_relator ON type_relations(type_relator)");
+	}
+	if (_code == tagd::TAGD_OK) {
+		this->exec_mprintf("PRAGMA user_version = %d", SCHEMA_VERSION);
+	}
 	if (_code == tagd::TAGD_OK)
 		this->create_referents_table();
 
@@ -593,7 +616,34 @@ tagd::code sqlite::create_terms_table() {
 		sqlite3_result_text(context, term.data(), term.size(), SQLITE_TRANSIENT);
 	};
 
-	int rc;
+	// Rank characters are literal components, including GLOB metacharacters.
+	auto f_rank_glob = [](sqlite3_context* context, int, sqlite3_value** argv) {
+		const auto* prefix = reinterpret_cast<const char*>(sqlite3_value_text(argv[0]));
+		if (!prefix) {
+			sqlite3_result_null(context);
+			return;
+		}
+
+		std::string pattern;
+		for (const char c : std::string_view(prefix)) {
+			if (c == '*' || c == '?' || c == '[') {
+				pattern += '[';
+				pattern += c;
+				pattern += ']';
+			} else {
+				pattern += c;
+			}
+		}
+		pattern += '*';
+		sqlite3_result_text(context, pattern.data(), pattern.size(), SQLITE_TRANSIENT);
+	};
+
+	int rc = sqlite3_create_function(_db, "rank_glob", 1,
+		SQLITE_UTF8 | SQLITE_DETERMINISTIC, nullptr, f_rank_glob, nullptr, nullptr);
+	if (rc != SQLITE_OK) {
+		return error(tagd::TS_INTERNAL_ERR, "create function rank_glob failed");
+	}
+
 	rc = sqlite3_create_function(_db, "tid", 1, SQLITE_UTF8|SQLITE_DETERMINISTIC, this, f_tid, 0, 0);
 	if( rc != SQLITE_OK )
 		return this->error(tagd::TS_INTERNAL_ERR, "create function tid failed");
@@ -818,6 +868,8 @@ tagd::code sqlite::create_relations_table() {
 		"relator   INTEGER NOT NULL, "
 		"object    INTEGER NOT NULL, "
 		"modifier  INTEGER, "
+		// Preserve the existing predicate metadata; the shared primitive-value redesign remains separate.
+		"modifier_type INTEGER NOT NULL, operator INTEGER NOT NULL, "
 		/*
 		 * whatever statement throws a unique constraint will fail
 		 * but the trasaction overall can still succeed
@@ -889,6 +941,51 @@ void sqlite::close() {
 	_db = nullptr;
 }
 
+tagd::code sqlite::format_declaration(tagd::abstract_tag& result,
+	const tagd::abstract_tag& canonical, session* ssn, flags_t flags) {
+	// GET and QUERY share URL/referent presentation without re-reading canonical declarations.
+	if (tagd::hard_tag_axiom_for(canonical.id())) {
+		return hard_tag::get(result, canonical.id());
+	}
+
+	const bool transform = ssn && !(flags & F_NO_TRANSFORM_REFERENTS);
+	id_transform_func_t f_transform = transform ? f_encode_referent(ssn) : f_passthrough;
+	tagd::id_string displayed_id;
+	if (canonical.pos() == tagd::POS_URL) {
+		tagd::HDURI u(canonical.id());
+		if (!u.ok()) {
+			return ferror(u.code(), "failed to init HDURI: %s", canonical.id().c_str());
+		}
+		displayed_id = u.id();
+	} else {
+		displayed_id = f_transform(canonical.id());
+	}
+
+	tagd::abstract_tag semantic(displayed_id, f_transform(canonical.sub_relator()),
+		f_transform(canonical.super_object()), canonical.pos());
+	tagd::abstract_tag populated = canonical.rank().empty()
+		? std::move(semantic) : tagd::abstract_tag(semantic, canonical.rank());
+	populated.relations = canonical.relations;
+	populated.type_relations = canonical.type_relations;
+	if (transform) {
+		populated.relations.transform(f_transform);
+		populated.type_relations.transform(f_transform);
+	}
+
+	// A displayed alias or URL keeps a universal reference to its canonical identity.
+	if (!(flags & F_NO_TRANSFORM_REFERENTS) && canonical.id() != populated.id()) {
+		tagd::predicate_set marker{{HARD_TAG_REFERS_TO, canonical.id()}};
+		const auto rc = order_predicates(marker);
+		if (rc != tagd::TAGD_OK) {
+			return rc;
+		}
+		populated.relations.insert(marker.begin(), marker.end());
+	}
+
+	result = std::move(populated);
+	return tagd::TAGD_OK;
+}
+
 tagd::code sqlite::get(tagd::abstract_tag& t, tagd::id_view term, session* ssn, flags_t flags) {
 	read_scope snapshot(*this);
 	if (snapshot.status != tagd::TAGD_OK)
@@ -905,6 +1002,14 @@ tagd::code sqlite::get(tagd::abstract_tag& t, tagd::id_view term, session* ssn, 
 		tagd::code tc = hard_tag::get(t, term);
 		if (tc == tagd::TAGD_OK) {
 			TAGDB_LOG_DEBUG( "got hard_tag: " << t << " -- " << t.rank().dotted_str() << std::endl );
+			if ((flags & F_INCLUDE_INHERITED_PREDICATES)
+			&& _relation_semantics == relation_semantics::assertions) {
+				relation_resolver state;
+				tc = load_relation_declarations(state, {term_id});
+				if (tc == tagd::TAGD_OK) {
+					tc = expand_relations(t, term_id, state, ssn, flags);
+				}
+			}
 			RET_SSN_CODE(tc);
 		} else if (tc != tagd::TS_NOT_FOUND) {
 			RET_SYS_SSN_FERROR(tc, "hard_tag::get(%s) unexpected tag code: %s",
@@ -935,54 +1040,43 @@ tagd::code sqlite::get(tagd::abstract_tag& t, tagd::id_view term, session* ssn, 
 	canonical_identity identity;
 	tagd::rank rank;
 	const auto identity_rc = load_identity(identity, rank, id);
-	id_transform_func_t f_transform =
-		(!ssn || (flags & F_NO_TRANSFORM_REFERENTS)) ? f_passthrough : this->f_encode_referent(ssn);
 
 	if (identity_rc == tagd::TAGD_OK) {
-		const auto& tag_id = id;
-		const auto pos = identity.pos;
-		tagd::id_string rebuilt_id;
-		if (pos == tagd::POS_URL) {
-			// convert hduri to url
-			tagd::HDURI u(tag_id);
-			if (!u.ok())
-				return this->ferror(u.code(), "failed to init HDURI: %s", id.c_str());
-			rebuilt_id = u.id();
-		} else {
-			rebuilt_id = f_transform(tag_id);
-		}
-
-		tagd::abstract_tag semantic(
-			rebuilt_id,
-			f_transform(identity.sub_relator),
-			f_transform(identity.super_object),
-			pos
-		);
-		tagd::abstract_tag populated =
-			rank.empty() ? std::move(semantic) : tagd::abstract_tag(semantic, rank);
-
-		const auto relations_rc = this->get_relations(populated.relations, id, ssn, flags);
+		tagd::abstract_tag semantic(id, identity.sub_relator, identity.super_object, identity.pos);
+		tagd::abstract_tag canonical = rank.empty()
+			? std::move(semantic) : tagd::abstract_tag(semantic, rank);
+		const auto relation_flags = _relation_semantics == relation_semantics::profile_overrides
+			? flags : flags & ~F_INCLUDE_INHERITED_PREDICATES;
+		const auto relations_rc = get_relations(canonical.relations, id, ssn,
+			relation_flags | F_NO_TRANSFORM_REFERENTS);
 		// An empty relation set is valid; unresolved components in a nonempty set are not.
 		if (relations_rc != tagd::TAGD_OK
-			&& !(relations_rc == tagd::TS_NOT_FOUND && populated.relations.empty())) {
+			&& !(relations_rc == tagd::TS_NOT_FOUND && canonical.relations.empty())) {
 			RET_SSN_CODE(relations_rc);
 		}
 		OK_OR_RET_SSN_INT_ERR_ACTION("tagdb:get:get_relations");
 
-		// if id was transformed via referent, add a _refers_to the orignal id
-		// don't transform _refers_to because it we want it to be accessible
-		// universally and programmatically (the id will be easily recognizable
-		// as a referent due to the presence of a _refers_to predicate)
-		if (!(flags & F_NO_TRANSFORM_REFERENTS)) {
-			if (id != populated.id()) {
-				tagd::predicate_set marker{{HARD_TAG_REFERS_TO, id}};
-				auto rc = order_predicates(marker);
-				if (rc != tagd::TAGD_OK)
-					return rc;
-				populated.relations.insert(marker.begin(), marker.end());
-			}
+		const auto types_rc = get_type_relations(canonical.type_relations, id);
+		if (types_rc != tagd::TAGD_OK) {
+			RET_SSN_CODE(types_rc);
+		}
+		tagd::abstract_tag populated;
+		const auto display_rc = format_declaration(populated, canonical, ssn, flags);
+		if (display_rc != tagd::TAGD_OK) {
+			RET_SSN_CODE(display_rc);
 		}
 
+		if ((flags & F_INCLUDE_INHERITED_PREDICATES)
+			&& _relation_semantics == relation_semantics::assertions) {
+			relation_resolver state;
+			auto rc = load_relation_declarations(state, {id});
+			if (rc == tagd::TAGD_OK) {
+				rc = expand_relations(populated, id, state, ssn, flags);
+			}
+			if (rc != tagd::TAGD_OK) {
+				RET_SSN_CODE(rc);
+			}
+		}
 		t = std::move(populated);
 
 	} else if (identity_rc != tagd::TS_NOT_FOUND) {
@@ -1063,7 +1157,7 @@ tagd::code sqlite::load_predicates(std::vector<canonical_predicate>& rows,
 	const auto statement = inherited ? stmt_t::GET_INHERITED_RELATIONS : stmt_t::GET_RELATIONS;
 	if (inherited) {
 		/*
-		 * Stored subordination is a rooted tree; only _entity is its own parent.
+		 * Configuration profiles use their structural tree; only _entity is its own parent.
 		 * Nearest subjects come first so an empty modifier also shadows ancestors.
 		 */
 		this->prepare(statement,
@@ -1072,13 +1166,13 @@ tagd::code sqlite::load_predicates(std::vector<canonical_predicate>& rows,
 			"UNION ALL "
 			"SELECT t.tag, t.super_object, a.depth + 1 FROM tags t "
 			"JOIN ancestry a ON t.tag = a.super_object WHERE a.tag != a.super_object"
-			") SELECT idt(r.relator), idt(r.object), idt(r.modifier) "
+			") SELECT idt(r.relator), idt(r.object), idt(r.modifier), r.modifier_type, r.operator "
 			"FROM ancestry a JOIN relations r ON r.subject = a.tag ORDER BY a.depth",
 			"get_inherited_relations"
 		);
 	} else {
 		this->prepare(statement,
-			"SELECT idt(relator), idt(object), idt(modifier) "
+			"SELECT idt(relator), idt(object), idt(modifier), modifier_type, operator "
 			"FROM relations WHERE subject = tid(?)",
 			"get_relations"
 		);
@@ -1093,12 +1187,7 @@ tagd::code sqlite::load_predicates(std::vector<canonical_predicate>& rows,
 	const int F_MODIFIER = 2;
 
 	int s_rc;
-	/*
-	 * TODO: reconcile child predicate masking with Alexandrov topology/MLTT
-	 * consistency in the general predicate model.
-	 * For now, inherited GET keeps the nearest (relator, object) assertion.
-	 * This read flag neither changes stored assertions nor governs PUT/DELETE.
-	 */
+	// Profile overrides are application configuration, separate from semantic inheritance.
 	std::set<std::pair<tagd::id_string, tagd::id_string>> seen;
 	sqlite3_stmt *stmt = get_stmt(statement);
 	while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
@@ -1109,6 +1198,8 @@ tagd::code sqlite::load_predicates(std::vector<canonical_predicate>& rows,
 			continue;
 
 		canonical_predicate p{relator, object, {}};
+		p.modifier_type = static_cast<tagd::data_t>(sqlite3_column_int(stmt, 3));
+		p.opr8r = static_cast<tagd::operator_t>(sqlite3_column_int(stmt, 4));
 		if (sqlite3_column_type(stmt, F_MODIFIER) != SQLITE_NULL) {
 			p.modifier = (const char*) sqlite3_column_text(stmt, F_MODIFIER);
 		}
@@ -1270,9 +1361,9 @@ tagd::code sqlite::refers(tagd::id_string &refers, const tagd::id_string& refers
 			"FROM referents, tags "
 			"WHERE refers_to = tid(?) "
 			"AND context = tag "
-			"AND rank GLOB ("
+			"AND rank GLOB rank_glob(("
 			 "SELECT rank FROM tags WHERE tag = tid(?)"
-			") || '*' " // all context <= {_context}
+			")) " // all context <= {_context}
 			"ORDER BY rank DESC "  // closest (subordinate) rank
 			"LIMIT 1",
 			"refers"
@@ -1317,9 +1408,9 @@ tagd::code sqlite::refers_to(tagd::id_string &refers_to, const tagd::id_string& 
 			"FROM referents, tags "
 			"WHERE refers = tid(?) "
 			"AND context = tag "
-			"AND rank GLOB ("
+			"AND rank GLOB rank_glob(("
 			 "SELECT rank FROM tags WHERE tag = tid(?)"
-			") || '*' " // all context <= {_context}
+			")) " // all context <= {_context}
 			"ORDER BY rank DESC "
 			"LIMIT 1",
 			"refers_to"
@@ -1380,49 +1471,32 @@ bool sqlite::exists(tagd::id_view id, flags_t flags) {
 }
 
 // tagd::TS_NOT_FOUND returned if destination undefined
-tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t flags) {
-	if (_write_poisoned) {
-		return error(tagd::TS_INTERNAL_ERR, "commit outcome unknown; reopen and check storage");
-	}
-	mutation_scope mutation(*this);
+tagd::code sqlite::put_impl(const tagd::abstract_tag& t, session *ssn, flags_t flags) {
 	// Internal write reads must describe stored assertions, not inherited values.
 	flags &= ~F_INCLUDE_INHERITED_PREDICATES;
-	if (!(flags & F_NO_RESET)) this->reset(ssn);
 	tagdb_debug_scope debug_scope(this, ssn);
-	tagdb_notice_scope notice_scope(this, ssn, tagd::CMD_PUT, put_tag);
-	tagdb_error_scope error_scope(this, ssn, tagd::CMD_PUT, put_tag);
+	tagdb_notice_scope notice_scope(this, ssn, tagd::CMD_PUT, t);
+	tagdb_error_scope error_scope(this, ssn, tagd::CMD_PUT, t);
 
-	TAGDB_LOG_DEBUG( "sqlite::put: " << put_tag << " -- " << flag_util::flag_list_str(flags) << std::endl );
-	TAGDB_LOG_DEBUG("tagdb put subject=" << put_tag.id());
+	TAGDB_LOG_DEBUG( "sqlite::put: " << t << " -- " << flag_util::flag_list_str(flags) << std::endl );
+	TAGDB_LOG_DEBUG("tagdb put subject=" << t.id());
 
-	if (put_tag.id().length() > tagd::MAX_TAG_LEN)
+	if (t.id().length() > tagd::MAX_TAG_LEN)
 		RET_SSN_FERROR(tagd::TS_ERR_MAX_TAG_LEN, "tag exceeds MAX_TAG_LEN of %d", tagd::MAX_TAG_LEN);
 
-	if (put_tag.id().empty())
+	if (t.id().empty())
 		RET_SSN_ERROR(tagd::TS_MISUSE, "inserting empty tag not allowed");
 
-	if (put_tag.id()[0] == '_' && !_doing_init)
-		RET_SSN_FERROR(tagd::TS_MISUSE, "inserting hard tags not allowed: %s", put_tag.id().c_str());
-
-	if (!(flags & F_NO_POS_CAST)) {
-		switch (put_tag.pos()) {
-			case tagd::POS_URL:
-				RET_SSN_CODE(this->put((const tagd::url&)put_tag, ssn, flags));
-			case tagd::POS_REFERENT:
-				RET_SSN_CODE(this->put((const tagd::referent&)put_tag, ssn, flags));
-			default:
-				; // NOOP
-		}
-	}
-
-	tagd::abstract_tag t =
-		(!ssn || (flags & F_NO_TRANSFORM_REFERENTS))
-			? tagd::abstract_tag(put_tag)
-			: this->decode_referents(put_tag, ssn);
-	OK_OR_RET_SSN_INT_ERR_ACTION("tadb:put:decode_referents");
+	if (t.id()[0] == '_' && !_doing_init)
+		RET_SSN_FERROR(tagd::TS_MISUSE, "inserting hard tags not allowed: %s", t.id().c_str());
 
 	if (t.id() == t.super_object() && t.id() != HARD_TAG_ENTITY)
 		RET_SSN_FERROR(tagd::TS_MISUSE, "_id == _super_object not allowed: %s", t.id().c_str());
+
+	const auto type_validation = validate_declaration(t);
+	if (type_validation != tagd::TAGD_OK) {
+		RET_SSN_CODE(type_validation);
+	}
 
 	tagd::abstract_tag existing;
 	tagd::code existing_rc = this->get(existing, t.id(), ssn, (flags|F_NO_TRANSFORM_REFERENTS|F_NO_NOT_FOUND_ERROR));
@@ -1447,7 +1521,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t 
 			RET_SSN_ERROR(tagd::TS_SUB_UNK,
 				tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, t.id()) );
 		} else {
-			if (t.relations.empty()) {  // duplicate tag and no relations to insert
+			if (t.relations.empty() && t.type_relations.empty()) {  // duplicate tag and no relations to insert
 				RET_SSN_FERROR(tagd::TS_MISUSE, "cannot put a tag without relations: %s", t.id().c_str());
 			} else { // insert relations
 				RET_SSN_CODE(f_fts_passthru(this->insert_relations(t, flags)));
@@ -1471,7 +1545,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t 
 		if ( t.sub_relator() == existing.sub_relator() &&
 			t.super_object() == existing.super_object() )
 		{  // same location
-			if (t.relations.empty()) {  // duplicate tag and no relations to insert
+			if (t.relations.empty() && t.type_relations.empty()) {  // duplicate tag and no relations to insert
 				if (flags & F_IGNORE_DUPLICATES)
 					RET_SSN_CODE(tagd::TAGD_OK);
 				else
@@ -1484,6 +1558,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t 
 		// use existing because it has the rank
 		if (existing.sub_relator() != t.sub_relator()) {
 			auto relations = std::move(existing.relations);
+			auto types = std::move(existing.type_relations);
 			tagd::abstract_tag semantic(
 				existing.id(),
 				t.sub_relator(),
@@ -1494,6 +1569,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t 
 				? std::move(semantic)
 				: tagd::abstract_tag(semantic, existing.rank());
 			existing.relations = std::move(relations);
+			existing.type_relations = std::move(types);
 		}
 		// move existing to new location or relator
 		ins_upd_rc = this->update(existing, destination);
@@ -1509,7 +1585,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t 
 		return _code;
 	}
 
-	if (ins_upd_rc == tagd::TAGD_OK && !t.relations.empty())
+	if (ins_upd_rc == tagd::TAGD_OK && (!t.relations.empty() || !t.type_relations.empty()))
 		// Creating or moving the subject already changed this PUT's stored state.
 		RET_SSN_CODE(f_fts_passthru(this->insert_relations(t, flags | F_IGNORE_DUPLICATES)));
 
@@ -1518,24 +1594,7 @@ tagd::code sqlite::put(const tagd::abstract_tag& put_tag, session *ssn, flags_t 
 }
 
 tagd::code sqlite::put(const tagd::url& u, session *ssn, flags_t flags) {
-	if (_write_poisoned) {
-		return error(tagd::TS_INTERNAL_ERR, "commit outcome unknown; reopen and check storage");
-	}
-	mutation_scope mutation(*this);
-	if (!(flags & F_NO_RESET)) this->reset(ssn);
-
-	if (!u.ok())
-		RET_SSN_FERROR(u.code(), "put url not ok(%s): %s",  tagd::code_str(u.code()), u.id().c_str());
-
-	/*
-	 * url _id is the actual url, but we use the hduri
-	 * internally, so we have to convert it
-	 */
-	tagd::abstract_tag t_sem(u.hduri(), u.sub_relator(), u.super_object(), u.pos());
-	tagd::abstract_tag t = u.rank().empty() ? std::move(t_sem) : tagd::abstract_tag(t_sem, u.rank());
-	t.relations = u.relations;
-	tagd::url::insert_url_part_relations(t.relations, u);
-	RET_SSN_CODE(this->put(t, ssn, (flags|F_NO_POS_CAST)));
+	return put_transaction(u, ssn, flags, nullptr);
 }
 
 tagd::code sqlite::put(const tagd::referent& r, session *ssn, flags_t flags) {
@@ -1622,13 +1681,18 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags)
 		return tc;
 	}
 
+	const auto inherited_delete = check_inherited_deletion(del_tag, existing);
+	if (inherited_delete != tagd::TAGD_OK) {
+		RET_SSN_CODE(inherited_delete);
+	}
+
 	// make a set of all terms affected, so we can update the term pos after deleting tag
 	std::set<tagd::id_string> terms_affected;
 
 	this->exec("BEGIN");
 
 	// empty del_tag relations means delete entire tag for given id
-	if (del_tag.relations.empty()) {
+	if (del_tag.relations.empty() && del_tag.type_relations.empty()) {
 		// don't allow deleting tags having a referent as the id
 		if (t.id() != del_tag.id()) {   // referent was decoded
 			if (ssn) {
@@ -1641,6 +1705,9 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags)
 		// delete referents, relations, and tag
 		this->delete_refers_to(del_tag.id());
 		OK_OR_ROLLBACK_RET_SSN_INT_ERR_ACTION("tagdb:del:delete_refers_to");
+
+		this->exec_mprintf("DELETE FROM type_relations WHERE subject=tid(%Q)", del_tag.id().c_str());
+		OK_OR_ROLLBACK_RET_SSN_INT_ERR_ACTION("tagdb:del:type_relations");
 
 		this->delete_relations(del_tag.id());  // all relations given subject
 		OK_OR_ROLLBACK_RET_SSN_INT_ERR_ACTION("tagdb:del:delete_relations");
@@ -1672,10 +1739,21 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags)
 
 		tag_affected(terms_affected, existing);
 	} else {
+		const auto deleted_types = delete_type_relations(del_tag);
+		if (deleted_types != tagd::TAGD_OK) {
+			this->exec("ROLLBACK");
+			RET_SSN_CODE(deleted_types);
+		}
 		// delete only del_tag.relations
 		int errcnt = 0;
 		for( auto p : del_tag.relations ) {
-			if (!(p.modifier.empty() ? existing.related(p.relator, p.object) : existing.related(p))) {
+			const bool declared = std::any_of(existing.relations.begin(), existing.relations.end(),
+				[&](const auto& stored) {
+					return p.relator == stored.relator && p.object == stored.object
+						&& (p.modifier.empty() || (p.modifier == stored.modifier
+							&& p.modifier_type == stored.modifier_type && p.opr8r == stored.opr8r));
+				});
+			if (!declared) {
 				errcnt++;
 				// Record errors without a session too, so the transaction always rolls back.
 				tagd::error e;
@@ -1702,7 +1780,8 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags)
 			OK_OR_ROLLBACK_RET_SSN_ERR();
 		}
 
-		this->delete_relations(del_tag.id(), del_tag.relations);
+		if (!del_tag.relations.empty())
+			this->delete_relations(del_tag.id(), del_tag.relations);
 		OK_OR_ROLLBACK_RET_SSN_INT_ERR_ACTION("tagdb:del:delete_relations");
 
 		tag_affected(terms_affected, del_tag);
@@ -1735,6 +1814,7 @@ tagd::code sqlite::del(const tagd::url& u, session *ssn, flags_t flags) {
 	tagd::abstract_tag t_sem(u.hduri(), u.pos());
 	tagd::abstract_tag t = u.rank().empty() ? std::move(t_sem) : tagd::abstract_tag(t_sem, u.rank());
 	t.relations = u.relations;
+	t.type_relations = u.type_relations;
 	// don't insert url part relations
 	RET_SSN_CODE(this->del(t, ssn, (flags|F_NO_POS_CAST)));
 }
@@ -1760,9 +1840,9 @@ tagd::code sqlite::del(const tagd::referent& r, session *ssn, flags_t flags) {
 					/* //TODO implement RECURSIVE flag to delete all contained contexts
 					"WHERE context IN("
 					 "SELECT tag FROM tags "
-					 "WHERE rank GLOB ("
+					 "WHERE rank GLOB rank_glob(("
 					  "SELECT rank FROM tags WHERE tag = tid(?)"
-					 ") || '*' " // all context <= {context}
+					 ")) " // all context <= {context}
 					")",
 					*/
 					"delete referent context"
@@ -1791,9 +1871,9 @@ tagd::code sqlite::del(const tagd::referent& r, session *ssn, flags_t flags) {
 					/*
 					"AND context IN("
 					 "SELECT tag FROM tags "
-					 "WHERE rank GLOB ("
+					 "WHERE rank GLOB rank_glob(("
 					 "SELECT rank FROM tags WHERE tag = tid(?)"
-					 ") || '*' " // all context <= {context}
+					 ")) " // all context <= {context}
 					")",
 					*/
 					"delete referent refers_to, context"
@@ -1827,9 +1907,9 @@ tagd::code sqlite::del(const tagd::referent& r, session *ssn, flags_t flags) {
 					/*
 					"AND context IN("
 					 "SELECT tag FROM tags "
-					 "WHERE rank GLOB ("
+					 "WHERE rank GLOB rank_glob(("
 					 "SELECT rank FROM tags WHERE tag = tid(?)"
-					 ") || '*' " // all context <= {context}
+					 ")) " // all context <= {context}
 					")",
 					*/
 					"delete referent refers context"
@@ -1866,9 +1946,9 @@ tagd::code sqlite::del(const tagd::referent& r, session *ssn, flags_t flags) {
 					/*
 					"AND context IN("
 					 "SELECT tag FROM tags "
-					 "WHERE rank GLOB ("
+					 "WHERE rank GLOB rank_glob(("
 					 "SELECT rank FROM tags WHERE tag = tid(?)"
-					 ") || '*' " // all context <= {context}
+					 ")) " // all context <= {context}
 					")",
 					*/
 					"delete referent refers, refers_to, context"
@@ -2094,11 +2174,12 @@ tagd::code sqlite::delete_relations(const tagd::id_string& subject, const tagd::
 		// A qualified DELETE retracts only the matching value, not the predicate.
 		const auto statement = p.modifier.empty() ? stmt_t::DELETE_RELATION : stmt_t::CLEAR_MODIFIER;
 		const auto sql = p.modifier.empty()
-			? "DELETE FROM relations WHERE subject = tid(?) AND relator = tid(?) AND object = tid(?)"
-			: "UPDATE relations SET modifier = NULL "
-			  "WHERE subject = tid(?) AND relator = tid(?) AND object = tid(?)";
+			? std::string("DELETE FROM relations WHERE subject = tid(?) AND relator = tid(?) AND object = tid(?)")
+			: "UPDATE relations SET modifier = NULL, modifier_type = "
+			  + std::to_string(tagd::TYPE_STRING) + ", operator = " + std::to_string(tagd::OP_EQ)
+			  + " WHERE subject = tid(?) AND relator = tid(?) AND object = tid(?)";
 		this->prepare(statement,
-			sql,
+			sql.c_str(),
 			"delete relations"
 		);
 		OK_OR_RET_ERR();
@@ -2143,8 +2224,12 @@ tagd::code sqlite::delete_tag(const tagd::id_string& id, session *ssn) {
 		if (!ssn)
 			return this->ferror(tagd::TS_RELATION_DEPENDENCY,
 				"cannot delete tag with dependencies: %s", id.c_str());
-		// set error for cause of FK constraint failure
+		// Preserve ordinary dependency details and add the independent type references.
 		this->term_pos_occurence(id, ssn, true);
+		const auto dependencies = this->type_dependency_errors(id, ssn);
+		if (dependencies != tagd::TAGD_OK) {
+			RET_SSN_CODE(dependencies);
+		}
 
 		assert(ssn->code() == tagd::TS_RELATION_DEPENDENCY);
 		if (ssn->code() != tagd::TS_RELATION_DEPENDENCY)  // unknown cause of FK constraint failure, should't happen
@@ -2470,8 +2555,8 @@ tagd::code sqlite::insert(const tagd::abstract_tag& t, const tagd::abstract_tag&
 	OK_OR_RET_ERR();
 
 	tagd::part_of_speech pos;
-	if (t.pos() == tagd::POS_UNKNOWN) {
-		// use pos of super object
+	if (t.pos() == tagd::POS_UNKNOWN || destination.pos() != tagd::POS_TAG) {
+		// Hard-tag families determine grammatical roles even for generic tag inputs.
 		pos = this->pos(t.super_object(), nullptr);
 		assert(pos != tagd::POS_UNKNOWN);
 		if (pos == tagd::POS_UNKNOWN) {
@@ -2521,11 +2606,11 @@ tagd::code sqlite::update(const tagd::abstract_tag& t, const tagd::abstract_tag&
 		next_rank(rank, destination);
 		OK_OR_RET_ERR();
 
-		// update the ranks
+		// Rank lengths are bytes; preserve complete UTF-8 suffixes when replacing a prefix.
 		this->prepare(stmt_t::UPDATE_RANKS,
 			"UPDATE tags "
-			"SET rank = (? || substr(rank, ?)) "
-			"WHERE rank GLOB (? || '*')",
+			"SET rank = (? || substr(CAST(rank AS BLOB), ?)) "
+			"WHERE rank GLOB rank_glob(?)",
 			"update ranks"
 		);
 		OK_OR_RET_ERR();
@@ -2564,18 +2649,47 @@ tagd::code sqlite::update(const tagd::abstract_tag& t, const tagd::abstract_tag&
 	if (s_rc != SQLITE_DONE)
 		RET_SQLITE_FERROR(s_rc, "update tag failed: %s", t.id().c_str());
 
-	return tagd::TAGD_OK;
+	if (t.pos() != tagd::POS_URL) {
+		// Keep scanner occurrence metadata aligned with the moved family's grammatical role.
+		this->exec_mprintf("UPDATE terms SET term_pos=(term_pos & "
+			"~(SELECT pos FROM tags WHERE tag=terms.ROWID)) | %d WHERE ROWID IN "
+			"(SELECT tag FROM tags WHERE pos<>%d AND rank GLOB rank_glob("
+			"(SELECT rank FROM tags WHERE tag=tid(%Q))))",
+			destination.pos(), tagd::POS_URL, t.id().c_str());
+		OK_OR_RET_ERR();
+		this->exec_mprintf("UPDATE tags SET pos=%d WHERE rank GLOB rank_glob("
+			"(SELECT rank FROM tags WHERE tag=tid(%Q))) AND pos<>%d",
+			destination.pos(), t.id().c_str(), tagd::POS_URL);
+		OK_OR_RET_ERR();
+	}
+
+	return validate_reparented_roles(t.id());
 }
 
 tagd::code sqlite::insert_relations(const tagd::abstract_tag& t, flags_t flags) {
 	assert( !t.id().empty() );
-	assert( !t.relations.empty() );
+	size_t num_changed = 0;
+	auto type_rc = insert_type_relations(t, num_changed);
+	if (type_rc != tagd::TAGD_OK) {
+		return type_rc;
+	}
+	if (t.relations.empty()) {
+		// Axioms alone succeed; they must not hide duplicates of other direct assertions.
+		const bool only_axioms = std::all_of(t.type_relations.begin(), t.type_relations.end(),
+			[&](const auto& p) {
+				return p.object == t.id() || p.object == HARD_TAG_ENTITY;
+			});
+		return num_changed || only_axioms || (flags & F_IGNORE_DUPLICATES) ? tagd::TAGD_OK
+			: ferror(tagd::TS_DUPLICATE, "duplicate type assertion on: %s", t.id().c_str());
+	}
 
 	this->prepare(stmt_t::INSERT_RELATIONS,
-		"INSERT INTO relations (subject, relator, object, modifier) "
-		"VALUES (tid(?), tid(?), tid(?), tid(?)) "
-		"ON CONFLICT(subject, relator, object) DO UPDATE SET modifier = excluded.modifier "
-		"WHERE excluded.modifier IS NOT NULL AND relations.modifier IS NOT excluded.modifier",
+		"INSERT INTO relations (subject, relator, object, modifier, modifier_type, operator) "
+		"VALUES (tid(?), tid(?), tid(?), tid(?), ?, ?) "
+		"ON CONFLICT(subject, relator, object) DO UPDATE SET modifier = excluded.modifier, "
+		"modifier_type = excluded.modifier_type, operator = excluded.operator "
+		"WHERE excluded.modifier IS NOT NULL AND (relations.modifier IS NOT excluded.modifier "
+		"OR relations.modifier_type != excluded.modifier_type OR relations.operator != excluded.operator)",
 		"insert relations"
 	);
 	OK_OR_RET_ERR();
@@ -2589,8 +2703,6 @@ tagd::code sqlite::insert_relations(const tagd::abstract_tag& t, flags_t flags) 
 	 * NULL-safe comparison leaves identical values untouched, so SQLite's direct
 	 * change count distinguishes duplicate assertions from inserts and updates.
 	 */
-	size_t num_changed = 0;
-
 	do {
 		this->put_term(t.id(), tagd::POS_SUBJECT);
 		this->bind_text(stmt_t::INSERT_RELATIONS, 1, t.id().c_str(), "insert subject");
@@ -2619,6 +2731,10 @@ tagd::code sqlite::insert_relations(const tagd::abstract_tag& t, flags_t flags) 
 		}
 		OK_OR_RET_ERR();
 
+
+		this->bind_int(stmt_t::INSERT_RELATIONS, 5, it->modifier_type, "modifier type");
+		this->bind_int(stmt_t::INSERT_RELATIONS, 6, it->opr8r, "modifier operator");
+		OK_OR_RET_ERR();
 
 		sqlite3_stmt *stmt = get_stmt(stmt_t::INSERT_RELATIONS);
 		int s_rc = sqlite3_step(stmt);
@@ -2874,6 +2990,12 @@ tagd::abstract_tag sqlite::decode_referents(const tagd::abstract_tag& from, sess
 	tagd::abstract_tag decoded =
 		from.rank().empty() ? std::move(semantic) : tagd::abstract_tag(semantic, from.rank());
 	this->decode_referents(decoded.relations, from.relations, ssn);
+	decoded.type_relations = from.type_relations;
+	decoded.type_relations.transform([this, ssn](const tagd::id_string& id) {
+		tagd::id_string result;
+		decode_referent(result, id, ssn);
+		return result;
+	});
 	return decoded;
 }
 
@@ -2891,6 +3013,12 @@ tagd::interrogator sqlite::decode_referents(const tagd::interrogator& from, sess
 
 	tagd::interrogator decoded(decoded_id, decoded_sub_relator, decoded_super_object);
 	this->decode_referents(decoded.relations, from.relations, ssn);
+	decoded.type_relations = from.type_relations;
+	decoded.type_relations.transform([this, ssn](const tagd::id_string& id) {
+		tagd::id_string result;
+		decode_referent(result, id, ssn);
+		return result;
+	});
 	return decoded;
 }
 
@@ -2942,28 +3070,28 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 
 	this->prepare(stmt_t::RELATED,
 		"SELECT idt(subject), idt(sub_relator), idt(super_object), pos, rank, "
-		"idt(relator), idt(object), idt(modifier) "
+		"idt(relator), idt(object), idt(modifier), modifier_type, operator "
 		"FROM tags, relations "
 		"WHERE tag = subject "
 		"AND ("
 			"? IS NULL OR subject IN ( "
-			"SELECT tag FROM tags WHERE rank GLOB ( "
+			"SELECT tag FROM tags WHERE rank GLOB rank_glob(( "
 			"SELECT rank FROM tags WHERE tag = tid(?) "
-			") || '*'"
+			"))"
 			") "
 		") "
 		"AND ("
 			"? IS NULL OR relator IN ( "
-			"SELECT tag FROM tags WHERE rank GLOB ( "
+			"SELECT tag FROM tags WHERE rank GLOB rank_glob(( "
 			"SELECT rank FROM tags WHERE tag = tid(?) "
-			") || '*'"
+			"))"
 			") "
 		") "
 		"AND ("
 			"? IS NULL OR object IN ( "
-			"SELECT tag FROM tags WHERE rank GLOB ( "
+			"SELECT tag FROM tags WHERE rank GLOB rank_glob(( "
 			"SELECT rank FROM tags WHERE tag = tid(?) "
-			") || '*'"
+			"))"
 			") "
 		") "
 		"AND (? IS NULL OR modifier = tid(?)) "
@@ -3039,9 +3167,12 @@ tagd::code sqlite::related(tagd::tag_set& R, const tagd::predicate& rel, const t
 		if (sqlite3_column_type(stmt, F_MODIFIER) != SQLITE_NULL) {
 			pred.modifier = (const char*) sqlite3_column_text(stmt, F_MODIFIER);
 		}
-		// TODO(cpp23-return-contracts): handle relation() failure when loading rows.
-		// It is currently ignored, so an invalid relation can be omitted.
-		(void)populated.relation(pred);
+		pred.modifier_type = static_cast<tagd::data_t>(sqlite3_column_int(stmt, F_MODIFIER + 1));
+		pred.opr8r = static_cast<tagd::operator_t>(sqlite3_column_int(stmt, F_MODIFIER + 2));
+		const auto inserted = populated.relation(pred);
+		if (inserted != tagd::TAGD_OK) {
+			return inserted;
+		}
 		auto ordered = order_predicates(populated.relations);
 		if (ordered != tagd::TAGD_OK)
 			return ordered;
@@ -3111,6 +3242,13 @@ tagd::code sqlite::get_children(tagd::tag_set& R, const tagd::id_string& super_o
 		tagd::abstract_tag populated =
 			rank.empty() ? std::move(semantic) : tagd::abstract_tag(semantic, rank);
 
+		if (flags & F_INCLUDE_INHERITED_PREDICATES) {
+			tagd::id_string id(raw_id);
+			tc = get(populated, id, ssn, flags);
+			if (tc != tagd::TAGD_OK) {
+				return tc;
+			}
+		}
 		it = R.insert(it, populated);
 	}
 
@@ -3156,9 +3294,9 @@ tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& i
 					"FROM referents "
 					"WHERE context IN("
 					 "SELECT tag FROM tags "
-					 "WHERE rank GLOB ("
+					 "WHERE rank GLOB rank_glob(("
 					 "SELECT rank FROM tags WHERE tag = tid(?)"
-					 ") || '*' " // all context <= {context}
+					 ")) " // all context <= {context}
 					")",
 
 					"query referent context"
@@ -3187,9 +3325,9 @@ tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& i
 					"WHERE refers_to = tid(?) "
 					"AND context IN("
 					 "SELECT tag FROM tags "
-					 "WHERE rank GLOB ("
+					 "WHERE rank GLOB rank_glob(("
 					 "SELECT rank FROM tags WHERE tag = tid(?)"
-					 ") || '*' " // all context <= {context}
+					 ")) " // all context <= {context}
 					")",
 					"query referent refers_to, context"
 				);
@@ -3222,9 +3360,9 @@ tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& i
 					"WHERE refers = tid(?) "
 					"AND context IN("
 					 "SELECT tag FROM tags "
-					 "WHERE rank GLOB ("
+					 "WHERE rank GLOB rank_glob(("
 					 "SELECT rank FROM tags WHERE tag = tid(?)"
-					 ") || '*' " // all context <= {context}
+					 ")) " // all context <= {context}
 					")",
 					"query referent refers context"
 				);
@@ -3260,9 +3398,9 @@ tagd::code sqlite::query_referents(tagd::tag_set& R, const tagd::interrogator& i
 					"AND refers_to = tid(?) "
 					"AND context IN("
 					 "SELECT tag FROM tags "
-					 "WHERE rank GLOB ("
+					 "WHERE rank GLOB rank_glob(("
 					 "SELECT rank FROM tags WHERE tag = tid(?)"
-					 ") || '*' " // all context <= {context}
+					 ")) " // all context <= {context}
 					")",
 					"query referent refers, refers_to, context"
 				);
@@ -3318,8 +3456,7 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& q, session 
 	read_scope snapshot(*this);
 	if (snapshot.status != tagd::TAGD_OK)
 		return snapshot.status;
-	// Full-text search loads matches through GET; query results remain direct.
-	flags &= ~F_INCLUDE_INHERITED_PREDICATES;
+	// Matching is independent of the inherited-display flag.
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 	tagdb_debug_scope debug_scope(this, ssn);
 
@@ -3338,7 +3475,7 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& q, session 
 	if (intr.super_object() == HARD_TAG_REFERENT)
 		RET_SSN_CODE(this->query_referents(R, intr));
 
-	if (intr.relations.empty()) {
+	if (intr.relations.empty() && intr.type_relations.empty()) {
 		if (intr.super_object().empty()) {
 			RET_SSN_ERROR(tagd::TS_MISUSE, "interrogator with empty relations and empty super_object");
 		} else {
@@ -3348,6 +3485,14 @@ tagd::code sqlite::query(tagd::tag_set& R, const tagd::interrogator& q, session 
 			else
 				RET_SSN_CODE(tc);
 		}
+	}
+
+	if (_relation_semantics == relation_semantics::assertions) {
+		const auto rc = query_effective(R, intr, ssn, flags);
+		if (rc == tagd::TS_NOT_FOUND && (flags & F_NO_NOT_FOUND_ERROR)) {
+			return rc;
+		}
+		RET_SSN_CODE(rc);
 	}
 
 	size_t n = 0;
@@ -3690,10 +3835,32 @@ tagd::code sqlite::dump(std::ostream& os) {
 		return rc;
 	};
 
+	stmt = nullptr;
+	tc = prepare_stmt(this, _db, &stmt,
+		"SELECT DISTINCT idt(subject) FROM type_relations JOIN tags ON tag=subject ORDER BY rank",
+		"dump type relations");
+	if (tc != tagd::TAGD_OK) {
+		sqlite3_finalize(stmt);
+		return tc;
+	}
+	while ((s_rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+		tagd::abstract_tag declaration((const char*)sqlite3_column_text(stmt, 0));
+		tc = get_type_relations(declaration.type_relations, declaration.id());
+		if (tc != tagd::TAGD_OK) {
+			sqlite3_finalize(stmt);
+			return tc;
+		}
+		os << ">> " << declaration << std::endl << std::endl;
+	}
+	sqlite3_finalize(stmt);
+	if (s_rc != SQLITE_DONE) {
+		return error(tagd::TS_INTERNAL_ERR, "cannot dump type relations");
+	}
+
 	// dump relations
 	stmt = nullptr;
 	tc = prepare_stmt(this, _db, &stmt,
-		"SELECT idt(subject), idt(relator), idt(object), idt(modifier), pos, idt(super_object) "
+		"SELECT idt(subject), idt(relator), idt(object), idt(modifier), pos, idt(super_object), modifier_type, operator "
 		"FROM relations, tags "
 		"WHERE subject = tag "
 		"ORDER BY rank",
@@ -3754,7 +3921,9 @@ tagd::code sqlite::dump(std::ostream& os) {
 			(void)t->relation(
 				(const char*) sqlite3_column_text(stmt, F_RELATOR),
 				object,
-				(const char*) sqlite3_column_text(stmt, F_MODIFIER) );
+				(const char*) sqlite3_column_text(stmt, F_MODIFIER),
+				static_cast<tagd::operator_t>(sqlite3_column_int(stmt, 7)),
+				static_cast<tagd::data_t>(sqlite3_column_int(stmt, 6)) );
 		} else {
 			(void)t->relation(
 				(const char*) sqlite3_column_text(stmt, F_RELATOR),

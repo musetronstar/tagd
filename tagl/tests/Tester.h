@@ -428,7 +428,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd::abstract_tag loaded;
 		TS_ASSERT_TAGD_OK(source.get(loaded, "subject"));
 
-		const std::string grouped = "z_rel z_object = 2, a_object = 10";
+		const std::string grouped = "z_rel z_object = \"2\", a_object = \"10\"";
 		TS_ASSERT_DIFFERS(loaded.str().find(grouped), std::string::npos);
 		TS_ASSERT(loaded.str().find(grouped) < loaded.str().find("a_rel z_object"));
 
@@ -439,8 +439,8 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_TAGD_OK(source.query(results, query));
 		TS_ASSERT_EQUALS(results.size(), 1);
 		for (const auto& result : results) {
-			// Predicate queries retain their existing first-condition result selection.
-			TS_ASSERT_EQUALS(result.relations.size(), 1);
+			// Predicate queries return the complete explicit declaration by default.
+			TS_ASSERT_EQUALS(result.relations.size(), 3);
 			TS_ASSERT(result.related("a_rel", "z_object", "2"));
 		}
 
@@ -1111,8 +1111,8 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs", "4") )
-		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail", "1") )
+		TS_ASSERT( tagl.tag().related(tagd::predicate(HARD_TAG_HAS, "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER)) )
+		TS_ASSERT( tagl.tag().related(tagd::predicate(HARD_TAG_HAS, "tail", "1", tagd::OP_EQ, tagd::TYPE_INTEGER)) )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "fur") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bark") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bite") )
@@ -1127,7 +1127,7 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "cat" )
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "mammal" )
-		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs", "4") )
+		TS_ASSERT( tagl.tag().related(tagd::predicate(HARD_TAG_HAS, "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER)) )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "meow") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bite") )
 	}
@@ -1141,8 +1141,8 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs", "4") )
-		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail", "1") )
+		TS_ASSERT( tagl.tag().related(tagd::predicate(HARD_TAG_HAS, "legs", "4", tagd::OP_EQ, tagd::TYPE_INTEGER)) )
+		TS_ASSERT( tagl.tag().related(tagd::predicate(HARD_TAG_HAS, "tail", "1", tagd::OP_EQ, tagd::TYPE_INTEGER)) )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bark") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_CAN, "bite") )
 

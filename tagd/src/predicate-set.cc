@@ -1,4 +1,5 @@
 #include "tagd.h"
+#include "relation-order.h"
 #include <map>
 #include <tuple>
 
@@ -10,36 +11,23 @@ namespace tagd {
  * typed identity. See workspace TASKS.d/2026-10-22-TAGL-types-and-modifiers.md.
  */
 bool predicate::canonical_less(const predicate& a, const predicate& b) {
-	auto component = [](const predicate& a, const predicate& b, bool relator) {
-		// Views avoid allocating rank strings on each tree comparison.
+	auto component = [&](auto field, auto identity, auto position) {
 		rank hard_a, hard_b;
-		auto key = [relator](const predicate& p, rank& hard) {
-			const auto& id = relator ? p.relator : p.object;
-			if (p._order && id == (relator ? p._order->relator_id : p._order->object_id)) {
-				const auto& r = relator ? p._order->relator_rank : p._order->object_rank;
-				return std::tuple(false, id_view(r.c_str(), r.size()), id_view(id));
-			}
-
-			if (const auto* axiom = hard_tag_axiom_for(id)) {
-				// Hard ranks, including the empty root, are immutable generated definitions.
-				hard = rank(axiom->packed_rank);
-				return std::tuple(false, id_view(hard.c_str(), hard.size()), id_view(id));
-			}
-
-			return std::tuple(true, id_view(id), id_view(id));
-		};
-
-		// IDs break rank collisions when values from different snapshots are combined.
-		return key(a, hard_a) <=> key(b, hard_b);
+		return detail::component_order(a.*field, a._order.get(), identity, position, hard_a)
+			<=> detail::component_order(b.*field, b._order.get(), identity, position, hard_b);
 	};
 
-	const auto relator = component(a, b, true);
-	if (relator != 0)
+	const auto relator = component(&predicate::relator, &order_keys::relator_id,
+		&order_keys::relator_rank);
+	if (relator != 0) {
 		return relator < 0;
+	}
 
-	const auto object = component(a, b, false);
-	if (object != 0)
+	const auto object = component(&predicate::object, &order_keys::object_id,
+		&order_keys::object_rank);
+	if (object != 0) {
 		return object < 0;
+	}
 
 	return std::tie(a.modifier, a.opr8r, a.modifier_type)
 		< std::tie(b.modifier, b.opr8r, b.modifier_type);
@@ -131,7 +119,8 @@ predicate_set::iterator predicate_set::find(const predicate& p) const {
 
 	// Numeric spellings need not be adjacent in literal order; search only their group.
 	for (auto it : group->second) {
-		if (!(*it < p) && !(p < *it))
+		if ((p.modifier.empty() || it->modifier_type == p.modifier_type)
+			&& !(*it < p) && !(p < *it))
 			return it;
 	}
 
@@ -264,7 +253,8 @@ bool predicate_set::operator==(const predicate_set& other) const {
 		for (auto left : group) {
 			auto match = std::find_if(right->second.begin(), right->second.end(),
 				[left](auto candidate) {
-					return !(*left < *candidate) && !(*candidate < *left);
+					return (left->modifier.empty() || left->modifier_type == candidate->modifier_type)
+						&& !(*left < *candidate) && !(*candidate < *left);
 				});
 			if (match == right->second.end() || *left != **match)
 				return false;
@@ -291,7 +281,7 @@ std::weak_ordering predicate_set::operator<=>(const predicate_set& other) const 
 				&& key.modifier_type != TYPE_STRING) {
 				std::sort(result.begin() + first, result.end(),
 					[](const predicate* a, const predicate* b) {
-						return *a < *b;
+						return *a < *b || (!(*b < *a) && a->modifier_type < b->modifier_type);
 					});
 			}
 		}
@@ -302,11 +292,14 @@ std::weak_ordering predicate_set::operator<=>(const predicate_set& other) const 
 	const auto left = semantic_values(*this);
 	const auto right = semantic_values(other);
 	return std::lexicographical_compare_three_way(left.begin(), left.end(),
-		right.begin(), right.end(), [](const predicate* a, const predicate* b) {
+		right.begin(), right.end(), [](const predicate* a, const predicate* b) -> std::weak_ordering {
 			if (*a < *b)
 				return std::weak_ordering::less;
 			if (*b < *a)
 				return std::weak_ordering::greater;
+			// Compatible numeric values remain distinct members when their types differ.
+			if (!a->modifier.empty())
+				return a->modifier_type <=> b->modifier_type;
 			return std::weak_ordering::equivalent;
 		});
 }

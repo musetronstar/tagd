@@ -26,6 +26,41 @@ class BatchTester : public CxxTest::TestSuite {
 		}
 	};
 public:
+	void test_type_relation_batch_validates_the_final_affected_descriptions() {
+		database db;
+		TS_ASSERT_TAGD_OK(db.open({tagdb::storage_kind::memory}));
+		for (const auto id : {"legs", "source", "dog"}) {
+			TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag(id, HARD_TAG_SUB,
+				HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+		}
+		tagd::abstract_tag source("source"), dog("dog");
+		TS_ASSERT_TAGD_OK(source.relation(HARD_TAG_HAS, "legs", "four"));
+		TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "legs", "four"));
+		TS_ASSERT_TAGD_OK(dog.type_relation(tagd::HARD_TAG_TYPE_OF, "source"));
+		TS_ASSERT_TAGD_OK(db.put(source, nullptr));
+		TS_ASSERT_TAGD_OK(db.put(dog, nullptr));
+		source.relations.clear();
+		dog.relations.clear();
+		dog.type_relations.clear();
+		TS_ASSERT_TAGD_OK(source.relation(HARD_TAG_HAS, "legs", "two"));
+		TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, "legs", "two"));
+		TS_ASSERT_EQUALS(db.put(source, nullptr), tagd::TS_CONTRADICTION);
+		std::array<const tagd::abstract_tag*, 2> compatible{&source, &dog};
+		TS_ASSERT_TAGD_OK(db.put_batch(compatible, nullptr));
+		tagd::abstract_tag read;
+		TS_ASSERT_TAGD_OK(db.get(read, "dog", nullptr, tagd::F_INCLUDE_INHERITED_PREDICATES));
+		TS_ASSERT_EQUALS(read.relations.size(), 1u);
+		TS_ASSERT(read.related(HARD_TAG_HAS, "legs", "two"));
+		std::ostringstream before, after;
+		TS_ASSERT_TAGD_OK(db.dump(before));
+		source.relations.clear();
+		TS_ASSERT_TAGD_OK(source.relation(HARD_TAG_HAS, "legs", "three"));
+		TS_ASSERT_EQUALS(db.put_batch(compatible, nullptr, tagd::F_IGNORE_DUPLICATES),
+			tagd::TS_CONTRADICTION);
+		TS_ASSERT_TAGD_OK(db.dump(after));
+		TS_ASSERT_EQUALS(before.str(), after.str());
+	}
+
 	void test_durable_store_preflight() {
 		char name[] = "/tmp/tagd-batch-XXXXXX";
 		const auto root = std::filesystem::path(mkdtemp(name));

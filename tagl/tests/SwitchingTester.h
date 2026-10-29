@@ -27,6 +27,159 @@ class SwitchingTester : public CxxTest::TestSuite {
 		}
 	};
 public:
+	void test_dump_load_preserves_string_escapes() {
+		const std::string declarations = R"tagl(
+>> a _sub _entity _has _message = "4\"x";
+>> b _sub _entity _has _message = "x\"4";
+>> c _sub _entity _has _message = "4\\x";
+>> d _sub _entity _has _message = "x\\4";
+>> e _sub _entity _has _message = "\\\"";
+>> f _sub _entity _has _message = "a\\";
+>> g _sub _entity _has _message = "\"\"";
+)tagl";
+		std::string serialized = declarations;
+		std::string first_dump;
+		for (unsigned cycle = 0; cycle != 3; ++cycle) {
+			tagd::tagspace::memory space;
+			TS_ASSERT_EQUALS(space.init(), tagd::TAGD_OK);
+			writer cb;
+			TAGL::driver input(&space, &cb);
+			TS_ASSERT_EQUALS(input.execute(serialized), tagd::TAGD_OK);
+
+			std::ostringstream dump;
+			TS_ASSERT_EQUALS(space.dump(dump), tagd::TAGD_OK);
+			serialized = dump.str();
+			if (cycle == 0) {
+				first_dump = serialized;
+			} else {
+				TS_ASSERT_EQUALS(serialized, first_dump);
+			}
+			for (const auto id : {"a", "b", "c", "d", "e", "f", "g"}) {
+				tagd::abstract_tag restored;
+				TS_ASSERT_EQUALS(space.get(restored, id), tagd::TAGD_OK);
+				TS_ASSERT_EQUALS(restored.relations.size(), 1u);
+				if (!restored.relations.empty()) {
+					const auto& value = *restored.relations.begin();
+					TS_ASSERT_EQUALS(value.modifier_type, tagd::TYPE_STRING);
+					TS_ASSERT_DIFFERS(declarations.find(value.modifier), std::string::npos);
+				}
+			}
+		}
+	}
+
+	void test_type_objects_are_local_and_new_self_assertions_are_noops() {
+		tagd::tagspace::memory source, target;
+		TS_ASSERT_EQUALS(source.init(), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(target.init(), tagd::TAGD_OK);
+		writer cb;
+		TAGL::driver input(&source, &cb);
+		TS_ASSERT_EQUALS(input.execute(">> https://example.com/type; "
+			">> dog _sub _entity _type_of https://example.com/type;"), tagd::TAGD_OK);
+		std::ostringstream dump;
+		TS_ASSERT_EQUALS(source.dump(dump), tagd::TAGD_OK);
+		writer output_callback;
+		TAGL::driver output(&target, &output_callback);
+		TS_ASSERT_EQUALS(output.execute(dump.str()), tagd::TAGD_OK);
+		tagd::abstract_tag dog;
+		TS_ASSERT_EQUALS(target.get(dog, "dog"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(dog.type_relations.size(), 1u);
+		TS_ASSERT_EQUALS(input.execute(">> dog _type_of /foreign/type;"), tagd::TS_MISUSE);
+		input.clear_errors();
+		TS_ASSERT_EQUALS(input.execute(">> new_subject _sub _entity _type_of new_subject, _entity;"),
+			tagd::TAGD_OK);
+		tagd::abstract_tag created;
+		TS_ASSERT_EQUALS(source.get(created, "new_subject"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(created.super_object(), tagd::HARD_TAG_ENTITY);
+		TS_ASSERT(created.type_relations.empty());
+	}
+
+	void test_expanded_get_and_explicit_dump_preserve_value_metadata() {
+		tagd::tagspace::memory source, target;
+		TS_ASSERT_EQUALS(source.init(), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(target.init(), tagd::TAGD_OK);
+		writer cb;
+		TAGL::driver input(&source, &cb);
+		TS_ASSERT_EQUALS(input.execute(">> legs _sub _entity; >> label _sub _entity; "
+			">> quadruped _sub _entity _has legs = 4; "
+			">> dog _sub _entity _type_of quadruped _has legs = 4.0, label = \"4\";"), tagd::TAGD_OK);
+		tagd::abstract_tag attack("comment*- >> injected _sub _entity; -*", tagd::HARD_TAG_SUB,
+			tagd::HARD_TAG_ENTITY, tagd::POS_TAG);
+		TS_ASSERT_EQUALS(attack.relation(tagd::HARD_TAG_HAS, "label", "4"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(source.put(attack), tagd::TAGD_OK);
+		tagd::abstract_tag dog("dog");
+		TS_ASSERT_EQUALS(dog.type_relation(tagd::HARD_TAG_TYPE_OF, attack.id()), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(source.put(dog), tagd::TAGD_OK);
+		std::ostringstream dump;
+		TS_ASSERT_EQUALS(source.dump(dump), tagd::TAGD_OK);
+		TAGL::driver output(&target, &cb);
+		const auto loaded = output.execute(dump.str());
+		if (loaded != tagd::TAGD_OK) {
+			TS_TRACE(dump.str());
+			output.print_errors();
+		}
+		TS_ASSERT_EQUALS(loaded, tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(source.get(dog, "dog", nullptr, tagd::F_INCLUDE_INHERITED_PREDICATES), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(dog.relations.size(), 3u);
+		TS_ASSERT(!target.exists("injected"));
+		tagd::abstract_tag restored;
+		TS_ASSERT_EQUALS(target.get(restored, "dog"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(restored.relations.size(), 2u);
+		TS_ASSERT_EQUALS(restored.type_relations.size(), 2u);
+		for (const auto& p : restored.relations) {
+			TS_ASSERT_EQUALS(p.modifier_type, p.object == "legs" ? tagd::TYPE_FLOAT : tagd::TYPE_STRING);
+		}
+	}
+
+	void test_expanded_tagl_can_be_put_as_explicit_predicates() {
+		tagd::tagspace::memory ts;
+		TS_ASSERT_EQUALS(ts.init(), tagd::TAGD_OK);
+		writer cb;
+		TAGL::driver input(&ts, &cb);
+		TS_ASSERT_EQUALS(input.execute(">> quadruped _sub _entity _has _message = inherited; "
+			">> dog _sub _entity _type_of quadruped;"), tagd::TAGD_OK);
+		tagd::abstract_tag dog;
+		TS_ASSERT_EQUALS(ts.get(dog, "dog", nullptr, tagd::F_INCLUDE_INHERITED_PREDICATES), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(dog.str(), "dog _sub _entity\n_type_of quadruped\n_has _message = inherited");
+		TS_ASSERT_EQUALS(input.execute(">> " + dog.str() + ";"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(input.execute("!! dog _type_of quadruped;"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(ts.get(dog, "dog"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(dog.relations.size(), 1u);
+		TS_ASSERT(dog.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "inherited"));
+	}
+
+	void test_type_relations_parse_without_changing_identity_and_round_trip() {
+		tagd::tagspace::memory source, target;
+		TS_ASSERT_EQUALS(source.init(), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(target.init(), tagd::TAGD_OK);
+		writer cb;
+		TAGL::driver input(&source, &cb);
+		TS_ASSERT_EQUALS(input.execute(">> animal _sub _entity; >> mobile _sub _entity; "
+			">> quadruped _sub animal; >> classifies _sub _type_of; "
+			">> dog _is_a animal _type_of quadruped, mobile classifies mobile;"), tagd::TAGD_OK);
+		tagd::abstract_tag dog;
+		TS_ASSERT_EQUALS(source.get(dog, "dog"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(dog.super_object(), "animal");
+		TS_ASSERT_EQUALS(dog.type_relations.size(), 3u);
+		TS_ASSERT(dog.relations.empty());
+
+		for (const auto suffix : {"= 4", "< 4", "= \"\"", "= NULL"}) {
+			input.clear_errors();
+			TS_ASSERT_EQUALS(input.execute(">> dog _type_of mobile " + std::string(suffix) + ";"),
+				tagd::TAGL_ERR);
+		}
+		input.clear_errors();
+		TS_ASSERT_EQUALS(input.execute(">> dog _type_of dog;"),
+			tagd::TAGD_OK);
+		std::ostringstream dump;
+		TS_ASSERT_EQUALS(source.dump(dump), tagd::TAGD_OK);
+		TAGL::driver output(&target, &cb);
+		TS_ASSERT_EQUALS(output.execute(dump.str()), tagd::TAGD_OK);
+		tagd::abstract_tag restored;
+		TS_ASSERT_EQUALS(target.get(restored, "dog"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(restored.type_relations, dog.type_relations);
+		TS_ASSERT_EQUALS(restored.sub_relator(), dog.sub_relator());
+	}
+
 	void test_malformed_hduri_does_not_mutate_storage() {
 		tagd::tagspace::memory source;
 		TS_ASSERT_EQUALS(source.init(), tagd::TAGD_OK);
@@ -141,8 +294,8 @@ public:
 			TS_ASSERT_EQUALS(target.get(link, result->link), tagd::TAGD_OK);
 			TS_ASSERT(link.related(tagd::HARD_TAG_FROM, result->source.hduri()));
 			TS_ASSERT(link.related(tagd::HARD_TAG_TO, result->stored.hduri()));
-			TS_ASSERT(link.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_REVISION,
-				std::to_string(result->revision)));
+			TS_ASSERT(link.related(tagd::predicate(tagd::HARD_TAG_HAS, tagd::HARD_TAG_REVISION,
+				std::to_string(result->revision), tagd::OP_EQ, tagd::TYPE_INTEGER)));
 		}
 	}
 

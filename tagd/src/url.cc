@@ -297,7 +297,7 @@ url_ok:
 	// a file: scheme url identifies materialized content;
 	// the url object provides the subordinate relation, never the user
 	if (this->scheme() == "file") {
-		_sub_relator = HARD_TAG_TYPE_OF;
+		_sub_relator = HARD_TAG_IS_A;
 		_super_object = HARD_TAG_FILE;
 	}
 	return this->code(TAGD_OK);
@@ -509,7 +509,7 @@ tagd::code url::init_hduri(id_view uri) {
 	// a file: scheme url identifies materialized content;
 	// the url object provides the subordinate relation, never the user
 	if (this->scheme() == "file") {
-		_sub_relator = HARD_TAG_TYPE_OF;
+		_sub_relator = HARD_TAG_IS_A;
 		_super_object = HARD_TAG_FILE;
 	}
 	return code(TAGD_OK);

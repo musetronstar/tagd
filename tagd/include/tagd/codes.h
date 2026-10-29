@@ -58,7 +58,8 @@ typedef enum {
 	HTTP_ERR,
 
 	// Append new errors so existing shell exit codes keep their values.
-	HDURI_ERR
+	HDURI_ERR,
+	TS_CONTRADICTION
 } code;
 // TAGD_CODES_END
 
@@ -132,9 +133,10 @@ typedef enum {	// PART_OF_SPEECH_START  // marks automated processing
 	POS_REFERS_TO     = 1 << 15,
 	POS_CONTEXT       = 1 << 16,
 	POS_FLAG          = 1 << 17,
-	POS_INCLUDE       = 1 << 18
+	POS_INCLUDE       = 1 << 18,
+	POS_TYPE_RELATOR  = 1 << 19
 } part_of_speech;  // PART_OF_SPEECH_END
-const int POS_END     = 1 << 19;
+const int POS_END     = 1 << 20;
 
 /*\
 |*|      TODO

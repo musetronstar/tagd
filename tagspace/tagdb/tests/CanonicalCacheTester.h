@@ -157,7 +157,7 @@ public:
 			TS_ASSERT_TAGD_OK(db.get(inherited, "child", nullptr,
 				tagdb::F_INCLUDE_INHERITED_PREDICATES));
 			TS_ASSERT_EQUALS(inherited.relations.size(), 3);
-			TS_ASSERT(inherited.related(HARD_TAG_HAS, HARD_TAG_MESSAGE, ""));
+			TS_ASSERT(inherited.related(HARD_TAG_HAS, HARD_TAG_MESSAGE, "ancestor"));
 			TS_ASSERT(inherited.related(HARD_TAG_HAS, HARD_TAG_LINE_NUMBER, "10"));
 
 			tagd::interrogator query(HARD_TAG_INTERROGATOR);
@@ -166,7 +166,7 @@ public:
 			TS_ASSERT_TAGD_OK(db.query(selected, query, nullptr));
 			TS_ASSERT_EQUALS(selected.size(), 1);
 			if (!selected.empty()) {
-				TS_ASSERT_EQUALS(selected.begin()->relations.size(), 1);
+				TS_ASSERT_EQUALS(selected.begin()->relations.size(), 2);
 			}
 
 			TS_ASSERT_TAGD_OK(db.get(direct, "child", nullptr));

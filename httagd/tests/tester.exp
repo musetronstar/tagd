@@ -397,6 +397,22 @@ test "order_put_subject" "PUT" "/_/order_subject" \
 test "order_get_subject" "GET" "/_/order_subject" "" \
 	{z_order_rel z_order_object, a_order_object[\r\n]+a_order_rel z_order_object}
 
+test "typology_source" "PUT" "/_/type_source" \
+	{>> type_source _sub _entity _has _message = shared;} "200 OK"
+test "typology_subject" "PUT" "/_/type_subject" \
+	{>> type_subject _sub _entity _type_of type_source;} "200 OK"
+test "typology_explicit" "GET" "/_/type_subject" "" \
+	{type_subject _sub _entity[\r\n]+_type_of type_source[\r\n]+$}
+test "typology_expanded" "POST" "/" \
+	{%% _include_inherited_predicates _true; << type_subject;} \
+	{type_subject _sub _entity[\r\n]+_type_of type_source[\r\n]+_has _message = shared}
+test "typology_query" "POST" "/" \
+	{%% _include_inherited_predicates _true; ?? _what _has _message = shared;} \
+	{type_source, type_subject}
+test "typology_query_explicit" "POST" "/" \
+	{%% _include_inherited_predicates _false; ?? _what _has _message = shared;} \
+	{type_source, type_subject}
+
 close
 wait
 
@@ -413,14 +429,14 @@ try {
 	file copy ../../tagsh/tests/config-alternate.tagl $alternate
 	test_cli "config_japanese_http" \
 		[list ../bin/httagd --home $home --tagspace _config \
-			--config $japanese --bind-port 7070 --dump] 1 {_config:bind_port = 7070}
+			--config $japanese --bind-port 7070 --dump] 1 {_config:bind_port = "7070"}
 	test_cli "config_id_http_override" \
 		[list ../bin/httagd --config-id development --bind-port 6060 \
 			--home $home --tagspace _config -t {<< development;} --dump] \
-		1 {_config:bind_port = 6060}
+		1 {_config:bind_port = "6060"}
 	test_cli "config_http_cli_precedence" \
 		[list ../bin/httagd --home $home --tagspace _config \
-			--bind-port 7070 --config $alternate --dump] 1 {_config:bind_port = 7070}
+			--bind-port 7070 --config $alternate --dump] 1 {_config:bind_port = "7070"}
 	test_cli "config_http_invalid_port" \
 		[list ../bin/httagd --home $home --bind-port 65536 --dump] \
 		0 {bind port must be}

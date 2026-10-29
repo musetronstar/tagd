@@ -33,6 +33,7 @@ const size_t HDURI_USER = 7;
 const size_t HDURI_PASS = 8;
 // const size_t HDURI_SCHEME = 9; // not needed
 
+inline constexpr std::string_view TAGD_SCHEME{"tagd:"};
 const std::string HDURI_SCHEME{"hd:"};
 const char HDURI_DELIM = '!';
 const std::string HDURI_DELIM_ENCODED{"%21"};

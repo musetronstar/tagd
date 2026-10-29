@@ -6,7 +6,7 @@ override CXXFLAGS += -fno-exceptions
 CFLAGS ?= -std=c99 -Wall -Wextra -O3
 
 INC =  -I../include
-SRCS = sha256.cc datetime.cc predicate-set.cc tagd.cc rank.cc utf8.cc url.cc io.cc file.cc event.cc logger.cc hard-tagspace.cc
+SRCS = sha256.cc datetime.cc predicate-set.cc type-predicate.cc effective-predicate.cc tagd.cc rank.cc utf8.cc url.cc io.cc file.cc event.cc logger.cc hard-tagspace.cc
 CSRCS = ulid.c
 CODES_H = ../include/tagd/codes.h
 HARD_TAGS_H = ../include/tagd/hard-tags.h

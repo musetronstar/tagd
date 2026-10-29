@@ -6,7 +6,7 @@ override CXXFLAGS += -fno-exceptions
 
 TAGDDIR =../../../tagd
 INC = -I../include -I$(TAGDDIR)/include
-SRCS = tagdb.cc canonical-cache.cc storage-name.cc
+SRCS = relation-resolver.cc tagdb.cc canonical-cache.cc storage-name.cc
 OBJS=$(SRCS:.cc=.o)
 DEPS=$(OBJS:.o=.d)
 

@@ -15,7 +15,7 @@ It a very general sense, TAGL asserts answers to the question,
 
 TAGL expresses *semantic meaning* using relations in a *three-layer structure*:
 * heirachical positional identity via *subordinate relations*
-* typeology via *type relations*
+* typology via *type relations*
 * horizontal relational attributes (or properties) via *predicates*
 
 ### 1.2 Scope
@@ -94,6 +94,20 @@ tagd code terms are surrounded in markdown with backticks as `inline code`.
 
 * `predicate`: a relation composed of a `relator` connecting an `object_list`
   applied to a `subject`
+
+* **type relation** (also **type predicate**): a modifier-free
+  `[type_relator + type_object]` declaration that adds an inheritance source.
+  Type relations and subordinate relations are distinct kinds; both provide
+  inheritance. Ordinary predicate objects do not provide inheritance.
+
+* **explicit relation** (or **explicit declaration**): a relation asserted directly
+  on a subject. An **explicit predicate** is a directly stored ordinary predicate.
+
+* **effective relations**: relations available after recursive inheritance.
+  **Effective predicates** are the combined ordinary predicates after compatible
+  normalization. An **effective description** preserves identity and explicit type
+  relations while returning effective predicates. “Inherited” describes a source;
+  “effective” describes the combined result.
 
 * `predicate_list`: a list of one or more `predicate`s grouped by `relator`s
 
@@ -202,6 +216,12 @@ and stored as UTF-8 bytes.  They are not tags in of themselves.
   * `INTEGER` number literal (e.g., `0`, `1`, `55`, `-23`)
   * `FLOAT` rational number literal (e.g., `3.14`, `-1.0`, `0.0`)
 
+Empty text (`= ""`) and an absent modifier currently share the empty-modifier
+representation. Explicit NULL operands are unsupported. Numeric operations use
+the existing integer and finite native floating-point representation; exact
+cross-type numeric ordering, signed-zero identity, and shared primitive values
+are specified separately.
+
 #### Semantic numeric tags (FUTURE MAYBE)
 
 If we needed to make semantic statements *about* numeric values,
@@ -218,6 +238,25 @@ Rules:
 * Both types are always signed. A leading `-` is part of the literal token,
   not a unary operator. `"-23"` MUST be emitted as a single `INTEGER` token.
 * Scientific notation is DEFERRED (not currently supported).
+
+### 3.5 Type Relations
+
+`_type_of` is a `POS_TYPE_RELATOR` hard tag directly beneath `_entity`. Its
+structural descendants are custom type relators. Each type object MUST already
+exist locally; ordinary local URL tags are allowed. Foreign type references are
+unsupported and return `TS_MISUSE`.
+
+```tagl
+>> animal _sub _entity;
+>> mobile _sub _entity;
+>> dog _is_a animal _type_of mobile;
+>> classifies _sub _type_of;
+>> dog classifies mobile;
+```
+
+A type relation has no modifier, operator, or modifier type. Adding one leaves
+its subject's structural parent, rank, and POS unchanged. A new subject still
+requires a subordinate relation; an existing subject can add types directly.
 
 ### 3.6 Tagspace
 
@@ -309,6 +348,12 @@ subject ::= TAG
 
 predicates ::= predicates predicate_list
 predicates ::= predicate_list
+predicates ::= predicates type_predicate_list
+predicates ::= type_predicate_list
+
+type_predicate_list ::= TYPE_RELATOR type_object_list
+type_object_list ::= type_object_list ',' TAG
+type_object_list ::= TAG
 
 predicate_list ::= relator object_list
 
@@ -327,27 +372,19 @@ does not add a second value for that relation. A bare object asserts the
 predicate's existence and preserves any existing modifier. If the predicate is
 absent, a bare PUT inserts it without a modifier.
 
-TODO: preserve the distinction between an absent (NULL) modifier and explicit
-empty text (`= ""`) throughout parsing, predicate types, storage, and serialization.
-The current representation conflates them; that limitation is not the intended
-meaning of explicit empty text.
+Returned tags own their values and resolved ordering. Canonical output follows
+these rules:
 
-Returned predicates and their TAGL serialization use ascending relator rank,
-then object rank, then the modifier's literal UTF-8 bytes. An absent modifier
-comes first; `10` precedes `2` even for numeric modifiers. Ranks are compared
-as binary path bytes, not dotted display strings. Operator and modifier-type
-metadata break otherwise equal keys without discarding distinct assertions.
-Contextual referent spelling does not change this order. Dumps preserve their
-dependency-safe declaration stages and subject order while ordering each
-subject's predicates by these same keys.
-
-Returned tags are snapshots: later moves, deletions, cache eviction, or closing
-the tagspace do not alter an earlier result's values or order. New retrievals
-use current ranks. An unresolved relator or object makes canonical resolution
-fail through the existing error interface. Context-free values use immutable
-hard-tag ranks where available and deterministic identifier order otherwise.
-Modifier equality and numeric query comparisons retain their existing meanings;
-literal ordering does not change numeric duplicate detection.
+| Aspect | Contract |
+| --- | --- |
+| Predicate order | Ascending relator rank, object rank, then literal modifier UTF-8 bytes; absent modifier first. Thus `10` precedes `2`, including numeric modifiers. Operator and modifier type break otherwise equal keys. |
+| Rank order | Compare binary path bytes. Referent spelling does not change order. Context-free values use immutable hard-tag ranks, then identifier order for unresolved labels. |
+| Type relations | Order by relator rank, then object rank. |
+| Typed membership | Compare numeric values within their stored type. Compatible integer and float values remain distinct members; updates retain operator/type metadata. |
+| Snapshots | Later moves, deletion, cache eviction, or closing the tagspace do not alter earlier results. New reads resolve current ranks; unresolved components fail through the error interface. |
+| Identifiers and strings | Quote non-URL identifiers when syntax requires it. Quote strings starting with a digit, `+`, `-`, or `.` to preserve type, e.g. `legs = "4"` or `_config:bind_port = "7070"`. Valid TAGL quote/backslash escapes survive repeated dump/load. |
+| Floats | Append `.0` when the stored spelling has neither a decimal point nor an exponent. |
+| Dumps | Emit explicit declarations in dependency-safe stages and subject order, with predicates ordered as above. Reads/dumps never store inherited assertions. |
 
 A valid PUT that changes stored state returns `TAGD_OK`. Reasserting an existing
 identity and relations without changing any values, including modifiers, returns
@@ -361,41 +398,55 @@ change. Other validation errors retain their existing behavior.
 get_statement ::= "<<" subject
 ```
 
-GET normally returns only the subject's own predicates. Enable inherited reads
-with `%% _include_inherited_predicates _true;` (the tagspace API flag is
-`F_INCLUDE_INHERITED_PREDICATES`), and disable them with `_false`.
+GET returns **explicit declarations** by default: identity, directly stored type
+relations, and explicit predicates. Enable the effective description with
+`%% _include_inherited_predicates _true;` (`F_INCLUDE_INHERITED_PREDICATES` in
+C++), and disable it with `_false`.
 
-With this flag, GET accumulates predicates along the subject's subordinate
-ancestry. For each canonical `(relator, object)` pair, the nearest definition
-wins. An empty modifier overrides an ancestor's modifier but retains the
-predicate. Deleting that local predicate exposes the ancestor's value again.
-Resolution happens before session referent encoding. The subject's identity,
-immediate subordinate relation, part of speech, and rank remain unchanged.
+Both structural ancestors and recursively reached type objects contribute
+predicates and type assignments (§6.4). Validation uses all contributions,
+independently of the display flag.
 
 ```tagl
->> parent _sub _entity _has _message = "inherited";
+>> parent _sub _entity _has _message = inherited;
 >> child _sub parent _has _message;
 %% _include_inherited_predicates _true;
-<< child;  -- child _sub parent _has _message
-!! child _has _message;
-<< child;  -- child _sub parent _has _message = inherited
-%% _include_inherited_predicates _false;
-<< child;  -- child _sub parent
+<< child;
+-- Returns: child _sub parent _has _message = inherited
 ```
 
-This flag changes GET results only, including URL GET. It does not store the
-inherited predicates, change ordinary dumps, affect QUERY matching or results,
-or alter PUT and DELETE behavior. Explicitly putting a retrieved tag still
-asserts the predicates supplied by that PUT, as with any other write.
+In C++, the flag fills `abstract_tag::relations` with effective predicates;
+`type_relations` still contains direct declarations. TAGL prints those predicates
+as ordinary relations on the returned subject. Compatible integer and float
+contributions remain distinct members. Returned tags own their data and resolved
+ordering, so later mutations or closing the tagspace do not alter them.
+
+Reads never persist inherited assertions. Explicitly PUTting an expanded result
+can assert them locally, as with any other PUT. Some effective combinations
+cannot be stored as one direct relation with one modifier. Use explicit-only
+dumps for declaration-preserving reconstruction, including required dependencies.
+
+The flag also expands each result of `get_children()` and each returned QUERY
+description (§9). URL descriptions follow the same rules. The private
+configuration profile store retains its structural override policy and rejects
+type declarations; ordinary tagspaces always use the assertion semantics in §6.
 
 #### 5.4 DELETE Grammar
 
-* Same as PUT
-* MUST NOT include sub relation
-* A bare predicate deletes the whole local predicate, with or without a modifier.
-* A predicate with a matching modifier clears only that modifier, retaining the
-  bare predicate. A missing predicate or mismatched modifier returns
-  `TS_NOT_FOUND`; a failed multi-predicate deletion leaves storage unchanged.
+DELETE uses PUT's relation grammar but MUST NOT include a subordinate relation.
+Without relations, it deletes the subject subject to reference checks. Removing
+a local type relation leaves all independently reachable sources available.
+
+| Predicate DELETE | Local state | Result |
+| --- | --- | --- |
+| Bare `!! s r o` | Local predicate | Remove the local predicate. |
+| Valued `!! s r o = v` | Same type, operator, and value | Clear its modifier; retain the bare predicate. |
+| Valued | Different local value | `TS_NOT_FOUND`. |
+| Either | Matching assertion is inherited only | `TS_MISUSE`; the source is unchanged. |
+| Either | Matching assertion is absent | `TS_NOT_FOUND`. |
+
+Deleting local assertions never masks inherited contributions. A failed
+multi-predicate DELETE leaves the tagspace unchanged.
 
 ```tagl
 >> dog _sub _entity _has _message = 4;
@@ -473,15 +524,71 @@ TAGL statements are evaluated against a tagspace.
 
 ### 6.2 Identity Constraints
 
-* A tag MUST be introduced via a sub relation
-* Sub relation object MUST exist
+* A new non-URL subject MUST be introduced with one subordinate relation.
+* Its subordinate relator and parent MUST exist in the tagspace.
+* Structural position determines grammatical classification. Insertion derives
+  POS from the destination family when it is more specific than `POS_TAG`.
+* Reparenting recomputes POS for the moved subtree. Existing subordinate/type-relator uses must remain
+  valid, and type relators cannot occupy ordinary predicate positions. Moves
+  violating these requirements are rejected atomically. URL identity retains its
+  scheme-derived rules and explicit `_is_a _file:stored` classification.
 
-### 6.3 Predicates
+### 6.3 Local Assertions
 
-* A subject MAY have multiple predicates
-* Each predicate consists of:
-  + a relator
-  + an object_list
+Each `(subject, relator, object)` has one optional local modifier. A supplied PUT
+replaces it; the old and replacement values are not simultaneous constraints.
+Bare PUT preserves a supplied value. Numeric `4` and `4.0` are compatible but
+have distinct typed identities; changing one to the other updates storage.
+String `"4"` is not coerced to a number.
+
+| Assertion | Result |
+| --- | --- |
+| Unchanged typed assertion already local | `TS_DUPLICATE`, or `TAGD_OK` with `_ignore_duplicates`. |
+| Assertion present only through inheritance | Store it locally, subject to consistency checks. |
+| Self-typing or typing as `_entity` | After reference/POS validation, `TAGD_OK` no-op without storage. |
+| Direct type relation implied by current paths | Store it; subsequent reassertions follow the duplicate rule. |
+| Repeated paths or diamonds | Contribute once per source; no duplicate error. |
+
+Self/root no-ops neither count as new declarations nor suppress duplicate checks
+for other assertions in the operation. No ignore flag suppresses consistency checks.
+
+### 6.4 Recursive Inheritance
+
+In a finite tagspace state, dependencies run from each subject to its structural
+parent and explicit type objects. Omit `_entity`'s axiomatic self-parent edge.
+Write `x ≼ s` when s reaches x, including zero steps. The combined dependency
+graph MUST be acyclic, so ≼ is a partial order extending structural containment.
+Nontrivial structural, type, and mixed cycles return `TS_MISUSE`. This includes
+reparenting a tag beneath any of its own descendants.
+
+Every reached source contributes its explicit predicates and access to its own
+parents and types. Subjects inherit types from structural ancestors even without
+an explicit assignment. Type membership includes reachable objects and their
+structural ancestors. Resolution is independent of source and traversal order.
+
+For each exact resolved relator–object pair, intersect all supplied value
+constraints. They MUST admit a representable common value; an empty intersection
+is `TS_CONTRADICTION`. Bare predicates leave the modifier unspecified. Local
+assertions never mask inherited constraints, and unequal pairs remain independent.
+
+Validate every contribution before display normalization. Merge identical typed
+contributions, preserving compatible integer and float contributions separately.
+A bare general predicate may be absorbed when another predicate specializes both
+its relator and object; crossed directions do not specialize. Normalization never
+changes source declarations.
+
+### 6.5 Atomic Mutation Validation
+
+Validate reference/POS integrity, dependency cycles, direct duplicates, then
+effective consistency. Source edits, type additions, and reparenting check all
+affected inheritors, including subjects outside the changed structural subtree.
+Multi-subject PUT checks the final combined state. Removing constraints relaxes
+the description but still obeys reference checks.
+
+Failure preserves declarations, ranks, references, and search state. Diagnostics
+identify the affected subject and conflicting source assertions through the
+existing error interface. Sequential TAGL scripts retain their per-operation
+transaction behavior.
 
 ### 7. Functions
 
@@ -547,8 +654,31 @@ Core:
 
 ## 9. Query Semantics
 
-* Queries traverse sub relations
-* `*` matches any predicate
+Structural selectors use rank containment. Ordinary predicates and type
+conditions match the integrated effective description, including conjunctions
+satisfied by different sources. A bare predicate matches a relation whose
+relator and object respectively specialize its components. Both components must
+agree in direction. A valued predicate constrains only its exact resolved pair.
+
+Canonical `_type_of` conditions test the reflexive integrated order, including
+structural ancestry even without a stored type edge. Conditions using a custom
+type relator require a matching declared relator on a reachable source and match
+the assigned object's integrated ancestors. Returned descriptions list only the
+subject's explicitly declared type relations.
+
+For a valued QUERY, intersect the contributing constraints to obtain the admitted
+set A. Match only when A is nonempty and entails the query constraint. For example,
+`legs = 4` entails `legs > 2`, while `legs > 2` together with `legs < 5` does not
+entail `legs = 3`. Missing and bare-only pairs do not prove valued queries.
+Strings and numbers are distinct domains. Effective positive propositions persist
+along ≼ within a fixed valid state. Full-text search retains its structural
+containment behavior; it is not a predicate-entailment proposition.
+
+QUERY membership is independent of `_include_inherited_predicates`. When the
+API returns tag descriptions, each match contains its whole explicit declaration
+by default, including predicates unrelated to the query. Enabling the flag
+returns its effective predicates instead. Declared type relations remain explicit
+in both modes. ID-only shell/HTTP results retain their existing shape.
 
 ## 10. Context and Referents
 
@@ -719,7 +849,16 @@ must not be used as a complete export.
 
 ## 12. Errors
 
-* Errors are represented as tags
+Errors are represented as tags. Relevant mutation errors include:
+
+| Error | Meaning | HTTP status |
+| --- | --- | --- |
+| `TS_DUPLICATE` | Unchanged assertion already stored locally. | 409 |
+| `TS_CONTRADICTION` | Joint effective constraints have no common value. | 409 |
+| `TS_MISUSE` | Invalid relation role, unsupported foreign type, or structural, type, or mixed cycle. | 400 |
+| `TS_NOT_FOUND` | Missing subject, relation, or matching typed modifier. | 404 |
+
+A rejected mutation leaves the tagspace unchanged.
 
 ## 13. Examples
 
@@ -736,7 +875,6 @@ must not be used as a complete export.
 ## 15. Future Work
 
 * formal EBNF grammar
-* contradiction handling
 * revision model
 
 ### Kripke Semantics
@@ -829,7 +967,7 @@ A filepile URL retains its ordinary URL behavior while recording the explicit
 `_file:stored` subtype. Dump/load preserves that classification:
 
 ```tagl
->> file:///home/user/.tagd/filepile/aa/bb/content.bin _type_of _file:stored;
+>> file:///home/user/.tagd/filepile/aa/bb/content.bin _is_a _file:stored;
 ```
 
 This declaration records semantics only; it does not acquire bytes or perform

@@ -57,10 +57,14 @@ public:
 
 			tagd::tag_set results;
 			TS_ASSERT_EQUALS(ts.query(results, query, &ssn), tagd::TAGD_OK);
-			TS_ASSERT_EQUALS(results.size(), 1);
+			TS_ASSERT_EQUALS(results.size(), 2);
 			for (const auto& result : results) {
-				TS_ASSERT_EQUALS(result.id(), "selected");
-				TS_ASSERT(result.related("says", "text", literal));
+				if (result.id() == "selected") {
+					TS_ASSERT(result.related("says", "text", literal));
+				} else {
+					TS_ASSERT_EQUALS(result.id(), "child");
+					TS_ASSERT(result.relations.empty());
+				}
 			}
 
 			// Neither spelling may match the other through a contextual referent.
@@ -189,7 +193,7 @@ public:
 		TS_ASSERT(loaded.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE));
 	}
 
-	void test_get_inherits_nearest_predicates_without_changing_storage() {
+	void test_effective_get_preserves_all_sources_without_changing_declarations() {
 		tagd::tagspace::memory ts;
 		TS_ASSERT_EQUALS(ts.init(), tagd::TAGD_OK);
 		tagd::abstract_tag parent("parent", tagd::HARD_TAG_SUB, tagd::HARD_TAG_ENTITY, tagd::POS_TAG);
@@ -202,7 +206,7 @@ public:
 		TS_ASSERT_EQUALS(ts.put(parent), tagd::TAGD_OK);
 
 		tagd::abstract_tag child("child", tagd::HARD_TAG_SUB, "parent", tagd::POS_TAG);
-		TS_ASSERT_EQUALS(child.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "near"),
+		TS_ASSERT_EQUALS(child.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "root"),
 			tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.put(child), tagd::TAGD_OK);
 
@@ -222,12 +226,12 @@ public:
 		TS_ASSERT_EQUALS(inherited.sub_relator(), direct.sub_relator());
 		TS_ASSERT_EQUALS(inherited.pos(), direct.pos());
 		TS_ASSERT_EQUALS(inherited.rank(), direct.rank());
-		TS_ASSERT_EQUALS(inherited.relations.size(), 3);
-		TS_ASSERT(inherited.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "near"));
+		TS_ASSERT_EQUALS(inherited.relations.size(), 3u);
+		TS_ASSERT(inherited.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "root"));
 		TS_ASSERT(inherited.related(tagd::HARD_TAG_CAUSED_BY, tagd::HARD_TAG_MESSAGE, "cause"));
 		for (const auto& p : inherited.relations) {
 			if (p.relator == tagd::HARD_TAG_HAS && p.object == tagd::HARD_TAG_LINE_NUMBER)
-				TS_ASSERT(p.modifier.empty());
+				TS_ASSERT_EQUALS(p.modifier, "10");
 		}
 
 		TS_ASSERT_EQUALS(ts.get(direct, "leaf"), tagd::TAGD_OK);
@@ -251,7 +255,7 @@ public:
 		TS_ASSERT_EQUALS(ts.get(inherited, "leaf", nullptr, flags), tagd::TAGD_OK);
 		TS_ASSERT(inherited.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "root"));
 
-		// Full-text queries use GET internally but must keep ordinary query results.
+		// Full-text matching keeps its ID selection; the flag controls the attached description.
 		tagd::interrogator query(tagd::HARD_TAG_INTERROGATOR);
 		TS_ASSERT_EQUALS(query.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_TERMS, "leaf"),
 			tagd::TAGD_OK);
@@ -260,7 +264,8 @@ public:
 		TS_ASSERT_EQUALS(results.size(), 1);
 		for (const auto& result : results) {
 			TS_ASSERT_EQUALS(result.id(), "leaf");
-			TS_ASSERT(result.relations.empty());
+			TS_ASSERT_EQUALS(result.relations.size(), 3u);
+			TS_ASSERT(result.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "root"));
 		}
 
 		TS_ASSERT_EQUALS(ts.get(inherited, tagd::HARD_TAG_ENTITY, nullptr, flags), tagd::TAGD_OK);
@@ -282,7 +287,7 @@ public:
 		TS_ASSERT_EQUALS(ts.put(parent), tagd::TAGD_OK);
 
 		tagd::abstract_tag child("child", tagd::HARD_TAG_SUB, "parent", tagd::POS_TAG);
-		TS_ASSERT_EQUALS(child.relation(tagd::HARD_TAG_HAS, "setting", "local"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(child.relation(tagd::HARD_TAG_HAS, "setting", "ancestor"), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.put(child), tagd::TAGD_OK);
 
 		TS_ASSERT_EQUALS(ts.put(tagd::referent("alias", "setting", "context")), tagd::TAGD_OK);
@@ -294,14 +299,14 @@ public:
 		const auto flags = tagd::F_INCLUDE_INHERITED_PREDICATES;
 		TS_ASSERT_EQUALS(ts.get(loaded, "selected", &ssn, flags), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(loaded.id(), "selected");
-		TS_ASSERT(loaded.related(tagd::HARD_TAG_HAS, "alias", "local"));
-		TS_ASSERT(!loaded.related(tagd::HARD_TAG_HAS, "alias", "ancestor"));
+		TS_ASSERT(loaded.related(tagd::HARD_TAG_HAS, "alias", "ancestor"));
+		TS_ASSERT_EQUALS(loaded.relations.size(), 3u); // effective assertions plus referent marker
 		TS_ASSERT(loaded.related(tagd::HARD_TAG_HAS, "other_setting", "other"));
 
 		TS_ASSERT_EQUALS(ts.get(loaded, "child", &ssn,
 			flags | tagd::F_NO_TRANSFORM_REFERENTS), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(loaded.id(), "child");
-		TS_ASSERT(loaded.related(tagd::HARD_TAG_HAS, "setting", "local"));
+		TS_ASSERT(loaded.related(tagd::HARD_TAG_HAS, "setting", "ancestor"));
 	}
 
 	void test_url_get_inherits_predicates_without_changing_url_fields() {

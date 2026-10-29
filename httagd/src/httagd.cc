@@ -444,6 +444,7 @@ evhtp_res tagd_code_evhtp_res(tagd::code tc) {
 			return EVHTP_RES_BADREQ;  // 400
 		case tagd::TS_NOT_FOUND:
 			return EVHTP_RES_NOTFOUND;	// 404
+		case tagd::TS_CONTRADICTION:
 		case tagd::TS_DUPLICATE:
 			// using 409 - Conflict, 422 - Unprocessable Entity might also be exceptable
 			return EVHTP_RES_CONFLICT;

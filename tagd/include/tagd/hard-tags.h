@@ -38,7 +38,7 @@ inline constexpr std::string_view HARD_TAG_ENTITY{"_entity"};	/// HARD_TAG_SUB H
 inline constexpr std::string_view HARD_TAG_SUB{"_sub"};		/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_SUB_RELATOR
 // Leibniz discernment from _sub will come as constraints in TAGL are developed
 inline constexpr std::string_view HARD_TAG_IS_A{"_is_a"};		/// HARD_TAG_SUB HARD_TAG_SUB tagd::POS_SUB_RELATOR
-inline constexpr std::string_view HARD_TAG_TYPE_OF{"_type_of"};	/// HARD_TAG_SUB HARD_TAG_SUB tagd::POS_SUB_RELATOR
+inline constexpr std::string_view HARD_TAG_TYPE_OF{"_type_of"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TYPE_RELATOR
 
 // relators - relates subject to object, subordinate to all relators
 inline constexpr std::string_view HARD_TAG_RELATOR{"_rel"};		/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_RELATOR
@@ -240,6 +240,8 @@ inline constexpr std::string_view HARD_TAG_CONFIG_TAGDURL_AUTOLOAD{"_config:tagd
 inline constexpr std::string_view HARD_TAG_CONFIG_ID{"_config_id"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_USE{"_use"};	/// HARD_TAG_SUB HARD_TAG_RELATOR tagd::POS_RELATOR
 inline constexpr std::string_view HARD_TAG_DEFAULT{"_default"};	/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+
+inline constexpr std::string_view HARD_TAG_ERROR_TS_CONTRADICTION{"_error:ts_contradiction"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
 
 // A hard_tag_axiom is one point in the invariant hard-tag subspace.
 struct hard_tag_axiom {

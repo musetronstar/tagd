@@ -20,7 +20,7 @@ typedef enum {
 	F_NO_NOT_FOUND_ERROR =     1 << 2,
 	F_IGNORE_DUPLICATES =      1 << 3,
 	F_NO_RESET =               1 << 4,
-	// GET merges ancestry by (relator, object); the nearest modifier wins, even empty.
+	// Expand ordinary relations on GET and QUERY results without changing storage.
 	F_INCLUDE_INHERITED_PREDICATES = 1 << 5
 } ts_flags;
 

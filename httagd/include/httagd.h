@@ -22,6 +22,8 @@ std::string HTTAGD_HTTP_HEADERS_STR(const struct evkeyvalq *);
 
 namespace httagd {
 
+evhtp_res tagd_code_evhtp_res(tagd::code);
+
 class httagd_args : public cmd_args {
 public:
 	httagd_args() {

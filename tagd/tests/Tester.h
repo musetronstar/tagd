@@ -158,7 +158,27 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT(copy.contains({"encoded_r", "encoded_o", "3"}));
 	}
 
-	void test_predicate_membership_keeps_numeric_and_empty_contracts() {
+	void test_predicate_membership_preserves_compatible_value_types() {
+		const tagd::predicate integer("r", "o", "4", tagd::OP_EQ, tagd::TYPE_INTEGER);
+		const tagd::predicate floating("r", "o", "4", tagd::OP_EQ, tagd::TYPE_FLOAT);
+		tagd::predicate_set values{integer, floating};
+		TS_ASSERT_EQUALS(values.size(), 2u);
+		TS_ASSERT(values.contains(integer));
+		TS_ASSERT(values.contains(floating));
+		TS_ASSERT(!values.insert(integer).second);
+		TS_ASSERT(!values.insert(floating).second);
+
+		tagd::predicate_set integers{integer}, floats{floating};
+		TS_ASSERT_DIFFERS(integers, floats);
+		TS_ASSERT((integers <=> floats) != std::weak_ordering::equivalent);
+		auto copy = values;
+		TS_ASSERT_EQUALS(copy, values);
+		TS_ASSERT_EQUALS(copy.erase(integer), 1u);
+		TS_ASSERT_EQUALS(copy, floats);
+		TS_ASSERT(!copy.contains(integer));
+	}
+
+	void test_predicate_membership_keeps_same_type_numeric_and_empty_contracts() {
 		tagd::predicate_set values;
 		values.emplace("r", "o", "2", tagd::OP_EQ, tagd::TYPE_INTEGER);
 		values.emplace("r", "o", "10", tagd::OP_EQ, tagd::TYPE_INTEGER);
@@ -167,9 +187,10 @@ class Tester : public CxxTest::TestSuite {
 		values.emplace("r", "o", "");
 
 		const tagd::predicate numeric("r", "o", "02.0", tagd::OP_EQ, tagd::TYPE_FLOAT);
-		TS_ASSERT_EQUALS(values.find(numeric)->modifier, "2");
-		TS_ASSERT(!values.insert(numeric).second);
-		TS_ASSERT_EQUALS(values.size(), 5);
+		TS_ASSERT(!values.contains(numeric));
+		TS_ASSERT(values.insert(numeric).second);
+		TS_ASSERT(!values.insert({"r", "o", "2.0", tagd::OP_EQ, tagd::TYPE_FLOAT}).second);
+		TS_ASSERT_EQUALS(values.size(), 6);
 		TS_ASSERT(values.contains({"r", "o", "", tagd::OP_GT, tagd::TYPE_FLOAT}));
 		TS_ASSERT(!values.contains({"r", "o", "02"}));
 
@@ -177,7 +198,7 @@ class Tester : public CxxTest::TestSuite {
 		tagd::predicate_set source{numeric};
 		auto node = source.extract(source.begin());
 		const auto* address = &node.value();
-		TS_ASSERT_EQUALS(values.insert(values.end(), std::move(node))->modifier, "2");
+		TS_ASSERT_EQUALS(values.insert(values.end(), std::move(node))->modifier, "02.0");
 		TS_ASSERT(!node.empty());
 		TS_ASSERT_EQUALS(&node.value(), address);
 
@@ -1096,8 +1117,7 @@ class Tester : public CxxTest::TestSuite {
 		B.clear();
 		B.insert(animal);
 
-		// TODO merge_containing_tags() fails to merge predicates of contained tags
-		// for example, the animal predicate "has metabolism" will not be in the resulting tag_set
+		// Returned descriptions include ancestor predicates without modifying the input tags.
 		merge_containing_tags(A, B);
 
 		// because cat and bird are animals
@@ -1769,6 +1789,8 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("\"quoted\"") , "\"\\\"quoted\\\"\"" )
 		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("qu\"oted") , "\"qu\\\"oted\"" )
 
+		TS_ASSERT_EQUALS(tagd::util::esc_and_quote("\"\""), "\"\\\"\\\"\"");
+
 		// '/'
 		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("slash/ed") , "\"slash/ed\"" )
 
@@ -1789,6 +1811,6 @@ class Tester : public CxxTest::TestSuite {
 		std::stringstream ss;
 		tagd::predicate p{ "has" , "legs", "4" };
 		ss << p;
-		TS_ASSERT_EQUALS( ss.str() , "has legs = 4" );
+		TS_ASSERT_EQUALS( ss.str() , "has legs = \"4\"" );
 	}
 };

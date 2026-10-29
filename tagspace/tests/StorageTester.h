@@ -15,6 +15,106 @@ class StorageTester : public CxxTest::TestSuite {
 	std::filesystem::path root;
 
 public:
+	void test_effective_constraints_persist_across_reopen_and_failed_mutations() {
+		const auto path = (root / "effective.db").string();
+		{
+			tagd::tagspace::persistent db;
+			TS_ASSERT_EQUALS(db.create_file(path), tagd::TAGD_OK);
+			for (const auto id : {"lower", "upper", "parent", "subject"}) {
+				TS_ASSERT_EQUALS(db.put(tagd::abstract_tag(id, tagd::HARD_TAG_SUB,
+					tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
+			}
+			tagd::abstract_tag lower("lower"), upper("upper"), parent("parent"), subject("subject");
+			TS_ASSERT_EQUALS(lower.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "2",
+				tagd::OP_GT, tagd::TYPE_INTEGER), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(upper.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "5",
+				tagd::OP_LT, tagd::TYPE_INTEGER), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(parent.type_relation(tagd::HARD_TAG_TYPE_OF, "lower"), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(subject.type_relation(tagd::HARD_TAG_TYPE_OF, "upper"), tagd::TAGD_OK);
+			for (const auto* declaration : {&lower, &upper, &parent, &subject}) {
+				TS_ASSERT_EQUALS(db.put(*declaration), tagd::TAGD_OK);
+			}
+			TS_ASSERT_EQUALS(db.put(tagd::abstract_tag("subject", tagd::HARD_TAG_SUB,
+				"parent", tagd::POS_TAG)), tagd::TAGD_OK);
+		}
+
+		for (unsigned reopen = 0; reopen != 2; ++reopen) {
+			tagd::tagspace::persistent db;
+			TS_ASSERT_EQUALS(db.open_file(path), tagd::TAGD_OK);
+			tagd::abstract_tag explicit_tag, effective;
+			TS_ASSERT_EQUALS(db.get(explicit_tag, "subject"), tagd::TAGD_OK);
+			TS_ASSERT(explicit_tag.relations.empty());
+			TS_ASSERT_EQUALS(db.get(effective, "subject", nullptr,
+				tagd::F_INCLUDE_INHERITED_PREDICATES), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(effective.relations.size(), 2u);
+
+			tagd::interrogator query(tagd::HARD_TAG_INTERROGATOR, tagd::HARD_TAG_SUB, "subject");
+			TS_ASSERT_EQUALS(query.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "6",
+				tagd::OP_LT, tagd::TYPE_INTEGER), tagd::TAGD_OK);
+			tagd::tag_set found;
+			TS_ASSERT_EQUALS(db.query(found, query), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(found.size(), 1u);
+
+			std::ostringstream before, after;
+			TS_ASSERT_EQUALS(db.dump(before), tagd::TAGD_OK);
+			tagd::abstract_tag conflict("lower");
+			TS_ASSERT_EQUALS(conflict.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "5",
+				tagd::OP_GT, tagd::TYPE_INTEGER), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(db.put(conflict), tagd::TS_CONTRADICTION);
+			TS_ASSERT_EQUALS(db.del(tagd::abstract_tag("upper")), tagd::TS_RELATION_DEPENDENCY);
+			TS_ASSERT_EQUALS(db.dump(after), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(after.str(), before.str());
+		}
+	}
+
+	void test_reparenting_preserves_literal_rank_prefixes_and_grammatical_roles() {
+		const auto path = (root / "rank-prefixes.db").string();
+		std::vector<std::string> parents;
+		{
+			tagd::tagspace::persistent db;
+			TS_ASSERT_EQUALS(db.create_file(path), tagd::TAGD_OK);
+			for (unsigned i = 0; i != 110; ++i) {
+				const auto id = "parent" + std::to_string(i);
+				TS_ASSERT_EQUALS(db.put(tagd::abstract_tag(id, tagd::HARD_TAG_SUB,
+					tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
+				tagd::rank rank;
+				TS_ASSERT_EQUALS(db.lookup_rank(rank, id), tagd::TAGD_OK);
+				if (rank.back() == 42 || rank.back() == 63 || rank.back() == 91
+					|| rank.back() == 128) {
+					parents.push_back(id);
+				}
+			}
+			TS_ASSERT_EQUALS(parents.size(), 4u);
+			TS_ASSERT_EQUALS(db.put(tagd::abstract_tag("moving", tagd::HARD_TAG_SUB,
+				tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(db.put(tagd::abstract_tag("child", tagd::HARD_TAG_SUB,
+				"moving", tagd::POS_TAG)), tagd::TAGD_OK);
+
+			for (const auto& parent : parents) {
+				for (const auto& destination : {parent, std::string(tagd::HARD_TAG_ENTITY)}) {
+					TS_ASSERT_EQUALS(db.put(tagd::abstract_tag("moving", tagd::HARD_TAG_SUB,
+						destination, tagd::POS_TAG)), tagd::TAGD_OK);
+					tagd::abstract_tag moving, child;
+					TS_ASSERT_EQUALS(db.get(moving, "moving"), tagd::TAGD_OK);
+					TS_ASSERT_EQUALS(db.get(child, "child"), tagd::TAGD_OK);
+					TS_ASSERT_EQUALS(moving.super_object(), destination);
+					TS_ASSERT(moving.rank().contains(child.rank()));
+					TS_ASSERT_EQUALS(db.pos(tagd::HARD_TAG_IS_A), tagd::POS_SUB_RELATOR);
+					TS_ASSERT_EQUALS(db.pos(tagd::HARD_TAG_HAS), tagd::POS_RELATOR);
+					TS_ASSERT_EQUALS(db.pos(tagd::HARD_TAG_WHAT), tagd::POS_INTERROGATOR);
+					TS_ASSERT_EQUALS(db.pos(tagd::HARD_TAG_IGNORE_DUPLICATES), tagd::POS_FLAG);
+				}
+			}
+		}
+
+		tagd::tagspace::persistent reopened;
+		TS_ASSERT_EQUALS(reopened.open_file(path), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(reopened.put(tagd::abstract_tag("fresh", tagd::HARD_TAG_IS_A,
+			parents.front(), tagd::POS_TAG)), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(reopened.pos(tagd::HARD_TAG_IS_A), tagd::POS_SUB_RELATOR);
+		TS_ASSERT_EQUALS(reopened.pos(tagd::HARD_TAG_HAS), tagd::POS_RELATOR);
+	}
+
 	void test_explicit_backend_location() {
 		tagd::tagspace::persistent storage;
 		TS_ASSERT_EQUALS(storage.open_location({tagdb::storage_kind::remote, "service/database"}),

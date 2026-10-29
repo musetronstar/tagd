@@ -55,7 +55,7 @@ class DriverTester : public CxxTest::TestSuite {
 		TS_ASSERT(!tsp.exists("skipped"));
 	}
 
-	void test_inherited_predicates_flag_controls_get_only() {
+	void test_subordinate_relations_preserve_local_and_effective_predicates() {
 		tagspace_type tsp;
 		TS_ASSERT_EQUALS(tsp.init(), tagd::TAGD_OK);
 		tagd::config cfg;
@@ -82,7 +82,13 @@ class DriverTester : public CxxTest::TestSuite {
 		clear_stream(out);
 		TS_ASSERT_EQUALS(shell.interpret("<< child;"), 0);
 		TS_ASSERT_DIFFERS(out.str().find("_has _message"), std::string::npos);
-		TS_ASSERT_EQUALS(out.str().find("inherited"), std::string::npos);
+		TS_ASSERT_DIFFERS(out.str().find("_has _message = inherited"), std::string::npos);
+		TS_ASSERT_EQUALS(shell.interpret("%% _include_inherited_predicates _false;"), 0);
+		clear_stream(out);
+		TS_ASSERT_EQUALS(shell.interpret("<< child;"), 0);
+		TS_ASSERT_DIFFERS(out.str().find("_has _message"), std::string::npos);
+		TS_ASSERT_EQUALS(out.str().find("= inherited"), std::string::npos);
+		TS_ASSERT_EQUALS(shell.interpret("%% _include_inherited_predicates _true;"), 0);
 		TS_ASSERT_EQUALS(shell.interpret("!! child _has _message;"), 0);
 		clear_stream(out);
 		TS_ASSERT_EQUALS(shell.interpret("<< child;"), 0);

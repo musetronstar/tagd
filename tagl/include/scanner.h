@@ -227,11 +227,12 @@ class scanner::tagdurl : public scanner {
 	ANY                  { advance_begin(); goto block_comment; }
 */
 
-// NUL is the input sentinel, never string content; an unfinished quote must stop there.
+// NUL is the input sentinel; an unfinished quote must stop there.
+// Consume escaped backslash/quote pairs so only an unescaped quote ends the token.
 /*!rules:re2c:tagl_quoted
 	!use:tagl_defs;
 
-	"\\\""               { goto quoted_str; }
+	"\\\\" | "\\\""      { goto quoted_str; }
 	"\""                 { emit_quoted_string_token(); goto next; }
 	[\000]               { _driver->error(tagd::TAGL_ERR, "unclosed quoted string"); return; }
 	NL                   { next_line(); goto quoted_str; }

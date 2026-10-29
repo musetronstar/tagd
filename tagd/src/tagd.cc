@@ -300,6 +300,7 @@ void merge_tags(tag_set& A, const tag_set& B) {
 			auto hint = (a != A.begin()) ? std::prev(a) : A.end();
 			auto node = A.extract(a);  // a is now invalid
 			node.value().predicates(b->relations);
+			node.value().type_relations.insert(b->type_relations.begin(), b->type_relations.end());
 			a = A.insert(hint, std::move(node));
 		}
 	}
@@ -333,6 +334,7 @@ size_t merge_tags_erase_diffs(tag_set& A, const tag_set& B) {
 			auto next_a = std::next(a);
 			auto node = A.extract(a);  // a invalidated; remaining A elements intact
 			node.value().predicates(b->relations);
+			node.value().type_relations.insert(b->type_relations.begin(), b->type_relations.end());
 			it = T.insert(it, std::move(node));
 			a = next_a;
 			++b;
@@ -355,15 +357,22 @@ size_t merge_containing_tags(tag_set& A, const tag_set& B) {
 		return A.size();
 	}
 
+	/*
+	 * Structural overlap retains the more specific tag.
+	 * _entity contains every tag, but rank::contains() rejects empty ranks.
+	 * Its ID distinguishes the root from a tag whose rank is merely unassigned.
+	 */
 	auto a = A.begin();
 	while (a != A.end()) {
 		size_t merged = 0;
 		for(auto b = B.begin(); b != B.end(); ++b) {
-			if (b->rank().contains(a->rank())) {  // rank can contain itself (b == a)
+			// Retain a's declaration when it is at least as specific as b, including equality.
+			if ((b->id() == HARD_TAG_ENTITY || b->rank().contains(a->rank()))) {
 				//a->predicates(b->relations);
 				merged++;
-			} else if (a->rank().contains(b->rank())) {
+			} else if ((a->id() == HARD_TAG_ENTITY || a->rank().contains(b->rank()))) {
 				//b->predicates(a->relations);
+				// Descendants sort after a; stable set iterators let the loop visit b later.
 				A.insert(*b);
 			}
 		}
@@ -403,6 +412,7 @@ void abstract_tag::swap(abstract_tag& rhs) noexcept {
 	swap(_rank, rhs._rank);
 	swap(_code, rhs._code);
 	swap(relations, rhs.relations);
+	type_relations.swap(rhs.type_relations);
 }
 
 void swap(abstract_tag& lhs, abstract_tag& rhs) noexcept {
@@ -431,12 +441,14 @@ bool abstract_tag::operator==(const abstract_tag& rhs) const {
 		&& _rank == rhs._rank
 		// Snapshot ranks may differ without changing the predicates' semantic values.
 		&& relations == rhs.relations
+		&& type_relations == rhs.type_relations
 	);
 }
 
 bool abstract_tag::operator<(const abstract_tag& rhs) const {
 	if (_rank.empty() && _id == HARD_TAG_ENTITY)
-		return true;
+		// The empty root rank is least, but STL ordering must remain irreflexive.
+		return !(rhs._rank.empty() && rhs._id == HARD_TAG_ENTITY);
 	if (rhs._rank.empty() && rhs._id == HARD_TAG_ENTITY)
 		return false;
 
@@ -459,6 +471,7 @@ void abstract_tag::clear() {
 	// _pos = POS_UNKNOWN;
 	_rank.clear();
 	if (!relations.empty()) relations.clear();
+	type_relations.clear();
 }
 
 tagd::code abstract_tag::relation(const tagd::predicate &p) {
@@ -603,24 +616,25 @@ const id_string& referent::context() const {
 // tag output functions
 
 // whether a label should be quoted
-std::string util::esc_and_quote(id_string s) {
-	bool do_quotes = false;
+std::string util::esc_and_quote(id_string s, bool force_quotes) {
+	bool do_quotes = force_quotes;
 	for (size_t i=0; i<s.size(); i++) {
 		if (isspace(s[i]))
 			do_quotes = true;
 		switch (s[i]) {
 			case ':':
-				if ((s.size()-i) > 2 && s[i+1] == '/' && s[i+2] == '/')
+				if (!force_quotes && (s.size()-i) > 2 && s[i+1] == '/' && s[i+2] == '/')
 					return s;	// don't quote urls
 				break;
 			case '\\':
-				i += 2;
+				// Stored escapes already include their backslash; advance past exactly that pair.
+				++i;
 				do_quotes = true;
 				break;
 			case '"':
 				// escape the "
 				s.insert(i, "\\");
-				i += 2;
+				++i;
 				do_quotes = true;
 				break;
 			case '/':
@@ -646,7 +660,18 @@ void print_object (std::ostream& os, const predicate& p) {
 	print_quotable(os, p.object);
 	if (!p.modifier.empty()) {
 		os << ' ' << p.op_c_str() << ' ';
-		print_quotable(os, p.modifier);
+		// Numeric-looking text must remain text when TAGL reconstructs the declaration.
+		const auto first = static_cast<unsigned char>(p.modifier.front());
+		if (p.modifier_type != TYPE_STRING) {
+			os << p.modifier;
+			if (p.modifier_type == TYPE_FLOAT && p.modifier.find_first_of(".eE") == std::string::npos) {
+				os << ".0";
+			}
+		} else if (std::isdigit(first) || first == '+' || first == '-' || first == '.') {
+			os << util::esc_and_quote(p.modifier, true);
+		} else {
+			print_quotable(os, p.modifier);
+		}
 	}
 }
 
@@ -667,15 +692,32 @@ std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
 		print_quotable(os, t.sub_relator());
 		os << ' ';
 		print_quotable(os, t.super_object());
-	} else {
+	} else if (t.pos() == POS_URL) {
 		os << t.id();
+	} else {
+		// Partial declarations still require quoting; an identifier must never become TAGL commands.
+		print_quotable(os, t.id());
+	}
+
+	id_string last_type_relator;
+	for (const auto& type : t.type_relations) {
+		if (last_type_relator == type.relator) {
+			os << ", ";
+		} else {
+			os << '\n';
+			print_quotable(os, type.relator);
+			os << ' ';
+			last_type_relator = type.relator;
+		}
+
+		print_quotable(os, type.object);
 	}
 
 	predicate_set::const_iterator it = t.relations.begin();
 	if (it == t.relations.end())
 		return os;
 
-	if (t.relations.size() == 1 && t.super_object().empty()) {
+	if (t.relations.size() == 1 && t.super_object().empty() && t.type_relations.empty()) {
 		os << ' ';
 		print_quotable(os, it->relator);
 		os << ' ';
@@ -931,6 +973,7 @@ const char* code_error_tag(tagd::code c) {
 		case tagd::HDURI_ERR: return HARD_TAG_ERROR_HDURI_ERR.data();
 		case tagd::TS_NOT_FOUND: return HARD_TAG_ERROR_TS_NOT_FOUND.data();
 		case tagd::TS_DUPLICATE: return HARD_TAG_ERROR_TS_DUPLICATE.data();
+		case tagd::TS_CONTRADICTION: return HARD_TAG_ERROR_TS_CONTRADICTION.data();
 		case tagd::TS_SUB_UNK: return HARD_TAG_ERROR_TS_SUB_UNK.data();
 		case tagd::TS_RELATOR_UNK: return HARD_TAG_ERROR_TS_RELATOR_UNK.data();
 		case tagd::TS_OBJECT_UNK: return HARD_TAG_ERROR_TS_OBJECT_UNK.data();

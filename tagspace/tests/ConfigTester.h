@@ -360,7 +360,7 @@ public:
 
 		std::ostringstream output;
 		TS_ASSERT_EQUALS(cfg.dump(output), tagd::TAGD_OK);
-		TS_ASSERT_DIFFERS(output.str().find("_config:bind_port = 2112"), std::string::npos);
+		TS_ASSERT_DIFFERS(output.str().find("_config:bind_port = \"2112\""), std::string::npos);
 		TS_ASSERT_DIFFERS(output.str().find("_config:prompt = "), std::string::npos);
 	}
 

@@ -22,6 +22,8 @@ public:
 	// Stored columns exclude caller-specific labels, container indexes, and ordering keys.
 	struct canonical_predicate {
 		tagd::id_string relator, object, modifier;
+		tagd::operator_t opr8r = tagd::OP_EQ;
+		tagd::data_t modifier_type = tagd::TYPE_STRING;
 	};
 
 private:

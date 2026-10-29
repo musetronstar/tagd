@@ -59,7 +59,7 @@ tagd::code sqlite::put_batch(std::span<const tagd::abstract_tag* const> tags,
 		return code();
 	}
 
-	// Exceptions must not leave later writes inside an abandoned transaction.
+	// Every exit must release this transaction before another operation can use the backend.
 	auto unwind = [this](void*) {
 		if (sqlite3_exec(_db, "ROLLBACK", nullptr, nullptr, nullptr) != SQLITE_OK) {
 			_write_poisoned = true;
@@ -67,13 +67,17 @@ tagd::code sqlite::put_batch(std::span<const tagd::abstract_tag* const> tags,
 	};
 	std::unique_ptr<void, decltype(unwind)> rollback(_db, unwind);
 
+	std::set<tagd::id_string> affected;
 	// Borrowed objects retain URL/referent dynamic types until the synchronous call returns.
 	tagd::code result = tagd::TAGD_OK;
 	for (auto* tag : tags) {
-		result = put(*tag, ssn, flags);
+		result = put_transaction(*tag, ssn, flags, &affected);
 		if (result != tagd::TAGD_OK) {
 			break;
 		}
+	}
+	if (result == tagd::TAGD_OK) {
+		result = validate_effective(affected);
 	}
 	if (result == tagd::TAGD_OK) {
 		result = exec("COMMIT");

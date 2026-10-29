@@ -5,6 +5,7 @@
 #include "sqlite3.h"
 #include "tagdb/canonical-cache.h"
 #include "tagdb/read-snapshot.h"
+#include "tagdb/relation-resolver.h"
 #include <functional>
 #include <unordered_map>
 #include <utility>
@@ -21,6 +22,24 @@ typedef std::function<tagd::id_string(const tagd::id_string&)> id_transform_func
 
 // each enumerator names one prepared statement; cache key for lazy init
 enum class stmt_t {
+	SCHEMA_TABLES,
+	STORAGE_VERSION,
+	TYPE_DEPENDENCIES,
+	DEPENDENTS,
+	SUBTREE,
+	CYCLE_CHECK,
+	REPARENT_ROLES,
+	RELATION_CANDIDATES_ALL,
+	RELATION_CANDIDATES_RELATOR,
+	RELATION_CANDIDATES_OBJECT,
+	RELATION_CANDIDATES_PAIR,
+	VALUED_CANDIDATES_ALL,
+	VALUED_CANDIDATES_RELATOR,
+	VALUED_CANDIDATES_OBJECT,
+	VALUED_CANDIDATES_PAIR,
+	GET_TYPE_RELATIONS,
+	INSERT_TYPE_RELATION,
+	DELETE_TYPE_RELATION,
 	DATA_VERSION,
 	READ_BEGIN,
 	READ_PIN,
@@ -68,7 +87,9 @@ struct stmt_t_hash {
 
 class sqlite: public tagdb, private snapshot_source {
 	public:
-		sqlite() = default;
+		explicit sqlite(relation_semantics semantics = relation_semantics::assertions)
+			: _relation_semantics(semantics) {
+		}
 		// Database handles and cached statements must remain owned by this object.
 		sqlite(const sqlite&)            = delete;
 		sqlite& operator=(const sqlite&) = delete;
@@ -80,6 +101,9 @@ class sqlite: public tagdb, private snapshot_source {
 		std::string _db_fname;
 
 	private:
+		// Storage compatibility includes persisted hard-tag ranks as well as table definitions.
+		static constexpr int SCHEMA_VERSION = 3;
+
 		using cache_clock = canonical_cache::cache_clock;
 		using canonical_identity = canonical_cache::canonical_identity;
 		using canonical_predicate = canonical_cache::canonical_predicate;
@@ -131,6 +155,31 @@ class sqlite: public tagdb, private snapshot_source {
 		bool _create_missing = true;
 
 		std::unordered_map<stmt_t, sqlite3_stmt*, stmt_t_hash> _stmts;  // lazy cache — only statements actually used are prepared and held
+
+		const relation_semantics _relation_semantics;
+		[[nodiscard]] tagd::code load_relation_declarations(relation_resolver&,
+			const std::set<tagd::id_string>&, const std::set<tagd::id_string>& rank_ids = {});
+		[[nodiscard]] tagd::code format_declaration(tagd::abstract_tag&, const tagd::abstract_tag&,
+			session*, flags_t);
+		[[nodiscard]] tagd::code collect_dependents(std::set<tagd::id_string>&, const tagd::id_string&);
+		[[nodiscard]] tagd::code collect_subtree(std::set<tagd::id_string>&, const tagd::id_string&);
+		[[nodiscard]] tagd::code relation_candidates(std::set<tagd::id_string>&, const tagd::predicate&);
+		[[nodiscard]] tagd::code validate_reparented_roles(const tagd::id_string&);
+		[[nodiscard]] tagd::code expand_relations(tagd::abstract_tag&, const tagd::id_string&,
+			const relation_resolver&, session*, flags_t);
+		[[nodiscard]] tagd::code query_effective(tagd::tag_set&, const tagd::interrogator&, session*, flags_t);
+		[[nodiscard]] tagd::code validate_effective(const std::set<tagd::id_string>&);
+		[[nodiscard]] tagd::code check_inherited_deletion(const tagd::abstract_tag&, const tagd::abstract_tag&);
+		[[nodiscard]] tagd::code put_impl(const tagd::abstract_tag&, session*, flags_t);
+		[[nodiscard]] tagd::code put_transaction(const tagd::abstract_tag&, session*, flags_t,
+			std::set<tagd::id_string>* batch_affected);
+		[[nodiscard]] tagd::code get_type_relations(tagd::type_predicate_set&, const tagd::id_string&);
+		[[nodiscard]] tagd::code insert_type_relations(const tagd::abstract_tag&, size_t&);
+		[[nodiscard]] tagd::code delete_type_relations(const tagd::abstract_tag&);
+		[[nodiscard]] tagd::code validate_declaration(const tagd::abstract_tag&);
+		[[nodiscard]] tagd::code validate_dependencies(const tagd::abstract_tag&);
+		[[nodiscard]] tagd::code check_storage_schema();
+		[[nodiscard]] tagd::code type_dependency_errors(const tagd::id_string&, session*);
 
 		// wrapped by init(), sets _doing_init
 		tagd::code _init(const std::string&);

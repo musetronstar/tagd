@@ -9,6 +9,8 @@ class tagdb;
 
 enum class storage_kind { memory, file, remote };
 enum class open_mode { existing, create };
+// Assertion consistency and application profile overrides are distinct construction policies.
+enum class relation_semantics { assertions, profile_overrides };
 
 // The selected backend interprets resource; remote addresses need not be filesystem paths.
 struct storage_location {
@@ -18,7 +20,7 @@ struct storage_location {
 };
 
 // The caller owns one independent backend and its cache for the opened tagspace.
-std::unique_ptr<tagdb> make_backend();
+std::unique_ptr<tagdb> make_backend(relation_semantics = relation_semantics::assertions);
 
 // Named local storage and file discovery are interpreted by the selected backend.
 std::string storage_directory(const std::string& home);

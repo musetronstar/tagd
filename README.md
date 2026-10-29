@@ -86,7 +86,9 @@ remain deferred.
 
 #### Sub Relation
 
-To define a tag, you must use a *sub relation*, derived from `_sub`, `_is_a`, or `_type_of`:
+To define a tag, use a *subordinate relation* derived from `_sub`, such as
+`_is_a`, to identify its structural parent. The PUT examples below build the
+required parents before their children.
 
 ##### Sub Relation Symbol
 
@@ -103,18 +105,18 @@ you can think of and put into words.
 
 Whoah, we have an error:
 
-	TAGL_ERR _type_of _error
+	TAGL_ERR _is_a _error
 	_caused_by _unknown_tag = mammal
 
 The object (mammal in this case) of a sub relation must also be defined. This
 requires a bit of abstract metaphysical thinking, but here we go:
 
 	>> physical_object <: _entity;
-	>> living_thing _type_of physical_object;
-	>> animal _type_of living_thing;
-	>> vertibrate _type_of animal;
-	>> mammal _type_of vertibrate;
-    >> kind_of <: _type_of;
+	>> living_thing _is_a physical_object;
+	>> animal _is_a living_thing;
+	>> vertibrate _is_a animal;
+	>> mammal _is_a vertibrate;
+    >> kind_of <: _is_a;
 	>> dog kind_of mammal;
 
 The `>>` is the input operator for putting data.  Note the predicate
@@ -133,18 +135,18 @@ It is the only tag having this relation. It is the *root* of a tagspace (tree st
 Now let's put some more tags so that we can define dog more completely:
 
 	>> can <: _rel;
-	>> sound _type_of _event;
-	>> utterance _type_of sound;
-	>> bark _type_of utterance;
-	>> body_part _type_of physical_object;
-	>> legs _type_of body_part;
-	>> tail _type_of body_part
+	>> sound _is_a _event;
+	>> utterance _is_a sound;
+	>> bark _is_a utterance;
+	>> body_part _is_a physical_object;
+	>> legs _is_a body_part;
+	>> tail _is_a body_part
 
 	>> dog
 	can bark
 	_has legs = 4, tail;
 
-Note the missing semicolon (';') after the statement `>> tail _type_of body_part`.
+Note the missing semicolon (';') after the statement `>> tail _is_a body_part`.
 That's not a syntax error.  A statement can be terminated by a semicolon,
 `<EOF>`, or a double newline.
 
@@ -206,6 +208,24 @@ Comments can be used in TAGL like this:
 	-- this is a comment until the end of line
 	-* this is a block comment *-
 
+#### Type Relations
+
+Type relations add inheritance without moving a tag's structural identity.
+`_type_of` and its structural descendants are type relators. They accept one or
+more existing local type objects and have no modifiers:
+
+```tagl
+>> mobile _sub _entity;
+>> animal _type_of mobile;
+>> dog _type_of mobile;
+```
+
+Dog inherits predicates recursively from both its structural ancestors and its
+type objects. Compatible assertions combine; contradictory assertions reject the
+change. GET returns explicit declarations by default. Enable
+`%% _include_inherited_predicates _true;` to display effective predicates as
+ordinary TAGL relations. QUERY always matches effective predicates.
+
 #### GET Statement
 
 Now we can get the tag we've defined:
@@ -230,7 +250,7 @@ of more than one tag in the future.
 
 Let's set up a nonsense tag and delete it:
 
-	>> fangs _type_of body_part;
+	>> fangs _is_a body_part;
 
 	>> turtle kind_of mammal
 	_has legs, fangs;
@@ -256,7 +276,7 @@ And it should no longer exist:
 
 	<< turtle;
 
-	TS_NOT_FOUND _type_of _error
+	TS_NOT_FOUND _is_a _error
 	_caused_by _unknown_tag = turtle
 
 ##### DELETE Grammar:
@@ -270,18 +290,18 @@ Tags (subjects) can be retrieved according to matching predicates using query
 statements.  Let's define some more tags to make it interesting:
 
 	>> lives_in <: _rel;
-	>> substance _type_of _entity;
-	>> fluid _type_of substance;
-	>> water _type_of fluid;
-	>> gas _type_of substance;
-	>> air _type_of gas;
-	>> body_fluid _type_of substance;
-	>> blood _type_of body_fluid;
-	>> fins _type_of body_part;
-	>> gills _type_of body_part;
-	>> hair _type_of body_part;
-	>> scales _type_of body_part;
-	>> breathes _type_of _action;
+	>> substance _is_a _entity;
+	>> fluid _is_a substance;
+	>> water _is_a fluid;
+	>> gas _is_a substance;
+	>> air _is_a gas;
+	>> body_fluid _is_a substance;
+	>> blood _is_a body_fluid;
+	>> fins _is_a body_part;
+	>> gills _is_a body_part;
+	>> hair _is_a body_part;
+	>> scales _is_a body_part;
+	>> breathes _is_a _action;
 
 	>> fish kind_of vertibrate
 	_has gills, fins, scales
@@ -381,7 +401,7 @@ in the future so that tags "referenced by url" can be defined (e.g. "wiki").
 
 Let's put some urls:
 
-	>> about _type_of _rel
+	>> about _is_a _rel
 
 	>> https://en.wikipedia.org/wiki/Dog
 	about dog
@@ -456,14 +476,14 @@ A context is required in a referent statement. However, a referent alias in the
 **Universal Context** is illegal:
 
 	>> is_a _refers_to _is_a;
-	TAGL_ERR _type_of _error
+	TAGL_ERR _is_a _error
 	_caused_by _context = NULL
 
 First, let's create a relevant context `simple_english`:
 
-	>> communication _type_of _message;
-	>> language _type_of communication;
-	>> simple_english _type_of language;
+	>> communication _is_a _message;
+	>> language _is_a communication;
+	>> simple_english _is_a language;
 
 If you would like to alias hard tags, you can do so:
 
@@ -561,7 +581,7 @@ First, here is a gotcha:
 
 Results:
 
-	TS_AMBIGUOUS _type_of _error
+	TS_AMBIGUOUS _is_a _error
 	_has _message = "イヌ refers to a tag with no matching context"
 
 Though there is currently only one referent of "イヌ", its not safe to resolve
@@ -781,12 +801,12 @@ prevents curl from messing with the new line characters.
 
 Let's put some data:
 
-	curl -XPUT http://localhost:2112/_/meow --data '_type_of utterance'
+	curl -XPUT http://localhost:2112/_/meow --data '_is_a utterance'
 	curl -XPUT http://localhost:2112/_/cat --data 'kind_of mammal _can meow _has legs = 4, tail'
 
 Which executes the TAGL statements:
 
-	>> meow _type_of utterance
+	>> meow _is_a utterance
 
 	>> cat kind_of mammal
 	_can meow
@@ -889,6 +909,21 @@ To browse your tagspace, fire up your favorite browser and go to
 `http://localhost:2112/_/mammal?t=html`
 
 So far, that is all that httagd can do.  More features will be coming soon...
+
+### Breaking changes
+
+* `_type_of` is a type relator directly beneath `_entity`, not a subordinate
+  relator. Replace old `_type_of` parent declarations with `_sub` or `_is_a`.
+* SQLite schema version 3 stores explicit type relations separately and preserves
+  modifier type/operator metadata. Earlier databases have incompatible hard-tag
+  ranks or relation data and are rejected. Recreate test databases; review old
+  explicit declarations before importing user data. No automatic migration or
+  deletion is performed.
+* TAGL output quotes numeric-looking strings and marks whole-number floats with
+  `.0`; configuration output can therefore contain `_config:bind_port = "7070"`.
+  Repeated dump/load preserves string escapes and modifier types.
+* QUERY descriptions return whole explicit declarations by default. The inherited
+  display flag expands their ordinary predicates without changing membership.
 
 ### Installation
 

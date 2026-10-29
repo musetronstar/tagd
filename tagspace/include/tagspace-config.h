@@ -28,7 +28,14 @@ class config final : public tagspace {
 	 * volatile _config with TS_MISUSE before mutation.
 	 * See workspace TASKS.d/2026-10-23-persistent-config-tagspace.md.
 	 */
-	mutable tagspace::memory _configspace;
+	class profile_store final : public stored_tagspace {
+	public:
+		profile_store();
+		[[nodiscard]] tagd::code init() {
+			return initialize_memory();
+		}
+	};
+	mutable profile_store _configspace;
 	id_string _subject_id{CONFIG_SUBJECT};
 	bool _runtime = false;
 	bool _home_disabled = false;

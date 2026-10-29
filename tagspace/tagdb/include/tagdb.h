@@ -72,7 +72,6 @@ class tagdb : public tagd::errorable {
 		[[nodiscard]] virtual tagd::code open_named(const std::string& name,
 			const std::string& home, open_mode) = 0;
 		virtual void close() = 0;
-
 		// Backend diagnostics and test controls; tagspace callers need not manage caching.
 		using cache_metrics = canonical_cache::cache_metrics;
 		virtual cache_metrics cache_status() const = 0;

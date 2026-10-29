@@ -13,15 +13,6 @@
 \usepackage{hyperref}
 \usepackage{listings}
 \usepackage{xcolor}
-\usepackage[breakable,skins]{tcolorbox}
-\tcbset{annotation/.style={enhanced,breakable,lines before break=4,boxrule=0pt,frame hidden,
-  borderline west={1pt}{0pt}{gray!60},colback=gray!5,
-  sharp corners,left=8pt,right=8pt,top=5pt,bottom=5pt,
-  fontupper=\small,fonttitle=\small\bfseries,coltitle=black,
-  attach title to upper={\par\smallskip},before skip=8pt,after skip=8pt}}
-\newtcolorbox{implementationnote}{annotation,title=Implementation note}
-\newtcolorbox{developmentnote}{annotation,title=Future development,
-  colback=blue!3,borderline west={1pt}{0pt}{blue!45!black}}
 \usepackage{booktabs}
 \usepackage{geometry}
 \usepackage{tikz}
@@ -59,21 +50,6 @@
   captionpos=b,
 }
 
-% Code listing style for C++
-\lstdefinestyle{cpp}{
-  language=C++,
-  basicstyle=\ttfamily\small,
-  keywordstyle=\color{blue},
-  commentstyle=\color{gray}\itshape,
-  stringstyle=\color{teal},
-  backgroundcolor=\color{gray!8},
-  frame=single,
-  framesep=4pt,
-  rulecolor=\color{gray!40},
-  breaklines=true,
-  captionpos=b,
-}
-
 \title{\textbf{The Mathematics of tagd}\\
 \large A Formal Description of the Mathematical Structures\\
 in the tagd Semantic-Relational System}
@@ -95,7 +71,8 @@ The tagd system was built from a vision of a hierarchical structure of knowledge
 that is fully connected and consistent within itself. This paper makes the
 mathematics of that vision explicit. Its central thesis is that
 \emph{information is structural}: in tagd, meaning is defined through relations.
-A tag is situated by its subordinate relation and described by its predicates.
+A tag is situated by its subordinate relation and described by explicit and
+inherited predicates. Type declarations extend inheritance without relocating tags.
 Rank strings encode this hierarchy as a partial order, whose Alexandrov topology
 gives precise form to containment, neighbourhoods, and continuity. The paper
 develops these connections and explores how they can support a relational
@@ -126,23 +103,12 @@ by a string $\mathrm{id}(t) \in \Sigma^*$, where $\Sigma^*$ denotes the set of
 all finite UTF-8 strings.
 \end{definition}
 
-In TAGL, defining a tag looks like:
-\begin{lstlisting}[style=tagl, caption={Defining a tag via a subordinate relation}]
->> dog _is_a mammal;
-\end{lstlisting}
-Here \texttt{dog} is a tag. Its nominal identity is the string \texttt{"dog"}.
-Its structural identity is defined by its subordinate relation to
-\texttt{mammal}.
+In \texttt{dog \_is\_a mammal}, the label supplies nominal identity and the
+subordinate relation supplies structural identity.
 
 \subsection{The Root and the Axiom}
 
-Every tagspace has a distinguished root tag: \texttt{\_entity}. The README
-states:
-\begin{quote}
-\texttt{\_entity} is axiomatic and self-referencing
-(i.e.\ \texttt{\_entity \_sub \_entity}). It is the only tag having this
-relation. It is the root of a tagspace.
-\end{quote}
+Every tagspace has a distinguished root tag: \texttt{\_entity}.
 
 \begin{definition}[Axiomatic Root]
 The tag \texttt{\_entity} is the \textbf{axiomatic root} of every tagspace. It
@@ -150,15 +116,8 @@ is the unique fixed point of the parent function extended to the root: the one t
 super-object is itself.
 \end{definition}
 
-In TAGL notation:
-\begin{lstlisting}[style=tagl, caption={The axiomatic root}]
-_entity _sub _entity
-\end{lstlisting}
-
-The symbolic operator \texttt{<:} maps to \texttt{\_sub} exactly.
-\begin{lstlisting}[style=tagl, caption={TAGL subordinate symbol}]
-_entity <: _entity
-\end{lstlisting}
+TAGL writes the root axiom as \texttt{\_entity \_sub \_entity}; the symbol
+\texttt{<:} denotes \texttt{\_sub}.
 
 In hierarchical terms, \texttt{\_entity} is the \textbf{root} of the tagspace
 --- the tag that is an ancestor of everything, including itself.
@@ -171,22 +130,7 @@ A tag's structural identity is defined by one subordinate (sub) relation:
 a sub-relator and a parent \cite{spec,thesis}. The code represents these as
 \texttt{sub\_relator} and \texttt{super\_object}.
 
-The sub relators are defined in \texttt{hard-tags.h} \cite{hardtags}:
-\begin{lstlisting}[style=cpp, caption={Sub relator definitions in hard-tags.h}]
-inline constexpr std::string_view HARD_TAG_SUB{"_sub"}; /// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_SUB_RELATOR
-// Leibniz discernment from _sub will come as constraints in TAGL are developed
-inline constexpr std::string_view HARD_TAG_IS_A{"_is_a"}; /// HARD_TAG_SUB HARD_TAG_SUB tagd::POS_SUB_RELATOR
-inline constexpr std::string_view HARD_TAG_TYPE_OF{"_type_of"}; /// HARD_TAG_SUB HARD_TAG_SUB tagd::POS_SUB_RELATOR
-\end{lstlisting}
-
-A typical TAGL knowledge hierarchy:
-\begin{lstlisting}[style=tagl, caption={Building a subordinate hierarchy in TAGL}]
->> physical_object _sub _entity;
->> living_thing _type_of physical_object;
->> animal _type_of living_thing;
->> mammal _type_of animal;
->> dog _is_a mammal;
-\end{lstlisting}
+Structural relators and type relators occupy distinct families in the hard-tag base.
 
 \begin{remark}[Direct subordination versus containment]
 A subordinate relation records the pair $(s,p(t))$, where $s$ is its
@@ -227,21 +171,15 @@ The tree expresses hierarchical knowledge: \texttt{dog} is related to
 \texttt{mammal}, which is related to \texttt{animal}, and so on. Each
 parent step contributes to the tag's structural identity.
 
-\begin{developmentnote}
-Here \texttt{\_is\_a} and \texttt{\_type\_of} both establish subordination;
-their finer logical interpretation is discussed in Section~\ref{sec:future}.
-\end{developmentnote}
+Here \texttt{\_is\_a} establishes subordination. The distinct
+\texttt{\_type\_of} relation adds an inheritance source without changing
+position (Section~\ref{sec:inheritance}).
 
 \section{Rank: Encoding the Tree in Strings}
 
 \subsection{The Rank Function}
 
-Each tag is assigned a \textbf{rank} --- a UTF-8 byte string encoding its
-position in the tagspace tree. The \texttt{rank.h} source states:
-\begin{quote}
-A rank string is the ordinal value of each node in the tagspace tree. A code
-point at a particular level is known as the rank value.
-\end{quote}
+Each tag has a rank encoding its structural position.
 
 \begin{definition}[Rank Function]
 The rank function $r : T \to \Sigma^*$ assigns to each tag a UTF-8 string
@@ -260,23 +198,17 @@ code points along a path; the stored rank is a byte string \cite{bootstrap}:
 \texttt{\_entity}       & (empty)  & level 0, root \\
 \texttt{\_sub}          & 1        & level 1 \\
 \texttt{\_is\_a}        & 1.1      & level 2 \\
-\texttt{\_type\_of}     & 1.2      & level 2 \\
-\texttt{\_rel}          & 2        & level 1 \\
-\texttt{\_has}          & 2.1      & level 2 \\
-\texttt{\_true}         & 3        & level 1 \\
-\texttt{\_false}        & 4        & level 1 \\
-\texttt{\_interrogator} & 5        & level 1 \\
+\texttt{\_type\_of}     & 2        & level 1 \\
+\texttt{\_rel}          & 3        & level 1 \\
+\texttt{\_has}          & 3.1      & level 2 \\
+\texttt{\_true}         & 4        & level 1 \\
+\texttt{\_false}        & 5        & level 1 \\
+\texttt{\_interrogator} & 6        & level 1 \\
 \bottomrule
 \end{tabularx}
 \end{center}
 
 \subsection{The Prefix Partial Order}
-
-The key property of ranks is stated explicitly in \texttt{rank.h}:
-\begin{quote}
-All children of a particular node in the rank hierarchy will be prefixed by the
-parent node --- that is, rank substrings define subtrees in the hierarchy.
-\end{quote}
 
 \begin{definition}[Containership Relation]
 Define the \textbf{containership relation} $\sqsubseteq$ on $T$ by:
@@ -289,28 +221,6 @@ That is, $a \sqsubseteq b$ means $a$ is an ancestor of $b$ (or $a = b$). Tag
 $a$ \emph{contains} tag $b$ in the hierarchy.
 \end{definition}
 
-For nonempty ranks, this prefix test is declared in \texttt{rank.h} and
-implemented by \texttt{rank::contains()} in \texttt{rank.cc}:
-\begin{lstlisting}[style=cpp, caption={Containership via rank prefix in rank.h}]
-// this rank contains the rank being compared,
-// in other words, this rank is a prefix to the other
-bool contains(const rank&) const;
-\end{lstlisting}
-
-\begin{implementationnote}
-The root is represented by the empty prefix. The tagspace-level containment
-API handles it explicitly; \texttt{rank::contains()} compares nonempty ranks.
-\end{implementationnote}
-
-The nonempty-rank test is used in \texttt{tagd.cc} for structural operations on tag sets:
-\begin{lstlisting}[style=cpp, caption={Containership used in merge\_containing\_tags (tagd.cc)}]
-if (b->rank().contains(a->rank())) { // rank can contain itself (b == a)
-    merged++;
-} else if (a->rank().contains(b->rank())) {
-    A.insert(*b);
-}
-\end{lstlisting}
-
 \subsection{Verifying the Partial Order Axioms}
 
 \begin{theorem}
@@ -318,21 +228,8 @@ The containership relation $\sqsubseteq$ is a partial order on $T$.
 \end{theorem}
 
 \begin{proof}
-We verify the three required properties.
-
-\textbf{Reflexivity.} Every string, including the empty string, is a prefix
-of itself. Hence $a \sqsubseteq a$ for all $a \in T$.
-
-\textbf{Antisymmetry.} Suppose $a \sqsubseteq b$ and $b \sqsubseteq a$. Then
-$r(a)$ is a prefix of $r(b)$ and $r(b)$ is a prefix of $r(a)$. A string $u$
-is a prefix of $v$ and $v$ is a prefix of $u$ if and only if $u = v$. Hence
-$r(a) = r(b)$, which implies $a = b$ since ranks uniquely identify a tag's
-position in a tagspace.
-
-\textbf{Transitivity.} Suppose $a \sqsubseteq b$ and $b \sqsubseteq c$. Then
-$r(a)$ is a prefix of $r(b)$ and $r(b)$ is a prefix of $r(c)$. Since the
-prefix relation on strings is transitive, $r(a)$ is a prefix of $r(c)$, so
-$a \sqsubseteq c$.
+Prefix inclusion is reflexive and transitive. Mutual prefix inclusion gives
+equal strings, and injectivity of $r$ then gives equal tags.
 \end{proof}
 
 Therefore $(T, \sqsubseteq)$ is a \textbf{poset} (partially ordered set).
@@ -385,21 +282,8 @@ considered in Section~\ref{sec:common-ground}.
 
 \subsection{Lexicographic Total Order}
 
-Ranks also carry a total \textbf{lexicographic order}, implemented in
-\texttt{rank.h}:
-\begin{lstlisting}[style=cpp, caption={Lexicographic ordering of ranks}]
-bool operator<(const rank& rhs) const { return _data < rhs._data; }
-\end{lstlisting}
-
-This order --- a deliberate UTF-8 design choice noted in \texttt{rank.h}
-(``it collates lexicographically'') --- enables efficient storage and retrieval
-of ranks as a sorted structure. Tags within the same subtree sort together.
-The hierarchy is therefore encoded directly in the ordering of the index.
-
-\begin{implementationnote}
-SQLite uses \texttt{COLLATE BINARY} for the rank column and
-\texttt{ORDER BY rank} in \texttt{.dump\_grid} \cite{sqlite}.
-\end{implementationnote}
+Ranks also carry a total \textbf{lexicographic order}. Strings with a common
+prefix form a contiguous interval, so each structural subtree sorts together.
 
 \subsection{CS Tree versus Topological Poset: Orientation}
 
@@ -411,7 +295,7 @@ the prefix partial order; it also compares unrelated branches. Leaves are
 \textbf{maximal elements} of the partial order, not necessarily greatest in
 lexicographic order.
 
-\section{The Tagspace Topology}
+\section{The Tagspace Topology}\label{sec:topology}
 
 \subsection{From Partial Order to Topology}
 
@@ -454,39 +338,9 @@ $(T, \mathcal{T})$ is a topological space.
 \end{theorem}
 
 \begin{proof}
-We verify the three axioms.
-
-\textbf{(i) $\emptyset \in \mathcal{T}$ and $T \in \mathcal{T}$.}
-The empty set is vacuously upward-closed. The full set $T$ is upward-closed
-because there is no $b \in T$ outside $T$. Both belong to $\mathcal{T}$.
-
-\textbf{(ii) Finite intersections.}
-Let $U, V \in \mathcal{T}$. Suppose $a \in U \cap V$ and $a \sqsubseteq b$.
-Then $b \in U$ (since $U$ is upward-closed) and $b \in V$ (since $V$ is
-upward-closed), so $b \in U \cap V$. Hence $U \cap V \in \mathcal{T}$.
-
-\textbf{(iii) Arbitrary unions.}
-Let $\{U_\alpha\}$ be any collection of sets in $\mathcal{T}$. Suppose
-$a \in \bigcup_\alpha U_\alpha$ and $a \sqsubseteq b$. Then $a \in U_\alpha$
-for some $\alpha$. Since $U_\alpha$ is upward-closed, $b \in U_\alpha
-\subseteq \bigcup_\alpha U_\alpha$. Hence $\bigcup_\alpha U_\alpha \in
-\mathcal{T}$.
+The empty and full sets are up-sets. Arbitrary unions and intersections of
+up-sets remain up-sets, giving both the topology axioms and the Alexandrov property.
 \end{proof}
-
-The intersection argument also holds for arbitrary families, establishing
-the Alexandrov property. Therefore $(T, \mathcal{T})$ is a
-\textbf{topological space}. The following excerpt from
-\texttt{merge\_containing\_tags} illustrates the comparable-root cases of
-subtree intersection: containment of their roots identifies which subtree
-to retain. Representing subtrees by their roots connects the set-theoretic
-operation to the rank-prefix test.
-\begin{lstlisting}[style=cpp, caption={Intersection of subtrees in tagd.cc}]
-if (b->rank().contains(a->rank())) {
-    merged++;
-} else if (a->rank().contains(b->rank())) {
-    A.insert(*b);
-}
-\end{lstlisting}
 
 \subsection{Specialization Order}
 
@@ -498,6 +352,10 @@ $a\in\operatorname{cl}(\{b\})$.
 In the tagspace topology, $a\leq_{\mathrm{sp}}b$ if and only if
 $a\sqsubseteq b$: the singleton closure consists of the tag and its ancestors.
 \end{proposition}
+\begin{proof}
+Every neighbourhood of $a$ contains $b$ iff its smallest neighbourhood $D(a)$
+does, which is precisely $a\sqsubseteq b$.
+\end{proof}
 
 Thus $\texttt{animal}\leq_{\mathrm{sp}}\texttt{mammal}
 \leq_{\mathrm{sp}}\texttt{dog}$. Topological specialization in this
@@ -517,6 +375,12 @@ A map $f : T_1 \to T_2$ is continuous (with respect to the Alexandrov
 topologies) if and only if it is order-preserving: whenever
 $a \sqsubseteq b$ in $T_1$, we have $f(a) \sqsubseteq f(b)$ in $T_2$.
 \end{proposition}
+\begin{proof}
+A monotone map pulls up-sets back to up-sets, so it is continuous.
+Conversely, continuity makes $f^{-1}(D(f(a)))$ open and containing $a$.
+If $a\sqsubseteq b$, this preimage contains $b$, hence
+$f(a)\sqsubseteq f(b)$.
+\end{proof}
 
 This gives a precise mathematical definition of a
 \textbf{hierarchy-preserving map} between tagspaces. If
@@ -529,22 +393,7 @@ additional conditions when a map is to preserve the full semantic structure.
 
 \subsection{Hard Tags}
 
-Tagspaces initialized with the same hard-tag definitions contain
-the same hard-tag hierarchy, defined in \texttt{hard-tags.h}
-\cite{hardtags}:
-
-\begin{lstlisting}[style=cpp, caption={Core hard tag definitions in hard-tags.h}]
-inline constexpr std::string_view HARD_TAG_ENTITY{"_entity"}; /// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
-inline constexpr std::string_view HARD_TAG_SUB{"_sub"}; /// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_SUB_RELATOR
-inline constexpr std::string_view HARD_TAG_IS_A{"_is_a"}; /// HARD_TAG_SUB HARD_TAG_SUB tagd::POS_SUB_RELATOR
-inline constexpr std::string_view HARD_TAG_TYPE_OF{"_type_of"}; /// HARD_TAG_SUB HARD_TAG_SUB tagd::POS_SUB_RELATOR
-inline constexpr std::string_view HARD_TAG_RELATOR{"_rel"}; /// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_RELATOR
-inline constexpr std::string_view HARD_TAG_HAS{"_has"}; /// HARD_TAG_SUB HARD_TAG_RELATOR tagd::POS_RELATOR
-inline constexpr std::string_view HARD_TAG_CAN{"_can"}; /// HARD_TAG_SUB HARD_TAG_RELATOR tagd::POS_RELATOR
-inline constexpr std::string_view HARD_TAG_TRUE{"_true"}; /// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TRUE
-inline constexpr std::string_view HARD_TAG_FALSE{"_false"}; /// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_FALSE
-inline constexpr std::string_view HARD_TAG_INTERROGATOR{"_interrogator"}; /// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_INTERROGATOR
-\end{lstlisting}
+Tagspaces using the same hard-tag definitions contain a common hierarchy.
 
 \subsection{The Hard Tag Subspace}
 
@@ -581,7 +430,6 @@ user tags $a,b$, overlap without either containing the other. Laminarity
 applies to descendant subtrees within one tree. Equal labels alone do not
 establish agreement between independently defined user tags.
 
-\begin{developmentnote}
 For extensions in which $H$ contains every ancestor of its tags, gluing
 only the copies of $H$ gives a \textbf{categorical pushout}
 $T_1\amalg_H T_2$ in posets with monotone maps. Keep the user tags distinct
@@ -589,18 +437,9 @@ and inherit each tree's parent relation. The result is again a rooted tree:
 parents agree on $H$, and every other tag retains its original parent.
 Any two monotone maps agreeing on $H$ extend uniquely to this union,
 which is the pushout's universal property. The Alexandrov functor of
-Section~8.1, being a left adjoint, carries this pushout to topological spaces.
+Section~\ref{sec:adjunction}, being a left adjoint, carries this pushout to topological spaces.
 This supplies a precise model for combining worlds; reconciling user labels,
 predicates, and rank assignments remains part of the merge design.
-\end{developmentnote}
-
-\begin{implementationnote}
-The hard-tag hierarchy provides the shared vocabulary used by \texttt{httagd},
-the embedded HTTP application server having a Web API which maps to
-\texttt{TAGL} - \emph{the language is the service}. Hard-tag definitions,
-including ranks, can change between versions; the signed versioning scheme in
-Section~\ref{sec:merkle} would make agreement on a particular base explicit.
-\end{implementationnote}
 
 \noindent\begin{minipage}{\linewidth}
 \begin{lstlisting}[style=tagl, caption={A shared hard-tag version; distinct user extensions}]
@@ -620,18 +459,6 @@ Predicate relators are themselves tags --- subordinate to \texttt{\_rel} in
 the tagspace tree. This means predicates are not outside the system; they are
 \emph{inside} it. The tagspace is self-describing.
 
-For example, predicate relators occupy related positions in the hierarchy
-\cite{bootstrap}:
-\begin{verbatim}
-_rel     rank: 2        (root of predicate relators)
-_has     rank: 2.1
-_can     rank: 2.2
-_refers  rank: 2.3
-\end{verbatim}
-
-The language used to attach meaning to tags is itself expressed in the same
-structural language.
-
 \subsection{Predicates as Horizontal Relations}
 
 Predicates are relations attached to a tag that do not alter its position in
@@ -645,18 +472,21 @@ records one relator, one object, and optional modifier information
     _can bark;         -- horizontal: predicate data at dog
 \end{lstlisting}
 
-\subsection{The Two-Layer Structure}
+\subsection{Declared Predicate Fibers}
 
-The tagspace carries two distinct mathematical layers:
+The structural base and declared predicates have the following decomposition.
+It describes the predicate data within the integrated model; the additional
+type dependencies are given in Section~\ref{sec:inheritance}:
 
-\begin{definition}[Two-Layer Tagspace Structure]
+\begin{definition}[Structural Base and Predicate Fibers]
 \begin{enumerate}
   \item \textbf{Base space}: the topological space $(T, \mathcal{T})$ defined
         by subordinate relations and ranks --- the vertical dimension.
   \item \textbf{Fiber}: at each tag $t \in T$, a set of predicates
-        $P(t) \subseteq \mathrm{Rel} \times T \times \mathrm{Mod}$ --- the
+        $P(t) \subseteq \mathrm{Rel} \times T \times \mathrm{Constraint}$ --- the
         horizontal dimension, where $\mathrm{Rel}$ is the set of relator tags
-        and $\mathrm{Mod}$ is the set of modifier values.
+        and $\mathrm{Constraint}$ records a comparison and typed modifier, or a bare
+        assertion. $\mathrm{Mod}$ denotes the supported semantic value domain.
 \end{enumerate}
 \end{definition}
 
@@ -683,72 +513,104 @@ set-theoretic sense.
 The projection $\pi$ brings the two layers together: the base space records
 hierarchical position, and the fiber records the predicates attached there.
 
-\begin{developmentnote}
 This suggests a connection with \textbf{fiber bundles}. A topological
 bundle structure requires a topology on $E$, continuity of $\pi$, and
 local trivializations $\pi^{-1}(U)\cong U\times F$ respecting projection.
 Ordering predicates by rank can support indexing; establishing these
 bundle conditions is a separate mathematical construction.
-\end{developmentnote}
 
-\begin{implementationnote}
-The \texttt{predicate\_set} iteration order uses the relator's rank, then
-the object's rank, then the modifier's literal UTF-8 bytes; an absent
-modifier precedes a present value. Operator and modifier-type metadata
-break otherwise equal keys. Canonical ranks are resolved before contextual
-referent encoding and retained privately by returned snapshot values.
-Comparators perform no storage access. Numeric membership equivalence remains
-separate from this literal ordering \cite{tagdcc,tagdh}. This aligns predicate
-iteration with the hierarchy. For Alexandrov topologies on $E$ and $T$, continuity of
-$\pi$ additionally requires an order on $E$ for which
-$(t,q)\leq_E(t',q')$ implies $t\sqsubseteq t'$; sorting alone does not
-establish this condition or local triviality.
-\end{implementationnote}
+\section{Inheritance}\label{sec:inheritance}
 
-The \texttt{abstract\_tag} class in \texttt{tagd.h} encodes exactly this
-decomposition:
-\begin{lstlisting}[style=cpp, caption={Schematic two-layer structure in abstract\_tag (tagd.h)}]
-class abstract_tag {
-    tagd::rank    _rank;       // position in the base space
-    predicate_set relations;  // fiber: additional data at this point
-};
-\end{lstlisting}
+Each tag $s$ explicitly declares type objects $\tau(s)\subseteq T$ through
+modifier-free type relations. Draw $s\to p(s)$ for $s\ne\bot$ and
+$s\to y$ for each stored type object $y\in\tau(s)$. Require this finite
+dependency graph to be acyclic. Ordinary predicate references remain data.
 
-\begin{implementationnote}
-The predicate tuple above suppresses the operator and modifier-type fields
-of \texttt{predicate}, and allows an absent modifier. These fields remain
-part of the stored C++ predicate value.
-\end{implementationnote}
+\begin{definition}[Inheritance order]
+$x\preceq s$ iff $s\to^{*}x$. The inheritors of $x$ are the principal up-set
+$I(x)=\{s:x\preceq s\}$.
+\end{definition}
+
+\begin{proposition}
+$\preceq$ is a partial order with least element $\bot$, and
+${\sqsubseteq}\subseteq{\preceq}$. Its Alexandrov topology satisfies
+$\mathcal T_{\preceq}\subseteq\mathcal T$.
+\end{proposition}
+\begin{proof}
+Reflexivity and transitivity hold by construction; $x\preceq s\preceq x$
+with $x\ne s$ would give a cycle. Every tag reaches $\bot$ through parents,
+and $x\sqsubseteq s$ places $x$ on that chain. A $\preceq$-up-set is
+therefore a $\sqsubseteq$-up-set.
+\end{proof}
+
+Ranks encode $\sqsubseteq$; type relations extend the inheritance order
+without changing ranks or identifying subjects.
+
+\begin{definition}[Predicate specialization and normalization]
+Write $q\mathrel{\triangleright}p$ when $p$ is bare, both its relator and
+object are structural ancestors of the corresponding components of $q$,
+and at least one component is strictly more specific or $q$ supplies a value.
+For a finite set $S$, define
+\[
+ \nu(S)=\{p\in S:\nexists q\in S\;(q\mathrel{\triangleright}p)\},\qquad
+ \bar P(s)=\nu\!\left(\bigcup_{x\preceq s}P(x)\right).
+\]
+$\bar P(s)$ is the set of effective predicates. Set union includes a shared
+source once, independently of the number of paths to it. Explicit declarations
+and distinct typed valued contributions are preserved at their sources.
+\end{definition}
+
+\begin{definition}[Consistency and valued satisfaction]
+For an exact relator--object pair $k$, let $C_k(x)\subseteq\mathrm{Mod}$
+be the values admitted by $x$'s supplied constraints on $k$, or
+$\mathrm{Mod}$ if none are supplied. Define
+\[
+ A_k(s)=\bigcap_{x\preceq s}C_k(x).
+\]
+A state is consistent when every such intersection has a representable witness.
+Let $V_k(s)$ mean that some source $x\preceq s$ supplies a modifier on $k$.
+A valued query admitting $Q\subseteq\mathrm{Mod}$ holds at $s$ iff
+$V_k(s)$ and $\varnothing\ne A_k(s)\subseteq Q$.
+\end{definition}
+
+The presence condition excludes missing and wholly unspecified values.
+Bare predicates impose no value constraint. Values on different exact pairs
+remain independent, and numeric and textual constraints do not coerce into
+one another. For example, $2<v<5$ admits $3$ but does not entail $v=3$.
+Consistency is checked on all contributions before normalization.
+
+\begin{proposition}[Persistence]
+If $x\preceq s$, then $A_k(s)\subseteq A_k(x)$. In a consistent state,
+tags satisfying a valued query form a $\preceq$-open set.
+\end{proposition}
+\begin{proof}
+Transitivity gives $\{y:y\preceq x\}\subseteq\{y:y\preceq s\}$, so the
+intersection for $s$ includes every constraint for $x$. The supplied-value
+witness at $x$ is also a source of $s$. Thus $V_k(x)$ and $A_k(x)\subseteq Q$
+imply $V_k(s)$ and $\varnothing\ne A_k(s)\subseteq Q$.
+\end{proof}
+
+Persistence concerns satisfaction within a fixed state. Normalization can
+replace a bare general predicate by a more specific one while preserving
+that satisfaction. Mutation validation maintains consistency between states;
+its operational contract is specified by TAGL \cite{spec}.
 
 \subsection{Query Semantics as Selection of Sets}
 
-Queries select sets of tags through hierarchy and predicates. A subtree
-constraint at $x$ selects from $D(x)$, while predicate conditions inspect
-the attached sets $P(t)$. A predicate-filtered result can be any subset of
-the selected subtree; it need not itself be open or closed.
+A structural selector without predicates returns the immediate children of $x$.
+With a predicate condition, it selects within the subtree $D(x)$ under
+$\sqsubseteq$. Positive predicate conditions inspect $\bar P(t)$ under $\preceq$. Unrestricted effective positive
+predicates give inheritance-open sets. Structural filters, full-text searches,
+and arbitrary state-inspection queries need not give inheritance-open results.
 
-\begin{implementationnote}
-The query interface also distinguishes immediate children from whole
-subtrees. A query with only a subordinate relation selects immediate
-children; predicate queries use rank-prefix matching and combine results
-through containment \cite{sqlite,tagdcc}.
-\end{implementationnote}
-For a concrete example, the supplied animal hierarchy defines
-\texttt{dog}, \texttt{cat}, \texttt{whale}, and \texttt{bat} beneath
-\texttt{mammal}, attaches \texttt{\_has blood} to \texttt{mammal}, and
-\texttt{can bark} to \texttt{dog} \cite{bootstrap}:
-\begin{lstlisting}[style=tagl, caption={Hierarchy and predicate selection}]
-?? _what _sub mammal;          -- dog, cat, whale, bat
-?? _what _has blood;           -- mammal
-?? _what can bark;             -- dog
-?? _what _has blood can bark;  -- dog
+\begin{lstlisting}[style=tagl, caption={Structure and effective predicate selection}]
+?? _what _sub mammal;          -- immediate structural children
+?? _what _has blood;           -- mammal and its inheritors
+?? _what can bark;             -- dog and its inheritors
+?? _what _has blood can bark;  -- subjects satisfying both effectively
 \end{lstlisting}
-\begin{implementationnote}
-Here \texttt{can} is the example's user-defined relator. The final query
-retains \texttt{dog}, the more specific root within the matching
-\texttt{mammal} subtree. This illustrates how rank containment combines
-hierarchical selections, beyond literal intersection of returned labels.
-\end{implementationnote}
+Here \texttt{can} is the example's user-defined relator. An inherited blood
+assertion and a local bark assertion can jointly establish the final query.
 
 \section{Structural Identity}
 
@@ -769,27 +631,19 @@ what it means within the system.
 
 \subsection{The Canonical Form}
 
-Canonical serialization expresses the tagspace as TAGL text. From
-the tagd Design Thesis \cite{thesis}:
-\begin{quote}
-The canonical form of a tagspace is its dump --- the UTF-8 TAGL code that
-represents the tagspace (and can be loaded).
-\end{quote}
+Canonical serialization expresses explicit declarations as TAGL text \cite{thesis}.
 
 The defining requirement for canonical serialization is the round-trip law
 \[
 \mathrm{load}(\mathrm{dump}(T))\cong T,
 \]
-where the isomorphism preserves labels, subordinate relations, and predicates.
+where the isomorphism preserves labels, subordinate relations, type declarations,
+and predicate values with their operator and type metadata.
 The text then represents the same relational structure in a form that can
 be stored, exchanged, and reconstructed.
 
-\begin{developmentnote}
-Completing this law for \texttt{dump()} is a planned development
-(Section~\ref{sec:future}). Cryptographic versioning additionally requires
-a deterministic encoding of all committed fields, so equivalent inputs
-produce identical bytes (Section~\ref{sec:merkle}).
-\end{developmentnote}
+Cryptographic versioning additionally requires deterministic encoding
+(Section~\ref{sec:merkle}).
 
 \section{Deeper Structures}
 
@@ -800,7 +654,7 @@ and developing it further. Category theory, introduced by Samuel Eilenberg
 and Saunders Mac Lane \cite{categories}, supplies the language of functors,
 adjunctions, and universal constructions used here.
 
-\subsection{The Adjunction Between Order and Topology}
+\subsection{The Adjunction Between Order and Topology}\label{sec:adjunction}
 
 The relationship between the tagspace as a partial order and the tagspace as a
 topological space is not incidental. It is a formal \textbf{adjunction} --- one
@@ -811,7 +665,7 @@ Two functors mediate between the two views:
 \begin{itemize}
   \item $A : \mathbf{PreOrd} \to \mathbf{Top}$ (the \emph{Alexandrov functor})
         takes the rank prefix partial order on tags and produces the Alexandrov
-        topological space described in Section~4.
+        topological space described in Section~\ref{sec:topology}.
   \item $S : \mathbf{Top} \to \mathbf{PreOrd}$ (the \emph{specialization
         functor}) takes any topological space and recovers a preorder:
         $a \leq b$ iff every open set containing $a$ also contains $b$.
@@ -843,8 +697,8 @@ set $N(x)$ of descendants of $x$, including $x$ itself. The single set
 $N(x)$ forms a local base at $x$.
 
 \textbf{Locally compact.} For any tag $x$, the smallest open neighbourhood
-$U(x)$ is compact in the Alexandrov topology. Any open cover of $U(x)$ must
-include a member containing $x$, which then contains all of $U(x)$,
+$N(x)$ is compact in the Alexandrov topology. Any open cover of $N(x)$ must
+include a member containing $x$, which then contains all of $N(x)$,
 giving a one-member subcover. This proves compactness of the smallest
 open neighbourhood, without a Hausdorff assumption.
 
@@ -859,69 +713,57 @@ for example, the result of a \texttt{query()} or all descendants of a given tag
 --- inherits an Alexandrov subspace topology. Subsets can therefore be
 studied with the order and topology restricted to their own tags.
 
-\subsection{Modal Operators: Interior and Closure}
-\label{sec:modal}
+\subsection{Modal Operators: Interior and Closure}\label{sec:modal}
 
-In any topological space, the \textbf{interior} and \textbf{closure} operators
-are well-defined. In the tagspace, they carry semantic meaning.
-
-\begin{center}
-\begin{tabularx}{\textwidth}{@{}YYY@{}}
-\toprule
-\textbf{Topological operator} & \textbf{Modal logic} & \textbf{tagd meaning} \\
-\midrule
-Interior $\mathrm{int}(U)$ & Necessarily ($\square$) & Properties true at a tag and all its descendants \\
-Closure $\mathrm{cl}(U)$ & Possibly ($\lozenge$) & Properties true at a tag or some descendant \\
-\bottomrule
-\end{tabularx}
-\end{center}
-
-\bigskip
-
-The power set $\mathcal{P}(T)$, with this interior operator, is an
-\textbf{interior algebra}. Interior and closure give a logical reading
-of the neighbourhood structure.
-
-Furthermore, because the Alexandrov topology arises from a partial order, the
-tagspace constitutes a \textbf{Kripke frame}, in Saul Kripke's relational
-semantics: a set of worlds (tags) equipped
-with an accessibility relation (the ancestor-first order). A predicate $P$ is
-\emph{necessarily true} at tag $x$ (written $\square P(x)$) if $P$ holds at
-every tag in $D(x)$. It is \emph{possibly true} ($\lozenge P(x)$)
-if $P$ holds at some tag in $D(x)$.
-
-Reflexivity and transitivity make this an \textbf{S4 frame}, validating
-the modal system S4 of C. I. Lewis \cite{modal}. In particular,
+Use the inheritance topology for effective propositions. Its Kripke
+accessibility is $xRy\iff x\preceq y$. For any valuation $V\subseteq T$,
 \[
- \textbf{T}:\quad\square P\to P,
- \qquad
- \textbf{4}:\quad\square P\to\square\square P.
+ \square V=\{x:I(x)\subseteq V\}=\operatorname{int}(V),\qquad
+ \lozenge V=\{x:I(x)\cap V\ne\varnothing\}=\operatorname{cl}(V).
 \]
-Axiom T holds because $x\in D(x)$; axiom 4 holds because
-$y\in D(x)$ implies $D(y)\subseteq D(x)$. Thus necessity includes the tag
-itself and propagates to its descendants. A particular tagspace may
-validate additional formulas beyond S4.
+Necessity checks every inheritor, including the subject; possibility has an
+inheritor witnessing the valuation. The structural topology has analogous
+operators using $D(x)$.
 
-\begin{lstlisting}[style=tagl, caption={Modal reading of TAGL predicates}]
--- "dog necessarily _has legs" if dog and all descendants of dog _has legs
--- "dog possibly _can bark" if dog or some descendant of dog _can bark
-\end{lstlisting}
+\begin{proposition}[S4 frame]
+The inheritance frame validates $\square P\to P$ and
+$\square P\to\square\square P$.
+\end{proposition}
+\begin{proof}
+Reflexivity gives $x\in I(x)$. Transitivity gives
+$y\in I(x)\Rightarrow I(y)\subseteq I(x)$, so a valuation true throughout
+$I(x)$ is necessarily true at every $y\in I(x)$.
+\end{proof}
+The interior algebra on $\mathcal P(T)$ supplies the usual S4 semantics
+\cite{modal}. More specific frames can validate additional formulas.
 
-\begin{developmentnote}
-This supplies the semantics for a future modal query evaluator
-(Section~\ref{sec:future}).
-\end{developmentnote}
+\begin{proposition}[Possibility and branching]
+$\lozenge$ maps every inheritance-open set to an open set iff each
+principal up-set $I(x)$ is directed: any $y,z\in I(x)$ have a common
+upper bound.
+\end{proposition}
+\begin{proof}
+Suppose $x\in\lozenge P$ for open $P$, witnessed by $z\in I(x)\cap P$.
+For $y\in I(x)$, directedness supplies $w\succeq y,z$. Openness gives
+$w\in P$, hence $y\in\lozenge P$. Conversely, given $y,z\in I(x)$,
+apply preservation to $P=I(z)$. Since $x\in\lozenge I(z)$, openness gives
+$y\in\lozenge I(z)$, providing a common upper bound of $y$ and $z$.
+\end{proof}
+At a fork without a common extension, a possible open proposition can
+therefore cease to be possible along the other branch.
 
-\begin{remark}[Modal direction]
-For a valuation $V\subseteq T$ and accessibility $xRy\iff x\sqsubseteq y$,
-\[
-\square V=\{x:N(x)\subseteq V\}=\mathrm{int}(V),\qquad
-\lozenge V=\{x:N(x)\cap V\ne\varnothing\}=\mathrm{cl}(V).
-\]
-Both modalities use the same accessibility direction. Existential search
-among ancestors instead uses the converse relation and belongs to the
-dual-topology reading.
-\end{remark}
+\begin{proposition}[Double negation]
+For an open proposition $P$, $\square P=P$ and $\square\lozenge P=\neg\neg P$
+in the open-set Heyting algebra.
+\end{proposition}
+\begin{proof}
+An open set equals its interior. Intuitionistic negation is
+$\neg P=\operatorname{int}(T\setminus P)$, while
+$\operatorname{cl}P=T\setminus\operatorname{int}(T\setminus P)$.
+Taking interiors gives the second identity.
+\end{proof}
+These equalities concern sets of satisfying worlds. Constructive evidence
+for a proposition is the separate dependent-type structure below.
 
 \subsection{Constructive Existence: Tags as Witnesses}
 \label{sec:constructive}
@@ -952,168 +794,61 @@ existential witness. The evidence establishes the relation within the
 tagspace; further interpretations of \texttt{\_is\_a} require their own
 rules.
 
-\begin{developmentnote}
 A proof-carrying formalization can make this evidence explicit as a term
 $e:Q(t)$ and certify the tagspace invariants. Its typing and validation
 rules would connect TAGL constructions to the established BHK and
 Curry--Howard interpretations (Section~\ref{sec:mltt}).
-\end{developmentnote}
 
-\section{Planned Future Developments}
-\label{sec:future}
-
-The mathematical structure provides a foundation for further implementation
-and exploration. The developments below extend that foundation.
-
-\subsection{Completing the Structural Operations}
-
-\begin{developmentnote}
-Mutation validation must preserve the rooted tree and its rank encoding.
-Consistent root handling across containment and sorting, together with
-lossless, dependency-ordered serialization, completes the correspondence
-between these operations and the mathematical model.
-
-Explicit numeric hard tags (\texttt{\_number}, \texttt{\_integer}, and
-\texttt{\_float}) and logical distinctions between instance and type
-subordination are further developments. Numeric modifiers and the existing
-sub-relators already provide their starting points.
-\end{developmentnote}
+\section{Directions for Formalization}\label{sec:future}
 
 \subsection{Kripke Semantics and Modal Queries}
+A modal evaluator would implement the operators of Section~\ref{sec:modal}
+over $I(x)$. Its proof obligations include preserving the distinction between
+arbitrary state tests and persistent open propositions.
 
-\begin{developmentnote}
-An evaluator for $\square$ and $\lozenge$ would make the semantics of
-Section~\ref{sec:modal} directly available to TAGL queries and guards.
-It would evaluate necessity and possibility over the descendant
-neighbourhood $D(x)$, connecting logical assertions to rank containment.
-\end{developmentnote}
+\subsection{Martin-L\"{o}f Type Theory and Dependent Structure}\label{sec:mltt}
+The indexed family $P(t)$ gives a set-theoretic dependent sum
+$\sum_{t:T}P(t)$. Evidence types $Q(t)$ instead give proofs $(t,e)$ with
+$e:Q(t)$, and a dependent function $f:\prod_{t:T}Q(t)$ provides evidence
+$f(t):Q(t)$ for every tag \cite{mltt}. A verified evaluator needs explicit
+typing, equality, and total computation rules for these evidence types.
 
-\subsection{Martin-L\"{o}f Type Theory and Dependent Structure}
-\label{sec:mltt}
+\subsection{Computation and Processes}
+Functions represented as tags and message-based processes are proposed in the
+TAGL specification and design thesis \cite{spec,thesis}. Order-preserving
+computations would be continuous maps of the chosen tagspace orders. A runtime
+must establish the corresponding typing and evaluation invariants.
 
-\begin{developmentnote}
-The predicate sets $P(t)$ form an indexed family over $T$. Their disjoint
-union has the structure of a dependent sum:
-\[
-  \sum_{t\in T}P(t)=\{(t,q):t\in T,\ q\in P(t)\}.
-\]
-This is the set-theoretic model of a $\Sigma$-type in MLTT
-\cite{mltt}: $(t,q)$ records a tag and attached predicate data.
-A proof-carrying version instead pairs $t$ with evidence $e:Q(t)$ for a
-specified proposition, as in Section~\ref{sec:constructive}. Distinguishing
-predicate data $P(t)$ from proof types $Q(t)$ makes the logical claim precise.
+\subsection{Signed Merkle Versions of Tagspaces}\label{sec:merkle}
+Canonical declarations can support a Merkle commitment by structural recursion
+from leaves to root \cite{merkle}. The encoding must cover labels, ranks,
+subordinate relations, explicit type relations, and complete predicate metadata.
+A signed manifest can authenticate the encoding version and separate commitments
+to the hard-tag base and full tagspace \cite{signatures}; identity of digests
+then depends on collision resistance and deterministic encoding.
 
-The complementary construction is the \textbf{dependent product}, or
-$\Pi$-type: a term $f:\prod_{t:T}Q(t)$ supplies evidence $f(t):Q(t)$ for
-every tag, interpreting universal quantification. When the result type is
-constant, this specializes to an ordinary function type. These established
-constructions provide a foundation for verified TAGL functions; realizing
-it requires typing, equality, and computation rules with total,
-proof-preserving evaluation. The rank function remains the string-valued
-encoding of position; the indexed families supply the dependent structure.
-\end{developmentnote}
+\appendix
+\section{Implementation Correspondences}
 
-\subsection{Computation as Topological Traversal}
-
-\begin{developmentnote}
-The TAGL specification and design thesis propose functions as tags,
-single-assignment variables, modal guards, and asynchronous processes
-\cite{spec,thesis}. These planned language features extend the relational
-model from knowledge representation toward computation.
-\begin{lstlisting}[style=tagl, caption={Proposed function syntax}]
->> greet($name) _is_a function
-    -> "Hello, " ++ $name;
-\end{lstlisting}
-A function represented as a tag can participate in the same hierarchy and
-predicate relations as other tags. Modal guards can express conditions on
-its neighbourhood, while TAGL serialization provides a common language
-for exchanging structures between processes.
-
-Under the MLTT interpretation, total functions with dependent result types
-inhabit $\Pi$-types (Section~\ref{sec:mltt}); the proposed runtime needs
-corresponding typing and evaluation rules to support this proof interpretation.
-
-The topological question is then precise: which computations preserve the
-ancestry order? Whenever a computation defines an order-preserving map
-between tagspaces, it is continuous. Establishing such maps would connect
-execution to the topology already present in the representation.
-\end{developmentnote}
-
-\subsection{Signed Merkle Versions of Tagspaces}
-\label{sec:merkle}
-
-\begin{developmentnote}
-A finite tagspace tree supports a Merkle construction by recursion from
-leaves to root \cite{merkle}. Let $L(t)$ encode a tag's label, rank,
-subordinate relation, and complete predicate data. If $c_1,\ldots,c_k$
-are its children (its upper covers), ordered lexicographically by rank, set
-\[
- h(t)=\operatorname{Hash}\!\left(\operatorname{Enc}
-   (\texttt{tagd-node-v1},L(t),[h(c_1),\ldots,h(c_k)])\right).
-\]
-Here $\operatorname{Enc}$ is an unambiguous canonical encoding with field
-boundaries and deterministic ordering of predicate sets; leaves use an
-empty child list. Predicate references are encoded as data, so recursion
-follows only the tree. Finiteness makes this definition well-founded.
-With a collision-resistant hash, the root digest commits to the encoded
-hierarchy and predicates. This is an exact representation commitment:
-labels and ranks matter, even when two underlying topologies are isomorphic.
-
-Compute a separate digest $h_H$ from the hard-tag base alone, excluding
-user extensions, and $h_T=h(\texttt{\_entity})$ from the full tagspace.
-A signed manifest can bind the version, encoding and hash algorithm,
-$h_H$, and $h_T$. Verification under a trusted public key authenticates
-that versioned commitment \cite{signatures}; matching base digests then
-establish the common $H$ assumed in Section~\ref{sec:common-ground}, under
-the collision-resistance assumption. Agreement on this base supports
-interoperability while allowing user-defined worlds to differ.
-\end{developmentnote}
-
-\section{Summary}
-
-Table~\ref{tab:summary} brings together the mathematical structures and
-their roles in tagd.
-
-\begin{table}[htbp]
-\centering
-\small
-\begin{tabularx}{\textwidth}{@{}YYY@{}}
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}YY@{}}
 \toprule
-\textbf{Structure} & \textbf{tagd correspondence} & \textbf{Role} \\
+\textbf{Mathematical structure} & \textbf{Code symbol or representation} \\
 \midrule
-Rooted tree / prefix poset & Parent fields and unique ranks & Structural identity and containment \\
-Lexicographic total order & Rank byte comparison; SQL binary collation & Contiguous ordering of subtrees \\
-Alexandrov topology & Descendant-closed open sets & Neighbourhoods determined by containment \\
-Common subspace & Hard-tag hierarchy $H$ & Shared relational vocabulary \\
-Predicate fibers & Sets $P(t)$ and their disjoint union & Horizontal relations over the hierarchy \\
-Continuous maps & Monotone maps of tagspace posets & Preservation of ancestry \\
-Adjunction $A\dashv S$ & Passage between preorders and spaces & Recovery of order from topology \\
-Local topological properties & Smallest open neighbourhoods $D(x)$ & Local bases, compactness, and paths \\
-Interior algebra / S4 Kripke frame & $\mathcal{P}(T)$ and accessibility $\sqsubseteq$ & Modal semantics; evaluator planned \\
-Canonical serialization & Lossless, dependency-safe round trips & Reconstruction of structure; completion planned \\
-Dependent types / proof witnesses & Indexed predicate families and invariant proofs & Future formalization \\
-Functions, guards, processes & Proposed TAGL runtime & Planned language developments \\
-Signed Merkle versions & Canonical node hashes and signed base commitments & Planned verification of shared versions \\
+Structural parent and identity & \texttt{abstract\_tag::super\_object}, \texttt{sub\_relator} \\
+Prefix order $\sqsubseteq$ & \texttt{rank}; empty root handled by tagspace containment \\
+Type declarations $\tau(s)$ & \texttt{type\_predicate\_set}, \texttt{abstract\_tag::type\_relations} \\
+Explicit predicates $P(s)$ & \texttt{predicate\_set}, \texttt{abstract\_tag::relations} \\
+Inheritance order $\preceq$ & Reachability through structural parents and type objects \\
+Normalization $\nu$ & \texttt{normalize\_predicates} \\
+Effective predicates $\bar P(s)$ & \texttt{tagdb::relation\_resolver} \\
+Canonical serialization & TAGL \texttt{dump}; explicit declarations and typed modifiers \\
 \bottomrule
 \end{tabularx}
-\caption{Mathematical structures and their roles in tagd.}
-\label{tab:summary}
-\end{table}
-
-\section{Conclusion}
-
-The mathematics of tagd gives form to its central principle:
-\emph{to be, is to be related}. Tags acquire structural identity through
-their place in a hierarchy and meaning through their relations. Rank
-prefixes encode that hierarchy as a partial order, with \texttt{\_entity}
-as its least element. The associated Alexandrov topology makes subtrees
-open neighbourhoods and ancestry the closure of a tag.
-
-Predicates supply the second layer: an indexed family of fibers over this
-space. Together, hierarchy and predicates express knowledge as relational
-structure. Order, topology, and logic offer complementary ways to reason
-about it. The proposed developments in modal queries, formal verification,
-and computation build on this foundation.
+\end{center}
+The language and storage contracts are specified in TAGL \cite{spec};
+source definitions are maintained in the corresponding modules
+\cite{hardtags,rankh,tagdh,tagdcc,sqlite}.
 
 \begingroup
 \small
@@ -1132,8 +867,9 @@ tagd source code, \texttt{tagd/include/tagd.h}.
 \texttt{abstract\_tag}, \texttt{predicate\_set}, and tag set operations.
 
 \bibitem{tagdcc}
-tagd source code, \texttt{tagd/src/tagd.cc}.
-\texttt{merge\_containing\_tags} and merge operations.
+tagd source code, \texttt{tagd/src/effective-predicate.cc} and
+\texttt{tagspace/tagdb/src/relation-resolver.cc}.
+Predicate specialization, normalization, and effective satisfaction.
 
 \bibitem{sqlite}
 tagd source code, \texttt{tagspace/tagdb/sqlite/src/sqlite.cc}.

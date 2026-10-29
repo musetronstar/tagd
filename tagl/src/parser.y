@@ -42,6 +42,12 @@ enum class subject_type {
 	interrogator
 };
 
+// Preserve lexical typing through parsing so storage cannot turn numeric text into a number.
+struct modifier_token {
+	text_token text;
+	tagd::data_t type;
+};
+
 struct subject_type_id {
 	subject_type type;
 	text_token id;
@@ -277,8 +283,8 @@ tagspace_target(t) ::= TAGSPACE_TARGET(T) .
 %type sub_relator_symbol { TAGL::text_token }
 %type relator_symbol { TAGL::text_token }
 %type lhs_object { TAGL::text_token }
-%type rhs_object { TAGL::text_token }
-%type quantifier { TAGL::text_token }
+%type rhs_object { TAGL::modifier_token }
+%type quantifier { TAGL::modifier_token }
 %type subject_type_id { TAGL::subject_type_id }
 %type unknown { TAGL::subject_type_id }
 %type interrogator_type_id { TAGL::subject_type_id }
@@ -314,11 +320,11 @@ boolean_value(b) ::= FALSE .
 
 quantifier(q) ::= INTEGER(I) .
 {
-	q = I;
+	q = {I, tagd::TYPE_INTEGER};
 }
 quantifier(q) ::= FLOAT(F) .
 {
-	q = F;
+	q = {F, tagd::TYPE_FLOAT};
 }
 
 set_context ::= new_context context_list .
@@ -495,7 +501,7 @@ interrogator ::= interrogator_type_id(i) .
 subject_sub_relation ::= URL(U) sub_relator_symbol(r) super_object_token(o) .
 {
 	const auto parent = o.str();
-	if (r.str() != tagd::HARD_TAG_TYPE_OF || parent != tagd::HARD_TAG_FILE_STORED) {
+	if (r.str() != tagd::HARD_TAG_IS_A || parent != tagd::HARD_TAG_FILE_STORED) {
 		tagl->error(tagd::TAGL_ERR, "unsupported explicit URL classification");
 	} else {
 		tagl->delete_tag();
@@ -537,6 +543,10 @@ subject_type_id(s) ::= SUB_RELATOR(S) .
 subject_type_id(s) ::= RELATOR(R) .
 {
 	s = { TAGL::subject_type::relator, R };
+}
+subject_type_id(s) ::= TYPE_RELATOR(T) .
+{
+	s = { TAGL::subject_type::abstract_tag, T };
 }
 subject_type_id(s) ::= INTERROGATOR(I) .
 {
@@ -626,6 +636,10 @@ refers_subject(r) ::= RELATOR(R) .
 {
 	r = R;
 }
+refers_subject(r) ::= TYPE_RELATOR(T) .
+{
+	r = T;
+}
 refers_subject(r) ::= REFERS_TO(R) .
 {
 	r = R;
@@ -655,6 +669,10 @@ refers_to_object(rt) ::= SUB_RELATOR(S) .
 refers_to_object(rt) ::= RELATOR(R) .
 {
 	rt = R;
+}
+refers_to_object(rt) ::= TYPE_RELATOR(T) .
+{
+	rt = T;
 }
 refers_to_object(rt) ::= INTERROGATOR(I) .
 {
@@ -709,6 +727,10 @@ super_object_token(o) ::= RELATOR(R) .
 {
 	o = R;
 }
+super_object_token(o) ::= TYPE_RELATOR(T) .
+{
+	o = T;
+}
 super_object_token(o) ::= INTERROGATOR(I) .
 {
 	o = I;
@@ -726,6 +748,55 @@ super_object_token(o) ::= REFERENT(R) .
 
 relations ::= relations predicate_list .
 relations ::= predicate_list .
+relations ::= relations type_predicate_list .
+relations ::= type_predicate_list .
+
+// Separate productions make modifier syntax impossible on a type assertion.
+type_predicate_list ::= type_relator type_object_list .
+{
+	tagl->relator.clear();
+}
+type_relator ::= TYPE_RELATOR(R) .
+{
+	tagl->relator = R.str();
+}
+type_object_list ::= type_object_list COMMA type_object .
+type_object_list ::= type_object .
+type_object ::= super_object_token(O) .
+{
+	(void)tagl->tag_ptr()->type_relation(tagl->relator, O.str());
+}
+type_object ::= UNKNOWN(U) .
+{
+	(void)tagl->tag_ptr()->type_relation(tagl->relator, U.str());
+}
+type_object ::= QUOTED_STR(Q) .
+{
+	(void)tagl->tag_ptr()->type_relation(tagl->relator, Q.str());
+}
+type_object ::= TAGDURL .
+{
+	tagl->error(tagd::TS_MISUSE, "foreign types require a versioned tagspace binding");
+}
+
+type_object ::= URL(U) .
+{
+	tagd::url value(U.str());
+	if (value.ok()) {
+		(void)tagl->tag_ptr()->type_relation(tagl->relator, value.hduri());
+	} else {
+		tagl->error(value.code(), "invalid URL type object");
+	}
+}
+type_object ::= HDURI(U) .
+{
+	tagd::HDURI value(U.str());
+	if (value.ok()) {
+		(void)tagl->tag_ptr()->type_relation(tagl->relator, value.hduri());
+	} else {
+		tagl->error(value.code(), "invalid HDURI type object");
+	}
+}
 
 predicate_list ::= relator object_list .
 {
@@ -767,7 +838,7 @@ object ::= bare_object .
 %type op { tagd::operator_t }
 modified_object ::= lhs_object(l) op(o) rhs_object(r) .
 {
-	(void)tagl->tag_ptr()->relation(tagl->relator, l.str(), r.str(), o);
+	(void)tagl->tag_ptr()->relation(tagl->relator, l.str(), r.text.str(), o, r.type);
 }
 
 lhs_object(o) ::= TAG(T) .
@@ -781,19 +852,19 @@ lhs_object(o) ::= TAG(T) .
 rhs_object(o) ::= quantifier(q) .
 { o = q; }
 rhs_object(o) ::= MODIFIER(M) .
-{ o = M; }
+{ o = {M, tagd::TYPE_STRING}; }
 rhs_object(o) ::= QUOTED_STR(Q) .
-{ o = Q; }
+{ o = {Q, tagd::TYPE_STRING}; }
 rhs_object(o) ::= UNKNOWN(U) .
-{ o = U; }
+{ o = {U, tagd::TYPE_STRING}; }
 rhs_object(o) ::= URL(U) .
-{ o = U; }
+{ o = {U, tagd::TYPE_STRING}; }
 rhs_object(o) ::= HDURI(U) .
-{ o = U; }
+{ o = {U, tagd::TYPE_STRING}; }
 rhs_object(o) ::= EVURI(U) .
-{ o = U; }
+{ o = {U, tagd::TYPE_STRING}; }
 rhs_object(o) ::= ERRURI(U) .
-{ o = U; }
+{ o = {U, tagd::TYPE_STRING}; }
 
 bare_object ::= TAG(T) .
 {

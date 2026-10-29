@@ -1,4 +1,5 @@
 #include "tagspace-config.h"
+#include "tagdb/storage.h"
 
 #include <charconv>
 #include <filesystem>
@@ -10,6 +11,10 @@
 #include <algorithm>
 
 namespace tagd {
+
+config::profile_store::profile_store()
+	: stored_tagspace(tagdb::relation_semantics::profile_overrides) {
+}
 
 // Typed getters require validated configuration; broken internal state cannot supply a value.
 [[noreturn]] static void invalid_configuration(const char* message) {

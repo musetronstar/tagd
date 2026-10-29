@@ -19,6 +19,200 @@ public:
 
 class SqliteTester : public CxxTest::TestSuite {
 public:
+	void test_broad_query_reads_each_source_declaration_at_most_once() {
+		class database : public tagdb::sqlite {
+		public:
+			using ::tagdb::sqlite::configure_cache;
+			using ::tagdb::sqlite::cache_status;
+		};
+		database db;
+		TS_ASSERT_TAGD_OK(db.init(":memory:"));
+		constexpr unsigned subjects = 128;
+		for (unsigned i = 0; i != subjects; ++i) {
+			tagd::abstract_tag t("g" + std::to_string(i), HARD_TAG_SUB,
+				i ? "g" + std::to_string((i - 1) / 10) : std::string(HARD_TAG_ENTITY), tagd::POS_TAG);
+			TS_ASSERT_TAGD_OK(t.relation(HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "shared"));
+			TS_ASSERT_TAGD_OK(db.put(t, nullptr));
+		}
+
+		db.configure_cache(0, 0, std::chrono::seconds(1), std::chrono::steady_clock::now);
+		tagd::interrogator q(tagd::HARD_TAG_INTERROGATOR);
+		TS_ASSERT_TAGD_OK(q.relation(HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "shared"));
+		for (const tagd::flags_t flags : {0u, tagd::flags_t(tagd::F_INCLUDE_INHERITED_PREDICATES)}) {
+			const auto before = db.cache_status().predicate_reads;
+			tagd::tag_set found;
+			TS_ASSERT_TAGD_OK(db.query(found, q, nullptr, flags));
+			TS_ASSERT_EQUALS(found.size(), subjects);
+			// The operation already resolved these subjects and their shared root source.
+			TS_ASSERT_LESS_THAN_EQUALS(db.cache_status().predicate_reads - before, subjects + 1);
+		}
+	}
+
+	void test_unrelated_tags_do_not_scale_leaf_validation_reads_or_queries() {
+		class database : public tagdb::sqlite {
+		public:
+			size_t steps = 0;
+			void measure() {
+				steps = 0;
+				for (auto* stmt = sqlite3_next_stmt(_db, nullptr); stmt; stmt = sqlite3_next_stmt(_db, stmt)) {
+					sqlite3_stmt_status(stmt, SQLITE_STMTSTATUS_VM_STEP, 1);
+				}
+				sqlite3_trace_v2(_db, SQLITE_TRACE_PROFILE,
+					[](unsigned, void* context, void* statement, void*) {
+						auto& db = *static_cast<database*>(context);
+						db.steps += sqlite3_stmt_status(static_cast<sqlite3_stmt*>(statement),
+							SQLITE_STMTSTATUS_VM_STEP, 1);
+						return 0;
+					}, this);
+			}
+			void stop() {
+				sqlite3_trace_v2(_db, 0, nullptr, nullptr);
+			}
+		};
+		database db;
+		TS_ASSERT_TAGD_OK(db.init(":memory:"));
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("leaf", HARD_TAG_SUB,
+			HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+		tagd::interrogator query(tagd::HARD_TAG_INTERROGATOR);
+		TS_ASSERT_TAGD_OK(query.relation(HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE));
+
+		auto work = [&](const char* value) {
+			db.measure();
+			tagd::abstract_tag leaf("leaf"), read;
+			TS_ASSERT_TAGD_OK(leaf.relation(HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, value));
+			TS_ASSERT_TAGD_OK(db.put(leaf, nullptr));
+			const auto put = db.steps;
+			db.steps = 0;
+			TS_ASSERT_TAGD_OK(db.get(read, "leaf", nullptr, tagd::F_INCLUDE_INHERITED_PREDICATES));
+			const auto get = db.steps;
+			db.steps = 0;
+			tagd::tag_set result;
+			TS_ASSERT_TAGD_OK(db.query(result, query, nullptr, tagd::F_INCLUDE_INHERITED_PREDICATES));
+			TS_ASSERT_EQUALS(result.size(), 1u);
+			const auto select = db.steps;
+			db.stop();
+			return std::vector<size_t>{put, get, select};
+		};
+		(void)work("warmup");
+		const auto before = work("before");
+		for (unsigned i = 0; i != 400; ++i) {
+			TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("unrelated" + std::to_string(i),
+				HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+		}
+		const auto after = work("after");
+
+		// Count executed SQL instructions, avoiding machine-speed and wall-clock assumptions.
+		for (size_t i = 0; i != before.size(); ++i) {
+			TS_ASSERT_LESS_THAN(after[i], before[i] * 2);
+		}
+	}
+
+	void test_reparenting_preserves_stored_hard_tag_roles() {
+		class database : public tagdb::sqlite {
+		public:
+			std::vector<std::pair<int, int>> hard_roles() {
+				std::vector<std::pair<int, int>> roles;
+				sqlite3_stmt* stmt = nullptr;
+				TS_ASSERT_EQUALS(sqlite3_prepare_v2(_db,
+					"SELECT pos,term_pos FROM tags JOIN terms ON tag=terms.ROWID "
+					"WHERE substr(term,1,1)='_' ORDER BY term", -1, &stmt, nullptr), SQLITE_OK);
+				while (sqlite3_step(stmt) == SQLITE_ROW) {
+					roles.emplace_back(sqlite3_column_int(stmt, 0), sqlite3_column_int(stmt, 1));
+				}
+				sqlite3_finalize(stmt);
+				return roles;
+			}
+		};
+		database db;
+		TS_ASSERT_TAGD_OK(db.init(":memory:"));
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("moving", HARD_TAG_SUB,
+			HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+		const auto before = db.hard_roles();
+		TS_ASSERT(!before.empty());
+
+		for (unsigned i = 0; i != 70; ++i) {
+			const auto parent = "parent" + std::to_string(i);
+			TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag(parent, HARD_TAG_SUB,
+				HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+			tagd::rank rank;
+			TS_ASSERT_TAGD_OK(db.lookup_rank(rank, parent));
+			if (rank.back() != 42 && rank.back() != 63 && rank.back() != 91) {
+				continue;
+			}
+
+			TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("moving", HARD_TAG_SUB,
+				parent, tagd::POS_TAG), nullptr));
+			TS_ASSERT_EQUALS(db.hard_roles(), before);
+			TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("moving", HARD_TAG_SUB,
+				HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+			TS_ASSERT_EQUALS(db.hard_roles(), before);
+		}
+	}
+
+	void test_type_relations_reopen_and_reject_incompatible_storage_without_rewriting_it() {
+		char pattern[] = "/tmp/tagd-type-relations-XXXXXX";
+		auto* directory = mkdtemp(pattern);
+		TS_ASSERT(directory);
+		if (!directory) {
+			return;
+		}
+		struct cleanup {
+			std::filesystem::path path;
+			~cleanup() { std::filesystem::remove_all(path); }
+		} remove{directory};
+		const auto path = (remove.path / "types.db").string();
+		class database : public tagdb::sqlite {
+		public:
+			using ::tagdb::sqlite::exec;
+		};
+		{
+			database db;
+			TS_ASSERT_TAGD_OK(db.init(path));
+			for (const auto id : {"legs", "quadruped", "dog"}) {
+				TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag(id, HARD_TAG_SUB,
+					HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+			}
+			tagd::abstract_tag source("quadruped"), dog("dog");
+			TS_ASSERT_TAGD_OK(source.relation(HARD_TAG_HAS, "legs", "4.0", tagd::OP_EQ, tagd::TYPE_FLOAT));
+			TS_ASSERT_TAGD_OK(dog.type_relation(tagd::HARD_TAG_TYPE_OF, "quadruped"));
+			TS_ASSERT_TAGD_OK(db.put(source, nullptr));
+			TS_ASSERT_TAGD_OK(db.put(dog, nullptr));
+			dog.type_relations.clear();
+			TS_ASSERT_TAGD_OK(dog.type_relation(tagd::HARD_TAG_TYPE_OF, "dog"));
+			TS_ASSERT_TAGD_OK(dog.type_relation(tagd::HARD_TAG_TYPE_OF, tagd::HARD_TAG_ENTITY));
+			TS_ASSERT_TAGD_OK(db.put(dog, nullptr));
+		}
+		{
+			database db;
+			TS_ASSERT_TAGD_OK(db.init(path));
+			tagd::abstract_tag dog;
+			TS_ASSERT_TAGD_OK(db.get(dog, "dog", nullptr, tagd::F_INCLUDE_INHERITED_PREDICATES));
+			TS_ASSERT_EQUALS(dog.type_relations.size(), 1u);
+			TS_ASSERT_EQUALS(dog.relations.size(), 1u);
+			if (!dog.relations.empty()) {
+				TS_ASSERT_EQUALS(dog.relations.begin()->modifier_type, tagd::TYPE_FLOAT);
+			}
+			TS_ASSERT_TAGD_OK(db.exec("PRAGMA user_version=2"));
+		}
+		{
+			database incompatible;
+			TS_ASSERT_EQUALS(incompatible.init(path), tagd::TS_MISUSE);
+		}
+		sqlite3* raw = nullptr;
+		TS_ASSERT_EQUALS(sqlite3_open_v2(path.c_str(), &raw, SQLITE_OPEN_READONLY, nullptr), SQLITE_OK);
+		sqlite3_stmt* stmt = nullptr;
+		TS_ASSERT_EQUALS(sqlite3_prepare_v2(raw, "SELECT COUNT(*) FROM type_relations", -1,
+			&stmt, nullptr), SQLITE_OK);
+		TS_ASSERT_EQUALS(sqlite3_step(stmt), SQLITE_ROW);
+		TS_ASSERT_EQUALS(sqlite3_column_int(stmt, 0), 1);
+		sqlite3_finalize(stmt);
+		TS_ASSERT_EQUALS(sqlite3_prepare_v2(raw, "PRAGMA user_version", -1, &stmt, nullptr), SQLITE_OK);
+		TS_ASSERT_EQUALS(sqlite3_step(stmt), SQLITE_ROW);
+		TS_ASSERT_EQUALS(sqlite3_column_int(stmt, 0), 2);
+		sqlite3_finalize(stmt);
+		sqlite3_close(raw);
+	}
+
 	void test_dump_rejects_invalid_stored_hduri() {
 		class database : public tagdb::sqlite {
 		public:

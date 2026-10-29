@@ -27,7 +27,9 @@ std::string tagspace_database_path(const std::string& home, const std::string& i
 
 class stored_tagspace::impl {
 public:
-	std::unique_ptr<tagdb::tagdb> db = tagdb::make_backend();
+	std::unique_ptr<tagdb::tagdb> db;
+	explicit impl(tagdb::relation_semantics semantics) : db(tagdb::make_backend(semantics)) {
+	}
 	bool ready = false;
 };
 
@@ -53,7 +55,12 @@ std::string default_tagd_home() {
 	return default_home();
 }
 
-stored_tagspace::stored_tagspace() : _impl(std::make_unique<impl>()) {}
+stored_tagspace::stored_tagspace() : stored_tagspace(tagdb::relation_semantics::assertions) {
+}
+stored_tagspace::stored_tagspace(tagdb::relation_semantics semantics)
+	: _impl(std::make_unique<impl>(semantics)) {
+}
+
 // The destructor needs the full impl definition to delete the owned backend.
 stored_tagspace::~stored_tagspace() = default;
 
