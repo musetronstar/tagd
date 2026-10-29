@@ -61,6 +61,68 @@ public:
 		TS_ASSERT_EQUALS(before.str(), after.str());
 	}
 
+	void test_integrated_order_matches_structural_and_inherited_type_paths() {
+		database db;
+		TS_ASSERT_TAGD_OK(db.open({tagdb::storage_kind::memory}));
+		for (const auto id : {"kind", "other"})
+			TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag(id, HARD_TAG_SUB, HARD_TAG_ENTITY,
+				tagd::POS_TAG), nullptr));
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("specific", HARD_TAG_SUB, "kind", tagd::POS_TAG), nullptr));
+		tagd::abstract_tag parent("parent", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+		TS_ASSERT_TAGD_OK(parent.type_relation(tagd::HARD_TAG_TYPE_OF, "specific"));
+		TS_ASSERT_TAGD_OK(db.put(parent, nullptr));
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("child", HARD_TAG_SUB, "parent", tagd::POS_TAG), nullptr));
+		tagd::abstract_tag leaf("leaf", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+		TS_ASSERT_TAGD_OK(leaf.type_relation(tagd::HARD_TAG_TYPE_OF, "child"));
+		TS_ASSERT_TAGD_OK(db.put(leaf, nullptr));
+		const std::array<tagd::id_view, 5> requested{"leaf", "kind", "_entity", "other", "missing"};
+		std::set<tagd::id_string> inherited;
+		TS_ASSERT_TAGD_OK(db.inherited_sources(inherited, "leaf", requested));
+		TS_ASSERT_EQUALS(inherited, (std::set<tagd::id_string>{"leaf", "kind", "_entity"}));
+		TS_ASSERT_TAGD_OK(db.inherited_sources(inherited, "missing", requested));
+		TS_ASSERT(inherited.empty());
+		for (const auto object : {"leaf", "child", "parent", "specific", "kind", "_entity", "other", "missing"}) {
+			bool matches = false;
+			TS_ASSERT_TAGD_OK(db.inherits(matches, "leaf", object));
+			TS_ASSERT_EQUALS(matches, std::string(object) != "other" && std::string(object) != "missing");
+			if (std::string(object) == "missing")
+				continue;
+			tagd::interrogator query(tagd::HARD_TAG_WHAT);
+			TS_ASSERT_TAGD_OK(query.type_relation(tagd::HARD_TAG_TYPE_OF, object));
+			tagd::tag_set found;
+			TS_ASSERT_TAGD_OK(db.query(found, query, nullptr));
+			TS_ASSERT_EQUALS(std::any_of(found.begin(), found.end(), [](const auto& tag) {
+				return tag.id() == "leaf";
+			}), matches);
+		}
+		bool matches = true;
+		TS_ASSERT_TAGD_OK(db.inherits(matches, "missing", "missing"));
+		TS_ASSERT(!matches);
+		TS_ASSERT_TAGD_OK(db.inherits(matches, "_entity", "_entity"));
+		TS_ASSERT(matches);
+		tagd::abstract_tag change("parent");
+		TS_ASSERT_TAGD_OK(change.type_relation(tagd::HARD_TAG_TYPE_OF, "other"));
+		TS_ASSERT_TAGD_OK(db.put(change, nullptr));
+		TS_ASSERT_TAGD_OK(db.inherits(matches, "leaf", "other"));
+		TS_ASSERT(matches);
+		TS_ASSERT_TAGD_OK(db.del(change, nullptr));
+		TS_ASSERT_TAGD_OK(db.inherits(matches, "leaf", "other"));
+		TS_ASSERT(!matches);
+	}
+
+	void test_check_put_does_not_commit_referents() {
+		database db;
+		TS_ASSERT_TAGD_OK(db.open({tagdb::storage_kind::memory}));
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("target", HARD_TAG_SUB, HARD_TAG_ENTITY,
+			tagd::POS_TAG), nullptr));
+		tagd::referent alias("alias", "target", "target");
+		std::ostringstream before, after;
+		TS_ASSERT_TAGD_OK(db.dump(before));
+		TS_ASSERT_EQUALS(db.check_put(alias, 0), tagd::TS_MISUSE);
+		TS_ASSERT_TAGD_OK(db.dump(after));
+		TS_ASSERT_EQUALS(after.str(), before.str());
+	}
+
 	void test_durable_store_preflight() {
 		char name[] = "/tmp/tagd-batch-XXXXXX";
 		const auto root = std::filesystem::path(mkdtemp(name));
@@ -94,12 +156,14 @@ public:
 		TS_ASSERT_EQUALS(db.put_batch(success, nullptr), tagd::TS_DUPLICATE);
 		db.clear_errors();
 		TS_ASSERT_TAGD_OK(db.put_batch(success, nullptr, tagd::F_IGNORE_DUPLICATES));
-		tagd::url u("file:///tmp/batch", tagd::HARD_TAG_FILE_STORED);
+		tagd::url u("file:///tmp/batch");
+		TS_ASSERT_EQUALS(u.type_relation(tagd::HARD_TAG_TYPE_OF, tagd::HARD_TAG_FILE_STORED), tagd::TAGD_OK);
 		std::array<const tagd::abstract_tag*, 1> urls{&u};
 		TS_ASSERT_TAGD_OK(db.put_batch(urls, nullptr));
 		tagd::url got;
 		TS_ASSERT_TAGD_OK(db.get(got, u.id(), nullptr));
-		TS_ASSERT_EQUALS(got.super_object(), tagd::HARD_TAG_FILE_STORED);
+		TS_ASSERT_EQUALS(got.super_object(), tagd::HARD_TAG_FILE);
+		TS_ASSERT(got.type_relations.contains({tagd::HARD_TAG_TYPE_OF, tagd::HARD_TAG_FILE_STORED}));
 	}
 
 	void test_indeterminate_finish_blocks_writes() {

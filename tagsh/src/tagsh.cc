@@ -1,6 +1,7 @@
 #include "tagsh.h"
 
 #include <filesystem>
+#include <algorithm>
 #include <unistd.h>
 #include <iostream>      // std::cout, std::cerr
 #include <fstream>       // std::ofstream
@@ -163,7 +164,7 @@ void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 
 void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 	auto ssn = _driver->session_ptr();
-	log_driver_debug("driver statement command=CMD_DEL subject=%s", t.id());
+	log_driver_debug("driver statement command=CMD_DELETE subject=%s", t.id());
 	log_driver_debug("driver callback=cmd_del subject=%s", t.id());
 	tagd::code tc = _driver->tsp()->del(t, ssn, _driver->flags);
 
@@ -179,6 +180,36 @@ void tagsh_callback::cmd_del(const tagd::abstract_tag& t) {
 	_tsh->last_code((CMD_OK() || _driver->tsp()->code() == tagd::TS_NOT_FOUND) ? tc : _driver->code());
 	log_driver_debug("driver code=%s", tagd::code_str(_driver->code()));
 
+	add_history_lines_clear(_lines);
+}
+
+void tagsh_callback::cmd_store(const tagd::abstract_tag& t) {
+	tagd::store_result result;
+	const auto rc = _driver->tsp()->store(result, t, _driver->session_ptr(), _driver->flags);
+	for (const auto& warning : result.warnings) {
+		std::cerr << warning << std::endl;
+		std::ostringstream message;
+		message << warning;
+		TAGSH_LOG(tagd::log_level::WARNING, message.str());
+	}
+	if (rc == tagd::TAGD_OK)
+		(*_tsh->out) << result.link << std::endl;
+	else
+		handle_cmd_error();
+	_tsh->last_code(rc);
+	add_history_lines_clear(_lines);
+}
+
+void tagsh_callback::cmd_delete_storage(const tagd::abstract_tag& t) {
+	tagd::filepile_delete_result result;
+	const auto rc = _driver->tsp()->delete_storage(result, t, _driver->session_ptr(), _driver->flags);
+	for (const auto& warning : result.warnings)
+		std::cerr << "warning: " << warning << std::endl;
+	if (rc != tagd::TAGD_OK)
+		handle_cmd_error();
+	else if (_tsh->echo_result_code())
+		(*_tsh->out) << "-- " << tagd::code_str(rc) << std::endl;
+	_tsh->last_code(rc);
 	add_history_lines_clear(_lines);
 }
 
@@ -263,50 +294,11 @@ void tagsh::dump_file(const std::string& fname, bool check_existing) {
 	TAGD_COUT << "dumped to file: " << fname << std::endl;
 }
 
-tagd::code tagsh::store(const std::string& source) {
-	tagd::store_result result;
-	auto* target = _driver.tsp();
-	auto* ssn = _driver.session_ptr();
-	const auto rc = target->store(result, tagd::url(source), ssn, _driver.flags);
 
-	for (const auto& warning : result.warnings) {
-		std::cerr << warning << std::endl;
-	}
-
-	if (rc == tagd::TAGD_OK) {
-		(*out) << result.link << std::endl;
-	} else {
-		target->print_errors();
-		target->clear_errors();
-		if (ssn)
-			ssn->clear_errors();
-	}
-
-	last_code(rc);
-	return rc;
-}
-
-void tagsh::command(const std::string& cmdline, input_origin origin) {
+void tagsh::command(const std::string& cmdline, input_origin) {
 	std::vector<std::string> V = split_string(cmdline);
 	assert(V.size() != 0);
 	std::string cmd(V[0]);
-
-	if (cmd == ".store") {
-		// A leading dot is syntax, not permission to acquire files from a script.
-		if (origin != input_origin::terminal || V.size() != 2) {
-			tagd::error diagnostic(tagd::TS_MISUSE);
-			const auto* message = origin != input_origin::terminal
-				? ".store requires interactive terminal input; use --store URL" : "usage: .store URL";
-			(void)diagnostic.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, message);
-			if (TAGSH_LOG_ENABLED(tagd::log_level::ERROR))
-				TAGSH_LOG(tagd::log_level::ERROR, message);
-			TAGD_CERR << diagnostic << std::endl;
-			last_code(tagd::TS_MISUSE);
-			return;
-		}
-		(void)store(V[1]);
-		return;
-	}
 
 	if (cmd == ".load") {
 		if (V.size() != 2) {
@@ -442,6 +434,38 @@ int tagsh::interpret(const std::string &line, input_origin origin) {
 	return 0;
 }
 
+int tagsh::interpret_store(const std::string& input, const std::string& predicates) {
+	last_code(tagd::TAGD_OK);
+	std::string source = input;
+	const bool explicit_path = input.starts_with('/') || input.starts_with('.');
+	if (explicit_path || (!tagd::url(input).ok() && !tagd::url::looks_like_url(input)
+		&& !input.starts_with("hd:"))) {
+		std::error_code ec;
+		auto path = std::filesystem::absolute(input, ec);
+		// Resolving '..' must follow filesystem semantics when an earlier component is a symlink.
+		if (!ec && std::find(path.begin(), path.end(), "..") != path.end())
+			path = std::filesystem::weakly_canonical(path, ec);
+		if (ec) {
+			_driver.error(tagd::TS_NOT_AVAILABLE, "cannot resolve --store path: " + input + ": " + ec.message());
+		} else {
+			// Encode components independently so path separators remain separators, not URL data.
+			source = "file://";
+			for (const auto& component : path.lexically_normal().relative_path()) {
+				source += '/' + tagd::uri_encode(component.string());
+			}
+		}
+	}
+	if (_driver.has_errors()) {
+		_driver.do_callback();
+	} else {
+		const auto rc = _driver.execute_store(tagd::url(source), predicates);
+		if (rc != tagd::TAGD_OK)
+			last_code(rc);
+	}
+	_driver.clear_errors();
+	return last_code();
+}
+
 int tagsh::interpret(std::istream& ins) {
 	std::string line;
 
@@ -479,7 +503,7 @@ int tagsh::interpret_fname(const std::string& fname, bool ignore_duplicates) {
 }
 
 void tagsh::cmd_show() {
-	TAGD_COUT << ".store URL\t# store a local file in the active persistent tagspace" << std::endl;
+
 	TAGD_COUT << ".load <filename>\t# load a tagl file" << std::endl;
 	TAGD_COUT << ".tagspaces\t# list tagspaces, aliases, open state, and active target (*)" << std::endl;
 	TAGD_COUT << ".dump\t# dump tagspace to stdout" << std::endl;
@@ -548,15 +572,7 @@ cmd_args::cmd_args()
 				: startup_action::kind::tagl, val});
 		}, true
 	};
-	_cmds["--store"] = {
-		[this](char* value) {
-			if (!*value) {
-				this->error(tagd::TAGD_ERR, "empty --store URL");
-				return;
-			}
-			_actions.push_back({startup_action::kind::store, value});
-		}, true
-	};
+
 	_cmds["--tagl"] = tagl_handler;
 	_cmds["-t"] = tagl_handler;
 
@@ -615,8 +631,9 @@ cmd_args::cmd_args()
 			<< "  -t <tagl code>" 															<< std::endl
 			<< "  --tagl" 																	<< std::endl
 			<< "		tagl code to be executed in order" 									<< std::endl
-			<< "  --store URL" << std::endl
-			<< "\t\tstore a local file, in action order" << std::endl
+			<< "  --store FILE_OR_URL...  store each operand through TAGL, in action order" << std::endl
+			<< "  --with PREDICATES       apply to the immediately preceding --store group" << std::endl
+			<< "                         use ./ for filenames starting with '-'" << std::endl
 			<< "  -n" 																		<< std::endl
 			<< "  --noshell" 																<< std::endl
 			<< "		execute then exit with no shell" 									<< std::endl
@@ -634,7 +651,47 @@ cmd_args::cmd_args()
 }
 
 void cmd_args::parse(int argc, char **argv) {
+	std::optional<size_t> store_begin;
 	for (int i=1; i<argc; ++i) {
+		const std::string_view option(argv[i]);
+		if (option == "--store") {
+			store_begin = _actions.size();
+			while (i + 1 < argc && argv[i + 1][0] != '-') {
+				const std::string value(argv[++i]);
+				if (value.empty()) {
+					error(tagd::TAGD_ERR, "empty --store operand");
+					return;
+				}
+				_actions.push_back({startup_action::kind::store, value});
+			}
+			if (*store_begin == _actions.size()) {
+				error(tagd::TAGD_ERR, "--store requires at least one file or URL");
+				return;
+			}
+			continue;
+		}
+		if (option == "--with") {
+			if (!store_begin || i + 1 == argc) {
+				error(tagd::TAGD_ERR, "--with requires predicates immediately after a --store group");
+				return;
+			}
+			const std::string predicates(argv[++i]);
+			if (_cmds.contains(predicates) || predicates == "--store" || predicates == "--with") {
+				error(tagd::TAGD_ERR, "--with requires predicates before the next option");
+				return;
+			}
+			if (predicates.find_first_not_of(" \t\r\n") == std::string::npos) {
+				error(tagd::TAGD_ERR, "empty --with predicates");
+				return;
+			}
+			// Each source is a separate STORE, with the same declaration attached before execution.
+			for (size_t j = *store_begin; j != _actions.size(); ++j) {
+				_actions[j].predicates = predicates;
+			}
+			store_begin.reset();
+			continue;
+		}
+		store_begin.reset();
 		auto it = _cmds.find(std::string(argv[i]));
 		if (it == _cmds.end()) {
 			this->ferror(tagd::TAGD_ERR, "invalid option: %s", argv[i]);
@@ -803,7 +860,7 @@ int execute_startup_actions(tagsh& shell, const std::vector<startup_action>& act
 		int rc;
 		switch (action.type) {
 			case startup_action::kind::store:
-				rc = shell.store(action.input);
+				rc = shell.interpret_store(action.input, action.predicates);
 				break;
 			case startup_action::kind::file:
 				rc = shell.interpret_fname(action.input);

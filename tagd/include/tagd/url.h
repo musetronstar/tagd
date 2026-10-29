@@ -96,13 +96,10 @@ class url : public abstract_tag {
 			this->init(u);
 		}
 
-		// Explicit stored-file classification must survive parsing and serialization.
-		url(id_view u, id_view classification) : url(u) {
-			if (ok() && scheme() == "file" && classification == HARD_TAG_FILE_STORED) {
-				_super_object = classification;
-			} else {
-				_code = TS_ERR;
-			}
+		// Preserve parsed components while carrying the caller's declaration to tagspace validation.
+		url(id_view u, id_view sub_relator, id_view super_object) : url(u) {
+			_sub_relator = sub_relator;
+			_super_object = super_object;
 		}
 
 		const id_string& id() const { return _id; }

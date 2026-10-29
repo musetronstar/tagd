@@ -89,8 +89,8 @@ public:
 		TS_ASSERT(after.relations.empty());
 		TS_ASSERT_EQUALS(ts.put(assertion), tagd::TS_DUPLICATE);
 		TS_ASSERT_EQUALS(ts.put(assertion, nullptr, tagd::F_IGNORE_DUPLICATES), tagd::TAGD_OK);
-		TS_ASSERT_EQUALS(ts.del(tagd::abstract_tag("quadruped")), tagd::TS_RELATION_DEPENDENCY);
-		TS_ASSERT_EQUALS(ts.del(tagd::abstract_tag("classifies")), tagd::TS_RELATION_DEPENDENCY);
+		TS_ASSERT_EQUALS(ts.del(tagd::abstract_tag("quadruped")), tagd::TS_DEPENDENCY);
+		TS_ASSERT_EQUALS(ts.del(tagd::abstract_tag("classifies")), tagd::TS_DEPENDENCY);
 		TS_ASSERT_EQUALS(ts.del(assertion), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.get(after, "dog"), tagd::TAGD_OK);
 		TS_ASSERT(after.type_relations.empty());

@@ -163,10 +163,26 @@ void logger::log(const std::string& role, log_level lvl, const std::string& msg)
 }
 
 void logger::log(const std::string& role, log_level lvl, const event& ev) {
+	if (ev.time_code() != TAGD_OK && ev.evuri().empty()) {
+		std::ostringstream message;
+		message << "event timestamp unavailable: " << code_str(ev.time_code())
+			<< "; " << ev;
+		log(role, lvl, message.str());
+		return;
+	}
+
 	log(role, lvl, ev.evuri());
 }
 
 void logger::log(log_level lvl, const event& ev) {
+	if (ev.time_code() != TAGD_OK && ev.evuri().empty()) {
+		std::ostringstream message;
+		message << "event timestamp unavailable: " << code_str(ev.time_code())
+			<< "; " << ev;
+		log(lvl, message.str());
+		return;
+	}
+
 	log(lvl, ev.evuri());
 }
 

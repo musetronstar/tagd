@@ -48,7 +48,7 @@ url_tests: $(LIBTAGD) UrlTester.h
 
 event_tests: $(LIBTAGD) EventTester.h
 	$(CXXTEST) EventTester.h -o event-tester.cpp
-	g++ $(CXXFLAGS) event-tester.cpp -o event-tester $(INC) $(LFLAGS)
+	g++ $(CXXFLAGS) event-tester.cpp -o event-tester $(INC) $(LFLAGS) -Wl,--wrap=clock_gettime
 	$(EVENT_TESTER)
 
 file_tests: $(LIBTAGD) FileTester.h

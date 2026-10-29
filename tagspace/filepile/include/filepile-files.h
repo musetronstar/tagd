@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tagd/url.h"
+#include "tagd/tagspace.h"
 #include <sys/stat.h>
 #include <memory>
 
@@ -8,6 +8,13 @@ namespace tagd::filepile {
 
 [[nodiscard]] tagd::code canonical_source(errorable&, url&, std::string& path, const url&);
 std::string path_url(const std::string&);
+
+// SHA-256 addresses use a full lowercase hexadecimal digest, then a nonempty extension.
+inline constexpr size_t digest_length = 64;
+[[nodiscard]] code stored_address(errorable&, std::string& name,
+	const std::string& canonical_home, const url& stored);
+[[nodiscard]] tagd::code remove_content(errorable&, cleanup_result&,
+	const std::string& canonical_home, const url& stored);
 
 // One store owns these descriptors and staging name; init failure still permits cleanup.
 class files : public errorable {
@@ -21,7 +28,8 @@ public:
 	struct stat stored{};
 
 	files();
-	[[nodiscard]] tagd::code init(const std::string& home, const url&);
+	// The caller supplies the canonical home cached by tagspace configuration.
+	[[nodiscard]] tagd::code init(const std::string& canonical_home, const url&);
 	~files();
 	files(const files&) = delete;
 	files& operator=(const files&) = delete;

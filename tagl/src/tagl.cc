@@ -161,6 +161,26 @@ void driver::free_parser() {
 }
 
 void driver::parse_tok(int tok, text_token s) {
+		if (_predicate_fragment) {
+			// No statement may execute until the complete predicate fragment has been accepted.
+			switch (tok) {
+				case TOK_CMD_SET:
+				case TOK_CMD_GET:
+				case TOK_CMD_PUT:
+				case TOK_CMD_STORE:
+				case TOK_CMD_DELETE:
+				case TOK_CMD_DELETE_STORAGE:
+				case TOK_CMD_QUERY:
+				case TOK_TERMINATOR:
+					error(tagd::TAGL_ERR, "STORE predicates cannot contain commands or terminators");
+					return;
+			}
+			if (_predicate_fragment_empty && (tok == TOK_SUB_RELATOR || tok == TOK_SUB_RELATOR_SYMBOL)) {
+				error(tagd::TAGL_ERR, "STORE predicates cannot declare a subordinate relation");
+				return;
+			}
+			_predicate_fragment_empty = false;
+		}
 		// SET operands enable location tokens only for this statement, until termination or error.
 		if (tok == TOK_CMD_SET)
 			_set_statement = true;
@@ -528,7 +548,7 @@ int driver::lookup_pos(const std::string& s) {
 	if (_tagspace_arguments)
 		return TOK_TAGSPACE_TARGET;
 	// _use and _tagspace are keywords only after SET or SET DELETE, never ordinary IDs.
-	if (_set_statement && (_token == TOK_CMD_SET || _token == TOK_CMD_DEL)) {
+	if (_set_statement && (_token == TOK_CMD_SET || _token == TOK_CMD_DELETE)) {
 		if (s == tagd::HARD_TAG_CONFIG_ID)
 			return TOK_SET_CONFIG_ID;
 		if (s == tagd::HARD_TAG_USE)
@@ -634,6 +654,30 @@ tagd::code driver::execute(const std::string& statement) {
 	return _code;
 }
 
+tagd::code driver::execute_store(const tagd::url& source, const std::string& predicates) {
+	init();
+	if (!source.ok()) {
+		error(source.code(), "invalid STORE URL");
+		finish();
+		return code();
+	}
+
+	parse_tok(TOK_CMD_STORE, EMPTY_VALUE);
+	parse_tok(TOK_URL, source.id());
+	_predicate_fragment = true;
+	_predicate_fragment_empty = true;
+	if (!has_errors() && !predicates.empty()) {
+		_scanner->scan(predicates);
+		if (!has_errors() && _predicate_fragment_empty)
+			error(tagd::TAGL_ERR, "STORE predicates are empty");
+	}
+	_predicate_fragment = false;
+
+	// finish() supplies the terminator; selection, flags, and lookup context belong to the caller.
+	finish();
+	return code();
+}
+
 tagd::code driver::execute(struct evbuffer *input) {
 	this->init();
 
@@ -649,6 +693,22 @@ tagd::code driver::execute(struct evbuffer *input) {
 	this->finish();
 	this->clear_context_levels();
 	return this->code();
+}
+
+void callback::cmd_store(const tagd::abstract_tag& t) {
+	tagd::store_result result;
+	const auto rc = _driver->tsp()->store(result, t, _driver->session_ptr(), _driver->flags);
+	_driver->code(rc);
+	if (rc != tagd::TAGD_OK)
+		cmd_error();
+}
+
+void callback::cmd_delete_storage(const tagd::abstract_tag& t) {
+	tagd::filepile_delete_result result;
+	const auto rc = _driver->tsp()->delete_storage(result, t, _driver->session_ptr(), _driver->flags);
+	_driver->code(rc);
+	if (rc != tagd::TAGD_OK)
+		cmd_error();
 }
 
 void driver::do_callback() {
@@ -682,7 +742,14 @@ void driver::do_callback() {
 	 * Check each resolved operation, not request text or the initial selection:
 	 * aliases and earlier SET commands may have changed its actual target.
 	 */
-	if ((_cmd == TOK_CMD_PUT || _cmd == TOK_CMD_DEL) && !permit_write()) {
+	if ((_cmd == TOK_CMD_PUT || _cmd == TOK_CMD_STORE ||
+		_cmd == TOK_CMD_DELETE || _cmd == TOK_CMD_DELETE_STORAGE) && !permit_write()) {
+		_callback->cmd_error();
+		return;
+	}
+	// HTTP file acquisition authority is deferred; body TAGL must not expose it implicitly.
+	if (_http && (_cmd == TOK_CMD_STORE || _cmd == TOK_CMD_DELETE_STORAGE)) {
+		error(tagd::TS_NOT_IMPLEMENTED, "HTTP filepile invocation is not implemented");
 		_callback->cmd_error();
 		return;
 	}
@@ -696,7 +763,13 @@ void driver::do_callback() {
 			TAGL_LOG_TRACE( "callback::cmd_put: " << *_tag << std::endl )
 			_callback->cmd_put(*_tag);
 			break;
-		case TOK_CMD_DEL:
+		case TOK_CMD_STORE:
+			_callback->cmd_store(*_tag);
+			break;
+		case TOK_CMD_DELETE_STORAGE:
+			_callback->cmd_delete_storage(*_tag);
+			break;
+		case TOK_CMD_DELETE:
 			TAGL_LOG_TRACE( "callback::cmd_del: " << *_tag << std::endl )
 			_callback->cmd_del(*_tag);
 			break;
@@ -846,10 +919,12 @@ tagd::code driver::include_file(const std::string& path) {
 
 }
 
-tagd::code driver::new_url(const std::string& url) {
+tagd::code driver::new_url(const std::string& url, tagd::id_view sub_relator,
+	tagd::id_view super_object) {
 	this->delete_tag();
 
-	auto *u = new tagd::url(url);
+	auto *u = sub_relator.empty() && super_object.empty() ? new tagd::url(url)
+		: new tagd::url(url, sub_relator, super_object);
 	if (!u->ok()) {
 		const auto code = u->code();
 		delete u;

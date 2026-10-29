@@ -5,6 +5,8 @@
 #include <memory>
 
 void TAGSPACE_SET_LOGGER(tagd::logger*);
+bool TAGSPACE_LOG_ENABLED(tagd::log_level);
+void TAGSPACE_LOG(tagd::log_level, const std::string&);
 
 namespace tagdb { struct storage_location; class tagdb; enum class relation_semantics; }
 
@@ -30,8 +32,12 @@ class stored_tagspace : public tagspace {
 	tagdb::tagdb& backend();
 	bool _persistent = false;
 	std::string _filepile_home;
+	std::string _filepile_canonical_home, _filepile_configured_root, _filepile_home_error;
 	std::string _home_reason = "no home directory is configured.";
 	tagd::code finish(tagd::code) const;
+	[[nodiscard]] tagd::code managed_path(bool&, const url&, bool resolve = false);
+	[[nodiscard]] tagd::code guard_mutation(const abstract_tag&, bool deleting,
+		tagspace_session*, flags_t);
 
 protected:
 	stored_tagspace();
@@ -48,11 +54,10 @@ protected:
 public:
 	~stored_tagspace() override;
 	// Configuration supplies the selected home, independently of the database location.
-	void filepile_home(std::string home, std::string reason = "no home directory is configured.") {
-		_filepile_home = std::move(home);
-		_home_reason = std::move(reason);
-	}
-	[[nodiscard]] tagd::code store(store_result&, const url&,
+	void filepile_home(std::string home, std::string reason = "no home directory is configured.");
+	[[nodiscard]] tagd::code store(store_result&, const abstract_tag&,
+		tagspace_session* = nullptr, flags_t = 0) override;
+	[[nodiscard]] tagd::code delete_storage(filepile_delete_result&, const abstract_tag&,
 		tagspace_session* = nullptr, flags_t = 0) override;
 	using const_tagspace::lookup_rank;
 	[[nodiscard]] tagd::code lookup_rank(rank&, id_view) const override;

@@ -5,8 +5,20 @@
 #include <pwd.h>
 #include <unistd.h>
 
+static tagd::logger* tagspace_logger = nullptr;
+
 void TAGSPACE_SET_LOGGER(tagd::logger* logger) {
+	tagspace_logger = logger;
 	TAGDB_SET_LOGGER(logger);
+}
+
+bool TAGSPACE_LOG_ENABLED(tagd::log_level level) {
+	return tagspace_logger && level <= tagspace_logger->level(std::string(tagd::HARD_TAG_ROLE_TAGSPACE));
+}
+
+void TAGSPACE_LOG(tagd::log_level level, const std::string& text) {
+	if (tagspace_logger)
+		tagspace_logger->log(tagd::HARD_TAG_ROLE_TAGSPACE, level, text);
 }
 
 namespace tagd {
@@ -90,6 +102,31 @@ tagd::code stored_tagspace::finish(tagd::code rc) const {
 	return rc;
 }
 
+void stored_tagspace::filepile_home(std::string home, std::string reason) {
+	_home_reason = std::move(reason);
+	if (home == _filepile_home)
+		return;
+
+	_filepile_home = std::move(home);
+	_filepile_canonical_home.clear();
+	_filepile_configured_root.clear();
+	_filepile_home_error.clear();
+	if (_filepile_home.empty())
+		return;
+
+	// Cache both spellings at configuration time; identifier-only PUT does no filesystem lookup.
+	std::error_code ec;
+	const auto configured = fs::absolute(_filepile_home, ec);
+	if (!ec) {
+		_filepile_configured_root = (configured / "filepile").lexically_normal().string();
+		const auto canonical = fs::weakly_canonical(configured, ec);
+		if (!ec)
+			_filepile_canonical_home = canonical.string();
+	}
+	if (ec)
+		_filepile_home_error = "cannot resolve filepile home: " + _filepile_home + ": " + ec.message();
+}
+
 tagd::code stored_tagspace::initialize_location(const tagdb::storage_location& location) {
 	if (_impl->ready)
 		return error(TS_MISUSE, "tagspace is already initialized");
@@ -124,7 +161,7 @@ tagd::code stored_tagspace::initialize(const std::string& name,
 	_impl->db->attach_errors(*this);
 	_impl->db->report_errors = report_errors;
 	_persistent = true;
-	_filepile_home = home;
+	filepile_home(home);
 	auto rc = _impl->db->open_named(name, home,
 		create ? tagdb::open_mode::create : tagdb::open_mode::existing);
 	_impl->ready = rc == TAGD_OK;
@@ -183,15 +220,17 @@ tagd::code stored_tagspace::get(url& t, id_view id, tagspace_session* ssn, flags
 }
 
 tagd::code stored_tagspace::put(const abstract_tag& t, tagspace_session* ssn, flags_t flags) {
-	if (!prepare())
-		return code();
+	const auto rc = guard_mutation(t, false, ssn, flags);
+	if (rc != TAGD_OK) {
+		if (ssn)
+			ssn->code(rc);
+		return code(rc);
+	}
 	return finish(_impl->db->put(t, ssn, flags));
 }
 
 tagd::code stored_tagspace::put(const url& t, tagspace_session* ssn, flags_t flags) {
-	if (!prepare())
-		return code();
-	return finish(_impl->db->put(t, ssn, flags));
+	return put(static_cast<const abstract_tag&>(t), ssn, flags);
 }
 
 tagd::code stored_tagspace::put(const referent& t, tagspace_session* ssn, flags_t flags) {
@@ -201,15 +240,17 @@ tagd::code stored_tagspace::put(const referent& t, tagspace_session* ssn, flags_
 }
 
 tagd::code stored_tagspace::del(const abstract_tag& t, tagspace_session* ssn, flags_t flags) {
-	if (!prepare())
-		return code();
+	const auto rc = guard_mutation(t, true, ssn, flags);
+	if (rc != TAGD_OK) {
+		if (ssn)
+			ssn->code(rc);
+		return code(rc);
+	}
 	return finish(_impl->db->del(t, ssn, flags));
 }
 
 tagd::code stored_tagspace::del(const url& t, tagspace_session* ssn, flags_t flags) {
-	if (!prepare())
-		return code();
-	return finish(_impl->db->del(t, ssn, flags));
+	return del(static_cast<const abstract_tag&>(t), ssn, flags);
 }
 
 tagd::code stored_tagspace::del(const referent& t, tagspace_session* ssn, flags_t flags) {

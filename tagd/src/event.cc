@@ -5,6 +5,7 @@
 #include <sys/types.h>
 
 #include "tagd/event.h"
+#include "tagd/datetime.h"
 
 namespace tagd {
 
@@ -56,7 +57,6 @@ event::event(const std::string& evuri) :
 
 event::event(session& ssn, const id_string& program, const id_string& event_type_tag) :
 	abstract_tag("", HARD_TAG_SUB, event_type_tag, POS_TAG),
-	_time(ssn.started_at()),
 	_host(system_hostname()),
 	_principal(system_principal()),
 	_program(program),
@@ -64,6 +64,13 @@ event::event(session& ssn, const id_string& program, const id_string& event_type
 	_sequence(std::to_string(ssn.next_sequence())),
 	_event_type_tag(event_type_tag)
 {
+	// Failure leaves no fabricated EVURI and must not construct another timed error.
+	_time_code = current_datetime(_time);
+	if (_time_code != TAGD_OK) {
+		code(_time_code);
+		return;
+	}
+
 	init_id();
 }
 
@@ -103,6 +110,7 @@ tagd::code event::init_evuri(const std::string& evuri) {
 		return code(TS_MISUSE);
 
 	_time = elems[0];
+	_time_code = TAGD_OK;
 	_host = elems[1];
 	_principal = elems[2];
 	_program = elems[3];

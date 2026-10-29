@@ -51,7 +51,7 @@ tagd::code sqlite::type_dependency_errors(const tagd::id_string& id, session* ss
 	auto* stmt = get_stmt(stmt_t::TYPE_DEPENDENCIES);
 	int step;
 	while ((step = sqlite3_step(stmt)) == SQLITE_ROW) {
-		ssn->error(tagd::TS_RELATION_DEPENDENCY, tagd::predicate(tagd::HARD_TAG_CAUSED_BY,
+		ssn->error(tagd::TS_DEPENDENCY, tagd::predicate(tagd::HARD_TAG_CAUSED_BY,
 			reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)), id));
 	}
 	sqlite3_reset(stmt);
@@ -257,6 +257,21 @@ tagd::code sqlite::put(const tagd::abstract_tag& t, session* ssn, flags_t flags)
 	return put_transaction(t, ssn, flags, nullptr);
 }
 
+tagd::code sqlite::check_put(const tagd::abstract_tag& input, flags_t flags) {
+	// Referent insertion has its own transaction path and cannot participate in this dry run.
+	if (input.pos() == tagd::POS_REFERENT && !(flags & F_NO_POS_CAST))
+		return error(tagd::TS_MISUSE, "check_put does not accept referent declarations");
+
+	const auto previous_errors = errors().size();
+	_checking_put = true;
+	const auto rc = put_transaction(input, nullptr, flags & ~F_IGNORE_DUPLICATES, nullptr);
+	_checking_put = false;
+	// A duplicate PUT may accompany changed bytes; it is not yet a command error.
+	if (rc == tagd::TS_DUPLICATE && _errors)
+		_errors->resize(previous_errors);
+	return code(rc);
+}
+
 tagd::code sqlite::put_transaction(const tagd::abstract_tag& input, session* ssn,
 	flags_t flags, std::set<tagd::id_string>* batch_affected) {
 	mutation_scope mutation(*this);
@@ -302,10 +317,10 @@ tagd::code sqlite::put_transaction(const tagd::abstract_tag& input, session* ssn
 			rc = validate_effective({canonical.id()});
 		}
 	}
-	if (rc == tagd::TAGD_OK) {
+	if (rc == tagd::TAGD_OK && !_checking_put) {
 		rc = exec("RELEASE relation_put");
 	}
-	if (rc != tagd::TAGD_OK) {
+	if (rc != tagd::TAGD_OK || _checking_put) {
 		for (auto& [key, stmt] : _stmts) {
 			sqlite3_reset(stmt);
 		}

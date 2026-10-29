@@ -27,6 +27,123 @@ class SwitchingTester : public CxxTest::TestSuite {
 		}
 	};
 public:
+	void test_explicit_url_declaration_preserves_decoded_components() {
+		class capture : public writer {
+		public:
+			std::string id, path;
+			void cmd_put(const tagd::abstract_tag& value) override {
+				const auto* parsed = dynamic_cast<const tagd::url*>(&value);
+				TS_ASSERT(parsed);
+				if (parsed) {
+					id = parsed->id();
+					path = parsed->path();
+				}
+			}
+		} cb;
+		tagd::tagspace::memory space;
+		TS_ASSERT_EQUALS(space.init(), tagd::TAGD_OK);
+		TAGL::driver input(&space, &cb);
+		const tagd::url original("https://example.com/path?q=1");
+		TS_ASSERT_EQUALS(input.execute(">> HTTPS://example.com/path?q=1 _sub _url;"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cb.id, original.id());
+		TS_ASSERT_EQUALS(cb.path, original.path());
+	}
+
+	void test_url_identity_is_validated_by_tagspace_for_both_commands() {
+		for (const auto* command : {">>", ">>+"}) {
+			tagd::tagspace::memory space;
+			TS_ASSERT_EQUALS(space.init(), tagd::TAGD_OK);
+			class declaration_writer : public writer {
+			public:
+				void cmd_store(const tagd::abstract_tag& value) override {
+					cmd_put(value);
+				}
+			} cb;
+			TAGL::driver input(&space, &cb);
+			const std::string prefix = std::string(command) + " file:///tmp/declaration";
+			TS_ASSERT_EQUALS(input.execute(prefix + " _sub _file;"), tagd::TAGD_OK);
+			input.clear_errors();
+			TS_ASSERT_EQUALS(input.execute(prefix + " _sub _url;"), tagd::TS_MISUSE);
+		}
+	}
+
+	void test_store_operands_are_data_and_predicate_fragments_are_single_statements() {
+		class capture : public writer {
+		public:
+			unsigned calls = 0;
+			tagd::abstract_tag stored;
+			void cmd_store(const tagd::abstract_tag& value) override {
+				++calls;
+				stored = value;
+			}
+		} cb;
+		tagd::tagspace::memory space;
+		TS_ASSERT_EQUALS(space.init(), tagd::TAGD_OK);
+		TAGL::driver input(&space, &cb);
+		const tagd::url source("file:///tmp/quotes;\" >> text");
+		const tagd::url invalid("http://");
+		TS_ASSERT_EQUALS(input.execute_store(invalid, ""), invalid.code());
+		TS_ASSERT_EQUALS(cb.calls, 0u);
+		input.clear_errors();
+		TS_ASSERT_EQUALS(input.execute_store(source, "_has _message = \"beach; friends\""), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cb.calls, 1u);
+		TS_ASSERT_EQUALS(cb.stored.id(), source.id());
+		TS_ASSERT(cb.stored.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "beach; friends"));
+		for (const auto* suffix : {"; >> unwanted _sub _entity;", "%% _ignore_duplicates _true;",
+			"_has _message = ok\n\n", "_has _message =", "-- comment only", "_sub _file"}) {
+			TS_ASSERT_DIFFERS(input.execute_store(source, suffix), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(cb.calls, 1u);
+			input.clear_errors();
+		}
+		TS_ASSERT_EQUALS(input.execute_store(source, "_has _message = recovered"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cb.calls, 2u);
+	}
+
+	void test_filepile_event_message_round_trip() {
+		class capture : public writer {
+		public:
+			tagd::abstract_tag parsed;
+			void cmd_put(const tagd::abstract_tag& value) override {
+				parsed = value;
+			}
+		} cb;
+		tagd::tagspace::memory space;
+		TS_ASSERT_EQUALS(space.init(), tagd::TAGD_OK);
+		auto session = space.get_session();
+		tagd::event ev(session, "filepile", std::string(tagd::HARD_TAG_FILEPILE_DELETE_EVENT));
+		const std::string message = "DELETE file:///tmp/source; result=TAGD_OK; changed=true";
+		TS_ASSERT_EQUALS(ev.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, message), tagd::TAGD_OK);
+		std::ostringstream serialized;
+		serialized << ">> " << ev << ';';
+		TAGL::driver input(&space, &cb);
+		TS_ASSERT_EQUALS(input.execute(serialized.str()), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cb.parsed.id(), ev.id());
+		TS_ASSERT(cb.parsed.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, message));
+	}
+
+	void test_default_storage_callback_leaves_warning_output_to_frontends() {
+		class warning_space : public tagd::stored_tagspace {
+		public:
+			tagd::code init() {
+				return initialize_memory();
+			}
+			tagd::code delete_storage(tagd::filepile_delete_result& result,
+				const tagd::abstract_tag&, tagd::tagspace_session*, tagd::flags_t) override {
+				result.warnings.emplace_back(tagd::TS_NOT_FOUND, "stored content already missing");
+				return tagd::TAGD_OK;
+			}
+		} space;
+		TS_ASSERT_EQUALS(space.init(), tagd::TAGD_OK);
+		writer cb;
+		TAGL::driver input(&space, &cb);
+		std::ostringstream output;
+		auto* previous = std::cerr.rdbuf(output.rdbuf());
+		const auto rc = input.execute("!!+ file:///tmp/missing;");
+		std::cerr.rdbuf(previous);
+		TS_ASSERT_EQUALS(rc, tagd::TAGD_OK);
+		TS_ASSERT(output.str().empty());
+	}
+
 	void test_dump_load_preserves_string_escapes() {
 		const std::string declarations = R"tagl(
 >> a _sub _entity _has _message = "4\"x";
@@ -234,7 +351,7 @@ public:
 		}
 	}
 
-	void test_filepile_escaped_names_survive_reopen_and_dump_load() {
+	void test_filepile_escaped_names_survive_reopen_and_canonical_dump() {
 		auto pattern = (std::filesystem::temp_directory_path() / "tagl-hduri-XXXXXX").string();
 		const auto* directory = mkdtemp(pattern.data());
 		if (!directory) {
@@ -282,16 +399,18 @@ public:
 		TS_ASSERT_EQUALS(target.init(), tagd::TAGD_OK);
 		writer cb;
 		TAGL::driver loader(&target, &cb);
-		TS_ASSERT_EQUALS(loader.execute(text.str()), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(loader.execute(text.str()), tagd::TS_MISUSE);
+		// Ordinary loading cannot recreate managed records; explicit restore is separate work.
 		for (const auto* result : {&one, &two, &next}) {
 			tagd::url fetched;
-			TS_ASSERT_EQUALS(target.get(fetched, result->source.id()), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(reopened.get(fetched, result->source.id()), tagd::TAGD_OK);
 			TS_ASSERT_EQUALS(fetched.id(), result->source.id());
 			const auto embedded = result->link.substr(5, result->link.rfind('#') - 5);
 			TS_ASSERT_EQUALS(tagd::url(embedded).id(), result->source.id());
 
+			TS_ASSERT_DIFFERS(text.str().find(result->link), std::string::npos);
 			tagd::abstract_tag link;
-			TS_ASSERT_EQUALS(target.get(link, result->link), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(reopened.get(link, result->link), tagd::TAGD_OK);
 			TS_ASSERT(link.related(tagd::HARD_TAG_FROM, result->source.hduri()));
 			TS_ASSERT(link.related(tagd::HARD_TAG_TO, result->stored.hduri()));
 			TS_ASSERT(link.related(tagd::predicate(tagd::HARD_TAG_HAS, tagd::HARD_TAG_REVISION,
@@ -299,20 +418,13 @@ public:
 		}
 	}
 
-	void test_stored_file_dump_round_trip() {
-		tagd::tagspace::memory source, target;
-		TS_ASSERT_EQUALS(source.init(), tagd::TAGD_OK);
+	void test_ordinary_load_cannot_restore_managed_classification() {
+		tagd::tagspace::memory target;
 		TS_ASSERT_EQUALS(target.init(), tagd::TAGD_OK);
-		tagd::url file("file:///tmp/stored.bin", tagd::HARD_TAG_FILE_STORED);
-		TS_ASSERT_EQUALS(source.put(file), tagd::TAGD_OK);
-		std::ostringstream dump;
-		TS_ASSERT_EQUALS(source.dump(dump), tagd::TAGD_OK);
 		writer cb;
 		TAGL::driver d(&target, &cb);
-		TS_ASSERT_EQUALS(d.execute(dump.str()), tagd::TAGD_OK);
-		tagd::url fetched;
-		TS_ASSERT_EQUALS(target.get(fetched, file.id()), tagd::TAGD_OK);
-		TS_ASSERT_EQUALS(fetched.super_object(), tagd::HARD_TAG_FILE_STORED);
+		TS_ASSERT_EQUALS(d.execute(">> file:///tmp/stored.bin _type_of _file:stored;"), tagd::TS_MISUSE);
+		TS_ASSERT(!target.exists(tagd::url("file:///tmp/stored.bin").hduri()));
 	}
 
 	void test_tag_id_byte_bounds_survive_dump_load() {
@@ -552,6 +664,21 @@ public:
 		TS_ASSERT_EQUALS(first.execute("%% _use _config; >> injected _sub _entity;"), tagd::TS_MISUSE);
 		TS_ASSERT(first.http_forbidden());
 		TS_ASSERT(!cfg.exists("injected"));
+	}
+
+	void test_http_body_cannot_invoke_local_filepile_commands() {
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init(""), tagd::TAGD_OK);
+		writer cb;
+		TAGL::driver d(&cfg, &cb);
+		d.configure(cfg, true);
+		TS_ASSERT_EQUALS(d.execute("%% _use _default; >> file:///not-acquired;"), tagd::TAGD_OK);
+		for (const auto command : {">>+", "!!+"}) {
+			d.clear_errors();
+			TS_ASSERT_EQUALS(d.execute(std::string(command) + " file:///not-acquired;"),
+				tagd::TS_NOT_IMPLEMENTED);
+			TS_ASSERT(d.tsp()->exists(tagd::url("file:///not-acquired").hduri()));
+		}
 	}
 
 	void test_http_cannot_include_or_close_shared_instances() {

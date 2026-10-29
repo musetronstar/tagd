@@ -58,7 +58,8 @@ session session_factory::create()
 	auto rc = current_datetime(time);
 	session result(ulid, time);
 	if (rc != TAGD_OK) {
-		result.error(rc, "cannot obtain session start time");
+		// The default error session may be under construction; do not recurse into it.
+		result.code(rc);
 	}
 	return result;
 }
@@ -617,15 +618,17 @@ const id_string& referent::context() const {
 
 // whether a label should be quoted
 std::string util::esc_and_quote(id_string s, bool force_quotes) {
+	// Only a complete TAGL URL token may bypass quoting; messages can contain URLs too.
+	if (!force_quotes && url::looks_like_url(s) && url(s).ok()
+		&& s.find_first_of(" \t\r\n'\"\\") == std::string::npos
+		&& s.find('\0') == std::string::npos && s.back() != ';' && s.back() != ',')
+		return s;
+
 	bool do_quotes = force_quotes;
 	for (size_t i=0; i<s.size(); i++) {
-		if (isspace(s[i]))
+		if (isspace(static_cast<unsigned char>(s[i])))
 			do_quotes = true;
 		switch (s[i]) {
-			case ':':
-				if (!force_quotes && (s.size()-i) > 2 && s[i+1] == '/' && s[i+2] == '/')
-					return s;	// don't quote urls
-				break;
 			case '\\':
 				// Stored escapes already include their backslash; advance past exactly that pair.
 				++i;
@@ -686,7 +689,7 @@ std::ostream& operator<<(std::ostream& os, const abstract_tag& t) {
 	if (t.id().find(EVURI_SCHEME) == 0 || t.id().find(ERRURI_SCHEME) == 0) {
 		os << t.id();
 	} else
-	if (!t.super_object().empty() && (t.pos() != POS_URL || t.super_object() == HARD_TAG_FILE_STORED)) {  // Stored URLs retain their explicit classification
+	if (!t.super_object().empty() && t.pos() != POS_URL) {  // URL syntax carries its subordinate relation.
 		print_quotable(os, t.id());
 		os << ' ';
 		print_quotable(os, t.sub_relator());
@@ -980,7 +983,8 @@ const char* code_error_tag(tagd::code c) {
 		case tagd::TS_REFERS_TO_UNK: return HARD_TAG_ERROR_TS_REFERS_TO_UNK.data();
 		case tagd::TS_CONTEXT_UNK: return HARD_TAG_ERROR_TS_CONTEXT_UNK.data();
 		case tagd::TS_AMBIGUOUS: return HARD_TAG_ERROR_TS_AMBIGUOUS.data();
-		case tagd::TS_RELATION_DEPENDENCY: return HARD_TAG_ERROR_TS_RELATION_DEPENDENCY.data();
+		case tagd::TS_DEPENDENCY: return HARD_TAG_ERROR_TS_DEPENDENCY.data();
+		case tagd::TS_NOT_AVAILABLE: return HARD_TAG_ERROR_TS_NOT_AVAILABLE.data();
 		case tagd::TS_ERR_MAX_TAG_LEN: return HARD_TAG_ERROR_TS_ERR_MAX_TAG_LEN.data();
 		case tagd::TS_ERR: return HARD_TAG_ERROR_TS_ERR.data();
 		case tagd::TS_MISUSE: return HARD_TAG_ERROR_TS_MISUSE.data();

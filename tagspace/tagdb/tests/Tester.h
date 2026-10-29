@@ -430,7 +430,7 @@ class Tester : public CxxTest::TestSuite {
 
 		// delete tag that is a super_object and relations.object
 		tc = tdb.del(test_tag("teeth"), &ssn);
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_RELATION_DEPENDENCY");
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_DEPENDENCY");
 		TS_ASSERT_EQUALS(ssn.errors().size() , 2);
 		auto errs = ssn.errors();
 		if (errs.size() == 2) {
@@ -448,7 +448,7 @@ class Tester : public CxxTest::TestSuite {
 
 		// delete tag that is a super_object and has relations
 		tc = tdb.del(test_tag("mammal"), &ssn);
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_RELATION_DEPENDENCY");
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_DEPENDENCY");
 
 		// delete failed, so tag and relations still exists
 		tagd::abstract_tag e;

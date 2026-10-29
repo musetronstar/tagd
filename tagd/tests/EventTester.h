@@ -4,10 +4,35 @@
 
 #include <cctype>
 #include <regex>
+#include <cerrno>
+#include <ctime>
+#include <sstream>
 
 #include "tagd.h"
 #include "tagd/event.h"
 #include "tagd/ulid.h"
+#include "tagd/logger.h"
+#include "tagd/datetime.h"
+
+namespace {
+bool event_clock_controlled = false;
+bool event_clock_failed = false;
+timespec event_clock_value{};
+}
+
+extern "C" int __real_clock_gettime(clockid_t, timespec*);
+extern "C" int __wrap_clock_gettime(clockid_t clock, timespec* value) {
+	if (clock != CLOCK_REALTIME || !event_clock_controlled)
+		return __real_clock_gettime(clock, value);
+
+	if (event_clock_failed) {
+		errno = EIO;
+		return -1;
+	}
+
+	*value = event_clock_value;
+	return 0;
+}
 
 inline tagd::id_string owned_id(std::string_view sv) {
 	return tagd::id_string(sv);
@@ -15,6 +40,87 @@ inline tagd::id_string owned_id(std::string_view sv) {
 
 class Tester : public CxxTest::TestSuite {
 	public:
+
+	void tearDown() override {
+		event_clock_controlled = false;
+		event_clock_failed = false;
+	}
+
+	void test_first_error_can_survive_clock_failure() {
+		event_clock_controlled = true;
+		event_clock_failed = true;
+		tagd::error err(tagd::TS_NOT_FOUND, "original missing resource");
+		TS_ASSERT_EQUALS(err.code(), tagd::TS_NOT_FOUND);
+		TS_ASSERT_EQUALS(err.time_code(), tagd::TS_INTERNAL_ERR);
+		TS_ASSERT(err.id().empty());
+		TS_ASSERT_EQUALS(err.message(), "original missing resource");
+		std::ostringstream output;
+		tagd::logger log(output);
+		log.log(tagd::log_level::ERROR, err);
+		TS_ASSERT_DIFFERS(output.str().find("timestamp unavailable"), std::string::npos);
+		TS_ASSERT_DIFFERS(output.str().find("original missing resource"), std::string::npos);
+	}
+
+	void test_occurrence_time_preserves_session_sequence_and_identity() {
+		event_clock_controlled = true;
+		event_clock_value = {100, 1};
+		tagd::session ssn;
+		const auto started = ssn.started_at();
+
+		for (const auto seconds : {200, 200, 150}) {
+			event_clock_value = {seconds, 123};
+			tagd::event ev(ssn, "test!program", owned_id(HARD_TAG_EVENT));
+			std::string expected;
+			TS_ASSERT_EQUALS(tagd::current_datetime(expected), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(ev.time(), expected);
+			TS_ASSERT_EQUALS(ev.time_code(), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(ev.session_id(), ssn.id());
+			TS_ASSERT_EQUALS(ev.sequence(), std::to_string(ssn.sequence()));
+			TS_ASSERT_EQUALS(ssn.started_at(), started);
+
+			const auto identity = ev.evuri();
+			event_clock_value = {500, 0};
+			const auto copy = ev;
+			tagd::event parsed(identity);
+			TS_ASSERT_EQUALS(copy.evuri(), identity);
+			TS_ASSERT_EQUALS(parsed.evuri(), identity);
+			TS_ASSERT_EQUALS(parsed.program(), "test!program");
+		}
+		TS_ASSERT_EQUALS(ssn.sequence(), 3u);
+	}
+
+	void test_errors_capture_their_own_times_and_preserve_details() {
+		event_clock_controlled = true;
+		event_clock_value = {300, 42};
+		tagd::error first(tagd::TS_NOT_FOUND, "first missing resource");
+		event_clock_value = {400, 43};
+		tagd::error second(tagd::TS_MISUSE, "second operation");
+		TS_ASSERT_EQUALS(first.time(), "1970-01-01T00:05:00.000000042Z");
+		TS_ASSERT_EQUALS(second.time(), "1970-01-01T00:06:40.000000043Z");
+		TS_ASSERT_EQUALS(first.session_id(), second.session_id());
+		TS_ASSERT(first.id().starts_with("err:"));
+		TS_ASSERT_EQUALS(first.code(), tagd::TS_NOT_FOUND);
+		TS_ASSERT_EQUALS(second.code(), tagd::TS_MISUSE);
+		tagd::error parsed(first.id());
+		TS_ASSERT_EQUALS(parsed.time(), first.time());
+	}
+
+	void test_clock_failure_does_not_fabricate_identity_or_lose_error() {
+		tagd::session ssn;
+		event_clock_controlled = true;
+		event_clock_failed = true;
+		tagd::event ev(ssn, "test", owned_id(HARD_TAG_EVENT));
+		TS_ASSERT_EQUALS(ev.code(), tagd::TS_INTERNAL_ERR);
+		TS_ASSERT_EQUALS(ev.time_code(), tagd::TS_INTERNAL_ERR);
+		TS_ASSERT(ev.time().empty());
+		TS_ASSERT(ev.evuri().empty());
+
+		tagd::error err(tagd::TS_NOT_FOUND, "original missing resource");
+		TS_ASSERT_EQUALS(err.code(), tagd::TS_NOT_FOUND);
+		TS_ASSERT_EQUALS(err.time_code(), tagd::TS_INTERNAL_ERR);
+		TS_ASSERT(err.id().empty());
+		TS_ASSERT_EQUALS(err.message(), "original missing resource");
+	}
 
 	void test_ulid_generate(void) {
 		ulid_generator g;

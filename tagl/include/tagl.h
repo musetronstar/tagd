@@ -87,6 +87,8 @@ class callback {
 		// pure virtuals - consumers must override
 		virtual void cmd_get(const tagd::abstract_tag&) = 0;
 		virtual void cmd_put(const tagd::abstract_tag&) = 0;
+		virtual void cmd_store(const tagd::abstract_tag&);
+		virtual void cmd_delete_storage(const tagd::abstract_tag&);
 		virtual void cmd_del(const tagd::abstract_tag&) = 0;
 		virtual void cmd_query(const tagd::interrogator&) = 0;
 		virtual void cmd_error() = 0;
@@ -150,6 +152,7 @@ class driver : public tagd::errorable {
 		 */
 		bool _set_statement = false;
 		bool _tagspace_arguments = false;
+		bool _predicate_fragment = false, _predicate_fragment_empty = true;
 		void bind_membership();
 		// Sessions may be borrowed or owned depending on how the driver was constructed.
 		tagd::tagspace_session *_session = nullptr;
@@ -229,6 +232,8 @@ class driver : public tagd::errorable {
 		 */
 		tagd::code parseln(const std::string& = std::string());
 		tagd::code execute(const std::string&);
+		// Compose one STORE through the parser without treating the supplied URL as TAGL text.
+		[[nodiscard]] tagd::code execute_store(const tagd::url&, const std::string& predicates);
 		tagd::code execute(evbuffer*);
 		/*
 		 * Not [[nodiscard]]: lemon-generated parser.cc calls this and discards; cannot change
@@ -283,7 +288,8 @@ class driver : public tagd::errorable {
 		 * Not [[nodiscard]]: lemon-generated parser.cc calls this and discards.
 		 * creates a new tagd::url and sets the _tag ptr
 		 */
-		tagd::code new_url(const std::string&);
+		tagd::code new_url(const std::string&, tagd::id_view sub_relator = {},
+			tagd::id_view super_object = {});
 };
 
 } // namespace TAGL

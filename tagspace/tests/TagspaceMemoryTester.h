@@ -319,9 +319,12 @@ public:
 		TS_ASSERT_EQUALS(ts.put(parent), tagd::TAGD_OK);
 
 		tagd::url page("https://example.com/path");
-		// Preserve the URL's parsed fields while assigning its explicit parent.
+		// URL syntax owns identity; inheritance is expressed through a type relation.
 		static_cast<tagd::abstract_tag&>(page) = tagd::abstract_tag(
 			page.id(), tagd::HARD_TAG_SUB, parent.id(), tagd::POS_URL);
+		TS_ASSERT_EQUALS(ts.put(page), tagd::TS_MISUSE);
+		page = tagd::url("https://example.com/path");
+		TS_ASSERT_EQUALS(page.type_relation(tagd::HARD_TAG_TYPE_OF, parent.id()), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(ts.put(page), tagd::TAGD_OK);
 
 		tagd::url loaded;
@@ -330,7 +333,7 @@ public:
 		TS_ASSERT_EQUALS(loaded.id(), page.id());
 		TS_ASSERT_EQUALS(loaded.host(), "example.com");
 		TS_ASSERT_EQUALS(loaded.path(), "/path");
-		TS_ASSERT_EQUALS(loaded.super_object(), parent.id());
+		TS_ASSERT_EQUALS(loaded.super_object(), tagd::HARD_TAG_URL);
 		TS_ASSERT(loaded.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "page"));
 
 		TS_ASSERT_EQUALS(ts.get(loaded, page.id()), tagd::TAGD_OK);

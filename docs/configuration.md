@@ -315,7 +315,7 @@ request restrictions, and migration.
 
 ## Filepile home
 
-Tagsh `--store URL` and interactive `.store URL` use the active persistent
+TAGL `>>+ URL;` uses the active persistent
 tagspace and effective home. Content is shared at `<home>/filepile/`; it does
 not live below an individual tagspace directory. Physical home aliases resolve
 to one root, and generated URLs percent-encode path bytes.

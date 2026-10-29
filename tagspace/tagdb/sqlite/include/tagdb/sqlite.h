@@ -26,6 +26,7 @@ enum class stmt_t {
 	STORAGE_VERSION,
 	TYPE_DEPENDENCIES,
 	DEPENDENTS,
+	INHERITS,
 	SUBTREE,
 	CYCLE_CHECK,
 	REPARENT_ROLES,
@@ -151,6 +152,7 @@ class sqlite: public tagdb, private snapshot_source {
 
 		// performing init() operations
 		bool _write_poisoned = false;
+		bool _checking_put = false;
 		bool _doing_init = false;
 		bool _create_missing = true;
 
@@ -169,6 +171,7 @@ class sqlite: public tagdb, private snapshot_source {
 			const relation_resolver&, session*, flags_t);
 		[[nodiscard]] tagd::code query_effective(tagd::tag_set&, const tagd::interrogator&, session*, flags_t);
 		[[nodiscard]] tagd::code validate_effective(const std::set<tagd::id_string>&);
+		static void tag_affected(std::set<tagd::id_string>&, const tagd::abstract_tag&);
 		[[nodiscard]] tagd::code check_inherited_deletion(const tagd::abstract_tag&, const tagd::abstract_tag&);
 		[[nodiscard]] tagd::code put_impl(const tagd::abstract_tag&, session*, flags_t);
 		[[nodiscard]] tagd::code put_transaction(const tagd::abstract_tag&, session*, flags_t,
@@ -208,6 +211,8 @@ class sqlite: public tagdb, private snapshot_source {
 			std::function<std::chrono::steady_clock::time_point()> now) override;
 		virtual ~sqlite();
 		[[nodiscard]] tagd::code lookup_rank(tagd::rank&, tagd::id_view) override;
+		[[nodiscard]] tagd::code inherited_sources(std::set<tagd::id_string>&,
+			tagd::id_view, std::span<const tagd::id_view>) override;
 		[[nodiscard]] tagd::code order_predicates(tagd::predicate_set&) override;
 
 		// init db file
@@ -229,6 +234,11 @@ class sqlite: public tagdb, private snapshot_source {
 		[[nodiscard]] tagd::code get(tagd::url&, tagd::id_view, session*, flags_t = 0) override;
 
 		bool supports_atomic_put() const override { return true; }
+		bool checking_put() const { return _checking_put; }
+		[[nodiscard]] tagd::code check_put(const tagd::abstract_tag&, flags_t) override;
+		bool commit_unknown() const override { return _write_poisoned; }
+		[[nodiscard]] tagd::code prepare_delete() override;
+		[[nodiscard]] tagd::code del_batch(std::span<const tagd::id_string>, session*) override;
 		[[nodiscard]] tagd::code prepare_store() override;
 		[[nodiscard]] tagd::code put_batch(std::span<const tagd::abstract_tag* const>,
 			session*, flags_t = 0) override;

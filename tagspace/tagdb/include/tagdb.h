@@ -79,6 +79,18 @@ class tagdb : public tagd::errorable {
 			canonical_cache::cache_clock::duration idle,
 			std::function<canonical_cache::cache_clock::time_point()> now) = 0;
 		[[nodiscard]] virtual tagd::code lookup_rank(tagd::rank&, tagd::id_view) = 0;
+		// Return the requested sources reached through structural and type edges, including self.
+		// Unknown IDs do not match; one call observes one backend snapshot.
+		[[nodiscard]] virtual tagd::code inherited_sources(std::set<tagd::id_string>&,
+			tagd::id_view, std::span<const tagd::id_view>) {
+			return error(tagd::TS_NOT_IMPLEMENTED, "backend cannot check the integrated order");
+		}
+		[[nodiscard]] tagd::code inherits(bool& result, tagd::id_view subject, tagd::id_view source) {
+			std::set<tagd::id_string> matches;
+			const auto rc = inherited_sources(matches, subject, {&source, 1});
+			result = rc == tagd::TAGD_OK && !matches.empty();
+			return rc;
+		}
 		[[nodiscard]] virtual tagd::code order_predicates(tagd::predicate_set&) = 0;
 		[[nodiscard]] virtual tagd::code resolve_referents(tagd::abstract_tag&,
 			const tagd::abstract_tag&, session*) = 0;
@@ -115,6 +127,10 @@ class tagdb : public tagd::errorable {
 		}
 
 		virtual bool supports_atomic_put() const { return false; }
+		// Validate ordinary PUT semantics against current state without committing.
+		[[nodiscard]] virtual tagd::code check_put(const tagd::abstract_tag&, flags_t) {
+			return error(tagd::TS_NOT_IMPLEMENTED, "backend cannot validate PUT without mutation");
+		}
 		[[nodiscard]] virtual tagd::code prepare_store() {
 			return error(tagd::TS_NOT_IMPLEMENTED, "backend cannot provide durable atomic PUT");
 		}
@@ -122,6 +138,14 @@ class tagdb : public tagd::errorable {
 		[[nodiscard]] virtual tagd::code put_batch(
 			std::span<const tagd::abstract_tag* const>, session*, flags_t = 0) {
 			return error(tagd::TS_NOT_IMPLEMENTED, "backend does not support atomic PUT");
+		}
+
+		virtual bool commit_unknown() const { return false; }
+		[[nodiscard]] virtual tagd::code prepare_delete() {
+			return error(tagd::TS_NOT_IMPLEMENTED, "backend cannot prepare managed DELETE");
+		}
+		[[nodiscard]] virtual tagd::code del_batch(std::span<const tagd::id_string>, session*) {
+			return error(tagd::TS_NOT_IMPLEMENTED, "backend does not support atomic DELETE");
 		}
 
 		// put into db given tag

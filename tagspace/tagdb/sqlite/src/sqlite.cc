@@ -100,7 +100,7 @@ static const char *tagdb_command_prefix(tagd::command_t cmd) {
 	switch (cmd) {
 		case tagd::CMD_PUT:
 			return ">> ";
-		case tagd::CMD_DEL:
+		case tagd::CMD_DELETE:
 			return "!! ";
 		default:
 			assert(false);
@@ -112,7 +112,7 @@ static const char *tagdb_command_event_type(tagd::command_t cmd) {
 	switch (cmd) {
 		case tagd::CMD_PUT:
 			return HARD_TAG_TAGDB_PUT_EVENT.data();
-		case tagd::CMD_DEL:
+		case tagd::CMD_DELETE:
 			return HARD_TAG_TAGDB_DEL_EVENT.data();
 		default:
 			assert(false);
@@ -129,7 +129,7 @@ struct tagdb_mutation_log_scope {
 	tagdb_mutation_log_scope(tagdb::sqlite *tdb, tagdb::session *ssn, tagd::command_t cmd, const tagd::abstract_tag& t) :
 		_tdb{tdb}, _ssn{ssn}, _cmd{cmd}
 	{
-		assert(cmd == tagd::CMD_PUT || cmd == tagd::CMD_DEL);
+		assert(cmd == tagd::CMD_PUT || cmd == tagd::CMD_DELETE);
 
 		std::ostringstream os;
 		os << tagdb_command_prefix(cmd);
@@ -142,7 +142,8 @@ struct tagdb_mutation_log_scope {
 	}
 
 	void log(tagd::log_level lvl) const {
-		if (_msg.empty())
+		// Validation rolls its writes back and must not emit committed-mutation events.
+		if (_msg.empty() || _tdb->checking_put())
 			return;
 
 		std::ostringstream os;
@@ -1608,7 +1609,7 @@ tagd::code sqlite::put(const tagd::referent& r, session *ssn, flags_t flags) {
 }
 
 
-void tag_affected(std::set<tagd::id_string>& terms_affected, const tagd::abstract_tag& t) {
+void sqlite::tag_affected(std::set<tagd::id_string>& terms_affected, const tagd::abstract_tag& t) {
 	auto f_term_affected = [&terms_affected](const tagd::id_string& term) mutable {
 		if (!term.empty())
 			terms_affected.insert(term);
@@ -1622,6 +1623,10 @@ void tag_affected(std::set<tagd::id_string>& terms_affected, const tagd::abstrac
 		f_term_affected(p.object);
 		f_term_affected(p.modifier);
 	}
+	for (const auto& p : t.type_relations) {
+		f_term_affected(p.relator);
+		f_term_affected(p.object);
+	}
 }
 
 tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags) {
@@ -1633,8 +1638,8 @@ tagd::code sqlite::del(const tagd::abstract_tag& t, session *ssn, flags_t flags)
 	flags &= ~F_INCLUDE_INHERITED_PREDICATES;
 	if (!(flags & F_NO_RESET)) this->reset(ssn);
 	tagdb_debug_scope debug_scope(this, ssn);
-	tagdb_notice_scope notice_scope(this, ssn, tagd::CMD_DEL, t);
-	tagdb_error_scope error_scope(this, ssn, tagd::CMD_DEL, t);
+	tagdb_notice_scope notice_scope(this, ssn, tagd::CMD_DELETE, t);
+	tagdb_error_scope error_scope(this, ssn, tagd::CMD_DELETE, t);
 
 	TAGDB_LOG_DEBUG( "sqlite::del: " << t << std::endl );
 	TAGDB_LOG_DEBUG("tagdb del subject=" << t.id());
@@ -2106,7 +2111,7 @@ tagd::part_of_speech sqlite::term_pos_occurence(const tagd::id_string& id, sessi
 
 			if (!cause.empty()) {
 				if (ssn) {
-					ssn->error(tagd::TS_RELATION_DEPENDENCY,
+					ssn->error(tagd::TS_DEPENDENCY,
 						tagd::predicate(HARD_TAG_CAUSED_BY, cause, id) );
 				}
 			}
@@ -2222,7 +2227,7 @@ tagd::code sqlite::delete_tag(const tagd::id_string& id, session *ssn) {
 		TAGDB_LOG_DEBUG( "SQLITE_CONSTRAINT: " << sqlite3_errmsg(_db) << std::endl );
 		// Sessions are optional; dependency failures must still permit rollback.
 		if (!ssn)
-			return this->ferror(tagd::TS_RELATION_DEPENDENCY,
+			return this->ferror(tagd::TS_DEPENDENCY,
 				"cannot delete tag with dependencies: %s", id.c_str());
 		// Preserve ordinary dependency details and add the independent type references.
 		this->term_pos_occurence(id, ssn, true);
@@ -2231,8 +2236,8 @@ tagd::code sqlite::delete_tag(const tagd::id_string& id, session *ssn) {
 			RET_SSN_CODE(dependencies);
 		}
 
-		assert(ssn->code() == tagd::TS_RELATION_DEPENDENCY);
-		if (ssn->code() != tagd::TS_RELATION_DEPENDENCY)  // unknown cause of FK constraint failure, should't happen
+		assert(ssn->code() == tagd::TS_DEPENDENCY);
+		if (ssn->code() != tagd::TS_DEPENDENCY)  // unknown cause of FK constraint failure, should't happen
 			RET_SYS_SSN_FERROR(tagd::TS_INTERNAL_ERR, "delete tag unknown dependency failure: %s", id.c_str());
 		else  // error(s) set
 			return ssn->code();
@@ -3759,15 +3764,16 @@ tagd::code sqlite::dump(std::ostream& os) {
 	const int F_SUB_OBJ = 2;
 	int F_POS = 3;
 
-	// Both dump passes reconstruct the same persisted URL classification.
+	// URL syntax owns subordinate identity; stored-file classification is a type relation.
 	const auto stored_url = [this](tagd::url& value, const tagd::id_string& id,
 		const tagd::id_string& parent) {
 		tagd::HDURI decoded(id);
 		if (!decoded.ok())
 			return this->ferror(decoded.code(), "invalid stored URL: %s", id.c_str());
 
-		value = parent == tagd::HARD_TAG_FILE_STORED
-			? tagd::url(decoded.id(), parent) : tagd::url(decoded.id());
+		if (parent == tagd::HARD_TAG_FILE_STORED)
+			return this->error(tagd::TS_MISUSE, "incompatible stored URL identity; recreate this pre-beta tagspace");
+		value = tagd::url(decoded.id());
 		if (!value.ok())
 			return this->ferror(value.code(), "invalid stored URL: %s", id.c_str());
 

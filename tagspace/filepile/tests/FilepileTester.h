@@ -1,6 +1,7 @@
 #pragma once
 #include <cxxtest/TestSuite.h>
 #include "tagspace.h"
+#include "tagdb.h"
 #include "tagd/url.h"
 #include "filepile-files.h"
 #include <filesystem>
@@ -119,7 +120,7 @@ public:
 		TS_ASSERT_EQUALS(ts.store(first, tagd::url(source)), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(first.revision, 1U);
 		TS_ASSERT_EQUALS(first.link, "link:" + first.source.hduri() + "#001");
-		TS_ASSERT_EQUALS(first.stored.super_object(), tagd::HARD_TAG_FILE_STORED);
+		TS_ASSERT_EQUALS(first.stored.super_object(), tagd::HARD_TAG_FILE);
 		const auto before = dump(ts);
 		TS_ASSERT_EQUALS(ts.store(next, tagd::url(source)), tagd::TS_DUPLICATE);
 		TS_ASSERT_EQUALS(next.outcome, tagd::store_outcome::unchanged);
@@ -230,10 +231,16 @@ public:
 	void test_unknown_commit_outcome_blocks_further_writes() {
 		tagd::tagspace::persistent ts;
 		TS_ASSERT_EQUALS(ts.create("test", home.string()), tagd::TAGD_OK);
+		std::ostringstream messages;
+		tagd::logger logger(messages);
+		TAGSPACE_SET_LOGGER(&logger);
 		semantic_fault::commit = semantic_fault::rollback = true;
 		tagd::store_result result;
 		TS_ASSERT_EQUALS(ts.store(result, tagd::url(source)), tagd::TS_INTERNAL_ERR);
 		TS_ASSERT_EQUALS(result.revision, 0U);
+		TS_ASSERT(result.commit_unknown);
+		TS_ASSERT_DIFFERS(messages.str().find("changed=unknown"), std::string::npos);
+		TAGSPACE_SET_LOGGER(nullptr);
 		semantic_fault::commit = semantic_fault::rollback = false;
 		semantic_fault::premature_eof = semantic_fault::cleanup_failure = false;
 		TS_ASSERT_EQUALS(ts.store(result, tagd::url(source)), tagd::TS_INTERNAL_ERR);
@@ -250,6 +257,10 @@ public:
 		tagd::store_result result;
 		TS_ASSERT_EQUALS(ts.store(result, tagd::url(source)), tagd::TAGD_OK);
 		TS_ASSERT(result.stored.id().ends_with(".old"));
+		// Seed boundary fixtures below the guarded tagspace API; ordinary PUT cannot forge links.
+		auto fixture = tagdb::make_backend();
+		TS_ASSERT_EQUALS(fixture->open({tagdb::storage_kind::file,
+			tagd::tagspace_database_path(home.string(), "test")}), tagd::TAGD_OK);
 		for (unsigned revision : {9, 10, 99, 100, 999}) {
 			std::string digits = std::to_string(revision);
 			tagd::abstract_tag link("link:" + result.source.hduri() + '#' +
@@ -257,8 +268,9 @@ public:
 				tagd::HARD_TAG_LINK_FILEPILE, tagd::POS_TAG);
 			TS_ASSERT_EQUALS(link.relation(tagd::HARD_TAG_FROM, result.source.hduri()), tagd::TAGD_OK);
 			TS_ASSERT_EQUALS(link.relation(tagd::HARD_TAG_TO, result.stored.hduri()), tagd::TAGD_OK);
-			TS_ASSERT_EQUALS(link.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_REVISION, digits), tagd::TAGD_OK);
-			TS_ASSERT_EQUALS(ts.put(link), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(link.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_REVISION, digits,
+				tagd::OP_EQ, tagd::TYPE_INTEGER), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(fixture->put(link, nullptr), tagd::TAGD_OK);
 			TS_ASSERT_EQUALS(ts.store(result, tagd::url(source), nullptr, tagd::F_IGNORE_DUPLICATES), tagd::TAGD_OK);
 			TS_ASSERT_EQUALS(result.revision, revision);
 			TS_ASSERT_EQUALS(result.link, link.id());
@@ -283,7 +295,7 @@ public:
 		TS_ASSERT_EQUALS(second.revision, 1U);
 		tagd::url stored;
 		TS_ASSERT_EQUALS(ts.get(stored, first.stored.id()), tagd::TAGD_OK);
-		TS_ASSERT_EQUALS(stored.super_object(), tagd::HARD_TAG_FILE_STORED);
+		TS_ASSERT_EQUALS(stored.super_object(), tagd::HARD_TAG_FILE);
 		size_t metadata_count = 0;
 		for (const auto& p : stored.relations) {
 			if (p.relator == tagd::HARD_TAG_HAS &&

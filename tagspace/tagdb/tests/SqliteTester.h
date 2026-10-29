@@ -440,7 +440,7 @@ public:
 		TS_ASSERT_TAGD_OK(subject.relation("z", "a", "literal"));
 		TS_ASSERT_TAGD_OK(db.put(subject, nullptr));
 		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "z"));
-		TS_ASSERT_EQUALS(db.del(tagd::abstract_tag("z"), nullptr), tagd::TS_RELATION_DEPENDENCY);
+		TS_ASSERT_EQUALS(db.del(tagd::abstract_tag("z"), nullptr), tagd::TS_DEPENDENCY);
 		TS_ASSERT_EQUALS(db.cache_status().entries, 0);
 		TS_ASSERT_TAGD_OK(db.lookup_rank(r, "z"));
 		TS_ASSERT_TAGD_OK(db.put(tagd::referent("alias", "z", "context"), nullptr));
@@ -622,7 +622,7 @@ public:
 			const auto occurrence = tdb.term_pos_occurence(id, &ssn, true);
 			TS_ASSERT(occurrence & pos);
 			TS_ASSERT(occurrence & tagd::POS_SUB_OBJECT);
-			TS_ASSERT_EQUALS(ssn.code(), tagd::TS_RELATION_DEPENDENCY);
+			TS_ASSERT_EQUALS(ssn.code(), tagd::TS_DEPENDENCY);
 		}
 	}
 

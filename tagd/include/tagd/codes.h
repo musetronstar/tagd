@@ -45,7 +45,7 @@ typedef enum {
 	TS_REFERS_TO_UNK,
 	TS_CONTEXT_UNK,
 	TS_AMBIGUOUS,
-	TS_RELATION_DEPENDENCY,
+	TS_DEPENDENCY,
 
 	TS_ERR_MAX_TAG_LEN,
 	TS_ERR,				// general error due to caller input
@@ -59,7 +59,8 @@ typedef enum {
 
 	// Append new errors so existing shell exit codes keep their values.
 	HDURI_ERR,
-	TS_CONTRADICTION
+	TS_CONTRADICTION,
+	TS_NOT_AVAILABLE
 } code;
 // TAGD_CODES_END
 
@@ -85,7 +86,7 @@ typedef enum {
 typedef enum {
 	CMD_GET,
 	CMD_PUT,
-	CMD_DEL,
+	CMD_DELETE,
 	CMD_QUERY
 } command_t;
 

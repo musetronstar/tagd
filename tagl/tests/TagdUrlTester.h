@@ -36,11 +36,11 @@ class TagdUrlTester : public CxxTest::TestSuite {
 		callback_tester cb(&tsp);
 		TAGL::driver tagl(&tsp, &cb);
 
-		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_DEL, "/dog");
+		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_DELETE, "/dog");
 		tagl.finish();
 
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK")
-		TS_ASSERT_EQUALS(tagl.cmd(), TOK_CMD_DEL)
+		TS_ASSERT_EQUALS(tagl.cmd(), TOK_CMD_DELETE)
 		TS_ASSERT_EQUALS(cb.last_tag->id(), "dog")
 	}
 
@@ -53,7 +53,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 		tagl.finish();
 
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TAGD_OK")
-		TS_ASSERT_EQUALS(tagl.cmd(), TOK_CMD_DEL)
+		TS_ASSERT_EQUALS(tagl.cmd(), TOK_CMD_DELETE)
 		TS_ASSERT_EQUALS(cb.last_tag->id(), "dog")
 	}
 
@@ -113,7 +113,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 
 		tagd::code tc = tagl.execute("!! /_/dog;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tagl.cmd(), TOK_CMD_DEL )
+		TS_ASSERT_EQUALS( tagl.cmd(), TOK_CMD_DELETE )
 		TS_ASSERT_EQUALS( tagl.tag().id(), "dog" )
 		TS_ASSERT( tc == tagl.code() )
 	}
@@ -345,7 +345,7 @@ class TagdUrlTester : public CxxTest::TestSuite {
 		tagspace_tester tsp;
 		TAGL::driver tagl(&tsp);
 
-		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_DEL, "/bat?q=oops");
+		tagd::code tc = tagl.scan_tagdurl(TOK_CMD_DELETE, "/bat?q=oops");
 
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TS_MISUSE" )
 	}

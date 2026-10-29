@@ -61,7 +61,7 @@ public:
 			TS_ASSERT_EQUALS(conflict.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "5",
 				tagd::OP_GT, tagd::TYPE_INTEGER), tagd::TAGD_OK);
 			TS_ASSERT_EQUALS(db.put(conflict), tagd::TS_CONTRADICTION);
-			TS_ASSERT_EQUALS(db.del(tagd::abstract_tag("upper")), tagd::TS_RELATION_DEPENDENCY);
+			TS_ASSERT_EQUALS(db.del(tagd::abstract_tag("upper")), tagd::TS_DEPENDENCY);
 			TS_ASSERT_EQUALS(db.dump(after), tagd::TAGD_OK);
 			TS_ASSERT_EQUALS(after.str(), before.str());
 		}

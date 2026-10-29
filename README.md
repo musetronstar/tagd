@@ -70,17 +70,25 @@ for the schema, precedence, and runtime restrictions.
 The same options apply to httagd, which also defaults to in-memory storage.
 TAGL supports tagspace switching and named-tagspace URL prefixes; see the
 [TAGL specification](docs/TAGL-spec.md). `--db PATH` opens a direct database and
-disables home lookup. Tagsh exposes local filepile storage through `--store URL`
-and interactive `.store URL`; see [Filepile storage](docs/filepile.md).
+disables home lookup. Tagsh exposes local filepile storage through TAGL `>>+ URL;`
+in every local input mode; see [Filepile storage](docs/filepile.md).
 
 ```sh
 bin/tagsh --home /data/tagd --tagspace Photos --create --noshell
-bin/tagsh --home /data/tagd --tagspace Photos --store file:///photos/a.jpg --noshell
+bin/tagsh --home /data/tagd --tagspace Photos --tagl '>>+ file:///photos/a.jpg;' --noshell
 ```
 
 Filepile requires persistent storage and a home directory. Calls sharing a home
-must run sequentially in one process. HTTP acquisition and native TAGL STORE
-remain deferred.
+must run sequentially in one process with one participating persistent tagspace.
+HTTP acquisition and remote filepile invocation remain deferred. `.store` has
+been removed. `--store FILE_OR_URL...` queues the same TAGL STORE command for
+each operand; an immediately following `--with 'PREDICATES'` applies predicates
+to each source in that group. For example:
+
+```sh
+bin/tagsh --home /data/tagd --tagspace Photos --store ./photos/*.jpg \
+  --with '_has _message = "happy holidays"' --noshell
+```
 
 
 
@@ -976,6 +984,11 @@ committed to the public domain as [CC0](http://creativecommons.org/publicdomain/
 
 Core tagd provides bounded sample detection (`tagd/magic.h`), incremental EVP
 SHA-256 (`tagd/sha256.h`), and UTC nanosecond formatting (`tagd/datetime.h`).
+New `ev:` and `err:` identities capture the event's occurrence time, independently
+of session start time. Copying, logging, and parsing preserve that time. The
+existing per-session sequence remains unchanged; wall-clock timestamps may be
+equal or move backwards. Clock failure leaves the identity empty and exposes
+`event::time_code()` while preserving an error's original code and details.
 Detection/hash consumers link `-lmagic -lcrypto`; building requires the development
 headers for libmagic and OpenSSL, plus Perl and gperf. The default explicit magic
 database is `/usr/share/misc/magic.mgc`; callers can supply another trusted path.

@@ -41,7 +41,7 @@ void scanner::tagdurl::scan(int cmd, const std::string& path) {
 		return;
 	}
 
-	if (cmd == TOK_CMD_GET || cmd == TOK_CMD_DEL) {
+	if (cmd == TOK_CMD_GET || cmd == TOK_CMD_DELETE) {
 		_driver->cmd(cmd);
 		this->scanner::scan(tagd::uri_decode(path.substr(1)));
 	} else {

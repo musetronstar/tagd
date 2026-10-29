@@ -4,7 +4,7 @@ CXXFLAGS ?= -std=c++23 -Wall -Wextra -O3
 override CXXFLAGS += -fno-exceptions
 
 INC = -I../include -I../../include -I../../../tagd/include -I../../tagdb/include
-SRCS = filepile-files.cc filepile.cc
+SRCS = filepile-files.cc filepile-records.cc filepile-delete.cc filepile.cc
 OBJS = $(SRCS:.cc=.o)
 DEPS = $(OBJS:.o=.d)
 

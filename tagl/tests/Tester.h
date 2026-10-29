@@ -357,7 +357,7 @@ class callback_tester : public TAGL::callback {
 					last_code = _tsp->error(tagd::TS_MISUSE, "id cannot be the same as sub");
 					return;
 				}
-				cmd = TOK_CMD_DEL;
+				cmd = TOK_CMD_DELETE;
 				if (t.pos() == tagd::POS_URL) {
 					if (last_tag != nullptr)
 						delete last_tag;
@@ -854,7 +854,7 @@ class Tester : public CxxTest::TestSuite {
 				HARD_TAG_CAN, " bark, bite"
 			));
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_DEL )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_DELETE )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "legs") )
 		TS_ASSERT( tagl.tag().related(HARD_TAG_HAS, "tail") )

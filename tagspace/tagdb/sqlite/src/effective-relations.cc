@@ -4,6 +4,61 @@
 
 namespace tagdb {
 
+tagd::code sqlite::inherited_sources(std::set<tagd::id_string>& result,
+	tagd::id_view subject, std::span<const tagd::id_view> objects) {
+	result.clear();
+	if (subject.empty() || objects.empty())
+		return code(tagd::TAGD_OK);
+
+	// Only resource failures mean unavailable; other backend errors retain their code.
+	auto failure = [&](tagd::code rc) {
+		if (_db) {
+			switch (sqlite3_errcode(_db)) {
+				case SQLITE_BUSY:
+				case SQLITE_LOCKED:
+				case SQLITE_CANTOPEN:
+				case SQLITE_PERM:
+				case SQLITE_IOERR:
+					return ferror(tagd::TS_NOT_AVAILABLE, "cannot read inheritance sources: %s",
+						sqlite3_errmsg(_db));
+			}
+		}
+		return rc;
+	};
+	read_scope snapshot(*this);
+	if (snapshot.status != tagd::TAGD_OK)
+		return failure(snapshot.status);
+
+	// UNION visits each ancestor once for all requested sources, even when paths converge.
+	auto rc = prepare(stmt_t::INHERITS,
+		"WITH RECURSIVE sources(tag) AS (SELECT tag FROM tags WHERE tag=tid(?) "
+		"UNION SELECT t.super_object FROM tags t JOIN sources s ON t.tag=s.tag "
+		"UNION SELECT r.type_object FROM type_relations r JOIN sources s ON r.subject=s.tag) "
+		"SELECT idt(s.tag) FROM sources s JOIN tags t ON t.tag=s.tag");
+	if (rc != tagd::TAGD_OK)
+		return failure(rc);
+	const std::string from(subject);
+	rc = bind_text(stmt_t::INHERITS, 1, from.c_str());
+	if (rc != tagd::TAGD_OK)
+		return failure(rc);
+
+	std::set<tagd::id_string> matches;
+	auto* statement = get_stmt(stmt_t::INHERITS);
+	int step;
+	while ((step = sqlite3_step(statement)) == SQLITE_ROW) {
+		const tagd::id_view source(reinterpret_cast<const char*>(sqlite3_column_text(statement, 0)));
+		if (std::find(objects.begin(), objects.end(), source) != objects.end())
+			matches.emplace(source);
+	}
+	if (step != SQLITE_DONE)
+		rc = failure(error(tagd::TS_INTERNAL_ERR, "cannot check integrated order"));
+	sqlite3_reset(statement);
+	if (rc != tagd::TAGD_OK)
+		return rc;
+	result.swap(matches);
+	return code(tagd::TAGD_OK);
+}
+
 tagd::code sqlite::collect_dependents(std::set<tagd::id_string>& result,
 	const tagd::id_string& id) {
 	// UNION visits each subject once, even when structural and type paths converge.
@@ -382,11 +437,19 @@ tagd::code sqlite::query_effective(tagd::tag_set& result, const tagd::interrogat
 		}
 		if (!std::all_of(q.relations.begin(), q.relations.end(), [&](const auto& p) {
 			return p.object == tagd::HARD_TAG_TERMS || state.matches(view, p);
-		}) || !std::all_of(q.type_relations.begin(), q.type_relations.end(), [&](const auto& p) {
-			return state.matches_type_relation(id, p);
 		})) {
 			continue;
 		}
+		bool matches_types = true;
+		for (const auto& p : q.type_relations) {
+			// evaluate() already populated this snapshot's source closure.
+			if (!state.matches_type_relation(id, p)) {
+				matches_types = false;
+				break;
+			}
+		}
+		if (!matches_types)
+			continue;
 
 		tagd::abstract_tag output;
 		rc = format_declaration(output, state.declarations().at(id), ssn, flags);

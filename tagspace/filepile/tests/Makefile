@@ -10,7 +10,17 @@ LIBTAGSPACE = ../../lib/libtagspace.a
 LFLAGS = -L../../lib -ltagspace -L../../../tagd/lib -ltagd $(TAGSPACE_BACKEND_LIBS)
 CXXTEST = cxxtestgen --error-printer
 
-all: filepile_tests filepile_files_tests filepile_vocabulary_tests
+all: filepile_tests filepile_files_tests filepile_vocabulary_tests filepile_command_tests filepile_delete_tests
+
+filepile_delete_tests: $(LIBTAGSPACE) $(LIBTAGD) FilepileDeleteTester.h
+	$(CXXTEST) FilepileDeleteTester.h -o filepile-delete-tester.cpp
+	g++ $(CXXFLAGS) filepile-delete-tester.cpp -o filepile-delete-tester $(INC) $(LFLAGS) -Wl,--wrap=sqlite3_exec,--wrap=unlinkat,--wrap=fsync,--wrap=sqlite3_step
+	./filepile-delete-tester
+
+filepile_command_tests: $(LIBTAGSPACE) $(LIBTAGD) FilepileCommandTester.h
+	$(CXXTEST) FilepileCommandTester.h -o filepile-command-tester.cpp
+	g++ $(CXXFLAGS) filepile-command-tester.cpp -o filepile-command-tester $(INC) $(LFLAGS) -Wl,--wrap=sqlite3_step
+	./filepile-command-tester
 
 debug: CXXFLAGS += -g -O0
 debug: all
@@ -37,6 +47,8 @@ $(LIBTAGD):
 	$(MAKE) -C ../../../tagd CXXFLAGS="$(CXXFLAGS)"
 
 clean:
+	rm -f filepile-delete-tester.cpp filepile-delete-tester
+	rm -f filepile-command-tester.cpp filepile-command-tester
 	rm -f filepile-tester.cpp filepile-tester
 	rm -f filepile-files-tester.cpp filepile-files-tester
 	rm -f filepile_vocabulary_tests-tester.cpp filepile_vocabulary_tests-tester

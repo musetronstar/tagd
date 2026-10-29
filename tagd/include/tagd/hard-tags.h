@@ -93,6 +93,9 @@ inline constexpr std::string_view HARD_TAG_MEDIA_TYPE{"_media_type"};	/// HARD_T
 inline constexpr std::string_view HARD_TAG_MESSAGE{"_message"};		/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_TERMS{"_terms"};		/// HARD_TAG_SUB HARD_TAG_MESSAGE tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_EVENT{"_event"};		/// HARD_TAG_SUB HARD_TAG_ENTITY tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_FILEPILE_EVENT{"_event:filepile"};	/// HARD_TAG_SUB HARD_TAG_EVENT tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_FILEPILE_STORE_EVENT{"_event:filepile_store"};	/// HARD_TAG_SUB HARD_TAG_FILEPILE_EVENT tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_FILEPILE_DELETE_EVENT{"_event:filepile_delete"};	/// HARD_TAG_SUB HARD_TAG_FILEPILE_EVENT tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_ACTION{"_action"};		/// HARD_TAG_SUB HARD_TAG_EVENT tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_LOG_EVENT{"_event:log"};		/// HARD_TAG_SUB HARD_TAG_EVENT tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_COMMAND_EVENT{"_event:command"};	/// HARD_TAG_SUB HARD_TAG_EVENT tagd::POS_TAG
@@ -163,7 +166,8 @@ inline constexpr std::string_view HARD_TAG_ERROR_TS_OBJECT_UNK{"_error:ts_object
 inline constexpr std::string_view HARD_TAG_ERROR_TS_REFERS_TO_UNK{"_error:ts_refers_to_unk"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_ERROR_TS_CONTEXT_UNK{"_error:ts_context_unk"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_ERROR_TS_AMBIGUOUS{"_error:ts_ambiguous"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
-inline constexpr std::string_view HARD_TAG_ERROR_TS_RELATION_DEPENDENCY{"_error:ts_relation_dependency"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_ERROR_TS_DEPENDENCY{"_error:ts_dependency"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
+inline constexpr std::string_view HARD_TAG_ERROR_TS_NOT_AVAILABLE{"_error:ts_not_available"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_ERROR_TS_ERR_MAX_TAG_LEN{"_error:ts_err_max_tag_len"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_ERROR_TS_ERR{"_error:ts_err"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
 inline constexpr std::string_view HARD_TAG_ERROR_TS_MISUSE{"_error:ts_misuse"};	/// HARD_TAG_SUB HARD_TAG_ERROR tagd::POS_TAG
@@ -347,7 +351,7 @@ using tagd::HARD_TAG_ERROR_TS_OBJECT_UNK;
 using tagd::HARD_TAG_ERROR_TS_REFERS_TO_UNK;
 using tagd::HARD_TAG_ERROR_TS_CONTEXT_UNK;
 using tagd::HARD_TAG_ERROR_TS_AMBIGUOUS;
-using tagd::HARD_TAG_ERROR_TS_RELATION_DEPENDENCY;
+using tagd::HARD_TAG_ERROR_TS_DEPENDENCY;
 using tagd::HARD_TAG_ERROR_TS_ERR_MAX_TAG_LEN;
 using tagd::HARD_TAG_ERROR_TS_ERR;
 using tagd::HARD_TAG_ERROR_TS_MISUSE;

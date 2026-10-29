@@ -257,7 +257,7 @@ public:
 
 files::files() : _impl(std::make_unique<impl>()) {}
 
-tagd::code files::init(const std::string& home, const url& input) {
+tagd::code files::init(const std::string& canonical_home, const url& input) {
 	if (_impl->source.get() >= 0)
 		return error(TS_MISUSE, "filepile files already initialized");
 
@@ -272,12 +272,9 @@ tagd::code files::init(const std::string& home, const url& input) {
 	if (rc != TAGD_OK)
 		return rc;
 
-	std::error_code ec;
-	const auto canonical = std::filesystem::canonical(home, ec);
-	if (ec)
-		return error(TS_INTERNAL_ERR, "resolve filepile home: " + home + ": " + ec.message());
-	_impl->root = canonical.string() + "/filepile";
-	rc = directory(*this, _impl->home, AT_FDCWD, canonical.string(), false);
+	// Tagspace fixes the home at configuration; resolving it again could select a different pile.
+	_impl->root = (std::filesystem::path(canonical_home) / "filepile").string();
+	rc = directory(*this, _impl->home, AT_FDCWD, canonical_home, false);
 	if (rc != TAGD_OK)
 		return rc;
 	rc = directory(*this, _impl->pile, _impl->home.get(), "filepile", true);
@@ -548,6 +545,70 @@ tagd::code files::publish(const std::string& name) {
 tagd::code files::cleanup() {
 	// TODO(cooperative-cancellation): Route future cancellation through owned staging cleanup.
 	return _impl->cleanup(*this);
+}
+
+tagd::code stored_address(errorable& errors, std::string& name,
+	const std::string& canonical_home, const url& stored) {
+	std::string path;
+	url canonical;
+	const auto rc = canonical_source(errors, canonical, path, stored);
+	if (rc != TAGD_OK)
+		return rc;
+	name = std::filesystem::path(path).filename().string();
+	if (name.size() <= digest_length + 1 || name[digest_length] != '.' ||
+		name.substr(0, digest_length).find_first_not_of("0123456789abcdef") != std::string::npos)
+		return errors.error(TS_ERR, "invalid stored filepile address: " + stored.id());
+
+	// Validate the digest before slicing its directory prefixes, including for malformed input.
+	const auto expected = std::filesystem::path(canonical_home) / "filepile"
+		/ name.substr(0, 2) / name.substr(2, 2) / name;
+	if (path != expected)
+		return errors.error(TS_ERR, "stored filepile address is outside the selected home: " + stored.id());
+	return TAGD_OK;
+}
+
+// Cleanup uses directory descriptors so a managed component cannot redirect unlink outside filepile.
+tagd::code remove_content(errorable& errors, cleanup_result& result,
+	const std::string& canonical_home, const url& stored) {
+	std::string path;
+	url canonical;
+	auto rc = canonical_source(errors, canonical, path, stored);
+	if (rc != TAGD_OK)
+		return rc;
+	std::string name;
+	rc = stored_address(errors, name, canonical_home, stored);
+	if (rc != TAGD_OK)
+		return rc;
+
+	auto failure = [&]() {
+		if (errno == ENOENT) {
+			result.outcome = cleanup_outcome::already_missing;
+			return TAGD_OK;
+		}
+		return system_failure(errors, "remove stored content", path, TS_NOT_AVAILABLE);
+	};
+	descriptor parent(::open(canonical_home.c_str(), directory_flags));
+	if (parent.get() < 0)
+		return failure();
+	for (const auto& part : {std::string("filepile"), name.substr(0, 2), name.substr(2, 2)}) {
+		descriptor child(::openat(parent.get(), part.c_str(), directory_flags));
+		if (child.get() < 0)
+			return failure();
+		parent = std::move(child);
+	}
+	struct stat status{};
+	if (::fstatat(parent.get(), name.c_str(), &status, AT_SYMLINK_NOFOLLOW) < 0)
+		return failure();
+	if (!S_ISREG(status.st_mode))
+		return errors.error(TS_NOT_AVAILABLE, "stored content is not a regular file: " + path);
+	if (::unlinkat(parent.get(), name.c_str(), 0) < 0)
+		return failure();
+
+	// A durability failure after unlink must not claim that the bytes remain present.
+	result.outcome = cleanup_outcome::removed;
+	if (::fsync(parent.get()) < 0)
+		return system_failure(errors, "sync content deletion", path, TS_NOT_AVAILABLE);
+	return TAGD_OK;
 }
 
 } // namespace tagd::filepile

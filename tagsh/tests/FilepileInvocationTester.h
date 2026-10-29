@@ -32,10 +32,10 @@ public:
 		shell.set_output(out);
 
 		std::vector<startup_action> actions{
-			{startup_action::kind::store, source},
+			{startup_action::kind::tagl, ">>+ " + source + ";"},
 			{startup_action::kind::tagl, ">> " + source + " _has _message = explicit;"},
 			{startup_action::kind::tagl, "%% _ignore_duplicates _true;"},
-			{startup_action::kind::store, source}
+			{startup_action::kind::tagl, ">>+ " + source + ";"}
 		};
 		TS_ASSERT_EQUALS(execute_startup_actions(shell, actions), 0);
 
@@ -48,46 +48,49 @@ public:
 
 		TS_ASSERT_EQUALS(execute_startup_actions(shell, {
 			{startup_action::kind::tagl, "%% _ignore_duplicates _false;"},
-			{startup_action::kind::store, source},
+			{startup_action::kind::tagl, ">>+ " + source + ";"},
 			{startup_action::kind::tagl, ">> must_not_exist _sub _entity;"}
 		}), tagd::TS_DUPLICATE);
 		TS_ASSERT(!persistent->exists("must_not_exist"));
 	}
-	void test_script_store_is_rejected_and_put_failure_preserves_store() {
+	void test_removed_store_and_tagl_file_invocation() {
 		tagd::config cfg;
 		TS_ASSERT_EQUALS(cfg.init(home.string()), tagd::TAGD_OK);
 		std::shared_ptr<tagd::tagspace> persistent;
 		TS_ASSERT_EQUALS(cfg.create_tagspace("test", persistent), tagd::TAGD_OK);
 		tagsh shell(persistent.get(), cfg);
 		shell.batch(true);
-
-		TS_ASSERT_EQUALS(shell.interpret(".store " + source), tagd::TS_MISUSE);
-
-		std::istringstream stream(".store " + source + "\n");
-		TS_ASSERT_EQUALS(shell.interpret(stream), tagd::TS_MISUSE);
+		TS_ASSERT_DIFFERS(shell.interpret(".store " + source), 0);
 		TS_ASSERT(!std::filesystem::exists(home / "filepile"));
 
-		std::ofstream(home / "script.tagl") << ".store " << source;
-		TS_ASSERT_DIFFERS(shell.interpret_fname((home / "script.tagl").string()), 0);
-		TS_ASSERT(!std::filesystem::exists(home / "filepile"));
-
+		std::ofstream(home / "script.tagl") << ">>+ " << source << " _has _message = script;";
 		tagsh fresh(persistent.get(), cfg);
-		TS_ASSERT_DIFFERS(execute_startup_actions(fresh, {
-			{startup_action::kind::store, source},
-			{startup_action::kind::tagl, ">> fail _sub unknown_parent;"}
-		}), 0);
+		TS_ASSERT_EQUALS(fresh.interpret_fname((home / "script.tagl").string()), 0);
 		TS_ASSERT(persistent->exists("link:" + tagd::url(source).hduri() + "#001"));
 	}
-	void test_cli_option_order() {
-		const char* argv[] = {"tagsh", "--store", source.c_str(), "--tagl", "<< _entity;",
-			"--store", source.c_str(), "--noshell"};
+
+	void test_store_groups_and_tagl_actions_keep_their_order() {
+		const char* argv[] = {"tagsh", "--tagl", "<< _entity;", "--store", source.c_str(),
+			"holiday photo.jpg", "--with", "_has _message = caption", "--store", "other.jpg", "--noshell"};
 		cmd_args args;
-		args.parse(8, const_cast<char**>(argv));
+		args.parse(11, const_cast<char**>(argv));
 		TS_ASSERT(!args.has_errors());
-		TS_ASSERT_EQUALS(args.actions().size(), 3U);
-		TS_ASSERT_EQUALS(args.actions().at(0).type, startup_action::kind::store);
-		TS_ASSERT_EQUALS(args.actions().at(1).type, startup_action::kind::tagl);
-		TS_ASSERT_EQUALS(args.actions().at(2).type, startup_action::kind::store);
+		TS_ASSERT_EQUALS(args.actions().size(), 4u);
+		TS_ASSERT_EQUALS(args.actions().at(0).type, startup_action::kind::tagl);
+		for (size_t i : {1u, 2u}) {
+			TS_ASSERT_EQUALS(args.actions().at(i).type, startup_action::kind::store);
+			TS_ASSERT_EQUALS(args.actions().at(i).predicates, "_has _message = caption");
+		}
+		TS_ASSERT_EQUALS(args.actions().at(1).input, source);
+		TS_ASSERT_EQUALS(args.actions().at(2).input, "holiday photo.jpg");
+		TS_ASSERT(args.actions().at(3).predicates.empty());
 		TS_ASSERT(args.noshell());
+	}
+
+	void test_with_requires_a_value_before_the_next_option() {
+		const char* argv[] = {"tagsh", "--store", source.c_str(), "--with", "--noshell"};
+		cmd_args args;
+		args.parse(5, const_cast<char**>(argv));
+		TS_ASSERT(args.has_errors());
 	}
 };

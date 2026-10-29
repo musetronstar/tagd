@@ -222,16 +222,16 @@ statement ::= get_statement TERMINATOR .
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
-statement ::= put_statement TERMINATOR .
+statement ::= put_statement(c) TERMINATOR .
 {
-	tagl->cmd(TOK_CMD_PUT);
+	tagl->cmd(c);
 	if (!tagl->has_errors())
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
-statement ::= del_statement TERMINATOR .
+statement ::= del_statement(c) TERMINATOR .
 {
-	tagl->cmd(TOK_CMD_DEL);
+	tagl->cmd(c);
 	if (!tagl->has_errors())
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
@@ -263,9 +263,9 @@ set_statement ::= CMD_SET SET_USE tagspace_target(t) tagspace_alias(a) .
 { tagl->set_tagspace(true, false, t.str(), a.str()); }
 set_statement ::= CMD_SET SET_TAGSPACE tagspace_target(t) tagspace_alias(a) .
 { tagl->set_tagspace(false, false, t.str(), a.str()); }
-set_statement ::= CMD_SET CMD_DEL SET_TAGSPACE tagspace_target(t) tagspace_alias(a) .
+set_statement ::= CMD_SET CMD_DELETE SET_TAGSPACE tagspace_target(t) tagspace_alias(a) .
 { tagl->set_tagspace(false, true, t.str(), a.str()); }
-set_statement ::= CMD_SET CMD_DEL CONTEXT .
+set_statement ::= CMD_SET CMD_DELETE CONTEXT .
 { tagl->unset_context(); }
 tagspace_alias(a) ::= .
 { a = TAGL::EMPTY_VALUE; }
@@ -394,37 +394,50 @@ get_statement ::= CMD_GET TAGDURL(U) .
 	scan_tagdurl(tagl, U.str());
 }
 
-put_statement ::= CMD_PUT subject_sub_relation relations .
-put_statement ::= CMD_PUT subject_sub_relation .
-put_statement ::= CMD_PUT subject relations .
-put_statement ::= CMD_PUT referent_relation .
+// STORE shares PUT productions so additions to declaration grammar cannot drift.
+%type delete_command {int}
+%type del_statement {int}
+%type put_command {int}
+%type put_statement {int}
+put_command(c) ::= CMD_PUT . { c = TOK_CMD_PUT; }
+put_command(c) ::= CMD_STORE . { c = TOK_CMD_STORE; }
+put_statement(c) ::= put_command(p) subject_sub_relation relations . { c = p; }
+put_statement(c) ::= put_command(p) subject_sub_relation . { c = p; }
+put_statement(c) ::= put_command(p) subject relations . { c = p; }
+put_statement(c) ::= put_command(p) referent_relation . { c = p; }
 // URLs carry their own subordinate relation; declaring a source needs no artificial predicate.
-put_statement ::= CMD_PUT URL(U) .
-{ tagl->new_url(U.str()); }
-put_statement ::= CMD_PUT HDURI(U) .
-{ tagl->new_url(U.str()); }
-put_statement ::= CMD_PUT TAGDURL(U) .
+put_statement(c) ::= put_command(p) URL(U) .
+{ c = p; tagl->new_url(U.str()); }
+put_statement(c) ::= put_command(p) HDURI(U) .
+{ c = p; tagl->new_url(U.str()); }
+put_statement(c) ::= put_command(p) TAGDURL(U) .
 {
+	c = p;
 	scan_tagdurl(tagl, U.str());
 }
 
-del_statement ::= CMD_DEL subject .
-del_statement ::= CMD_DEL UNKNOWN(U) .
+delete_command(c) ::= CMD_DELETE . { c = TOK_CMD_DELETE; }
+delete_command(c) ::= CMD_DELETE_STORAGE . { c = TOK_CMD_DELETE_STORAGE; }
+del_statement(c) ::= delete_command(d) subject . { c = d; }
+del_statement(c) ::= delete_command(d) UNKNOWN(U) .
 {
+	c = d;
 	tagl->error(tagd::TS_NOT_FOUND,
 		tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, U.str()));
 	last_error_add_file_line_number(tagl);
 }
-del_statement ::= CMD_DEL del_subject_sub_err .
+del_statement(c) ::= delete_command(d) del_subject_sub_err .
 {
+	c = d;
 	tagl->ferror(tagd::TS_MISUSE,
 		"sub must not be specified when deleting tag: %s", tagl->tag_ptr()->id().c_str());
 	last_error_add_file_line_number(tagl);
 }
-del_statement ::= CMD_DEL subject relations .
-del_statement ::= CMD_DEL referent_relation .
-del_statement ::= CMD_DEL TAGDURL(U) .
+del_statement(c) ::= delete_command(d) subject relations . { c = d; }
+del_statement(c) ::= delete_command(d) referent_relation . { c = d; }
+del_statement(c) ::= delete_command(d) TAGDURL(U) .
 {
+	c = d;
 	scan_tagdurl(tagl, U.str());
 }
 
@@ -497,16 +510,10 @@ interrogator ::= interrogator_type_id(i) .
 	emit_subject(tagl, i);
 }
 
-// A stored file is still a URL; preserve its explicit subtype when loading a dump.
 subject_sub_relation ::= URL(U) sub_relator_symbol(r) super_object_token(o) .
 {
-	const auto parent = o.str();
-	if (r.str() != tagd::HARD_TAG_IS_A || parent != tagd::HARD_TAG_FILE_STORED) {
-		tagl->error(tagd::TAGL_ERR, "unsupported explicit URL classification");
-	} else {
-		tagl->delete_tag();
-		tagl->tag_ptr(new tagd::url(U.str(), parent));
-	}
+	// Preserve the declaration so tagspace applies the same URL identity rule to every caller.
+	tagl->new_url(U.str(), r.str(), o.str());
 }
 
 subject_sub_relation ::= subject_type_id(s) sub_relator_symbol(r) super_object_token(o) .

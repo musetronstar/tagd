@@ -531,7 +531,7 @@ TAGL statements are evaluated against a tagspace.
 * Reparenting recomputes POS for the moved subtree. Existing subordinate/type-relator uses must remain
   valid, and type relators cannot occupy ordinary predicate positions. Moves
   violating these requirements are rejected atomically. URL identity retains its
-  scheme-derived rules and explicit `_is_a _file:stored` classification.
+  scheme-derived subordinate relation; filepile classification uses `_type_of`.
 
 ### 6.3 Local Assertions
 
@@ -776,8 +776,10 @@ see [configuration](configuration.md) for request policy and startup profiles.
 
 ## 11. URLs
 
-URLs are valid TAGL tokens and carry their own subordinate relation. Bare PUT
-can declare a URL without artificial predicates, in any tagspace:
+URLs are valid TAGL tokens and carry their own subordinate relation. An explicit
+subordinate relation must match that syntax-derived identity; the tagspace layer
+validates this for both TAGL and C++ callers. Bare PUT can declare a URL without
+artificial predicates, in any tagspace:
 
 ```tagl
 >> file:///work/animals.db;
@@ -963,13 +965,69 @@ still accepts arbitrary complete URLs without rewriting them.
 
 ### Stored-file URL classification
 
-A filepile URL retains its ordinary URL behavior while recording the explicit
-`_file:stored` subtype. Dump/load preserves that classification:
+A stored filepile URL retains its syntax-derived `_sub _file` identity and
+receives the system-maintained type relation `_type_of _file:stored`. Dumps
+include that relation and all association/content metadata. Ordinary PUT cannot
+create this classification, even indirectly through a type or subordinate
+object beneath `_file:stored` in the integrated order. Direct PUT of a managed
+filepile URL is `TS_MISUSE`. Explicit restore is a separate pending feature;
+ordinary loading cannot reconstruct managed filepile records, and legacy
+`_is_a _file:stored` declarations are incompatible.
+
+### STORE (`>>+`)
+
+STORE uses the PUT grammar, with a `POS_URL` subject. Supplied predicates and
+type relations describe source A. The shared tagspace operation acquires bytes
+and atomically commits the supplied PUT with stored URL B and association L.
+URL identity and source-eligibility rules still apply. Local file URLs are
+supported; unsupported acquisition schemes return `TS_NOT_IMPLEMENTED`.
 
 ```tagl
->> file:///home/user/.tagd/filepile/aa/bb/content.bin _is_a _file:stored;
+>>+ file:///photos/a.jpg _has _message = "Holiday photo";
 ```
 
-This declaration records semantics only; it does not acquire bytes or perform
-filepile storage. Ordinary URL declarations continue deriving their default type
-from the URL scheme.
+A duplicate means the whole command changes nothing: both the declaration and
+latest bytes are unchanged. It returns `TS_DUPLICATE`, or `TAGD_OK` when
+`_ignore_duplicates` is enabled. Changes to either part succeed regardless of
+that setting; unchanged bytes retain L and its revision. Other failures commit
+neither part. Complete published bytes can remain unreferenced after a semantic
+commit failure; this is not a cross-filesystem transaction.
+
+The command is available in every local input mode and prints L's ID on success.
+The shell's `--store FILE_OR_URL...` option queues this command for each operand;
+`--with 'PREDICATES'` attaches predicates to the immediately preceding store group.
+Path conversion is CLI convenience; TAGL itself still requires a URL subject.
+All filepile invariants are enforced by the tagspace layer. HTTP invocation,
+network acquisition, restore mode, roles, and concurrent operations are separate
+work. See [Filepile storage](filepile.md) for metadata, diagnostics, and limits.
+
+### Managed DELETE (`!!+`)
+
+`!!+` shares ordinary DELETE grammar. Without predicates, the subject must be a
+URL. A source URL deletes A and its retained links, plus unshared B records and
+bytes. A stored B URL deletes B and all links to it, preserving the sources.
+Both roles on one URL produce `TS_MISUSE`; a URL with no managed storage follows
+ordinary DELETE. Original source resources and existing audit tags survive.
+
+```tagl
+!!+ file:///photos/a.jpg _has _message = "Holiday photo";  -- clear the message modifier
+!!+ file:///photos/a.jpg;  -- the source tag and its managed storage
+```
+
+Predicate and type-relation forms retain the subject and stored bytes, even
+when removing the final predicate. Subordinate relations are rejected. Ordinary
+`!!` cannot remove A with filepile links, L, or B: these return `TS_DEPENDENCY`.
+Generated URL, content and association facts cannot be edited through ordinary
+PUT/DELETE or predicate-bearing `!!+`; user descriptions retain normal semantics.
+
+Managed deletion validates unrelated dependencies, atomically deletes selected
+records, then cleans up eligible files. Shared local content survives. Unknown
+commit outcomes prohibit cleanup; post-commit cleanup errors report partial
+completion without rolling back the deletion. Missing stored bytes warn without
+failing an otherwise successful deletion. Required database absence or
+unavailability remains fatal. The initiating `_event:filepile_delete` logs the
+final result through `_has _message` without automatic event persistence.
+
+The initial contract assumes one participating persistent tagspace and sequential
+operations. Deleted revisions may be reused: allocate the highest retained
+revision plus one, or `001` when none remain. See [Filepile storage](filepile.md).

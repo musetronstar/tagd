@@ -1777,6 +1777,17 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( ss.str() , "my_message has message = \"quoted \\\"string\\\" hey\\\" yo \\ \"");
 	}
 
+	void test_url_bearing_text_is_quoted_as_one_modifier() {
+		TS_ASSERT_EQUALS(tagd::util::esc_and_quote("STORE file:///a; result=TAGD_OK"),
+			"\"STORE file:///a; result=TAGD_OK\"");
+		TS_ASSERT_EQUALS(tagd::util::esc_and_quote("https://example.com/ trailing"),
+			"\"https://example.com/ trailing\"");
+		TS_ASSERT_EQUALS(tagd::util::esc_and_quote("https://example.com/;"),
+			"\"https://example.com/;\"");
+		TS_ASSERT_EQUALS(tagd::util::esc_and_quote("https://example.com/\"quoted\""),
+			"\"https://example.com/\\\"quoted\\\"\"");
+	}
+
 	void test_esc_and_quote(void) {
 		// not ':'
 		TS_ASSERT_EQUALS( tagd::util::esc_and_quote("each:a") , "each:a" )

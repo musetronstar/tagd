@@ -187,7 +187,25 @@ struct store_result {
 	id_string link;
 	unsigned revision = 0;
 	store_outcome outcome = store_outcome::none;
+	bool changed = false;
+	bool commit_unknown = false;
 	// Advisory error objects never participate in tagspace/session failure state.
+	std::vector<tagd::error> warnings;
+};
+
+enum class cleanup_outcome { not_attempted, retained, removed, already_missing, failed };
+
+struct cleanup_result {
+	url stored;
+	cleanup_outcome outcome = cleanup_outcome::not_attempted;
+	tagd::code code = TAGD_OK;
+};
+
+struct filepile_delete_result {
+	bool committed = false;
+	bool commit_unknown = false;
+	// Physical results remain meaningful after a committed deletion returns a cleanup error.
+	std::vector<cleanup_result> content;
 	std::vector<tagd::error> warnings;
 };
 
@@ -217,20 +235,24 @@ public:
 	 */
 	/*
 	 * TODO(filepile-http): Add encapsulated httagd-client HTTP/HTTPS acquisition
-	 * behind store without changing its tagd::url public interface.
+	 * behind store without exposing transport details in the declaration interface.
 	 * Reuse the client implementation without exposing transport types here.
 	 * See workspace TASKS.d/2026-10-23-http-filepile-storage.md.
 	 */
 	/*
 	 * TODO(filepile-permissions): Once roles and permissions exist, restrict
-	 * unauthorized mutations of _link:filepile instances and provide a superuser
-	 * unrestricted by authorization checks. Until then, links remain ordinary
-	 * mutable tags; editing _from, _to, or _revision can damage history and make
-	 * predicates disagree with a link ID. Roles and permissions are follow-on
+	 * unauthorized operations and provide a superuser repair path for damaged
+	 * managed records. Generated fields are protected independently of roles;
+	 * descriptive predicates remain editable. Roles and permissions are follow-on
 	 * work: workspace TASKS.d/2026-10-23-filepile-link-permissions.md.
 	 */
 
-	[[nodiscard]] virtual tagd::code store(store_result& result, const url&,
+	/*
+	 * TODO(filepile-foreign-tagspaces): Only one persistent tagspace participates
+	 * in a filepile. Reference checks must cover every participating tagspace before
+	 * enabling shared use; see TASKS.d/2026-10-28-foreign-tagspaces.md.
+	 */
+	[[nodiscard]] virtual tagd::code store(store_result& result, const abstract_tag&,
 		tagspace_session* ssn = nullptr, flags_t flags = 0) {
 		result = {};
 		if (!(flags & F_NO_RESET))
@@ -238,6 +260,17 @@ public:
 		// TODO(persistent-config): Enable this only when configuration is durably stored.
 		const auto rc = error(TS_MISUSE,
 			"filepile storage requires a persistent tagspace; the active tagspace is volatile.");
+		if (ssn)
+			ssn->code(rc);
+		return rc;
+	}
+
+	[[nodiscard]] virtual tagd::code delete_storage(filepile_delete_result& result,
+		const abstract_tag&, tagspace_session* ssn = nullptr, flags_t flags = 0) {
+		result = {};
+		if (!(flags & F_NO_RESET))
+			reset(ssn);
+		const auto rc = error(TS_NOT_IMPLEMENTED, "managed DELETE is not supported by this tagspace");
 		if (ssn)
 			ssn->code(rc);
 		return rc;

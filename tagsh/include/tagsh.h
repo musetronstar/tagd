@@ -25,6 +25,8 @@ class tagsh_callback : public TAGL::callback {
 
 		void cmd_get(const tagd::abstract_tag&);
 		void cmd_put(const tagd::abstract_tag&);
+		void cmd_store(const tagd::abstract_tag&) override;
+		void cmd_delete_storage(const tagd::abstract_tag&) override;
 		void cmd_del(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&);
 		void cmd_error();
@@ -83,10 +85,10 @@ class tagsh {
 		tagd::code select_startup(const cmd_args&);
 		void configuration_loading(bool value) { _driver.configuration_loading(value); }
 		void command(const std::string&, input_origin = input_origin::script);
-		[[nodiscard]] tagd::code store(const std::string&);
 		int interpret_readline();
 		int interpret(std::istream&);
 		int interpret(const std::string&, input_origin = input_origin::script);  // tagl statement
+		int interpret_store(const std::string& source, const std::string& predicates);
 		int interpret_fname(const std::string&, bool ignore_duplicates = false);  // filename
 		tagd::code last_code() const { return (_last_code == tagd::TAGD_OK ? _driver.tsp()->code() : _last_code); }
 		void last_code(tagd::code code) { _last_code = code; }
@@ -108,6 +110,7 @@ struct startup_action {
 	enum class kind { tagl, file, stdin_stream, store };
 	kind type;
 	std::string input;
+	std::string predicates = {};
 };
 
 class cmd_args : public tagd::errorable {

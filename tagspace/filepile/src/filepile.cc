@@ -1,16 +1,15 @@
 #include "tagspace.h"
 #include "tagdb.h"
 #include "filepile-files.h"
+#include "filepile-records.h"
 #include "tagd/datetime.h"
 #include "tagd/magic.h"
-#include <charconv>
 #include <filesystem>
 #include <set>
 
 namespace tagd {
 namespace {
 
-constexpr unsigned last_filepile_revision = 999;
 constexpr flags_t canonical_flags = F_NO_TRANSFORM_REFERENTS | F_NO_NOT_FOUND_ERROR;
 
 struct history {
@@ -21,7 +20,7 @@ struct history {
 };
 
 tagd::code latest(errorable& errors, history& result, tagdb::tagdb& db,
-	const url& source, tagspace_session* ssn) {
+	const url& source, const std::string& home, tagspace_session* ssn) {
 	tagd::code rc;
 	if (!db.exists(source.hduri()))
 		return TAGD_OK;
@@ -30,7 +29,7 @@ tagd::code latest(errorable& errors, history& result, tagdb::tagdb& db,
 	interrogator query(HARD_TAG_WHAT, HARD_TAG_SUB, HARD_TAG_LINK_FILEPILE);
 	rc = query.relation(HARD_TAG_FROM, source.hduri());
 	if (rc != TAGD_OK)
-		return errors.error(rc, "cannot construct filepile history query");
+		return rc;
 	tag_set links;
 	rc = db.query(links, query, ssn, canonical_flags);
 	if (rc == TS_NOT_FOUND)
@@ -42,40 +41,30 @@ tagd::code latest(errorable& errors, history& result, tagdb::tagdb& db,
 		rc = db.get(link, entry.id(), ssn, canonical_flags);
 		if (rc != TAGD_OK)
 			return errors.error(rc, "cannot read filepile link: " + entry.id());
-		unsigned revision = 0;
-		std::string target;
-		for (const auto& p : link.relations) {
-			if (p.relator == HARD_TAG_TO)
-				target = p.object;
-			if (p.relator == HARD_TAG_HAS && p.object == HARD_TAG_REVISION) {
-				const auto parsed = std::from_chars(p.modifier.data(), p.modifier.data() + p.modifier.size(), revision);
-				if (parsed.ec != std::errc{} || parsed.ptr != p.modifier.data() + p.modifier.size())
-					return errors.error(TS_ERR, "invalid filepile revision: " + link.id());
-			}
-		}
-		// TODO(filepile-permissions): Manual edits can damage history; links remain mutable.
-		if (!revision || target.empty())
-			return errors.error(TS_ERR, "incomplete filepile link: " + link.id());
-		if (revision > result.revision) {
-			result.revision = revision;
-			result.link = link.id();
-			result.stored = url(target);
+		// Retained associations are explicit system facts, not inherited descriptions.
+		if (!link.related(HARD_TAG_FROM, source.hduri()))
+			continue;
+		filepile::association association;
+		rc = filepile::read_association(errors, association, link);
+		if (rc != TAGD_OK)
+			return rc;
+		if (association.revision > result.revision) {
+			result.revision = association.revision;
+			result.link = association.link;
+			result.stored = url(association.stored);
 		}
 	}
 	if (result.revision) {
-		std::string path;
-		url canonical;
-		const auto parsed = filepile::canonical_source(errors, canonical, path, result.stored);
-		if (parsed != TAGD_OK)
-			return parsed;
-		result.name = std::filesystem::path(path).filename();
-		result.hash = result.name.substr(0, 64);
-		if (result.name.size() <= 65 || result.name[64] != '.' ||
-			result.hash.find_first_not_of("0123456789abcdef") != std::string::npos)
-			return errors.error(TS_ERR, "invalid stored filepile address: " + result.stored.id());
+		rc = filepile::stored_address(errors, result.name, home, result.stored);
+		if (rc != TAGD_OK)
+			return rc;
+		result.hash = result.name.substr(0, filepile::digest_length);
 		rc = db.get(result.stored, result.stored.id(), ssn, canonical_flags);
 		if (rc != TAGD_OK)
 			return errors.error(rc, "missing stored filepile record");
+		if (result.stored.super_object() != HARD_TAG_FILE ||
+			!result.stored.type_relations.contains({HARD_TAG_TYPE_OF, HARD_TAG_FILE_STORED}))
+			return errors.error(TS_ERR, "incompatible stored-file classification: " + result.stored.id());
 	}
 	return TAGD_OK;
 }
@@ -83,7 +72,10 @@ tagd::code latest(errorable& errors, history& result, tagdb::tagdb& db,
 tagd::code verify_recorded_content(errorable& errors, std::set<std::string>& verified,
 	tagdb::tagdb& db, filepile::files& content, tagspace_session* ssn) {
 	tagd::code rc;
-	interrogator query(HARD_TAG_WHAT, HARD_TAG_SUB, HARD_TAG_FILE_STORED);
+	interrogator query(HARD_TAG_WHAT);
+	rc = query.type_relation(HARD_TAG_TYPE_OF, HARD_TAG_FILE_STORED);
+	if (rc != TAGD_OK)
+		return errors.error(rc, "cannot construct stored-file classification query");
 	rc = query.relation(HARD_TAG_HAS, HARD_TAG_HASH_SHA256, content.digest);
 	if (rc != TAGD_OK)
 		return errors.error(rc, "cannot construct filepile content query");
@@ -119,16 +111,6 @@ tagd::code verify_recorded_content(errorable& errors, std::set<std::string>& ver
 	return TAGD_OK;
 }
 
-tagd::code link_id(errorable& errors, std::string& id, const url& source, unsigned revision) {
-	if (revision > last_filepile_revision)
-		return errors.error(TS_ERR, "filepile content revision exceeds 999: " + source.id());
-	const auto digits = std::to_string(revision);
-	id = "link:" + source.hduri() + '#' + std::string(3 - digits.size(), '0') + digits;
-	if (id.size() > MAX_TAG_LEN)
-		return errors.error(TS_ERR_MAX_TAG_LEN, "filepile link ID maximum of " + std::to_string(MAX_TAG_LEN) + " bytes exceeded");
-	return TAGD_OK;
-}
-
 tagd::code metadata(errorable& errors, abstract_tag& tag, id_view object,
 	const std::string& value, data_t type = TYPE_STRING) {
 	const auto rc = tag.relation(HARD_TAG_HAS, object, value, OP_EQ, type);
@@ -139,17 +121,25 @@ tagd::code metadata(errorable& errors, abstract_tag& tag, id_view object,
 
 } // namespace
 
-tagd::code stored_tagspace::store(store_result& result, const url& input,
+tagd::code stored_tagspace::store(store_result& result, const abstract_tag& input,
 	tagspace_session* ssn, flags_t flags) {
 	result = {};
 	if (!(flags & F_NO_RESET))
 		reset(ssn);
-	if (!_persistent)
-		return tagspace::store(result, input, ssn, flags);
 	filepile::files content;
+	bool published = false;
+	bool semantic_attempted = false;
+	std::string attempted_association;
 	// All operation exits pass through explicit cleanup; destructors only release resources.
 	const auto operation = [&]() -> tagd::code {
 		tagd::code rc;
+		if (!_persistent)
+			return tagspace::store(result, input, ssn, flags);
+		if (input.pos() != POS_URL)
+			return error(TS_MISUSE, "STORE requires a POS_URL subject");
+		rc = guard_mutation(input, false, ssn, flags);
+		if (rc != TAGD_OK)
+			return rc;
 		if (_filepile_home.empty())
 			return error(TS_MISUSE, "a tagd home directory is required for filepile storage. " + _home_reason);
 		if (!prepare())
@@ -162,20 +152,42 @@ tagd::code stored_tagspace::store(store_result& result, const url& input,
 			return error(rc, "backend cannot establish durable filepile storage");
 		url canonical;
 		std::string source_path;
-		rc = filepile::canonical_source(*this, canonical, source_path, input);
+		rc = filepile::canonical_source(*this, canonical, source_path, url(input.id()));
 		if (rc != TAGD_OK)
 			return rc;
+		bool managed = false;
+		rc = managed_path(managed, canonical, true);
+		if (rc != TAGD_OK)
+			return rc;
+		if (managed)
+			return error(TS_MISUSE, "cannot STORE a managed filepile URL: " + canonical.id());
+
+		abstract_tag resolved(input);
+		if (!(flags & F_NO_TRANSFORM_REFERENTS)) {
+			rc = db.resolve_referents(resolved, input, ssn);
+			if (rc != TAGD_OK)
+				return rc;
+		}
+		canonical.relations = resolved.relations;
+		canonical.type_relations = resolved.type_relations;
+		// Validate the caller's PUT against pre-command state before any file acquisition.
+		semantic_attempted = true;
+		const auto put_rc = db.check_put(canonical,
+			(flags & ~F_NO_POS_CAST) | F_NO_TRANSFORM_REFERENTS);
+		if (put_rc != TAGD_OK && put_rc != TS_DUPLICATE)
+			return put_rc;
 
 		std::string first_link;
-		rc = link_id(*this, first_link, canonical, 1);
+		rc = filepile::link_id(*this, first_link, canonical, 1);
 		if (rc != TAGD_OK)
 			return rc;
-		rc = content.init(_filepile_home, canonical);
+		history previous;
+		rc = latest(*this, previous, db, canonical,
+			_filepile_canonical_home, ssn);
 		if (rc != TAGD_OK)
 			return rc;
 
-		history previous;
-		rc = latest(*this, previous, db, content.source, ssn);
+		rc = content.init(_filepile_canonical_home, canonical);
 		if (rc != TAGD_OK)
 			return rc;
 		rc = content.capture();
@@ -189,7 +201,7 @@ tagd::code stored_tagspace::store(store_result& result, const url& input,
 			return error(detector.code(), "filepile content detection failed");
 		}
 		store_result output;
-		output.source = content.source;
+		output.source = canonical;
 		if (content.initial.st_size == 0) {
 			tagd::error warning(TS_ERR);
 			(void)warning.relation(HARD_TAG_CAUSED_BY, content.source.hduri());
@@ -218,14 +230,26 @@ tagd::code stored_tagspace::store(store_result& result, const url& input,
 				output.stored = previous.stored;
 				output.link = previous.link;
 				output.revision = previous.revision;
+				attempted_association = "; attempted A=" + output.source.id()
+					+ "; L=" + output.link + "; B=" + output.stored.id();
 				output.outcome = store_outcome::unchanged;
+				if (put_rc == TAGD_OK) {
+					const std::vector<const abstract_tag*> batch{&canonical};
+					rc = db.put_batch(batch, ssn,
+						(flags & ~F_NO_POS_CAST) | F_NO_TRANSFORM_REFERENTS | F_IGNORE_DUPLICATES);
+					if (rc != TAGD_OK)
+						return error(rc, "filepile source predicate update failed");
+					output.changed = true;
+				}
 				result = std::move(output);
-				if (flags & F_IGNORE_DUPLICATES) {
-					if (ssn) ssn->code(TAGD_OK);
+				if (result.changed || (flags & F_IGNORE_DUPLICATES)) {
+					if (ssn)
+						ssn->code(TAGD_OK);
 					return code(TAGD_OK);
 				}
 				const auto rc = error(TS_DUPLICATE, "filepile source content is unchanged: " + result.source.id());
-				if (ssn) ssn->code(rc);
+				if (ssn)
+					ssn->code(rc);
 				return rc;
 			}
 		}
@@ -235,7 +259,7 @@ tagd::code stored_tagspace::store(store_result& result, const url& input,
 		if (rc != TAGD_OK)
 			return rc;
 		output.revision = previous.revision + 1;
-		rc = link_id(*this, output.link, content.source, output.revision);
+		rc = filepile::link_id(*this, output.link, content.source, output.revision);
 		if (rc != TAGD_OK)
 			return rc;
 		// TODO(filepile-extensions): Reconciliation may refresh metadata; store preserves existing suffixes.
@@ -249,10 +273,15 @@ tagd::code stored_tagspace::store(store_result& result, const url& input,
 			const auto extension = canonical_extension(detection.media_type);
 			name = content.digest + '.' + (extension.empty() ? "bin" : extension);
 		}
-		output.stored = url(filepile::path_url(content.destination(name)), HARD_TAG_FILE_STORED);
+		output.stored = url(filepile::path_url(content.destination(name)));
+		attempted_association = "; attempted A=" + output.source.id()
+			+ "; L=" + output.link + "; B=" + output.stored.id();
 		rc = output.stored.code();
 		if (rc != TAGD_OK)
 			return error(rc, "filepile destination exceeds URL limits");
+		rc = output.stored.type_relation(HARD_TAG_TYPE_OF, HARD_TAG_FILE_STORED);
+		if (rc != TAGD_OK)
+			return error(rc, "cannot classify stored filepile URL");
 		rc = content.validate_source();
 		if (rc != TAGD_OK)
 			return rc;
@@ -272,10 +301,11 @@ tagd::code stored_tagspace::store(store_result& result, const url& input,
 			rc = content.publish(name);
 			if (rc != TAGD_OK)
 				return rc;
+			published = true;
 		}
 
 		std::vector<const abstract_tag*> batch;
-		if (!db.exists(output.source.hduri()))
+		if (put_rc == TAGD_OK)
 			batch.push_back(&output.source);
 		if (!db.exists(output.stored.hduri())) {
 			rc = metadata(*this, output.stored, HARD_TAG_HASH_SHA256, content.digest);
@@ -329,6 +359,7 @@ tagd::code stored_tagspace::store(store_result& result, const url& input,
 		if (rc != TAGD_OK)
 			return error(rc, "filepile semantic update failed; published content is retained");
 		output.outcome = store_outcome::new_revision;
+		output.changed = true;
 		result = std::move(output);
 		return code(TAGD_OK);
 	};
@@ -338,8 +369,18 @@ tagd::code stored_tagspace::store(store_result& result, const url& input,
 	const auto cleanup_rc = content.cleanup();
 	copy_errors(content);
 	const auto status = rc == TAGD_OK ? cleanup_rc : rc;
+	result.commit_unknown = semantic_attempted && backend().commit_unknown();
 	if (ssn)
 		ssn->code(status);
+	std::string message = "STORE " + input.id() + "; result=" + code_str(status)
+		+ "; changed=" + (result.commit_unknown ? "unknown" : result.changed || published ? "true" : "false");
+	if (!result.link.empty())
+		message += "; A=" + result.source.id() + "; L=" + result.link + "; B=" + result.stored.id();
+	else
+		message += attempted_association;
+	if (published && !result.changed)
+		message += "; complete content published; semantic update did not confirm success";
+	filepile::log_event(ssn, HARD_TAG_FILEPILE_STORE_EVENT, status, message);
 	return code(status);
 }
 

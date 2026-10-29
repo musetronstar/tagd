@@ -215,7 +215,7 @@ public:
 		TS_ASSERT_EQUALS(db.cache_status().predicate_reads, reads);
 
 		TS_ASSERT_EQUALS(db.del(tagd::abstract_tag("object"), nullptr),
-			tagd::TS_RELATION_DEPENDENCY);
+			tagd::TS_DEPENDENCY);
 		TS_ASSERT_EQUALS(db.cache_status().entries, 0);
 
 		TS_ASSERT_TAGD_OK(db.get(loaded, "selected", &first));
