@@ -161,7 +161,11 @@ public:
 		for (const auto& id : {stored.stored.hduri(), stored.link}) {
 			tagd::abstract_tag forged(id, tagd::HARD_TAG_SUB, tagd::id_view{}, tagd::POS_REFERENT);
 			TS_ASSERT_EQUALS(space->del(forged, nullptr, tagd::F_NO_POS_CAST), tagd::TS_DEPENDENCY);
-			TS_ASSERT_EQUALS(forged.relation(tagd::HARD_TAG_FROM, stored.source.hduri()), tagd::TAGD_OK);
+			if (id == stored.link) {
+				TS_ASSERT_EQUALS(forged.relation(tagd::HARD_TAG_FROM, stored.source.hduri()), tagd::TAGD_OK);
+			} else {
+				TS_ASSERT_EQUALS(forged.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_HASH_SHA256, "forged"), tagd::TAGD_OK);
+			}
 			TS_ASSERT_EQUALS(space->put(forged, nullptr, tagd::F_NO_POS_CAST), tagd::TS_MISUSE);
 		}
 		TS_ASSERT_EQUALS(dump(), before);
@@ -247,7 +251,7 @@ public:
 			TS_ASSERT_EQUALS(space->put(type), tagd::TS_MISUSE);
 			TS_ASSERT_EQUALS(space->put(tagd::abstract_tag("forged", tagd::HARD_TAG_SUB, object, tagd::POS_TAG)), tagd::TS_MISUSE);
 		}
-		TS_ASSERT_EQUALS(space->put(tagd::url(stored.stored.id())), tagd::TS_MISUSE);
+		TS_ASSERT_EQUALS(space->put(tagd::url(stored.stored.id())), tagd::TS_DUPLICATE);
 		TS_ASSERT_EQUALS(space->put(tagd::abstract_tag(stored.stored.hduri())), tagd::TS_MISUSE);
 		TS_ASSERT_EQUALS(space->store(stored, tagd::url(stored.stored.id())), tagd::TS_MISUSE);
 		TS_ASSERT_EQUALS(space->put(tagd::url(tagd::file_url(

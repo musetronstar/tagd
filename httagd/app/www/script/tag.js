@@ -1,4 +1,4 @@
-import { putTag } from "./api.js";
+import { postTag } from "./api.js";
 import { encodePutPredicate } from "./tagl.js";
 
 /**
@@ -57,7 +57,7 @@ export async function submitAddPredicate(event) {
 	try {
 		// Generate the TAGL statement and submit it
 		// TODO don't hardcode _sub, get the relation from the UI
-		await putTag(tagId, encodePutPredicate(tagId, predicate));
+		await postTag(tagId, encodePutPredicate(tagId, predicate));
 		location.reload(); // TODO: Replace with dynamic partial update in future
 	} catch (err) {
 		alert(`Error: ${err.message}`);

@@ -57,19 +57,10 @@ tagd::code sqlite::del_batch(std::span<const tagd::id_string> ids, session* ssn)
 	}
 	members = '(' + members + ')';
 	mutation_scope mutation(*this);
-	if (sqlite3_exec(_db, "BEGIN IMMEDIATE", nullptr, nullptr, nullptr) != SQLITE_OK)
+	write_transaction transaction(*this, write_transaction::kind::immediate);
+	if (transaction.begin() != tagd::TAGD_OK)
 		return error(tagd::TS_NOT_AVAILABLE,
 			"required database: " + _db_fname + ": " + sqlite3_errmsg(_db));
-
-	// Rollback is the proof that no deletion committed; without it cleanup is forbidden.
-	auto rollback = [this](tagd::code result) {
-		if (!sqlite3_get_autocommit(_db) &&
-			sqlite3_exec(_db, "ROLLBACK", nullptr, nullptr, nullptr) == SQLITE_OK)
-			return code(result);
-		_write_poisoned = true;
-		return error(tagd::TS_INTERNAL_ERR,
-			"atomic DELETE commit outcome unknown; reopen and check storage: " + _db_fname);
-	};
 
 	const auto result = [&]() -> tagd::code {
 		std::set<tagd::id_string> affected;
@@ -121,9 +112,9 @@ tagd::code sqlite::del_batch(std::span<const tagd::id_string> ids, session* ssn)
 			if (rc != tagd::TAGD_OK)
 				return rc;
 		}
-		return exec("COMMIT");
+		return tagd::TAGD_OK;
 	}();
-	const auto rc = result == tagd::TAGD_OK ? result : rollback(result);
+	const auto rc = transaction.finish(result);
 	if (ssn)
 		ssn->code(rc);
 	return code(rc);

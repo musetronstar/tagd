@@ -324,7 +324,6 @@ class httagl : public TAGL::driver {
 		tagd::code tagdurl_del(const request&);
 		tagd::code scan_request_tagdurl(const request&);
 		// The tagdurl scanner validates the path; HTTP owns its composition with the body.
-		tagd::code prepare_constrained_body_subject(const request&);
 };
 
 // holds members passed to every callback
@@ -376,12 +375,14 @@ class callback : public TAGL::callback {
 		bool _errors_rendered = false;
 
 		bool resolve_view(view&, view_action);
+		void mutation_response(const tagd::abstract_tag&, bool created = false);
 
 	public:
 		callback(transaction* tx) : _tx{tx} {}
 
 		void cmd_get(const tagd::abstract_tag&);
 		void cmd_put(const tagd::abstract_tag&);
+		void cmd_replace(const tagd::abstract_tag&);
 		void cmd_delete(const tagd::abstract_tag&);
 		void cmd_query(const tagd::interrogator&);
 		void cmd_error();

@@ -152,10 +152,13 @@ void driver::init() {
 
 void driver::free_parser() {
 	if (_parser) {
-		if (_token != TOK_TERMINATOR && !this->has_errors())
-			Parse(_parser.get(), TOK_TERMINATOR, EMPTY_VALUE);
-		if (_token > 0 && !this->has_errors())
-			Parse(_parser.get(), 0, EMPTY_VALUE);
+		// Only finish() may release a constrained HTTP statement.
+		if (_http_body_commands == http_body_commands::unrestricted) {
+			if (_token != TOK_TERMINATOR && !this->has_errors())
+				Parse(_parser.get(), TOK_TERMINATOR, EMPTY_VALUE);
+			if (_token > 0 && !this->has_errors())
+				Parse(_parser.get(), 0, EMPTY_VALUE);
+		}
 		_parser.reset();  // calls parser_deleter → ParseFree(p, ::operator delete)
 	}
 }
@@ -184,6 +187,7 @@ void driver::parse_tok(int tok, text_token s) {
 			switch (tok) {
 				case TOK_CMD_SET:
 				case TOK_CMD_GET:
+				case TOK_CMD_REPLACE:
 				case TOK_CMD_PUT:
 				case TOK_CMD_STORE:
 				case TOK_CMD_DELETE:
@@ -214,7 +218,10 @@ void driver::parse_tok(int tok, text_token s) {
 				<< ", token " << token_str(_token) << ": " << (s.empty() ? "NULL" : s.str())
 				<< std::endl )
 
-		Parse(_parser.get(), _token, s);
+		// Mutation callbacks require a terminator; withhold it until the body is accepted.
+		if (_http_body_commands == http_body_commands::unrestricted
+			|| (check_http_body_token(_token) && _token != TOK_TERMINATOR))
+			Parse(_parser.get(), _token, s);
 		if (has_errors()) {
 			_set_statement = false;
 			_tagspace_arguments = false;
@@ -245,6 +252,10 @@ tagd::code driver::parseln(const std::string& line) {
 
 	// end of input
 	if (line.empty()) {
+		if (_http_body_commands != http_body_commands::unrestricted) {
+			parse_tok(TOK_TERMINATOR, EMPTY_VALUE);
+			return code();
+		}
 		Parse(_parser.get(), TOK_TERMINATOR, EMPTY_VALUE);
 		_token = 0;
 		Parse(_parser.get(), _token, EMPTY_VALUE);
@@ -582,7 +593,18 @@ void driver::clear_context_levels() {
 }
 
 void driver::finish() {
+	if (_http_body_commands != http_body_commands::unrestricted) {
+		if (!has_errors() && !_http_body_command)
+			error(tagd::TS_MISUSE, "HTTP body requires a statement");
+		if (!has_errors() && _parser) {
+			_token = TOK_TERMINATOR;
+			Parse(_parser.get(), TOK_TERMINATOR, EMPTY_VALUE);
+			if (!has_errors())
+				Parse(_parser.get(), 0, EMPTY_VALUE);
+		}
+	}
 	this->free_parser();
+	http_body(http_body_commands::unrestricted);
 	_set_statement = false;
 	_tagspace_arguments = false;
 	if (has_errors())
@@ -770,6 +792,14 @@ tagd::code driver::execute(struct evbuffer *input) {
 	return this->code();
 }
 
+void callback::cmd_replace(const tagd::abstract_tag& t) {
+	tagd::replace_outcome outcome{};
+	const auto rc = _driver->tsp()->replace(outcome, t, _driver->session_ptr(), _driver->flags);
+	_driver->code(rc);
+	if (rc != tagd::TAGD_OK)
+		cmd_error();
+}
+
 void callback::cmd_store(const tagd::abstract_tag& t) {
 	tagd::store_result result;
 	const auto rc = _driver->tsp()->store(result, t, _driver->session_ptr(), _driver->flags);
@@ -784,6 +814,46 @@ void callback::cmd_delete_storage(const tagd::abstract_tag& t) {
 	_driver->code(rc);
 	if (rc != tagd::TAGD_OK)
 		cmd_error();
+}
+
+bool driver::check_http_body_token(int token) {
+	if (token == TOK_CMD_STORE || token == TOK_CMD_DELETE_STORAGE) {
+		_http_forbidden = true;
+		error(tagd::TS_NOT_IMPLEMENTED, "HTTP filepile invocation is not implemented");
+		return false;
+	}
+	if (token == TOK_TERMINATOR) {
+		_http_body_terminated = _http_body_command != 0;
+		return true;
+	}
+	if (!_http_body_command) {
+		// HTTP PUT replaces; POST/PATCH merge or remove relations.
+		const bool allowed = _http_body_commands == http_body_commands::replace
+			? token == TOK_CMD_REPLACE : token == TOK_CMD_PUT || token == TOK_CMD_DELETE;
+		if (!allowed) {
+			error(tagd::TS_MISUSE, "command is not permitted in this HTTP body");
+			return false;
+		}
+		_http_body_command = token;
+		return true;
+	}
+	/*
+	 * TODO(TAGL-scopes): Lift the one-statement limit with an implicit transaction scope.
+	 * See workspace TASKS.d/2026-10-31-tagl-transaction-scopes.md.
+	 * SET is refused above; mutations wait for the terminator released by finish().
+	 */
+	if (_http_body_terminated || token == TOK_CMD_PUT || token == TOK_CMD_REPLACE
+		|| token == TOK_CMD_DELETE || token == TOK_CMD_GET || token == TOK_CMD_QUERY
+		|| token == TOK_CMD_SET) {
+		error(tagd::TS_MISUSE, "tag-addressed HTTP bodies require one statement");
+		return false;
+	}
+	return true;
+}
+
+void driver::check_http_delete_subject() {
+	if (_http_body_commands != http_body_commands::unrestricted)
+		error(tagd::TS_MISUSE, "whole-tag deletion requires HTTP DELETE");
 }
 
 void driver::do_callback() {
@@ -817,13 +887,14 @@ void driver::do_callback() {
 	 * Check each resolved operation, not request text or the initial selection:
 	 * aliases and earlier SET commands may have changed its actual target.
 	 */
-	if ((_cmd == TOK_CMD_PUT || _cmd == TOK_CMD_STORE ||
+	if ((_cmd == TOK_CMD_PUT || _cmd == TOK_CMD_REPLACE || _cmd == TOK_CMD_STORE ||
 		_cmd == TOK_CMD_DELETE || _cmd == TOK_CMD_DELETE_STORAGE) && !permit_write()) {
 		_callback->cmd_error();
 		return;
 	}
 	// HTTP file acquisition authority is deferred; body TAGL must not expose it implicitly.
 	if (_http && (_cmd == TOK_CMD_STORE || _cmd == TOK_CMD_DELETE_STORAGE)) {
+		_http_forbidden = true;
 		error(tagd::TS_NOT_IMPLEMENTED, "HTTP filepile invocation is not implemented");
 		_callback->cmd_error();
 		return;
@@ -837,6 +908,9 @@ void driver::do_callback() {
 		case TOK_CMD_PUT:
 			TAGL_LOG_TRACE( "callback::cmd_put: " << *_tag << std::endl )
 			_callback->cmd_put(*_tag);
+			break;
+		case TOK_CMD_REPLACE:
+			_callback->cmd_replace(*_tag);
 			break;
 		case TOK_CMD_STORE:
 			_callback->cmd_store(*_tag);

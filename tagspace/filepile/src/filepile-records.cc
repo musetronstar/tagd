@@ -8,13 +8,7 @@
 namespace tagd::filepile {
 
 id_string canonical_id(id_view input) {
-	const std::string text(input);
-	if (url::looks_like_url(text) || url::looks_like_hduri(text)) {
-		url value(input);
-		if (value.ok())
-			return value.hduri();
-	}
-	return id_string(input);
+	return canonical_url_id(input);
 }
 
 tagd::code link_id(errorable& errors, std::string& id, const url& source, unsigned revision) {
@@ -134,6 +128,19 @@ bool url_component(const predicate& p) {
 	return false;
 }
 
+bool system_predicate(const predicate& p, const filepile::record_roles& roles,
+	bool is_url, bool event) {
+	const bool link_field = roles.link && (p.relator == HARD_TAG_FROM || p.relator == HARD_TAG_TO
+		|| (p.relator == HARD_TAG_HAS && (p.object == HARD_TAG_REVISION
+			|| p.object == HARD_TAG_MTIME || p.object == HARD_TAG_STORED_TIME)));
+	const bool stored_field = roles.stored && p.relator == HARD_TAG_HAS
+		&& (p.object == HARD_TAG_HASH_SHA256 || p.object == HARD_TAG_FILE_SIZE
+			|| p.object == HARD_TAG_MEDIA_TYPE || p.object == HARD_TAG_MTIME);
+	const bool event_field = event && p.relator == HARD_TAG_HAS
+		&& p.object == HARD_TAG_MESSAGE;
+	return (is_url && url_component(p)) || link_field || stored_field || event_field;
+}
+
 }
 
 code stored_tagspace::managed_path(bool& result, const url& value, bool resolve) {
@@ -178,6 +185,41 @@ code stored_tagspace::managed_path(bool& result, const url& value, bool resolve)
 	return TAGD_OK;
 }
 
+code stored_tagspace::replace(replace_outcome& outcome, const abstract_tag& input,
+	tagspace_session* ssn, flags_t flags) {
+	if (!prepare())
+		return code();
+	const auto rc = backend().replace(outcome, input, ssn, flags,
+		[&](abstract_tag& candidate, const abstract_tag& existing) -> tagd::code {
+			const auto guarded = guard_mutation(input, false, ssn, flags);
+			if (guarded != TAGD_OK)
+				return guarded;
+			filepile::record_roles roles;
+			auto status = filepile::classify(roles, backend(), candidate.id());
+			if (status != TAGD_OK)
+				return status;
+			const bool event = roles.event && (candidate.id().starts_with(EVURI_SCHEME)
+				|| candidate.id().starts_with(ERRURI_SCHEME));
+			// Read protected values inside the backend transaction, never from a prior GET.
+			for (const auto& p : existing.relations) {
+				if (system_predicate(p, roles, false, event))
+					candidate.relations.insert(p);
+			}
+			for (const auto& p : existing.type_relations) {
+				filepile::record_roles type;
+				status = filepile::classify(type, backend(), p.object);
+				if (status != TAGD_OK)
+					return status;
+				if (type.stored || type.link || (event && type.event))
+					candidate.type_relations.insert(p);
+			}
+			return TAGD_OK;
+		});
+	if (ssn)
+		ssn->code(rc);
+	return code(rc);
+}
+
 code stored_tagspace::guard_mutation(const abstract_tag& input, bool deleting,
 	tagspace_session* ssn, flags_t flags) {
 	if (!(flags & F_NO_RESET))
@@ -214,12 +256,29 @@ code stored_tagspace::guard_mutation(const abstract_tag& input, bool deleting,
 			if (rc != TAGD_OK)
 				return rc;
 		}
-		if (managed || roles.stored)
-			return error(TS_MISUSE, "cannot directly PUT a managed filepile URL: " + resolved.id());
+		if (managed && !roles.stored)
+			return error(TS_MISUSE, "cannot declare an unrecorded filepile URL: " + resolved.id());
 
-		std::vector<id_string> objects{resolved.super_object()};
-		for (const auto& p : resolved.type_relations)
-			objects.push_back(p.object);
+		std::vector<id_string> objects;
+		const bool protected_identity = roles.link || (event_id && roles.event);
+		if (protected_identity && !resolved.super_object().empty()) {
+			abstract_tag existing;
+			rc = db.get(existing, resolved.id(), nullptr, F_NO_TRANSFORM_REFERENTS);
+			if (rc != TAGD_OK)
+				return rc;
+			// Restating identity is required by REPLACE and harmless for every PUT-family command.
+			if (resolved.sub_relator() != existing.sub_relator()
+				|| resolved.super_object() != existing.super_object())
+				return error(TS_MISUSE, "filepile record identity is system-maintained");
+		}
+		if (!protected_identity)
+			objects.push_back(resolved.super_object());
+		const auto self = is_url ? identity.hduri() : resolved.id();
+		for (const auto& p : resolved.type_relations) {
+			// The backend validates self-typing before dropping it; it claims no managed class.
+			if (filepile::canonical_id(p.object) != self)
+				objects.push_back(p.object);
+		}
 		for (const auto& object : objects) {
 			filepile::record_roles target;
 			rc = filepile::classify(target, db, object);
@@ -228,8 +287,6 @@ code stored_tagspace::guard_mutation(const abstract_tag& input, bool deleting,
 			if (target.stored || target.link || (event_id && target.event))
 				return error(TS_MISUSE, "filepile classification is system-maintained: " + object);
 		}
-		if ((roles.link || (event_id && roles.event)) && !resolved.super_object().empty())
-			return error(TS_MISUSE, "filepile record identity is system-maintained");
 	}
 
 	if (is_url && !deleting && !resolved.super_object().empty()
@@ -248,15 +305,7 @@ code stored_tagspace::guard_mutation(const abstract_tag& input, bool deleting,
 	}
 
 	for (const auto& p : resolved.relations) {
-		const bool link_field = roles.link && (p.relator == HARD_TAG_FROM || p.relator == HARD_TAG_TO
-			|| (p.relator == HARD_TAG_HAS && (p.object == HARD_TAG_REVISION
-				|| p.object == HARD_TAG_MTIME || p.object == HARD_TAG_STORED_TIME)));
-		const bool stored_field = roles.stored && p.relator == HARD_TAG_HAS
-			&& (p.object == HARD_TAG_HASH_SHA256 || p.object == HARD_TAG_FILE_SIZE
-				|| p.object == HARD_TAG_MEDIA_TYPE || p.object == HARD_TAG_MTIME);
-		const bool event_field = roles.event && event_id && p.relator == HARD_TAG_HAS
-			&& p.object == HARD_TAG_MESSAGE;
-		if ((is_url && url_component(p)) || link_field || stored_field || event_field)
+		if (system_predicate(p, roles, is_url, roles.event && event_id))
 			return error(TS_MISUSE, "cannot change system-maintained predicate: " + resolved.id());
 	}
 	return code(TAGD_OK);

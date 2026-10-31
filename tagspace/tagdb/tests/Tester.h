@@ -21,6 +21,216 @@ static_assert(!std::is_assignable_v<decltype(std::declval<tagd::abstract_tag>().
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_put_and_replace_share_duplicate_rules() {
+		enum class axiom { none, self, root, both };
+		for (const bool replace : {false, true}) {
+			for (const tagd::flags_t flags : {0u, tagd::flags_t(tagd::F_IGNORE_DUPLICATES)}) {
+				for (const bool relation : {false, true}) {
+					for (const bool direct_type : {false, true}) {
+						for (const auto axioms : {axiom::none, axiom::self, axiom::root, axiom::both}) {
+							auto owner = tagdb::make_backend();
+							auto& db = *owner;
+							TS_ASSERT_TAGD_OK(db.open({tagdb::storage_kind::memory}));
+							TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("kind", HARD_TAG_SUB,
+								HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+							tagd::abstract_tag subject("subject", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+							if (relation) {
+								TS_ASSERT_TAGD_OK(subject.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, "note"));
+							}
+							if (direct_type)
+								subject.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, "kind");
+							TS_ASSERT_TAGD_OK(db.put(subject, nullptr));
+							if (axioms == axiom::self || axioms == axiom::both)
+								subject.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, subject.id());
+							if (axioms == axiom::root || axioms == axiom::both)
+								subject.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, HARD_TAG_ENTITY);
+
+							std::ostringstream before;
+							TS_ASSERT_TAGD_OK(db.dump(before));
+							const auto expected = flags || (!relation && !direct_type && axioms != axiom::none)
+								? tagd::TAGD_OK : tagd::TS_DUPLICATE;
+							tagd::replace_outcome outcome{};
+							const auto rc = replace ? db.replace(outcome, subject, nullptr, flags)
+								: db.put(subject, nullptr, flags);
+							TS_ASSERT_EQUALS(rc, expected);
+							if (replace) {
+								TS_ASSERT_EQUALS(outcome, tagd::replace_outcome::unchanged);
+							}
+							db.clear_errors();
+							std::ostringstream after;
+							TS_ASSERT_TAGD_OK(db.dump(after));
+							TS_ASSERT_EQUALS(after.str(), before.str());
+						}
+					}
+				}
+			}
+		}
+	}
+
+	void test_put_and_replace_share_url_operand_identity() {
+		auto owner = tagdb::make_backend();
+		auto& db = *owner;
+		TS_ASSERT_TAGD_OK(db.open({tagdb::storage_kind::memory}));
+		const tagd::url object("https://example.com/object");
+		const tagd::url relator("https://example.com/relator");
+		TS_ASSERT_TAGD_OK(db.put(object, nullptr));
+		TS_ASSERT_TAGD_OK(db.put(relator, nullptr));
+		tagd::abstract_tag raw("subject", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+		TS_ASSERT_TAGD_OK(raw.relation(relator.id(), object.id(), object.id()));
+		raw.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, object.id());
+		TS_ASSERT_TAGD_OK(db.put(raw, nullptr));
+		tagd::abstract_tag canonical(raw.id(), raw.sub_relator(), raw.super_object(), raw.pos());
+		TS_ASSERT_TAGD_OK(canonical.relation(relator.hduri(), object.hduri(), object.id()));
+		canonical.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, object.hduri());
+		TS_ASSERT_EQUALS(db.put(canonical, nullptr), tagd::TS_DUPLICATE);
+		tagd::replace_outcome outcome{};
+		TS_ASSERT_EQUALS(db.replace(outcome, raw, nullptr), tagd::TS_DUPLICATE);
+		TS_ASSERT_EQUALS(outcome, tagd::replace_outcome::unchanged);
+		tagd::abstract_tag found;
+		TS_ASSERT_TAGD_OK(db.get(found, raw.id(), nullptr));
+		TS_ASSERT_EQUALS(found.relations, canonical.relations);
+		TS_ASSERT_EQUALS(found.type_relations, canonical.type_relations);
+	}
+
+	void test_referent_duplicates_require_the_same_binding() {
+		TDB_CONS_INIT();
+		TS_ASSERT_TAGD_OK(tdb.put(tagd::abstract_tag("japanese", HARD_TAG_SUB,
+			HARD_TAG_ENTITY, tagd::POS_TAG), &ssn));
+		const tagd::referent original("review_alias", "dog", "simple_english");
+		TS_ASSERT_TAGD_OK(tdb.put(original, &ssn));
+		for (const auto flags : {tagd::flags_t{}, tagd::flags_t{tagd::F_IGNORE_DUPLICATES}}) {
+			TS_ASSERT_EQUALS(tdb.put(original, &ssn, flags),
+				flags ? tagd::TAGD_OK : tagd::TS_DUPLICATE);
+			ssn.clear_errors();
+			for (const auto& conflict : {tagd::referent("review_alias", "cat", "simple_english"),
+				tagd::referent("review_alias", "dog", "japanese")}) {
+				TS_ASSERT_EQUALS(tdb.put(conflict, &ssn, flags), tagd::TS_AMBIGUOUS);
+				ssn.clear_errors();
+			}
+		}
+		TS_ASSERT_TAGD_OK(ssn.push_context("simple_english"));
+		tagd::abstract_tag found;
+		TS_ASSERT_TAGD_OK(tdb.get(found, "review_alias", &ssn));
+		TS_ASSERT(found.related(HARD_TAG_REFERS_TO, "dog"));
+
+		ssn.clear_context();
+		TS_ASSERT_TAGD_OK(tdb.del(original, &ssn));
+		TS_ASSERT_TAGD_OK(tdb.put(tagd::referent("review_alias", "dog", "japanese"), &ssn));
+		TS_ASSERT_TAGD_OK(ssn.push_context("japanese"));
+		TS_ASSERT_TAGD_OK(tdb.get(found, "review_alias", &ssn));
+		TS_ASSERT(found.related(HARD_TAG_REFERS_TO, "dog"));
+		ssn.clear_context();
+		TS_ASSERT_TAGD_OK(ssn.push_context("simple_english"));
+		TS_ASSERT_EQUALS(tdb.get(found, "review_alias", &ssn), tagd::TS_AMBIGUOUS);
+	}
+
+	void test_replace_outcomes_sets_and_references() {
+		auto owner = tagdb::make_backend();
+		auto& db = *owner;
+		TS_ASSERT_TAGD_OK(db.open({tagdb::storage_kind::memory}));
+		tagd::replace_outcome outcome;
+		tagd::abstract_tag dog("dog", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+		TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, "old"));
+		TS_ASSERT_TAGD_OK(db.replace(outcome, dog, nullptr));
+		TS_ASSERT_EQUALS(outcome, tagd::replace_outcome::created);
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("child", HARD_TAG_SUB, "dog", tagd::POS_TAG), nullptr));
+		tagd::abstract_tag other("other", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+		other.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, "dog");
+		TS_ASSERT_TAGD_OK(other.relation(HARD_TAG_HAS, "dog"));
+		TS_ASSERT_TAGD_OK(other.relation("dog", HARD_TAG_ENTITY));
+		TS_ASSERT_TAGD_OK(db.put(other, nullptr));
+		TS_ASSERT_TAGD_OK(db.put(tagd::referent("doggy", "dog", "other"), nullptr));
+		dog.relations.clear();
+		TS_ASSERT_TAGD_OK(db.replace(outcome, dog, nullptr));
+		TS_ASSERT_EQUALS(outcome, tagd::replace_outcome::replaced);
+		tagd::abstract_tag found;
+		TS_ASSERT_TAGD_OK(db.get(found, "dog", nullptr));
+		TS_ASSERT(found.relations.empty());
+		TS_ASSERT_TAGD_OK(db.get(found, "child", nullptr));
+		TS_ASSERT_EQUALS(found.super_object(), "dog");
+		TS_ASSERT_TAGD_OK(db.get(found, "other", nullptr));
+		TS_ASSERT(found.related(HARD_TAG_HAS, "dog"));
+		TS_ASSERT(found.related("dog", HARD_TAG_ENTITY));
+		TS_ASSERT(found.type_relations.contains({tagd::HARD_TAG_TYPE_OF, "dog"}));
+		auto session = test_session(db);
+		TS_ASSERT_TAGD_OK(session.push_context("other"));
+		TS_ASSERT_TAGD_OK(db.get(found, "doggy", &session));
+		TS_ASSERT_EQUALS(db.replace(outcome, dog, nullptr), tagd::TS_DUPLICATE);
+		TS_ASSERT_EQUALS(outcome, tagd::replace_outcome::unchanged);
+		db.clear_errors();
+		dog.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, "dog");
+		dog.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, HARD_TAG_ENTITY);
+		TS_ASSERT_TAGD_OK(db.replace(outcome, dog, nullptr));
+		TS_ASSERT_EQUALS(outcome, tagd::replace_outcome::unchanged);
+		db.clear_errors();
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("animal", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+		tagd::abstract_tag moved("dog", HARD_TAG_SUB, "animal", tagd::POS_TAG);
+		TS_ASSERT_TAGD_OK(db.replace(outcome, moved, nullptr));
+		TS_ASSERT_TAGD_OK(db.get(found, "dog", nullptr));
+		TS_ASSERT_EQUALS(found.super_object(), "animal");
+		tagd::abstract_tag child;
+		TS_ASSERT_TAGD_OK(db.get(child, "child", nullptr));
+		TS_ASSERT(found.rank().contains(child.rank()));
+	}
+
+	void test_replace_removal_updates_search() {
+		auto owner = tagdb::make_backend();
+		auto& db = *owner;
+		TS_ASSERT_TAGD_OK(db.open({tagdb::storage_kind::memory}));
+		tagd::abstract_tag dog("dog", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+		TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, HARD_TAG_TERMS, "obsolete"));
+		TS_ASSERT_TAGD_OK(db.put(dog, nullptr));
+		tagd::interrogator search(HARD_TAG_SEARCH);
+		TS_ASSERT_TAGD_OK(search.relation(HARD_TAG_HAS, HARD_TAG_TERMS, "obsolete"));
+		tagd::tag_set found;
+		TS_ASSERT_TAGD_OK(db.query(found, search, nullptr));
+		TS_ASSERT_EQUALS(found.size(), 1U);
+		dog.relations.clear();
+		tagd::replace_outcome outcome;
+		TS_ASSERT_TAGD_OK(db.replace(outcome, dog, nullptr));
+		found.clear();
+		TS_ASSERT_EQUALS(db.query(found, search, nullptr), tagd::TS_NOT_FOUND);
+		TS_ASSERT(found.empty());
+	}
+
+	void test_replace_final_state_and_atomic_validation() {
+		auto owner = tagdb::make_backend();
+		auto& db = *owner;
+		TS_ASSERT_TAGD_OK(db.open({tagdb::storage_kind::memory}));
+		tagd::replace_outcome outcome;
+		tagd::abstract_tag source("source", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+		TS_ASSERT_TAGD_OK(source.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, "old"));
+		TS_ASSERT_TAGD_OK(db.put(source, nullptr));
+		tagd::abstract_tag remote("remote", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+		remote.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, "source");
+		TS_ASSERT_TAGD_OK(remote.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, "old"));
+		TS_ASSERT_TAGD_OK(db.put(remote, nullptr));
+		std::ostringstream before;
+		TS_ASSERT_TAGD_OK(db.dump(before));
+		source.relations.clear();
+		TS_ASSERT_TAGD_OK(source.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, "new"));
+		TS_ASSERT_EQUALS(db.replace(outcome, source, nullptr), tagd::TS_CONTRADICTION);
+		db.clear_errors();
+		std::ostringstream after;
+		TS_ASSERT_TAGD_OK(db.dump(after));
+		TS_ASSERT_EQUALS(after.str(), before.str());
+		tagd::abstract_tag cycle("source", HARD_TAG_SUB, "remote", tagd::POS_TAG);
+		TS_ASSERT_EQUALS(db.replace(outcome, cycle, nullptr), tagd::TS_MISUSE);
+		db.clear_errors();
+		tagd::abstract_tag invalid("source", HARD_TAG_HAS, HARD_TAG_ENTITY, tagd::POS_TAG);
+		TS_ASSERT_EQUALS(db.replace(outcome, invalid, nullptr), tagd::TS_MISUSE);
+		db.clear_errors();
+		invalid = tagd::abstract_tag("source", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+		invalid.type_relations.emplace(HARD_TAG_HAS, "source");
+		TS_ASSERT_EQUALS(db.replace(outcome, invalid, nullptr), tagd::TS_MISUSE);
+		db.clear_errors();
+		// Dropping the old constraint before validation permits a different final value.
+		remote.type_relations.clear();
+		remote.relations.clear();
+		TS_ASSERT_TAGD_OK(remote.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, "new"));
+		TS_ASSERT_TAGD_OK(db.replace(outcome, remote, nullptr));
+		TS_ASSERT_TAGD_OK(db.replace(outcome, source, nullptr));
+	}
 
 	// Contract 2: tagdb::session copy preserves context and sequence state (inherited from tagd::session)
 	void test_session_copy_preserves_state(void) {
@@ -367,8 +577,8 @@ class Tester : public CxxTest::TestSuite {
 		// same thing cannot refer to different tag in same context
 		tagd::referent a1("thing", "animal", "simple_english");
 		tc = tdb.put(a1, &ssn);
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_DUPLICATE");
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TS_DUPLICATE");
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_AMBIGUOUS");
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(ssn.code()), "TS_AMBIGUOUS");
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tdb.code()), "TAGD_OK");
 
 		tagd::referent b("doodoo", "haha", "simple_english");  // unknown refers_to
@@ -392,7 +602,7 @@ class Tester : public CxxTest::TestSuite {
 		// same thing cannot refer to different tag in same context
 		tagd::referent d1("pictures", "photography", "event");
 		tc = tdb.put(d1, &ssn);
-		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_DUPLICATE");
+		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tc), "TS_AMBIGUOUS");
 		TS_ASSERT_EQUALS(TAGD_CODE_STRING(tdb.code()), "TAGD_OK");
 	}
 

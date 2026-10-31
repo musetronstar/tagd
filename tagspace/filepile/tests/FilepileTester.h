@@ -72,6 +72,203 @@ public:
 		semantic_fault::premature_eof = semantic_fault::cleanup_failure = false;
 		std::filesystem::remove_all(home);
 	}
+	void test_put_family_filepile_rules() {
+		tagd::tagspace::persistent ts;
+		TS_ASSERT_EQUALS(ts.create("test", home.string()), tagd::TAGD_OK);
+		tagd::store_result stored;
+		TS_ASSERT_EQUALS(ts.store(stored, tagd::url(source)), tagd::TAGD_OK);
+		const std::string event = "ev:2026-10-31T00:00:00Z!host!user!test!run!1!_event:filepile_store";
+		auto fixture = tagdb::make_backend();
+		TS_ASSERT_EQUALS(fixture->open({tagdb::storage_kind::file,
+			tagd::tagspace_database_path(home.string(), "test")}), tagd::TAGD_OK);
+		tagd::abstract_tag record(event, HARD_TAG_SUB, tagd::HARD_TAG_FILEPILE_STORE_EVENT, tagd::POS_TAG);
+		TS_ASSERT_EQUALS(record.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, "stored"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(fixture->put(record, nullptr), tagd::TAGD_OK);
+		fixture.reset();
+		enum class rule { user, system, classification, identity, changed_identity, self, root, bad_self };
+		for (const auto& id : {source, stored.stored.id(), stored.link, event}) {
+			tagd::abstract_tag before;
+			const tagd::url subject(id);
+			TS_ASSERT_EQUALS(ts.get(before, subject.ok() ? subject.hduri() : id), tagd::TAGD_OK);
+			for (const auto row : {rule::user, rule::system, rule::classification, rule::identity,
+				rule::changed_identity, rule::self, rule::root, rule::bad_self}) {
+				for (const tagd::flags_t flags : {0u, tagd::flags_t(tagd::F_IGNORE_DUPLICATES)}) {
+					std::string expected_state;
+					for (const std::string_view command : {">>", ">>=", ">>+"}) {
+						if (command == ">>+" && id != source)
+							continue;
+						tagd::url uri(id);
+						tagd::abstract_tag plain(id, before.sub_relator(), before.super_object(), before.pos());
+						auto& input = uri.ok() ? static_cast<tagd::abstract_tag&>(uri) : plain;
+						tagd::replace_outcome outcome{};
+						TS_ASSERT_EQUALS(ts.replace(outcome, input, nullptr, tagd::F_IGNORE_DUPLICATES), tagd::TAGD_OK);
+						const auto unchanged = dump(ts);
+						auto expected = flags ? tagd::TAGD_OK : tagd::TS_DUPLICATE;
+						switch (row) {
+							case rule::user:
+								expected = tagd::TAGD_OK;
+								TS_ASSERT_EQUALS(input.relation(HARD_TAG_HAS, tagd::HARD_TAG_TERMS, "note"), tagd::TAGD_OK);
+								break;
+							case rule::system:
+								TS_ASSERT(!before.relations.empty());
+								input.relations.insert(*before.relations.begin());
+								expected = tagd::TS_MISUSE;
+								break;
+							case rule::classification:
+								input.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, id == stored.link
+									? tagd::HARD_TAG_LINK_FILEPILE : id == event
+									? tagd::HARD_TAG_FILEPILE_EVENT : tagd::HARD_TAG_FILE_STORED);
+								expected = tagd::TS_MISUSE;
+								break;
+							case rule::self:
+								input.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, id);
+								break;
+							case rule::root:
+								input.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, HARD_TAG_ENTITY);
+								break;
+							case rule::bad_self:
+								input.type_relations.emplace(HARD_TAG_HAS, id);
+								expected = tagd::TS_MISUSE;
+								break;
+							case rule::changed_identity:
+								expected = tagd::TS_MISUSE;
+								break;
+							case rule::identity:
+								break;
+						}
+						tagd::abstract_tag moved(id, HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+						const auto& declaration = row == rule::changed_identity ? moved : input;
+						// URL declarations include component predicates, so they are not axiom-only.
+						if (!uri.ok() && (row == rule::self || row == rule::root))
+							expected = tagd::TAGD_OK;
+						tagd::store_result retry;
+						const auto rc = command == ">>" ? ts.put(declaration, nullptr, flags)
+							: command == ">>=" ? ts.replace(outcome, declaration, nullptr, flags)
+							: ts.store(retry, declaration, nullptr, flags);
+						TSM_ASSERT_EQUALS(id + " row=" + std::to_string(static_cast<int>(row))
+							+ " " + std::string(command) + " flags=" + std::to_string(flags), rc, expected);
+						ts.clear_errors();
+						const auto after = dump(ts);
+						if (expected != tagd::TAGD_OK || row != rule::user)
+							TS_ASSERT_EQUALS(after, unchanged);
+						if (command == ">>")
+							expected_state = after;
+						else
+							TS_ASSERT_EQUALS(after, expected_state);
+					}
+				}
+			}
+		}
+		tagd::store_result invalid;
+		TS_ASSERT_EQUALS(ts.store(invalid, stored.stored), tagd::TS_MISUSE);
+	}
+
+	void test_put_family_rejects_unrecorded_pile_urls() {
+		tagd::tagspace::persistent ts;
+		TS_ASSERT_EQUALS(ts.create("test", home.string()), tagd::TAGD_OK);
+		tagd::url missing(tagd::file_url((home / "filepile" / "unrecorded").string()));
+		const auto before = dump(ts);
+		tagd::store_result stored;
+		tagd::replace_outcome outcome{};
+		TS_ASSERT_EQUALS(ts.put(missing), tagd::TS_MISUSE);
+		TS_ASSERT_EQUALS(ts.replace(outcome, missing), tagd::TS_MISUSE);
+		TS_ASSERT_EQUALS(ts.store(stored, missing), tagd::TS_MISUSE);
+		TS_ASSERT_EQUALS(dump(ts), before);
+	}
+
+	void test_delete_storage_removes_user_descriptions_on_deleted_records() {
+		tagd::tagspace::persistent ts;
+		TS_ASSERT_EQUALS(ts.create("test", home.string()), tagd::TAGD_OK);
+		tagd::store_result stored;
+		TS_ASSERT_EQUALS(ts.store(stored, tagd::url(source)), tagd::TAGD_OK);
+		for (const auto& id : {stored.stored.id(), stored.link}) {
+			tagd::url uri(id);
+			tagd::abstract_tag plain(id);
+			auto& description = uri.ok() ? static_cast<tagd::abstract_tag&>(uri) : plain;
+			TS_ASSERT_EQUALS(description.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, "note"), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(ts.put(description), tagd::TAGD_OK);
+		}
+		tagd::filepile_delete_result deleted;
+		TS_ASSERT_EQUALS(ts.delete_storage(deleted, tagd::url(source)), tagd::TAGD_OK);
+		TS_ASSERT(!ts.exists(tagd::url(source).hduri()));
+		TS_ASSERT(!ts.exists(stored.stored.hduri()));
+		TS_ASSERT(!ts.exists(stored.link));
+		TS_ASSERT(std::filesystem::exists(home / "source"));
+		TS_ASSERT(!std::filesystem::exists(stored.stored.path()));
+	}
+
+	void test_replace_link_preserves_system_relations() {
+		tagd::tagspace::persistent ts;
+		TS_ASSERT_EQUALS(ts.create("test", home.string()), tagd::TAGD_OK);
+		tagd::store_result stored;
+		TS_ASSERT_EQUALS(ts.store(stored, tagd::url(source)), tagd::TAGD_OK);
+		tagd::abstract_tag before;
+		TS_ASSERT_EQUALS(ts.get(before, stored.link), tagd::TAGD_OK);
+		tagd::abstract_tag replacement(before.id(), before.sub_relator(),
+			before.super_object(), before.pos());
+		TS_ASSERT_EQUALS(replacement.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, "description"), tagd::TAGD_OK);
+		tagd::replace_outcome outcome;
+		TS_ASSERT_EQUALS(ts.replace(outcome, replacement), tagd::TAGD_OK);
+		tagd::abstract_tag after;
+		TS_ASSERT_EQUALS(ts.get(after, stored.link), tagd::TAGD_OK);
+		for (const auto& p : before.relations) {
+			TS_ASSERT(after.relations.contains(p));
+			auto bad = replacement;
+			TS_ASSERT_EQUALS(bad.relation(p), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(ts.replace(outcome, bad), tagd::TS_MISUSE);
+			ts.clear_errors();
+		}
+		replacement.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, replacement.id());
+		replacement.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, HARD_TAG_ENTITY);
+		TS_ASSERT_EQUALS(ts.replace(outcome, replacement), tagd::TS_DUPLICATE);
+	}
+
+	void test_replace_preserves_and_protects_system_relations() {
+		tagd::tagspace::persistent ts;
+		TS_ASSERT_EQUALS(ts.create("test", home.string()), tagd::TAGD_OK);
+		tagd::store_result stored;
+		TS_ASSERT_EQUALS(ts.store(stored, tagd::url(source)), tagd::TAGD_OK);
+		tagd::abstract_tag before;
+		TS_ASSERT_EQUALS(ts.get(before, stored.stored.hduri()), tagd::TAGD_OK);
+		tagd::replace_outcome outcome;
+		tagd::url replacement(stored.stored.id());
+		TS_ASSERT_EQUALS(replacement.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, "description"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(ts.replace(outcome, replacement), tagd::TAGD_OK);
+		tagd::abstract_tag after;
+		TS_ASSERT_EQUALS(ts.get(after, stored.stored.hduri()), tagd::TAGD_OK);
+		for (const auto& p : before.relations) {
+			TS_ASSERT(after.relations.contains(p));
+		}
+		TS_ASSERT_EQUALS(after.type_relations, before.type_relations);
+		TS_ASSERT_EQUALS(ts.replace(outcome, replacement), tagd::TS_DUPLICATE);
+		ts.clear_errors();
+		for (const auto& self : {replacement.id(), replacement.hduri()}) {
+			replacement.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, self);
+			replacement.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, HARD_TAG_ENTITY);
+			TS_ASSERT_EQUALS(ts.replace(outcome, replacement), tagd::TS_DUPLICATE);
+			TS_ASSERT_EQUALS(outcome, tagd::replace_outcome::unchanged);
+			ts.clear_errors();
+			replacement.type_relations.clear();
+		}
+		replacement.type_relations.emplace(HARD_TAG_HAS, replacement.id());
+		TS_ASSERT_EQUALS(ts.replace(outcome, replacement), tagd::TS_MISUSE);
+		ts.clear_errors();
+		replacement.type_relations.clear();
+		for (const auto& p : before.relations) {
+			auto bad = replacement;
+			TS_ASSERT_EQUALS(bad.relation(p), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(ts.replace(outcome, bad), tagd::TS_MISUSE);
+			ts.clear_errors();
+		}
+		replacement.type_relations = before.type_relations;
+		TS_ASSERT_EQUALS(ts.replace(outcome, replacement), tagd::TS_MISUSE);
+		ts.clear_errors();
+		TS_ASSERT_EQUALS(ts.replace(outcome, tagd::url(stored.stored.id())), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(ts.get(after, stored.stored.hduri()), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(after.relations, before.relations);
+		TS_ASSERT_EQUALS(after.type_relations, before.type_relations);
+	}
+
 	void test_cleanup_failure_preserves_initiating_status_and_both_diagnostics() {
 		tagd::tagspace::persistent ts;
 		TS_ASSERT_EQUALS(ts.create("test", home.string()), tagd::TAGD_OK);

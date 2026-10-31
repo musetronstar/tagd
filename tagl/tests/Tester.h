@@ -408,6 +408,167 @@ class driver_tester : public TAGL::driver {
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_http_body_reports_grammar_errors_before_finish() {
+		tagd::tagspace::memory ts;
+		TS_ASSERT_TAGD_OK(ts.init());
+		callback_tester cb(&ts);
+		driver_tester input(&ts);
+		input.callback_ptr(&cb);
+		input.init_parser();
+		input.http_body(TAGL::http_body_commands::merge);
+		input.parse_tok(TOK_CMD_PUT, TAGL::EMPTY_VALUE);
+		input.parse_tok(TOK_UNKNOWN, "new_subject");
+		input.parse_tok(TOK_UNKNOWN, "invalid_relation");
+		TS_ASSERT(input.has_errors());
+		TS_ASSERT(!ts.exists("new_subject"));
+		input.finish();
+		TS_ASSERT_EQUALS(cb.cmd_error_calls, 1);
+	}
+
+	void test_http_body_defers_mutations_until_finish() {
+		for (const std::string command : {">>", ">>=", "!!"}) {
+			for (const bool terminated : {false, true}) {
+				tagd::tagspace::memory ts;
+				TS_ASSERT_TAGD_OK(ts.init());
+				tagd::abstract_tag dog("dog", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+				TS_ASSERT_TAGD_OK(dog.relation(HARD_TAG_HAS, HARD_TAG_MESSAGE, "old"));
+				TS_ASSERT_TAGD_OK(ts.put(dog));
+				callback_tester cb(&ts);
+				TAGL::driver input(&ts, &cb);
+				input.http_body(command == ">>=" ? TAGL::http_body_commands::replace
+					: TAGL::http_body_commands::merge);
+				std::string body = command == "!!" ? "!! dog _has _message"
+					: command + " dog _sub _entity _has _message = new";
+				if (terminated)
+					body += ";\n\n";
+				TS_ASSERT_TAGD_OK(input.parseln(body));
+				TS_ASSERT_TAGD_OK(input.parseln(""));
+				tagd::abstract_tag found;
+				TS_ASSERT_TAGD_OK(ts.get(found, "dog"));
+				TS_ASSERT_EQUALS(found.relations, dog.relations);
+				input.finish();
+				TS_ASSERT_TAGD_OK(input.code());
+				TS_ASSERT_EQUALS(cb.cmd_error_calls, 0);
+				TS_ASSERT_TAGD_OK(ts.get(found, "dog"));
+				if (command == "!!") {
+					TS_ASSERT(found.relations.empty());
+				} else {
+					TS_ASSERT(found.related(HARD_TAG_HAS, HARD_TAG_MESSAGE, "new"));
+				}
+			}
+		}
+	}
+
+	void test_abandoned_http_body_does_not_execute() {
+		tagd::tagspace::memory ts;
+		TS_ASSERT_TAGD_OK(ts.init());
+		callback_tester cb(&ts);
+		{
+			TAGL::driver input(&ts, &cb);
+			input.http_body(TAGL::http_body_commands::merge);
+			TS_ASSERT_TAGD_OK(input.parseln(">> new_subject _sub _entity"));
+		}
+		TS_ASSERT(!ts.exists("new_subject"));
+	}
+
+	void test_http_body_rejects_forbidden_tokens_before_finish() {
+		for (const auto command : {TOK_CMD_SET, TOK_CMD_GET, TOK_CMD_STORE, TOK_CMD_DELETE_STORAGE}) {
+			tagspace_tester ts;
+			driver_tester input(&ts);
+			input.init_parser();
+			input.http_body(TAGL::http_body_commands::merge);
+			input.parse_tok(command, TAGL::EMPTY_VALUE);
+			TS_ASSERT(input.has_errors());
+			TS_ASSERT_EQUALS(input.http_forbidden(),
+				command == TOK_CMD_STORE || command == TOK_CMD_DELETE_STORAGE);
+			input.finish();
+		}
+	}
+
+	void test_http_body_rejects_trailing_input_before_execution() {
+		tagd::tagspace::memory ts;
+		TS_ASSERT_TAGD_OK(ts.init());
+		callback_tester cb(&ts);
+		driver_tester input(&ts);
+		input.callback_ptr(&cb);
+		input.init_parser();
+		input.http_body(TAGL::http_body_commands::merge);
+		input.parse_tok(TOK_CMD_PUT, TAGL::EMPTY_VALUE);
+		input.parse_tok(TOK_UNKNOWN, "new_subject");
+		input.parse_tok(TOK_SUB_RELATOR, "_sub");
+		input.parse_tok(TOK_TAG, "_entity");
+		input.parse_tok(TOK_TERMINATOR, TAGL::EMPTY_VALUE);
+		TS_ASSERT(!input.has_errors());
+		TS_ASSERT(!ts.exists("new_subject"));
+		input.parse_tok(TOK_TAG, "_entity");
+		TS_ASSERT(input.has_errors());
+		input.finish();
+		TS_ASSERT(!ts.exists("new_subject"));
+		TS_ASSERT_EQUALS(cb.cmd_error_calls, 1);
+	}
+
+	void test_http_body_policy_ends_at_finish() {
+		tagd::tagspace::memory ts;
+		TS_ASSERT_TAGD_OK(ts.init());
+		callback_tester cb(&ts);
+		TAGL::driver input(&ts, &cb);
+		input.http_body(TAGL::http_body_commands::replace);
+		TS_ASSERT_TAGD_OK(input.execute(">>= dog _sub _entity;"));
+		TS_ASSERT_TAGD_OK(input.execute(">> cat _sub _entity; >> mouse _sub _entity;"));
+		TS_ASSERT(ts.exists("dog"));
+		TS_ASSERT(ts.exists("cat"));
+		TS_ASSERT(ts.exists("mouse"));
+	}
+
+	void test_replace_grammar_and_execution() {
+		tagd::tagspace::memory ts;
+		TS_ASSERT_TAGD_OK(ts.init());
+		callback_tester cb(&ts);
+		TAGL::driver input(&ts, &cb);
+		ts.share_errors(input);
+		TS_ASSERT_EQUALS(input.execute(">> animal _sub _entity; >> mobile _sub _entity;"
+			">> legs _sub _entity; >> dog _sub animal _has _message = old;"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(input.execute(">>= dog _sub animal _type_of mobile _has legs = 4;"),
+			tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(input.cmd(), TOK_CMD_REPLACE);
+		tagd::abstract_tag dog;
+		TS_ASSERT_EQUALS(ts.get(dog, "dog"), tagd::TAGD_OK);
+		TS_ASSERT(!dog.related(HARD_TAG_HAS, HARD_TAG_MESSAGE));
+		TS_ASSERT(dog.related(HARD_TAG_HAS, "legs"));
+		TS_ASSERT(dog.type_relations.contains({tagd::HARD_TAG_TYPE_OF, "mobile"}));
+	}
+
+	void test_replace_requires_identity_and_rejects_referent_form() {
+		for (const auto* text : {">>= dog _has legs;", ">>= doggy _refers_to dog;"}) {
+			tagspace_tester ts;
+			TAGL::driver input(&ts);
+			TS_ASSERT_EQUALS(input.execute(text), tagd::TAGL_ERR);
+		}
+	}
+
+	void test_replace_url_identity() {
+		for (const auto* text : {">>= https://example.com/a _has _message = x;",
+			">>= hd:com!example!!/a!!!!!!https _sub _url _has _message = x;"}) {
+			tagd::tagspace::memory ts;
+			TS_ASSERT_TAGD_OK(ts.init());
+			callback_tester cb(&ts);
+			TAGL::driver input(&ts, &cb);
+			ts.share_errors(input);
+			TS_ASSERT_EQUALS(input.execute(text), tagd::TAGD_OK);
+			tagd::url found;
+			TS_ASSERT_EQUALS(ts.get(found, "https://example.com/a"), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(found.super_object(), HARD_TAG_URL);
+		}
+		tagd::tagspace::memory ts;
+		TS_ASSERT_TAGD_OK(ts.init());
+		callback_tester cb(&ts);
+		TAGL::driver input(&ts, &cb);
+		ts.share_errors(input);
+		TS_ASSERT_EQUALS(input.execute(">>= https://example.com/a _sub _entity;"), tagd::TS_MISUSE);
+		TS_ASSERT(input.errors().back().str().find("URL syntax determines its subordinate relation")
+			!= std::string::npos);
+	}
+
 	void test_tag_id_length_is_checked_before_storage() {
 		const std::string id(tagd::MAX_TAG_LEN + 1, 'a');
 		for (const auto& text : {">> " + id + " _sub _entity;", ">> dog _has " + id + ";"}) {

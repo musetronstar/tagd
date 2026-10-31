@@ -195,13 +195,14 @@ by the encoding change. See [HDURI identity encoding](TAGL-spec.md#hduri-identit
   outcomes return `TS_INTERNAL_ERR` and block further writes through that handle
   until reopen/check. No automatic retry or crash-recovery sweep is performed.
 
-## Managed deletion
+## DELETE STORAGE (`!!+`)
 
 ```tagl
 !!+ file:///photos/a.jpg;
 ```
 
-* A source A deletes A and all its retained links. B and its bytes remain when
+* A source A deletes A and all its retained links. User relations on removed
+  A, B, and L records are deleted with those records. B and its bytes remain when
   another source still has a link to B in this tagspace.
 * A stored URL B deletes B and every link to B, preserving all source A tags.
   A URL with both roles fails with `TS_MISUSE`.
@@ -253,15 +254,19 @@ fetched record's predicates requests predicate deletion, just as in TAGL.
   garbage collection, reconciliation, repair, or verification cache is implemented.
 * The tagspace layer protects generated URL parts, B metadata and classification,
   and L identity, endpoints, revision and timestamps. Ordinary PUT cannot create
-  managed records or classify through a subtype of `_file:stored`; direct PUT of
-  a filepile URL is `TS_MISUSE`, even before B exists. Ordinary PUT compares the
-  decoded, lexically normalized path with the configured and canonical filepile
-  roots, cached when the home is configured. It does not inspect the resource.
+  managed records or classify through a subtype of `_file:stored`. PUT, STORE,
+  and REPLACE accept user relations on existing A, B, L, and event records.
+  Supplied system facts or filepile classes are `TS_MISUSE`, even unchanged;
+  identity may be restated but not changed. Self and `_entity` typing are
+  validated no-ops. An unrecorded URL inside filepile is `TS_MISUSE`.
+  Ordinary PUT compares the decoded, lexically normalized path with the
+  configured and canonical filepile roots, cached when the home is configured.
+  It does not inspect the resource.
   If home resolution failed, ordinary PUT still checks the configured root;
   storage operations report the configuration error.
   An outside symlink alias remains an ordinary URL identifier; STORE resolves
-  aliases and rejects any source inside filepile. User descriptions on A and
-  L remain editable. Ordinary deletion of A with links, or of L/B, is
+  aliases and rejects any source inside filepile. STORE predicates describe A;
+  B cannot be a source. Ordinary deletion of A with links, or of L/B, is
   `TS_DEPENDENCY`. The previous `TS_RELATION_DEPENDENCY` name is removed.
 * Filepile events use `_event:filepile_store` or `_event:filepile_delete`, with
   `_has _message` to record

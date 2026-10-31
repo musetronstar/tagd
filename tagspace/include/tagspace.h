@@ -75,6 +75,8 @@ public:
 
 	[[nodiscard]] tagd::code get(abstract_tag&, id_view, tagspace_session* = nullptr, flags_t = 0) override;
 	[[nodiscard]] tagd::code get(url&, id_view, tagspace_session* = nullptr, flags_t = 0) override;
+	[[nodiscard]] tagd::code replace(replace_outcome&, const abstract_tag&,
+		tagspace_session* = nullptr, flags_t = 0) override;
 	[[nodiscard]] tagd::code put(const abstract_tag&, tagspace_session* = nullptr, flags_t = 0) override;
 	[[nodiscard]] tagd::code put(const url&, tagspace_session* = nullptr, flags_t = 0) override;
 	[[nodiscard]] tagd::code put(const referent&, tagspace_session* = nullptr, flags_t = 0) override;

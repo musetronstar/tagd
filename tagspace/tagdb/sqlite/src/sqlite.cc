@@ -1477,16 +1477,7 @@ bool sqlite::exists(tagd::id_view id, flags_t flags) {
 }
 
 // tagd::TS_NOT_FOUND returned if destination undefined
-tagd::code sqlite::put_impl(const tagd::abstract_tag& t, session *ssn, flags_t flags) {
-	// Internal write reads must describe stored assertions, not inherited values.
-	flags &= ~F_INCLUDE_INHERITED_PREDICATES;
-	tagdb_debug_scope debug_scope(this, ssn);
-	tagdb_notice_scope notice_scope(this, ssn, tagd::CMD_PUT, t);
-	tagdb_error_scope error_scope(this, ssn, tagd::CMD_PUT, t);
-
-	TAGDB_LOG_DEBUG( "sqlite::put: " << t << " -- " << flag_util::flag_list_str(flags) << std::endl );
-	TAGDB_LOG_DEBUG("tagdb put subject=" << t.id());
-
+tagd::code sqlite::validate_put_identity(const tagd::abstract_tag& t, session* ssn) {
 	const auto id_rule = tagd::valid_tag_id(t.id());
 	if (id_rule == tagd::tag_id_rule::too_long)
 		RET_SSN_FERROR(tagd::TS_ERR_MAX_TAG_LEN, "tag exceeds MAX_TAG_LEN of %d", tagd::MAX_TAG_LEN);
@@ -1502,6 +1493,23 @@ tagd::code sqlite::put_impl(const tagd::abstract_tag& t, session *ssn, flags_t f
 	if (t.id() == t.super_object() && t.id() != HARD_TAG_ENTITY)
 		RET_SSN_FERROR(tagd::TS_MISUSE, "_id == _super_object not allowed: %s", t.id().c_str());
 
+	return tagd::TAGD_OK;
+}
+
+tagd::code sqlite::put_impl(const tagd::abstract_tag& t, session *ssn, flags_t flags) {
+	// Internal write reads must describe stored assertions, not inherited values.
+	flags &= ~F_INCLUDE_INHERITED_PREDICATES;
+	tagdb_debug_scope debug_scope(this, ssn);
+	tagdb_notice_scope notice_scope(this, ssn, tagd::CMD_PUT, t);
+	tagdb_error_scope error_scope(this, ssn, tagd::CMD_PUT, t);
+
+	TAGDB_LOG_DEBUG( "sqlite::put: " << t << " -- " << flag_util::flag_list_str(flags) << std::endl );
+	TAGDB_LOG_DEBUG("tagdb put subject=" << t.id());
+
+	const auto identity = validate_put_identity(t, ssn);
+	if (identity != tagd::TAGD_OK)
+		return identity;
+
 	const auto type_validation = validate_declaration(t);
 	if (type_validation != tagd::TAGD_OK) {
 		RET_SSN_CODE(type_validation);
@@ -1511,6 +1519,13 @@ tagd::code sqlite::put_impl(const tagd::abstract_tag& t, session *ssn, flags_t f
 	tagd::code existing_rc = this->get(existing, t.id(), ssn, (flags|F_NO_TRANSFORM_REFERENTS|F_NO_NOT_FOUND_ERROR));
 	if (existing_rc != tagd::TAGD_OK && existing_rc != tagd::TS_NOT_FOUND)
 		return existing_rc; // err set by get
+
+	return put_validated(t, std::move(existing), ssn, flags);
+}
+
+tagd::code sqlite::put_validated(const tagd::abstract_tag& t, tagd::abstract_tag existing,
+	session* ssn, flags_t flags) {
+	const auto existing_rc = existing.empty() ? tagd::TS_NOT_FOUND : tagd::TAGD_OK;
 
 	// insert/updates fts_tags and returns whatever error occurs first or the code passed in
 	auto f_fts_passthru = [this, existing_rc, &t, ssn, flags](tagd::code tc) -> tagd::code {
@@ -1538,6 +1553,19 @@ tagd::code sqlite::put_impl(const tagd::abstract_tag& t, session *ssn, flags_t f
 		}
 	}
 
+	if (existing_rc == tagd::TAGD_OK && t.sub_relator() == existing.sub_relator() &&
+		t.super_object() == existing.super_object() )
+	{  // same location
+		if (t.relations.empty() && t.type_relations.empty()) {  // duplicate tag and no relations to insert
+			if (flags & F_IGNORE_DUPLICATES)
+				RET_SSN_CODE(tagd::TAGD_OK);
+			else
+				RET_SSN_FERROR(tagd::TS_DUPLICATE, "duplicate tag: %s", t.id().c_str());
+		} else { // insert relations
+			RET_SSN_CODE(f_fts_passthru(this->insert_relations(t, flags)));
+		}
+	}
+
 	tagd::abstract_tag destination;
 	tagd::code dest_rc = this->get(destination, t.super_object(), ssn, (flags|F_NO_TRANSFORM_REFERENTS));
 	if (dest_rc != tagd::TAGD_OK) {
@@ -1548,22 +1576,8 @@ tagd::code sqlite::put_impl(const tagd::abstract_tag& t, session *ssn, flags_t f
 		}
 	}
 
-	// handle duplicate tags up-front
 	tagd::code ins_upd_rc;
 	if ( existing_rc == tagd::TAGD_OK ) {  // existing tag
-		if ( t.sub_relator() == existing.sub_relator() &&
-			t.super_object() == existing.super_object() )
-		{  // same location
-			if (t.relations.empty() && t.type_relations.empty()) {  // duplicate tag and no relations to insert
-				if (flags & F_IGNORE_DUPLICATES)
-					RET_SSN_CODE(tagd::TAGD_OK);
-				else
-					RET_SSN_FERROR(tagd::TS_DUPLICATE, "duplicate tag: %s", t.id().c_str());
-			} else { // insert relations
-				RET_SSN_CODE(f_fts_passthru(this->insert_relations(t, flags)));
-			}
-		}
-
 		// use existing because it has the rank
 		if (existing.sub_relator() != t.sub_relator()) {
 			auto relations = std::move(existing.relations);
@@ -2613,6 +2627,10 @@ tagd::code sqlite::update(const tagd::abstract_tag& t, const tagd::abstract_tag&
 	assert( !t.super_object().empty() );
 	assert( !destination.super_object().empty() );
 
+	// An empty source prefix matches every rank; only a stored non-root tag may move.
+	if (t.rank().empty())
+		return error(tagd::TS_INTERNAL_ERR, "cannot update a tag with an empty rank");
+
 	// Changing only the subordinate relator does not move the tag or its descendants.
 	if (t.super_object() != destination.id()) {
 		tagd::rank rank;
@@ -2687,12 +2705,7 @@ tagd::code sqlite::insert_relations(const tagd::abstract_tag& t, flags_t flags) 
 		return type_rc;
 	}
 	if (t.relations.empty()) {
-		// Axioms alone succeed; they must not hide duplicates of other direct assertions.
-		const bool only_axioms = std::all_of(t.type_relations.begin(), t.type_relations.end(),
-			[&](const auto& p) {
-				return p.object == t.id() || p.object == HARD_TAG_ENTITY;
-			});
-		return num_changed || only_axioms || (flags & F_IGNORE_DUPLICATES) ? tagd::TAGD_OK
+		return num_changed || only_type_axioms(t) || (flags & F_IGNORE_DUPLICATES) ? tagd::TAGD_OK
 			: ferror(tagd::TS_DUPLICATE, "duplicate type assertion on: %s", t.id().c_str());
 	}
 
@@ -2894,6 +2907,21 @@ tagd::code sqlite::insert_referent(const tagd::referent& put_ref, session *ssn, 
 
 	ts_sqlite_code ts_sql_rc = sqlite_constraint_type(errmsg);
 	if (ts_sql_rc == TS_SQLITE_UNIQUE) { // referents UNIQUE violation
+		// Only the complete binding is a duplicate; a colliding alias promises different state.
+		prepare(stmt_t::REFERENT_BINDING,
+			"SELECT 1 FROM referents WHERE refers = tid(?) "
+			"AND refers_to = tid(?) AND context = tid(?)", "referent binding");
+		OK_OR_RET_SSN_INT_ERR_ACTION("insert_referent:binding");
+		bind_text(stmt_t::REFERENT_BINDING, 1, t.refers().c_str(), "refers");
+		bind_text(stmt_t::REFERENT_BINDING, 2, t.refers_to().c_str(), "refers_to");
+		bind_text(stmt_t::REFERENT_BINDING, 3, t.context().c_str(), "context");
+		OK_OR_RET_SSN_INT_ERR_ACTION("insert_referent:binding_values");
+		const auto match = sqlite3_step(get_stmt(stmt_t::REFERENT_BINDING));
+		sqlite3_reset(get_stmt(stmt_t::REFERENT_BINDING));
+		if (match == SQLITE_DONE)
+			RET_SSN_FERROR(tagd::TS_AMBIGUOUS, "conflicting referent: %s", t.refers().c_str());
+		if (match != SQLITE_ROW)
+			RET_SQLITE_SSN_FERROR(match, "cannot check referent binding: %s", t.refers().c_str());
 		if (flags & F_IGNORE_DUPLICATES)
 			return tagd::TAGD_OK;
 		else

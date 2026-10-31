@@ -91,6 +91,8 @@ const char* token_str(int);
 
 struct NoValue {};
 
+enum class http_body_commands { unrestricted, merge, replace };
+
 class driver;
 
 class callback {
@@ -110,6 +112,7 @@ class callback {
 		// pure virtuals - consumers must override
 		virtual void cmd_get(const tagd::abstract_tag&) = 0;
 		virtual void cmd_put(const tagd::abstract_tag&) = 0;
+		virtual void cmd_replace(const tagd::abstract_tag&);
 		virtual void cmd_store(const tagd::abstract_tag&);
 		virtual void cmd_delete_storage(const tagd::abstract_tag&);
 		virtual void cmd_delete(const tagd::abstract_tag&) = 0;
@@ -163,6 +166,10 @@ class driver : public tagd::errorable {
 		// Host method policy: DELETE permits writes, but alias creation requires POST/PUT.
 		bool _http_mutations = true;
 		bool _http_aliases = true;
+		http_body_commands _http_body_commands = http_body_commands::unrestricted;
+		int _http_body_command = 0;
+		bool _http_body_terminated = false;
+		bool check_http_body_token(int);
 		// Only explicit policy denials set this; ordinary TS_MISUSE remains a client error.
 		bool _http_forbidden = false;
 		// Config loading prohibits tagspace switching, including inside included files.
@@ -206,6 +213,12 @@ class driver : public tagd::errorable {
 		bool http_forbidden() const { return _http_forbidden; }
 		void http_mutations(bool allowed) { _http_mutations = allowed; }
 		void http_aliases(bool allowed) { _http_aliases = allowed; }
+		void http_body(http_body_commands commands) {
+			_http_body_commands = commands;
+			_http_body_command = 0;
+			_http_body_terminated = false;
+		}
+		void check_http_delete_subject();
 		bool permit_write();
 		bool tagspace_arguments() const { return _tagspace_arguments; }
 		void configure(tagd::config&, bool http = false, bool config_loading = false);

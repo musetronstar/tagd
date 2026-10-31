@@ -337,6 +337,7 @@ The `tagspace` `dump()` method outputs the TAGL text of a tagspace in canonical 
 #### 5.1 Statement Types
 
 * PUT
+* REPLACE
 * GET
 * DELETE
 * QUERY
@@ -462,14 +463,43 @@ multi-predicate DELETE leaves the tagspace unchanged.
 !! dog _has _message;       -- removes the predicate
 ```
 
-#### 5.5 QUERY Grammar
+#### 5.5 REPLACE Grammar (`>>=`)
+
+```bnf
+replace_statement ::= ">>=" subject subordinate_relation [type_list] [predicates]
+replace_statement ::= ">>=" url [type_list] [predicates]
+```
+
+REPLACE creates an absent subject or replaces its explicit subordinate, type,
+and predicate relations in one transaction. A plain subject must state its
+position; URL syntax supplies `_sub _url` (or `_sub _file`). An explicitly
+supplied URL position must agree. Referent declaration syntax is not accepted.
+The tag ID, children, incoming references, and system-maintained relations stay.
+Supplying a system-maintained relation is `TS_MISUSE`, even with its current
+value. Removing it from the body retains the system value. Validation applies
+to the final state and all affected inheritors; failure changes nothing.
+
+```tagl
+>>= dog _sub animal _type_of mobile _has legs = 4;
+```
+
+The body replaces the whole user description, so omitted user relations are
+removed. Equal explicit sets after URL identity and typed-value normalization
+perform no write. Duplicate reporting follows PUT: `TS_DUPLICATE`, or `TAGD_OK`
+with `_ignore_duplicates`. A declaration containing only validated self/root
+type axioms succeeds as a no-op; these axioms do not affect equality or suppress
+duplicates of other supplied assertions.
+The C++ `replace_outcome` out-parameter distinguishes `created`, `replaced`,
+and `unchanged` on success or duplicate; it is unspecified on failure.
+
+#### 5.6 QUERY Grammar
 
 ```bnf
 query_statement ::= "??" interrogator predicates
 query_statement ::= "??" "<search terms>"
 ```
 
-#### 5.6 Numeric Literal Examples
+#### 5.7 Numeric Literal Examples
 
 ##### Modifier Context
 
@@ -521,6 +551,9 @@ TAGL statements are evaluated against a tagspace.
 * PUT
   + define predicates
   + mutate predicates
+* REPLACE
+  + replace the subject's own description
+  + preserve children and incoming references
 * GET
   + retrieve definition
 * DELETE
@@ -688,6 +721,12 @@ returns its effective predicates instead. Declared type relations remain explici
 in both modes. ID-only shell/HTTP results retain their existing shape.
 
 ## 10. Context and Referents
+
+A referent binds a name to a target in a context. Each `(name, context)` has
+at most one target, and each `(name, target)` has at most one context. An
+identical binding is `TS_DUPLICATE`, suppressed by `_ignore_duplicates`;
+conflicting bindings are `TS_AMBIGUOUS`, regardless of that setting. Delete
+the existing binding before assigning its name and target to another context.
 
 ```tagl
 %% _context example;
@@ -960,6 +999,7 @@ Errors are represented as tags. Relevant mutation errors include:
 | Error | Meaning | HTTP status |
 | --- | --- | --- |
 | `TS_DUPLICATE` | Unchanged assertion already stored locally. | 409 |
+| `TS_AMBIGUOUS` | Referent lookup lacks a matching context, or a proposed binding conflicts with an existing one. | 409 |
 | `TS_CONTRADICTION` | Joint effective constraints have no common value. | 409 |
 | `TS_MISUSE` | Invalid relation role, unsupported foreign type, or structural, type, or mixed cycle. | 400 |
 | `TS_NOT_FOUND` | Missing subject, relation, or matching typed modifier. | 404 |
@@ -1051,7 +1091,7 @@ ordinary [§9 query semantics](#9-query-semantics), using the integrated order d
 
 Outside QUERY a tagdurl names one tag. A type list without the QUERY slash is
 `TS_MISUSE`. QUERY paths with PUT/STORE or DELETE/DELETE_STORAGE, including
-HTTP PUT/POST/DELETE, are `TS_MISUSE` before any storage operation. HTTP GET
+HTTP PUT/POST/PATCH/DELETE, are `TS_MISUSE` before any storage operation. HTTP GET
 and HEAD accept QUERY paths. Malformed type lists return `TAGL_ERR` before
 command validation; both error codes map to HTTP 400. Type changes belong in
 TAGL statements or HTTP bodies, never in the path.
@@ -1102,10 +1142,47 @@ response, and none of its statements execute. Every response carries
 `POST /animals` and `/animals/` accept complete statements but fix the target:
 `_use` of the same resolved target is idempotent, while another target or a
 cross-target embedded tagdurl is HTTP 403. A rejected combined selection and
-alias command creates no alias. `POST /animals/donkey` retains an implicit PUT
-subject and predicate body. PUT and DELETE require a tag after the selector;
+alias command creates no alias. Tag-addressed POST and PATCH accept one complete
+`>>` merge or `!!` relation-removal statement whose subject matches the path.
+`!! subject;` belongs to DELETE. PATCH requires an existing subject (404 if absent).
+PUT accepts exactly one complete `>>=` statement; a GET representation must be
+wrapped as `>>= ...;`, with system-maintained relations removed. DELETE has no body.
+Other commands, SET, relation-only bodies, and multiple statements are 400;
+HTTP STORE and DELETE STORAGE remain 403. The whole body is checked before any
+statement runs. Transaction scopes will eventually permit atomic multi-statement
+POST/PATCH bodies. PUT, PATCH, and DELETE require a tag after the selector;
 tagspace-only paths return HTTP 400. HTTP never executes local includes or
 closed `.tagl` sources. Open `.tagl` instances remain usable.
+
+PUT, POST (including `POST /`), and PATCH accept absent `Content-Type`,
+`text/plain`, or `application/x-www-form-urlencoded` as TAGL. Media types are
+case-insensitive; parameters such as `charset` are ignored. Unsupported types
+return 415 before contexts are applied or statements run, with an error naming
+the accepted types. Only PATCH sends `Accept-Patch`. DELETE content is 400
+regardless of its type. Multipart and raw-file uploads remain unsupported
+until the HTTP file-upload operation lands.
+
+HTTP PUT executes REPLACE with `_ignore_duplicates` enabled. HTTP mutation
+statuses do not depend on the session's duplicate setting. PUT returns 201
+when it creates the tag. Replacement and unchanged PUT return 204 with an empty
+body, or 200 when a selected view renders the committed tag as GET would. Creation
+with a view still returns 201. No PUT response adds `Location`: the request already
+names the resource. An explicit `?v=` (including empty or `tagl`) selects a response
+representation; a configured default view other than `tagl` does too. PATCH returns
+204 without a view or 200 with the rendered tag, including an unchanged merge.
+TAGL-body POST returns 200 for both a changed merge and a duplicate. These HTTP
+success rules do not change tagsh's duplicate diagnostic. Removing an absent
+relation returns `TS_NOT_FOUND` (404) on POST and PATCH, including repeated
+removals. `TS_AMBIGUOUS` returns 409 for both unresolved referent lookups and
+conflicting referent bindings; only an identical binding is a duplicate.
+
+**Pre-beta HTTP body break:** Remove implicit subject/predicate fragments from
+clients. Send complete TAGL on POST/PATCH, use `>>=` for PUT, and move former
+DELETE relation bodies to POST/PATCH `!!` statements. Browser predicate and tree
+edits use POST merges. PUT is unconditional until HTTP conditional requests land.
+Ambiguous referent lookups now return 409 instead of 400.
+Send TAGL with an accepted content type; PUT and POST now reject unsupported
+types with 415, as PATCH does.
 
 `/` (welcome/general POST), `/_file/...`, and `/favicon.ico` remain special routes
 and take precedence. A tagspace named `favicon.ico` is masked even if the icon
@@ -1234,8 +1311,13 @@ A stored filepile URL retains its syntax-derived `_sub _file` identity and
 receives the system-maintained type relation `_type_of _file:stored`. Dumps
 include that relation and all association/content metadata. Ordinary PUT cannot
 create this classification, even indirectly through a type or subordinate
-object beneath `_file:stored` in the integrated order. Direct PUT of a managed
-filepile URL is `TS_MISUSE`. Explicit restore is a separate pending feature;
+object beneath `_file:stored` in the integrated order. PUT, STORE, and REPLACE
+accept user relations on existing source, stored-copy, link, and event records.
+Supplied system facts or filepile classes are `TS_MISUSE`, even unchanged.
+Identity may be restated unchanged; self and
+`_entity` typing are validated no-ops. An unrecorded URL inside filepile is
+`TS_MISUSE`. STORE predicates describe the source; a stored copy cannot be a
+source. Explicit restore is a separate pending feature;
 ordinary loading cannot reconstruct managed filepile records, and legacy
 `_is_a _file:stored` declarations are incompatible.
 
@@ -1266,13 +1348,14 @@ All filepile invariants are enforced by the tagspace layer. HTTP invocation,
 network acquisition, restore mode, roles, and concurrent operations are separate
 work. See [Filepile storage](filepile.md) for metadata, diagnostics, and limits.
 
-### Managed DELETE (`!!+`)
+### DELETE STORAGE (`!!+`)
 
 `!!+` shares ordinary DELETE grammar. Without predicates, the subject must be a
 URL. A source URL deletes A and its retained links, plus unshared B records and
 bytes. A stored B URL deletes B and all links to it, preserving the sources.
 Both roles on one URL produce `TS_MISUSE`; a URL with no managed storage follows
 ordinary DELETE. Original source resources and existing audit tags survive.
+User relations on removed records are deleted with those records.
 
 ```tagl
 !!+ file:///photos/a.jpg _has _message = "Holiday photo";  -- clear the message modifier
@@ -1285,7 +1368,7 @@ when removing the final predicate. Subordinate relations are rejected. Ordinary
 Generated URL, content and association facts cannot be edited through ordinary
 PUT/DELETE or predicate-bearing `!!+`; user descriptions retain normal semantics.
 
-Managed deletion validates unrelated dependencies, atomically deletes selected
+DELETE STORAGE validates unrelated dependencies, atomically deletes selected
 records, then cleans up eligible files. Shared local content survives. Unknown
 commit outcomes prohibit cleanup; post-commit cleanup errors report partial
 completion without rolling back the deletion. Missing stored bytes warn without

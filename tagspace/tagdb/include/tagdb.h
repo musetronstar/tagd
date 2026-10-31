@@ -148,6 +148,14 @@ class tagdb : public tagd::errorable {
 			return error(tagd::TS_NOT_IMPLEMENTED, "backend does not support atomic DELETE");
 		}
 
+		// Invoked synchronously inside the write transaction to retain system-maintained facts.
+		using prepare_replace = std::function<tagd::code(tagd::abstract_tag&,
+			const tagd::abstract_tag&)>;
+		[[nodiscard]] virtual tagd::code replace(tagd::replace_outcome&,
+			const tagd::abstract_tag&, session*, flags_t = 0, const prepare_replace& = {}) {
+			return error(tagd::TS_NOT_IMPLEMENTED, "backend does not support replace");
+		}
+
 		// put into db given tag
 		[[nodiscard]] virtual tagd::code put(const tagd::abstract_tag&, session*, flags_t = 0) = 0;
 

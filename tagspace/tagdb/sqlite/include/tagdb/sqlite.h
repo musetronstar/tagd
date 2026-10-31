@@ -67,6 +67,7 @@ enum class stmt_t {
 	MAX_CHILD_RANK,
 	INSERT_RELATIONS,
 	INSERT_REFERENTS,
+	REFERENT_BINDING,
 	DELETE_TAG,
 	DELETE_SUBJECT_RELATIONS,
 	DELETE_RELATION,
@@ -102,6 +103,24 @@ class sqlite: public tagdb, private snapshot_source {
 		std::string _db_fname;
 
 	private:
+		class write_transaction {
+		public:
+			enum class kind { deferred, immediate, relation_put };
+			write_transaction(sqlite& db, kind mode) : _db(db), _mode(mode) {}
+			~write_transaction();
+			write_transaction(const write_transaction&) = delete;
+			write_transaction& operator=(const write_transaction&) = delete;
+			write_transaction(write_transaction&&) = delete;
+			write_transaction& operator=(write_transaction&&) = delete;
+			[[nodiscard]] tagd::code begin();
+			[[nodiscard]] tagd::code finish(tagd::code, bool discard = false);
+		private:
+			sqlite& _db;
+			kind _mode;
+			bool _active = false;
+			[[nodiscard]] tagd::code rollback();
+		};
+
 		// Storage compatibility includes persisted hard-tag ranks as well as table definitions.
 		static constexpr int SCHEMA_VERSION = 3;
 
@@ -173,10 +192,19 @@ class sqlite: public tagdb, private snapshot_source {
 		[[nodiscard]] tagd::code validate_effective(const std::set<tagd::id_string>&);
 		static void tag_affected(std::set<tagd::id_string>&, const tagd::abstract_tag&);
 		[[nodiscard]] tagd::code check_inherited_deletion(const tagd::abstract_tag&, const tagd::abstract_tag&);
+		[[nodiscard]] tagd::code validate_put_identity(const tagd::abstract_tag&, session*);
 		[[nodiscard]] tagd::code put_impl(const tagd::abstract_tag&, session*, flags_t);
+		// The declaration and existing row must come from this write transaction.
+		[[nodiscard]] tagd::code put_validated(const tagd::abstract_tag&, tagd::abstract_tag,
+			session*, flags_t);
+		[[nodiscard]] tagd::code normalize_declaration(tagd::abstract_tag&,
+			const tagd::abstract_tag&, session*, flags_t);
+		[[nodiscard]] tagd::code replace_impl(tagd::replace_outcome&, const tagd::abstract_tag&,
+			session*, flags_t, const prepare_replace&);
 		[[nodiscard]] tagd::code put_transaction(const tagd::abstract_tag&, session*, flags_t,
 			std::set<tagd::id_string>* batch_affected);
 		[[nodiscard]] tagd::code get_type_relations(tagd::type_predicate_set&, const tagd::id_string&);
+		static bool only_type_axioms(const tagd::abstract_tag&);
 		[[nodiscard]] tagd::code insert_type_relations(const tagd::abstract_tag&, size_t&);
 		[[nodiscard]] tagd::code delete_type_relations(const tagd::abstract_tag&);
 		[[nodiscard]] tagd::code validate_declaration(const tagd::abstract_tag&);
@@ -243,7 +271,9 @@ class sqlite: public tagdb, private snapshot_source {
 		[[nodiscard]] tagd::code put_batch(std::span<const tagd::abstract_tag* const>,
 			session*, flags_t = 0) override;
 
-		// put tag, will overrite existing (move + update)
+		[[nodiscard]] tagd::code replace(tagd::replace_outcome&, const tagd::abstract_tag&,
+			session*, flags_t = 0, const prepare_replace& = {}) override;
+		// PUT merges relations and may move an existing tag.
 		[[nodiscard]] tagd::code put(const tagd::abstract_tag&, session *, flags_t = 0) override;
 		[[nodiscard]] tagd::code put(const tagd::url&, session *, flags_t = 0) override;
 		[[nodiscard]] tagd::code put(const tagd::referent&, session *, flags_t = 0) override;

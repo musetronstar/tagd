@@ -232,16 +232,61 @@ evhtp_res set_my_connection_handlers(evhtp_connection_t * conn, void * arg) {
 
 namespace httagd {
 
-// translate an HTTP request into a TAGL statement and execute
+namespace {
+constexpr std::string_view tagl_content_types[]{"text/plain", "application/x-www-form-urlencoded"};
+
+bool accepts_tagl_content(const char* header) {
+	std::string media = header ? header : "";
+	media.resize(media.find(';') == std::string::npos ? media.size() : media.find(';'));
+	const auto last = media.find_last_not_of(" \t");
+	media = last == std::string::npos ? "" : media.substr(0, last + 1);
+	media.erase(0, media.find_first_not_of(" \t"));
+	for (char& c : media) {
+		if (c >= 'A' && c <= 'Z')
+			c += 'a' - 'A';
+	}
+	if (media.empty())
+		return true;
+	for (const auto type : tagl_content_types) {
+		if (media == type)
+			return true;
+	}
+	return false;
+}
+
+std::string accepted_tagl_content_types() {
+	std::string header;
+	for (const auto type : tagl_content_types) {
+		if (!header.empty())
+			header += ", ";
+		header += type;
+	}
+	return header;
+}
+}
+
+// Select the request operation; TAGL owns body grammar and command restrictions.
 tagd::code httagl::execute(transaction& tx) {
 	// translate evhtp_method into tagd::http_method
 	htp_method ev_method = evhtp_request_get_method(tx.req->ev_req());
-	// A URL-targeted write is known before parsing its predicate body.
-	if ((ev_method == htp_method_PUT || ev_method == htp_method_DELETE
+	// Addressed mutations require write authority before any body is parsed.
+	if ((ev_method == htp_method_PUT || ev_method == htp_method_PATCH || ev_method == htp_method_DELETE
 		|| (ev_method == htp_method_POST && !tx.req->has_root_path()))
 		&& !permit_write()) {
 		_callback->cmd_error();
 		return code();
+	}
+
+	// Reject unsupported formats before applying contexts or parsing statements.
+	if (ev_method == htp_method_PUT || ev_method == htp_method_POST || ev_method == htp_method_PATCH) {
+		const auto* header = evhtp_header_find(tx.req->ev_req()->headers_in, "Content-Type");
+		if (!accepts_tagl_content(header)) {
+			const auto accepted = accepted_tagl_content_types();
+			tx.res->res_code(EVHTP_RES_UNSUPPORTED);
+			if (ev_method == htp_method_PATCH)
+				tx.res->add_header("Accept-Patch", accepted);
+			return error(tagd::TS_MISUSE, "unsupported content type; accepted TAGL types: " + accepted);
+		}
 	}
 
 	switch(ev_method) {
@@ -255,37 +300,38 @@ tagd::code httagl::execute(transaction& tx) {
 			this->tagdurl_get(*tx.req);
 			break;
 		case htp_method_PUT:
-			// TODO: HTTP PUT must replace the tag (RFC 9110 §9.3.4); it merges like POST.
-			tx.req->method = tagd::HTTP_PUT;
-			if (tx.req->has_root_path()) {
-				tx.error(tagd::HTTP_ERR, "tag id in path required for HTTP PUT");
-			} else {
-				if (this->tagdurl_put(*tx.req) != tagd::TAGD_OK)
+		case htp_method_PATCH:
+			tx.req->method = ev_method == htp_method_PUT ? tagd::HTTP_PUT : tagd::HTTP_PATCH;
+			if (tx.req->has_root_path())
+				return error(tagd::TS_MISUSE, "tag id in path required for PUT/PATCH");
+			if (tagdurl_put(*tx.req) != tagd::TAGD_OK)
+				return code();
+			if (ev_method == htp_method_PATCH) {
+				const auto identity = tagd::canonical_url_id(constrain_tag_id);
+				const auto pos = tsp()->pos(identity, session_ptr());
+				if (has_errors())
 					return code();
-				TAGL::driver::execute(tx.req->ev_req()->buffer_in);
+				if (pos == tagd::POS_UNKNOWN)
+					return error(tagd::TS_NOT_FOUND, "PATCH subject does not exist: " + constrain_tag_id);
 			}
+			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
 			break;
 		case htp_method_POST:
 			tx.req->method = tagd::HTTP_POST;
-			// Keep HTTP path/body composition here; tagdurl translation remains
-			// one standalone tagdurl to one TAGL statement.
 			if (!tx.req->has_root_path()) {
-				// PUT here follows tagspace semantics, not HTTP replacement semantics.
-				if (this->tagdurl_put(*tx.req) != tagd::TAGD_OK)
+				if (tagdurl_put(*tx.req) != tagd::TAGD_OK)
 					return code();
-			} else {
-				// A general TAGL body still shares the request's validated lookup context.
-				if (apply_tagdurl_context(tx.req->query_contexts()) != tagd::TAGD_OK)
-					return code();
+			} else if (apply_tagdurl_context(tx.req->query_contexts()) != tagd::TAGD_OK) {
+				return code();
 			}
 			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
 			break;
 		case htp_method_DELETE:
-			// TODO: DELETE content cannot alter the request's meaning (RFC 9110 §9.3.5).
 			tx.req->method = tagd::HTTP_DELETE;
-			if (this->tagdurl_del(*tx.req) != tagd::TAGD_OK)
+			if (tagdurl_del(*tx.req) != tagd::TAGD_OK)
 				return code();
-			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
+			if (evbuffer_get_length(tx.req->ev_req()->buffer_in))
+				return error(tagd::TS_MISUSE, "DELETE does not accept request content");
 			break;
 /*
 		htp_method_MKCOL,
@@ -298,7 +344,6 @@ tagd::code httagl::execute(transaction& tx) {
 		htp_method_UNLOCK,
 		htp_method_TRACE,
 		htp_method_CONNECT, // RFC 2616
-		htp_method_PATCH,   // RFC 5789
 		htp_method_UNKNOWN,
   */
 
@@ -318,25 +363,11 @@ tagd::code httagl::tagdurl_get(const request& req) {
 }
 
 tagd::code httagl::tagdurl_put(const request& req) {
-	if ((req.method == tagd::HTTP_POST || req.method == tagd::HTTP_PUT) &&
-		!req.has_root_path()) {
-		return this->prepare_constrained_body_subject(req);
-	}
-
-	return this->scan_request_tagdurl(req);
-}
-
-tagd::code httagl::prepare_constrained_body_subject(const request& req) {
-	this->scan_request_tagdurl(req);
-	if (this->has_errors())
-		return this->code();
-
-	if (req.method == tagd::HTTP_POST) {
-		this->parse_tok(TOK_CMD_PUT, TAGL::EMPTY_VALUE);
-		this->parse_tok(this->lookup_pos(this->constrain_tag_id), this->constrain_tag_id);
-	}
-
-	return this->code();
+	const auto rc = scan_request_tagdurl(req);
+	if (rc == tagd::TAGD_OK)
+		http_body(req.method == tagd::HTTP_PUT ? TAGL::http_body_commands::replace
+			: TAGL::http_body_commands::merge);
+	return rc;
 }
 
 tagd::code httagl::tagdurl_del(const request& req) {
@@ -350,7 +381,9 @@ tagd::code httagl::scan_request_tagdurl(const request& req) {
 
 void callback::default_cmd_put(const tagd::abstract_tag& t) {
 	auto ssn = _tx->drvr->session_ptr();
-	const auto tc = _tx->tsp()->put(t, ssn, _driver->flags);
+	// HTTP merges succeed when the requested state already holds, regardless of SET.
+	const auto flags = _driver->flags | tagd::F_IGNORE_DUPLICATES;
+	const auto tc = _tx->tsp()->put(t, ssn, flags);
 	if (tc != tagd::TAGD_OK)
 		output_errors(tc);
 }
@@ -408,7 +441,6 @@ evhtp_res tagd_code_evhtp_res(tagd::code tc) {
 		case tagd::TAGD_OK:
 			return EVHTP_RES_OK;	// 200
 		case tagd::TAGL_ERR:
-		case tagd::TS_AMBIGUOUS:
 		case tagd::HTTP_ERR:
 		case tagd::TS_MISUSE:
 		// URL syntax errors come from the request's own path or body text.
@@ -426,6 +458,7 @@ evhtp_res tagd_code_evhtp_res(tagd::code tc) {
 			return EVHTP_RES_NOTFOUND;	// 404
 		case tagd::TS_CONTRADICTION:
 		case tagd::TS_DUPLICATE:
+		case tagd::TS_AMBIGUOUS:
 			// using 409 - Conflict, 422 - Unprocessable Entity might also be exceptable
 			return EVHTP_RES_CONFLICT;
 		default:
@@ -706,15 +739,19 @@ void callback::cmd_get(const tagd::abstract_tag& t) {
 }
 
 void callback::cmd_put(const tagd::abstract_tag& t) {
+	const bool patch = _tx->req->method == tagd::HTTP_PATCH;
 	view vw;
-	if (!resolve_view(vw, view_action::PUT))
+	if (!resolve_view(vw, patch ? view_action::GET : view_action::PUT))
 		return;
 
-	if (vw.action() == view_action::UNDEF)
+	if (!patch && vw.action() == view_action::UNDEF)
 		return this->default_cmd_put(t);
 
 	auto ssn = _tx->drvr->session_ptr();
-	auto tc = _tx->tsp()->put(t, ssn, _driver->flags);
+	auto tc = _tx->tsp()->put(t, ssn, _driver->flags | tagd::F_IGNORE_DUPLICATES);
+	if (tc == tagd::TAGD_OK && patch)
+		return mutation_response(t);
+
 	// The representation describes committed storage; rendering cannot roll it back.
 	if (tc == tagd::TAGD_OK)
 		tc = vw.put_function(*_tx, vw, t);
@@ -723,16 +760,44 @@ void callback::cmd_put(const tagd::abstract_tag& t) {
 		output_errors(tc);
 }
 
-void callback::cmd_delete(const tagd::abstract_tag& t) {
+void callback::cmd_replace(const tagd::abstract_tag& t) {
 	view vw;
-	if (!resolve_view(vw, view_action::DELETE))
+	if (!resolve_view(vw, view_action::GET))
+		return;
+	tagd::replace_outcome outcome{};
+	// The outcome controls HTTP status; TAGL's duplicate setting cannot turn success into 409.
+	const auto rc = _tx->tsp()->replace(outcome, t, _driver->session_ptr(),
+		_driver->flags | tagd::F_IGNORE_DUPLICATES);
+	if (rc != tagd::TAGD_OK)
+		return output_errors(rc);
+	if (_tx->req->method == tagd::HTTP_PUT)
+		mutation_response(t, outcome == tagd::replace_outcome::created);
+}
+
+void callback::mutation_response(const tagd::abstract_tag& t, bool created) {
+	const bool render = _tx->req->query_map().contains(TAGL::QUERY_OPT_VIEW)
+		|| _tx->effective_opt_view() != DEFAULT_VIEW;
+	// A selected view renders the committed tag using GET, including retained system facts.
+	if (render)
+		cmd_get(t);
+	if (!_tx->has_errors())
+		_tx->res->res_code(created ? EVHTP_RES_CREATED : render ? EVHTP_RES_OK : EVHTP_RES_NOCONTENT);
+}
+
+void callback::cmd_delete(const tagd::abstract_tag& t) {
+	const bool patch = _tx->req->method == tagd::HTTP_PATCH;
+	view vw;
+	if (!resolve_view(vw, patch ? view_action::GET : view_action::DELETE))
 		return;
 
-	if (vw.action() == view_action::UNDEF)
+	if (!patch && vw.action() == view_action::UNDEF)
 		return this->default_cmd_delete(t);
 
 	auto ssn = _tx->drvr->session_ptr();
 	auto tc = _tx->tsp()->del(t, ssn, _driver->flags);
+	if (tc == tagd::TAGD_OK && patch)
+		return mutation_response(t);
+
 	// As with PUT, a failed deletion has no success representation.
 	if (tc == tagd::TAGD_OK)
 		tc = vw.delete_function(*_tx, vw, t);
@@ -921,7 +986,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	// DELETE may change ordinary data, but only POST/PUT may create shared alias bindings.
 	tagl.http_aliases(method == htp_method_POST || method == htp_method_PUT);
 	tagl.http_mutations(method == htp_method_POST || method == htp_method_PUT
-		|| method == htp_method_DELETE);
+		|| method == htp_method_PATCH || method == htp_method_DELETE);
 	tx.drvr = &tagl;
 
 	// all sharing the internal errors pointer of tx
@@ -953,7 +1018,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 		auto rc = tagd::TAGD_OK;
 		const bool read = method == htp_method_GET || method == htp_method_HEAD;
 		if (address.description
-			&& (method == htp_method_PUT || method == htp_method_DELETE)) {
+			&& (method == htp_method_PUT || method == htp_method_PATCH || method == htp_method_DELETE)) {
 			// TODO: Consider tagspace creation through the HTTP service in future development.
 			rc = tagl.error(tagd::TAGL_ERR,
 				tagd::predicate(HARD_TAG_CAUSED_BY, tagd::HARD_TAG_TAGSPACE, address.selector));
@@ -963,7 +1028,8 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 			rc = tagl.select_tagdurl(address, operation, read);
 		if (rc == tagd::TAGD_OK) {
 			req.addressed_path(operation);
-			if (method == htp_method_POST || method == htp_method_PUT || method == htp_method_DELETE)
+			if (method == htp_method_POST || method == htp_method_PUT
+				|| method == htp_method_PATCH || method == htp_method_DELETE)
 				tagl.fix_http_target();
 		}
 		parse_rc = rc;

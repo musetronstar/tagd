@@ -96,6 +96,8 @@ class client_test_server {
 		// verify that caller-supplied headers are actually sent and arrive in order.
 		static void echo_cb(evhttp_request *req, void *) {
 			evkeyvalq *out = evhttp_request_get_output_headers(req);
+			const auto method = std::to_string(evhttp_request_get_command(req));
+			evhttp_add_header(out, "X-Request-Method", method.c_str());
 			for (const evkeyval *h = evhttp_request_get_input_headers(req)->tqh_first;
 				 h != nullptr;
 				 h = h->next.tqe_next) {
@@ -153,6 +155,7 @@ class client_test_server {
 			_http = evhttp_new(_base);
 			TS_ASSERT_DIFFERS(_http, nullptr);
 
+			evhttp_set_allowed_methods(_http, EVHTTP_REQ_GET | EVHTTP_REQ_HEAD | EVHTTP_REQ_PATCH);
 			evhttp_set_cb(_http, "/dog", dog_cb, nullptr);
 			evhttp_set_cb(_http, "/echo", echo_cb, nullptr);
 			_bound = evhttp_bind_socket_with_handle(_http, "127.0.0.1", 0);
@@ -204,6 +207,19 @@ class client_test_server {
 
 class ClientTester : public CxxTest::TestSuite {
 	public:
+		void test_perform_patch_preserves_method() {
+			client_test_server server;
+			httagd::client cli;
+			httagd::client_request req(tagd::HTTP_PATCH, server.url("/echo"));
+			httagd::client_response res;
+			TS_ASSERT_EQUALS(cli.perform(req, res), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(res.status(), HTTP_OK);
+			const auto* method = res.header_value("X-Request-Method");
+			TS_ASSERT_DIFFERS(method, nullptr);
+			if (method)
+				TS_ASSERT_EQUALS(*method, std::to_string(EVHTTP_REQ_PATCH));
+		}
+
 		void test_perform_get_returns_status_and_body() {
 			client_test_server server;
 			httagd::client cli;

@@ -360,19 +360,26 @@ public:
 		TS_ASSERT_EQUALS(cfg.put(tagd::abstract_tag("japanese", HARD_TAG_SUB,
 			HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(cfg.put(tagd::referent("a", "animals", "japanese")), tagd::TAGD_OK);
-		TS_ASSERT_EQUALS(cfg.bind_alias("animals", "a"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cfg.bind_alias("animals", "a"), tagd::TS_AMBIGUOUS);
+		TS_ASSERT_EQUALS(cfg.bind_alias("animals", "b"), tagd::TAGD_OK);
 
 		auto ssn = cfg.get_session();
 		TS_ASSERT_EQUALS(ssn.push_context("japanese"), tagd::TAGD_OK);
 		auto before = ssn.context();
 		tagd::id_string id;
+		TS_ASSERT_EQUALS(cfg.resolve_tagspace("b", id), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(id, "animals");
+		TS_ASSERT_EQUALS(cfg.resolve_tagspace("b", id, &ssn), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(id, "animals");
 		TS_ASSERT_EQUALS(cfg.resolve_tagspace("a", id, &ssn), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(id, "animals");
 		TS_ASSERT_EQUALS(ssn.context(), before);
 
-		TS_ASSERT_EQUALS(cfg.close_tagspace("animals", "a", &ssn), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cfg.close_tagspace("animals", "b", &ssn), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(cfg.resolve_tagspace("a", id, &ssn), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(id, "animals");
 		TS_ASSERT_EQUALS(cfg.resolve_tagspace("a", id), tagd::TS_NOT_FOUND);
+		TS_ASSERT_EQUALS(cfg.resolve_tagspace("b", id, &ssn), tagd::TS_NOT_FOUND);
 		TS_ASSERT_EQUALS(ssn.context(), before);
 	}
 

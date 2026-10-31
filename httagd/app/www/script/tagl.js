@@ -9,7 +9,7 @@
  * @returns {string} - A PUT tag TAGL statement
  */
 export function encodePutTag(tagId, subRel, superId) {
-	return `>> ${tagId} ${subRel} ${superId}`;
+	return `>> ${tagId} ${subRel} ${superId};`;
 }
 
 /**
@@ -20,6 +20,6 @@ export function encodePutTag(tagId, subRel, superId) {
  * @returns {string} - A PUT tag relation TAGL statement
  */
 export function encodePutPredicate(subject, predicate) {
-	return `>> ${subject} ${predicate}`;
+	return `>> ${subject} ${predicate};`;
 }
 

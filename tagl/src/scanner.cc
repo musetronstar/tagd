@@ -280,6 +280,7 @@ int scanner::tagdurl::method_command(tagd::http_method method) {
 			return TOK_CMD_GET;
 		case tagd::HTTP_POST:
 		case tagd::HTTP_PUT:
+		case tagd::HTTP_PATCH:
 			return TOK_CMD_PUT;
 		case tagd::HTTP_DELETE:
 			return TOK_CMD_DELETE;

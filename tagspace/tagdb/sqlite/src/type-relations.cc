@@ -127,6 +127,14 @@ tagd::code sqlite::validate_declaration(const tagd::abstract_tag& t) {
 	return validate_dependencies(t);
 }
 
+bool sqlite::only_type_axioms(const tagd::abstract_tag& t) {
+	// Axioms alone succeed; they must not hide duplicates of other direct assertions.
+	return t.relations.empty() && !t.type_relations.empty()
+		&& std::all_of(t.type_relations.begin(), t.type_relations.end(), [&](const auto& p) {
+			return p.object == t.id() || p.object == HARD_TAG_ENTITY;
+		});
+}
+
 tagd::code sqlite::insert_type_relations(const tagd::abstract_tag& t, size_t& changed) {
 	for (const auto& p : t.type_relations) {
 		if (p.object == t.id() || p.object == tagd::HARD_TAG_ENTITY) {
@@ -272,6 +280,31 @@ tagd::code sqlite::check_put(const tagd::abstract_tag& input, flags_t flags) {
 	return code(rc);
 }
 
+tagd::code sqlite::normalize_declaration(tagd::abstract_tag& canonical,
+	const tagd::abstract_tag& input, session* ssn, flags_t flags) {
+	canonical = input;
+	if (!(flags & F_NO_POS_CAST) && input.pos() == tagd::POS_URL) {
+		const auto& u = static_cast<const tagd::url&>(input);
+		if (!u.ok()) {
+			return error(u.code(), "invalid URL declaration");
+		}
+		canonical = tagd::abstract_tag(u.hduri(), u.sub_relator(), u.super_object(), u.pos());
+		canonical.relations = u.relations;
+		canonical.type_relations = u.type_relations;
+		tagd::url::insert_url_part_relations(canonical.relations, u);
+	}
+	if (ssn && !(flags & F_NO_TRANSFORM_REFERENTS)) {
+		canonical = decode_referents(canonical, ssn);
+		if (code() != tagd::TAGD_OK) {
+			return code();
+		}
+	}
+
+	canonical.relations.transform(tagd::canonical_url_id);
+	canonical.type_relations.transform(tagd::canonical_url_id);
+	return tagd::TAGD_OK;
+}
+
 tagd::code sqlite::put_transaction(const tagd::abstract_tag& input, session* ssn,
 	flags_t flags, std::set<tagd::id_string>* batch_affected) {
 	mutation_scope mutation(*this);
@@ -286,26 +319,14 @@ tagd::code sqlite::put_transaction(const tagd::abstract_tag& input, session* ssn
 	if (!(flags & F_NO_POS_CAST) && input.pos() == tagd::POS_REFERENT) {
 		return insert_referent(static_cast<const tagd::referent&>(input), ssn, flags);
 	}
-	tagd::abstract_tag canonical(input);
-	if (!(flags & F_NO_POS_CAST) && input.pos() == tagd::POS_URL) {
-		const auto& u = static_cast<const tagd::url&>(input);
-		if (!u.ok()) {
-			return error(u.code(), "cannot PUT invalid URL");
-		}
-		canonical = tagd::abstract_tag(u.hduri(), u.sub_relator(), u.super_object(), u.pos());
-		canonical.relations = u.relations;
-		canonical.type_relations = u.type_relations;
-		tagd::url::insert_url_part_relations(canonical.relations, u);
-	}
-	if (ssn && !(flags & F_NO_TRANSFORM_REFERENTS)) {
-		canonical = decode_referents(canonical, ssn);
-		if (code() != tagd::TAGD_OK) {
-			return code();
-		}
-	}
+	tagd::abstract_tag canonical;
+	const auto normalized = normalize_declaration(canonical, input, ssn, flags);
+	if (normalized != tagd::TAGD_OK)
+		return normalized;
 
 	// Savepoints compose with atomic batches; failure rolls back all local effects.
-	auto rc = exec("SAVEPOINT relation_put");
+	write_transaction transaction(*this, write_transaction::kind::relation_put);
+	auto rc = transaction.begin();
 	if (rc != tagd::TAGD_OK) {
 		return rc;
 	}
@@ -317,20 +338,8 @@ tagd::code sqlite::put_transaction(const tagd::abstract_tag& input, session* ssn
 			rc = validate_effective({canonical.id()});
 		}
 	}
-	if (rc == tagd::TAGD_OK && !_checking_put) {
-		rc = exec("RELEASE relation_put");
-	}
-	if (rc != tagd::TAGD_OK || _checking_put) {
-		for (auto& [key, stmt] : _stmts) {
-			sqlite3_reset(stmt);
-		}
-		const auto rollback = exec("ROLLBACK TO relation_put");
-		const auto release = exec("RELEASE relation_put");
-		if (rollback != tagd::TAGD_OK || release != tagd::TAGD_OK) {
-			_write_poisoned = true;
-			return error(tagd::TS_INTERNAL_ERR, "PUT rollback failed; reopen storage");
-		}
-	}
+	rc = transaction.finish(rc, _checking_put);
+
 	if (ssn) {
 		ssn->code(rc);
 		return rc;

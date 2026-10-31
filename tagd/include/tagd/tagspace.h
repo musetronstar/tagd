@@ -13,6 +13,10 @@
 
 namespace tagd {
 
+// Valid only on TAGD_OK or TS_DUPLICATE; errors leave the outcome unspecified.
+enum class replace_outcome { created, replaced, unchanged };
+
+
 /* These flags control tag operations without changing rank or containment rules. */
 typedef enum {
 	F_NO_POS_CAST =            1 << 0,
@@ -278,6 +282,11 @@ public:
 
 	virtual size_t merge(tag_set& A, const tag_set& B) {
 		return merge_containing_tags(A, B);
+	}
+
+	[[nodiscard]] virtual tagd::code replace(replace_outcome&, const abstract_tag&,
+		tagspace_session* = nullptr, flags_t = 0) {
+		return error(TS_NOT_IMPLEMENTED, "replace is not supported by this tagspace");
 	}
 
 	[[nodiscard]] virtual tagd::code put(const abstract_tag& t, tagspace_session* ssn = nullptr, flags_t flags = 0) = 0;

@@ -8,6 +8,7 @@ typedef enum {
 	HTTP_HEAD,
 	HTTP_POST,
 	HTTP_PUT,
+	HTTP_PATCH,
 	HTTP_DELETE
 } http_method;
 

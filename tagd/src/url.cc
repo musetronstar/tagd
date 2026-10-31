@@ -14,6 +14,16 @@
 
 namespace tagd {
 
+id_string canonical_url_id(id_view input) {
+	const std::string id(input);
+	if (url::looks_like_url(id) || url::looks_like_hduri(id)) {
+		const url value(id);
+		if (value.ok())
+			return value.hduri();
+	}
+	return id;
+}
+
 namespace {
 
 // URL case rules are ASCII rules; the C library's tolower would follow the process locale.

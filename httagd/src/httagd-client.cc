@@ -68,6 +68,8 @@ evhttp_cmd_type method_evhttp_cmd(tagd::http_method method) {
 			return EVHTTP_REQ_POST;
 		case tagd::HTTP_PUT:
 			return EVHTTP_REQ_PUT;
+		case tagd::HTTP_PATCH:
+			return EVHTTP_REQ_PATCH;
 		case tagd::HTTP_DELETE:
 			return EVHTTP_REQ_DELETE;
 		default:
@@ -81,6 +83,7 @@ const char *http_method_str(tagd::http_method method) {
 		case tagd::HTTP_HEAD:   return "HEAD";
 		case tagd::HTTP_POST:   return "POST";
 		case tagd::HTTP_PUT:    return "PUT";
+		case tagd::HTTP_PATCH:  return "PATCH";
 		case tagd::HTTP_DELETE: return "DELETE";
 		case tagd::HTTP_UNKNOWN:return "UNKNOWN";
 	}

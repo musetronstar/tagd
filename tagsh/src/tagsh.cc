@@ -162,6 +162,19 @@ void tagsh_callback::cmd_put(const tagd::abstract_tag& t) {
 	add_history_lines_clear(_lines);
 }
 
+void tagsh_callback::cmd_replace(const tagd::abstract_tag& t) {
+	tagd::replace_outcome outcome{};
+	const auto rc = _driver->tsp()->replace(outcome, t, _driver->session_ptr(), _driver->flags);
+	if (rc == tagd::TAGD_OK) {
+		if (_tsh->echo_result_code())
+			(*_tsh->out) << "-- " << tagd::code_str(rc) << std::endl;
+	} else {
+		handle_cmd_error();
+	}
+	_tsh->last_code(rc);
+	add_history_lines_clear(_lines);
+}
+
 void tagsh_callback::cmd_delete(const tagd::abstract_tag& t) {
 	auto ssn = _driver->session_ptr();
 	log_driver_debug("driver statement command=CMD_DELETE subject=%s", t.id());

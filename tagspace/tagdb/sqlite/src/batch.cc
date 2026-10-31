@@ -55,17 +55,10 @@ tagd::code sqlite::put_batch(std::span<const tagd::abstract_tag* const> tags,
 		}
 	}
 	mutation_scope mutation(*this);
-	if (exec("BEGIN") != tagd::TAGD_OK) {
-		return code();
-	}
-
-	// Every exit must release this transaction before another operation can use the backend.
-	auto unwind = [this](void*) {
-		if (sqlite3_exec(_db, "ROLLBACK", nullptr, nullptr, nullptr) != SQLITE_OK) {
-			_write_poisoned = true;
-		}
-	};
-	std::unique_ptr<void, decltype(unwind)> rollback(_db, unwind);
+	write_transaction transaction(*this, write_transaction::kind::deferred);
+	const auto started = transaction.begin();
+	if (started != tagd::TAGD_OK)
+		return started;
 
 	std::set<tagd::id_string> affected;
 	// Borrowed objects retain URL/referent dynamic types until the synchronous call returns.
@@ -79,31 +72,10 @@ tagd::code sqlite::put_batch(std::span<const tagd::abstract_tag* const> tags,
 	if (result == tagd::TAGD_OK) {
 		result = validate_effective(affected);
 	}
-	if (result == tagd::TAGD_OK) {
-		result = exec("COMMIT");
-		if (result == tagd::TAGD_OK) {
-			if (ssn) {
-				ssn->code(result);
-			}
-			rollback.release();
-			return code(result);
-		}
-	}
-
-	rollback.release();
-	// A successful rollback proves failure; loss of that proof forbids further writes.
-	if (!sqlite3_get_autocommit(_db) && exec("ROLLBACK") == tagd::TAGD_OK) {
-		if (ssn) {
-			ssn->code(result);
-		}
-		return code(result);
-	}
-	_write_poisoned = true;
-	result = error(tagd::TS_INTERNAL_ERR, "atomic PUT commit outcome unknown; reopen and check storage");
-	if (ssn) {
+	result = transaction.finish(result);
+	if (ssn)
 		ssn->code(result);
-	}
-	return result;
+	return code(result);
 }
 
 }

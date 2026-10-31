@@ -207,6 +207,8 @@ class HDURI : public url {
 };
 
 
+// URL operands share HDURI identity; ordinary IDs and literal modifiers retain their bytes.
+id_string canonical_url_id(id_view);
 // Checked decoding rejects malformed escapes and NUL before callers use path bytes.
 bool uri_decode_checked(std::string&, const std::string&);
 std::string uri_decode(const std::string&);

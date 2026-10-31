@@ -6,7 +6,7 @@ override CXXFLAGS += -fno-exceptions
 
 TAGDDIR =../../../../tagd
 INC = -I../include -I../../include -I$(TAGDDIR)/include
-SRCS = effective-relations.cc type-relations.cc batch.cc delete-batch.cc sqlite.cc read-snapshot.cc storage.cc
+SRCS = replace.cc write-transaction.cc effective-relations.cc type-relations.cc batch.cc delete-batch.cc sqlite.cc read-snapshot.cc storage.cc
 OBJS=$(SRCS:.cc=.o)
 DEPS=$(OBJS:.o=.d)
 BIN = tagdb

@@ -19,6 +19,139 @@ public:
 
 class SqliteTester : public CxxTest::TestSuite {
 public:
+	void test_replace_url_move_preserves_other_ranks() {
+		class database : public tagdb::sqlite {
+		public:
+			using ::tagdb::sqlite::insert;
+		};
+		database db;
+		TS_ASSERT_TAGD_OK(db.init(":memory:"));
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("animal", HARD_TAG_SUB,
+			HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("dog", HARD_TAG_SUB, "animal",
+			tagd::POS_TAG), nullptr));
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("parent", HARD_TAG_SUB,
+			HARD_TAG_URL, tagd::POS_TAG), nullptr));
+		const tagd::url original("https://example.com/a");
+		TS_ASSERT_TAGD_OK(db.put(original, nullptr));
+		tagd::abstract_tag before;
+		TS_ASSERT_TAGD_OK(db.get(before, original.hduri(), nullptr));
+		// insert() takes stored identity; GET displays URL subjects in URL form.
+		tagd::abstract_tag identity(original.hduri(), before.sub_relator(),
+			before.super_object(), before.pos());
+		std::vector<tagd::abstract_tag> descendants;
+		for (const auto* id : {"https://example.com/child1", "https://example.com/child2"}) {
+			const tagd::url child(id);
+			TS_ASSERT_TAGD_OK(db.insert(tagd::abstract_tag(child.hduri(), HARD_TAG_SUB,
+				original.hduri(), tagd::POS_URL), tagd::abstract_tag(identity, before.rank())));
+			tagd::abstract_tag stored;
+			TS_ASSERT_TAGD_OK(db.get(stored, child.hduri(), nullptr));
+			descendants.push_back(stored);
+		}
+		std::vector<tagd::abstract_tag> unrelated;
+		const tagd::id_view unrelated_ids[]{HARD_TAG_ENTITY, HARD_TAG_URL,
+			tagd::HARD_TAG_FILE, "animal", "dog", "parent"};
+		for (const auto id : unrelated_ids) {
+			tagd::abstract_tag tag;
+			TS_ASSERT_TAGD_OK(db.get(tag, id, nullptr));
+			unrelated.push_back(tag);
+		}
+
+		tagd::replace_outcome outcome{};
+		TS_ASSERT_TAGD_OK(db.replace(outcome, tagd::url(original.id(), HARD_TAG_SUB, "parent"), nullptr));
+		TS_ASSERT_EQUALS(outcome, tagd::replace_outcome::replaced);
+		tagd::abstract_tag moved;
+		TS_ASSERT_TAGD_OK(db.get(moved, original.hduri(), nullptr));
+		TS_ASSERT_EQUALS(moved.super_object(), "parent");
+		TS_ASSERT_DIFFERS(moved.rank(), before.rank());
+		TS_ASSERT(unrelated.back().rank().contains(moved.rank()));
+		for (const auto& prior : unrelated) {
+			tagd::abstract_tag after;
+			TS_ASSERT_TAGD_OK(db.get(after, prior.id(), nullptr));
+			TS_ASSERT_EQUALS(after.rank(), prior.rank());
+		}
+		for (const auto& prior : descendants) {
+			tagd::abstract_tag after;
+			TS_ASSERT_TAGD_OK(db.get(after, tagd::canonical_url_id(prior.id()), nullptr));
+			TS_ASSERT_EQUALS(after.rank().str(),
+				moved.rank().str() + prior.rank().str().substr(before.rank().size()));
+		}
+	}
+
+	void test_update_rejects_an_empty_source_rank() {
+		class database : public tagdb::sqlite {
+		public:
+			using ::tagdb::sqlite::update;
+			sqlite3_int64 changes() { return sqlite3_total_changes64(_db); }
+		};
+		database db;
+		TS_ASSERT_TAGD_OK(db.init(":memory:"));
+		tagd::abstract_tag subject("subject", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+		TS_ASSERT_TAGD_OK(db.put(subject, nullptr));
+		TS_ASSERT_TAGD_OK(db.put(tagd::abstract_tag("parent", HARD_TAG_SUB,
+			HARD_TAG_ENTITY, tagd::POS_TAG), nullptr));
+		tagd::abstract_tag destination;
+		TS_ASSERT_TAGD_OK(db.get(destination, "parent", nullptr));
+		const auto before = db.changes();
+		TS_ASSERT_EQUALS(db.update(subject, destination), tagd::TS_INTERNAL_ERR);
+		TS_ASSERT_EQUALS(db.changes(), before);
+	}
+
+	void test_replace_requires_an_idle_backend() {
+		class database : public tagdb::sqlite {
+		public:
+			using ::tagdb::sqlite::exec;
+		};
+		database db;
+		TS_ASSERT_TAGD_OK(db.init(":memory:"));
+		TS_ASSERT_TAGD_OK(db.exec("BEGIN IMMEDIATE"));
+		tagd::replace_outcome outcome{};
+		TS_ASSERT_EQUALS(db.replace(outcome, tagd::abstract_tag("new", HARD_TAG_SUB,
+			HARD_TAG_ENTITY, tagd::POS_TAG), nullptr), tagd::TS_MISUSE);
+		TS_ASSERT_TAGD_OK(db.exec("ROLLBACK"));
+		TS_ASSERT(!db.exists("new"));
+	}
+
+	void test_replace_duplicate_reads_storage_and_performs_no_write() {
+		class database : public tagdb::sqlite {
+		public:
+			sqlite3_int64 changes() { return sqlite3_total_changes64(_db); }
+		};
+		database db;
+		TS_ASSERT_TAGD_OK(db.init(":memory:"));
+		tagd::replace_outcome outcome;
+		tagd::url value("https://example.com/a");
+		TS_ASSERT_TAGD_OK(value.relation(tagd::predicate(HARD_TAG_HAS, HARD_TAG_MESSAGE,
+			"4", tagd::OP_EQ, tagd::TYPE_INTEGER)));
+		TS_ASSERT_TAGD_OK(db.replace(outcome, value, nullptr));
+		const auto before = db.changes();
+		tagd::HDURI encoded(value.hduri());
+		encoded.relations = value.relations;
+		encoded.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, encoded.hduri());
+		TS_ASSERT_EQUALS(db.replace(outcome, encoded, nullptr), tagd::TS_DUPLICATE);
+		TS_ASSERT_EQUALS(outcome, tagd::replace_outcome::unchanged);
+		TS_ASSERT_EQUALS(db.changes(), before);
+		db.clear_errors();
+		encoded.relations.clear();
+		TS_ASSERT_TAGD_OK(encoded.relation(tagd::predicate(HARD_TAG_HAS, HARD_TAG_MESSAGE,
+			"4.0", tagd::OP_EQ, tagd::TYPE_FLOAT)));
+		TS_ASSERT_TAGD_OK(db.replace(outcome, encoded, nullptr));
+		TS_ASSERT_EQUALS(outcome, tagd::replace_outcome::replaced);
+		TS_ASSERT_EQUALS(db.replace(outcome, encoded, nullptr, tagd::F_IGNORE_DUPLICATES), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(outcome, tagd::replace_outcome::unchanged);
+
+		tagd::abstract_tag axiomatic("axiomatic", HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_TAG);
+		TS_ASSERT_TAGD_OK(db.replace(outcome, axiomatic, nullptr));
+		axiomatic.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, axiomatic.id());
+		axiomatic.type_relations.emplace(tagd::HARD_TAG_TYPE_OF, HARD_TAG_ENTITY);
+		const auto before_axioms = db.changes();
+		for (const tagd::flags_t flags : {0u, tagd::flags_t(tagd::F_IGNORE_DUPLICATES)}) {
+			TS_ASSERT_TAGD_OK(db.replace(outcome, axiomatic, nullptr, flags));
+			TS_ASSERT_EQUALS(outcome, tagd::replace_outcome::unchanged);
+			TS_ASSERT_EQUALS(db.changes(), before_axioms);
+		}
+	}
+
 	void test_tag_id_syntax_validation() {
 		for (const auto& [id, expected] : std::vector<std::pair<std::string, tagd::code>>{
 			{"", tagd::TS_MISUSE}, {":foo", tagd::TS_MISUSE},

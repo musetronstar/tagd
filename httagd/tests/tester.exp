@@ -203,10 +203,10 @@ proc test_cli {n cmd success {pattern {}}} {
 }
 
 # Count complete error representations, not a prefix that could hide a second body.
-proc test_response {name method url status marker count {body {}}} {
+proc test_response {name method url status marker count {body {}} {headers {}}} {
 	global ERRORS
 	# Expect keeps draining the debug server's PTY while curl runs.
-	spawn -noecho curl -sS --max-time 5 -D - -X $method $url --data $body
+	spawn -noecho curl -sS --max-time 5 -D - -X $method $url --data $body {*}$headers
 	set child $spawn_id
 	match_max -i $child 65536
 	expect -i $child -timeout 10 eof
@@ -215,6 +215,31 @@ proc test_response {name method url status marker count {body {}}} {
 	if {[llength $result] == 4 && [lindex $result 2] == 0 && [lindex $result 3] == 0
 		&& [regexp "HTTP/1.1 $status" $output]
 		&& [regexp -all -- $marker $output] == $count} {
+		test_pass $name
+	} else {
+		test_fail $name
+		puts $output
+		incr ERRORS
+	}
+}
+
+# Mutation statuses describe the committed state; a view returns GET's representation.
+proc test_mutation {name method url status body {representation {}}} {
+	global ERRORS
+	spawn -noecho curl -sS --max-time 5 -D - -X $method $url --data $body
+	set child $spawn_id
+	match_max -i $child 65536
+	expect -i $child -timeout 10 eof
+	set output [string map {\r {}} $expect_out(buffer)]
+	set result [wait -i $child]
+	set boundary [string first "\n\n" $output]
+	set headers [string range $output 0 $boundary]
+	set content [string range $output [expr {$boundary + 2}] end]
+	if {[llength $result] == 4 && [lindex $result 2] == 0 && [lindex $result 3] == 0
+		&& $boundary >= 0 && [regexp "HTTP/1.1 $status" $headers]
+		&& ![regexp -nocase {\nLocation:} $headers]
+		&& (($representation eq {} && $content eq {})
+			|| ($representation ne {} && [regexp -- $representation $content]))} {
 		test_pass $name
 	} else {
 		test_fail $name
@@ -253,8 +278,8 @@ test_server_log "log_level_httagd_info_request_code" \
 	 {-- httagd code=TAGD_OK}
 
 test "put_dolphin" \
-	 "PUT" "/_/dolphin" ">> dolphin kind_of whale" \
-	 "200 OK"
+	 "PUT" "/_/dolphin" ">>= dolphin kind_of whale;" \
+	 "201 Created"
 
 test "get_dolphin" \
 	 "GET" "/_/dolphin" "" \
@@ -269,15 +294,15 @@ test "get_children_empty" \
 	 "404 Not Found"
 
 test "put_empty_tagdurl" \
-	 "PUT" "" "narwhal kind_of whale" \
+	 "PUT" "" ">>= narwhal kind_of whale;" \
 	 "400 Bad Request"
 
 test "put_slash_empty_tagdurl" \
-	 "PUT" "/" "narwhal kind_of whale" \
+	 "PUT" "/" ">>= narwhal kind_of whale;" \
 	 "400 Bad Request"
 
 test "put_illegal_search" \
-     "PUT" "/_/pigeon?q=oops" "kind_of bird" \
+     "PUT" "/_/pigeon?q=oops" ">>= pigeon kind_of bird;" \
 	 "400 Bad Request"
 
 test "get_doggy_not_exists" \
@@ -291,16 +316,16 @@ test_server_log "log_level_httagd_error_request_code" \
 	 {-- httagd code=TS_NOT_FOUND}
 
 test "put_refer_doggy_no_context" \
-	 "POST" "/_/doggy" "_refers_to dog" \
+	 "POST" "/_/doggy" ">> doggy _refers_to dog;" \
 	 "400 Bad Request"
 
 test "put_refer_doggy" \
-	 "POST" "/_/doggy" "_refers_to dog _context simple_english" \
+	 "POST" "/_/doggy" ">> doggy _refers_to dog _context simple_english;" \
 	 "200 OK"
 
 test "get_doggy_no_context" \
 	 "GET" "/_/doggy" "" \
-	 "400 Bad Request"
+	 "409 Conflict"
 
 test "get_doggy" \
 	 "GET" "/_/doggy?c=simple_english" "" \
@@ -330,11 +355,11 @@ test "delete_refers_no_context" \
 	 "404 Not Found"
 
 test "delete_refers_to_doggy_no_context" \
-	 "DELETE" "/_/doggy" "_refers_to dog" \
+	 "POST" "/_/doggy" "!! doggy _refers_to dog;" \
 	 "400 Bad Request"
 
 test "delete_refers_to_doggy" \
-	 "DELETE" "/_/doggy" "_refers_to dog _context simple_english" \
+	 "POST" "/_/doggy" "!! doggy _refers_to dog _context simple_english;" \
 	 "200 OK"
 
 test "get_doggy_deleted_not_exists" \
@@ -358,8 +383,8 @@ test "query_parent_relator" \
 	 "dog"
 
 test "put_url" \
-	 "PUT" "/_/hd:org!wikipedia!en!/wiki/Dog!!!!!!https" ">> https://en.wikipedia.org/wiki/Dog about dog _has title = \"Dog - Wikipedia, the free encyclopedia\"" \
-	 "200 OK"
+	 "PUT" "/_/hd:org!wikipedia!en!/wiki/Dog!!!!!!https" ">>= https://en.wikipedia.org/wiki/Dog about dog _has title = \"Dog - Wikipedia, the free encyclopedia\"" \
+	 "201 Created"
 
 test "get_wiki_dog_url" \
 	 "GET" "/_/hd:org!wikipedia!en!/wiki/Dog!!!!!!https" "" \
@@ -368,7 +393,7 @@ test "get_wiki_dog_url" \
 # this works, but it shouldn't
 # TODO encode utf8 urls
 test "refer_japanese_dog" \
-     "POST" "/_/イヌ" "_refers_to dog _context japanese" \
+     "POST" "/_/イヌ" ">> イヌ _refers_to dog _context japanese;" \
 	 "200 OK"
 
 test "get_japanese_dog_ambiguous" \
@@ -422,23 +447,229 @@ test_server_log "log_level_httagd_error_file_request_code" \
 set server_log_background 1
 expect_background -i $server_spawn_id -re {.+} {}
 
+# Complete TAGL bodies: reject the entire request before any statement executes.
+set origin http://localhost:2112
+test_response alias_setup POST $origin/ 200 {>> err:} 0 {
+	>> review_alias _refers_to dog _context simple_english;
+}
+foreach method {POST PATCH} {
+	test_response "alias_${method}_target_conflict" $method \
+		$origin/_/review_alias?c=simple_english 409 {_error:ts_ambiguous} 1 \
+		{>> review_alias _refers_to cat _context simple_english;}
+	test_response "alias_${method}_context_conflict" $method \
+		$origin/_/review_alias?c=simple_english 409 {_error:ts_ambiguous} 1 \
+		{>> review_alias _refers_to dog _context japanese;}
+}
+test_response alias_binding_preserved GET $origin/_/review_alias?c=simple_english \
+	200 {_refers_to dog} 1
+test_response alias_lookup_ambiguous GET $origin/_/review_alias 409 {_error:ts_ambiguous} 1
+test_response alias_delete_before_context_change POST $origin/ 200 {>> err:} 0 \
+	{!! review_alias _refers_to dog _context simple_english;}
+test_response alias_create_in_new_context POST $origin/ 200 {>> err:} 0 \
+	{>> review_alias _refers_to dog _context japanese;}
+test_response alias_new_context GET $origin/_/review_alias?c=japanese 200 {_refers_to dog} 1
+test_response alias_old_context_removed GET $origin/_/review_alias?c=simple_english \
+	409 {_error:ts_ambiguous} 1
+
+test_response body_setup POST $origin/ 200 {>> err:} 0 {
+	>> body_type _sub _entity;
+	>> body_dog _sub _entity _type_of body_type _has _message = old;
+}
+foreach command {>>+ !!+} {
+	test_response "body_root_storage_$command" POST $origin/ 403 {>> err:} 1 "$command file:///tmp/http-body-probe;"
+	test_response "body_PUT_storage_$command" PUT $origin/_/body_dog 403 {>> err:} 1 "$command body_dog;"
+}
+test_response body_put_replace PUT $origin/_/body_dog 204 {>> err:} 0 \
+	{>>= body_dog _sub _entity _type_of body_type;}
+test_response body_put_removed GET $origin/_/body_dog 200 {_has _message} 0
+foreach body {
+	{body_dog _sub _entity;}
+	{>> body_dog _has _message = unwanted;}
+	{!! body_dog _type_of body_type;}
+	{>>= body_dog _sub _entity; >>= body_dog _sub _entity _has _message = unwanted;}
+	{>>= body_other _sub _entity;}
+	{%% _ignore_duplicates _true;}
+} {
+	test_response "body_put_reject_$body" PUT $origin/_/body_dog 400 {>> err:} 1 $body
+	test_response "body_put_preserved_$body" GET $origin/_/body_dog 200 {_type_of body_type} 1
+}
+test_response body_whitespace_and_quoted_commands POST $origin/_/body_dog 200 {>> err:} 0 {
+
+	>> body_dog _has _message = "commands >>; %% are text";
+
+}
+test_response body_post_merge POST $origin/_/body_dog 200 {>> err:} 0 \
+	{>> body_dog _has _message = merged;}
+test_response body_post_remove POST $origin/_/body_dog 200 {>> err:} 0 \
+	{!! body_dog _type_of body_type;}
+foreach method {POST PATCH} {
+	foreach body {
+		{!! body_dog;}
+		{>> body_other _sub _entity;}
+		{%% _ignore_duplicates _true;}
+		{_has _message = unwanted}
+		{>>= body_dog _sub _entity;}
+		{<< body_dog;}
+		{?? _what;}
+		{>> body_dog _has _message = unwanted; !! body_dog _has _message;}
+		{>> body_dog _has _message = unwanted; %% _context body_type;}
+	} {
+		test_response "body_${method}_reject_$body" $method $origin/_/body_dog 400 {>> err:} 1 $body
+		test_response "body_${method}_preserved_$body" GET $origin/_/body_dog 200 {_message = merged} 1
+	}
+	foreach command {>>+ !!+} {
+		test_response "body_${method}_storage_$command" $method $origin/_/body_dog 403 {>> err:} 1 "$command body_dog;"
+	}
+}
+test_response body_delete_content DELETE $origin/_/body_dog 400 {_error:ts_misuse} 1 \
+	{_has _message = merged}
+test_response body_delete_content_preserved GET $origin/_/body_dog 200 {_message = merged} 1
+test_response body_patch_merge PATCH $origin/_/body_dog 204 {>> err:} 0 \
+	{>> body_dog _type_of body_type;}
+test_response body_patch_remove PATCH $origin/_/body_dog 204 {>> err:} 0 \
+	{!! body_dog _has _message;}
+test_response body_patch_removed GET $origin/_/body_dog 200 {_has _message} 0
+test_response body_patch_absent PATCH $origin/_/body_absent 404 {_error:ts_not_found} 1 \
+	{>> body_absent _sub _entity;}
+test_response body_patch_absent_unchanged GET $origin/_/body_absent 404 {_error:ts_not_found} 1
+test_response body_post_create POST $origin/_/body_absent 200 {>> err:} 0 \
+	{>> body_absent _sub _entity;}
+test_response body_root_remove POST $origin/ 200 {>> err:} 0 \
+	{!! body_dog _type_of body_type;}
+test_response body_root_removed GET $origin/_/body_dog 200 {_type_of} 0
+test_exec body_patch_media_type \
+	[list curl -sS -D - -X PATCH -H {Content-Type: application/json} \
+		--data {[]} $origin/_/body_dog] \
+	{415 Unsupported Media Type.*Accept-Patch: text/plain, application/x-www-form-urlencoded}
+foreach {name header} {
+	absent {Content-Type:}
+	plain {Content-Type: text/plain}
+	parameters {Content-Type: Text/Plain; charset=utf-8}
+	form {Content-Type: application/x-www-form-urlencoded}
+} {
+	test_response "body_patch_media_$name" PATCH $origin/_/body_dog 204 {>> err:} 0 \
+		{>> body_dog _has _message = media;} [list -H $header]
+}
+test_response body_delete_whole DELETE $origin/_/body_dog 200 {>> err:} 0
+test_response body_delete_absent GET $origin/_/body_dog 404 {_error:ts_not_found} 1
+
+test_response media_setup POST $origin/ 200 {>> err:} 0 \
+	{>> media_subject _sub _entity _has _message = initial;}
+foreach {name method path command success} {
+	put PUT /_/media_subject >>= 204
+	post POST /_/media_subject >> 200
+	root POST / >> 200
+	patch PATCH /_/media_subject >> 204
+} {
+	foreach {format header} {
+		absent {Content-Type:}
+		plain {Content-Type: text/plain}
+		parameters {Content-Type: Text/Plain; charset=utf-8}
+		form {Content-Type: application/x-www-form-urlencoded}
+	} {
+		set value ${name}_${format}
+		test_response "media_${name}_accept_$format" $method $origin$path $success {>> err:} 0 \
+			"$command media_subject _sub _entity _has _message = $value;" [list -H $header]
+		test_response "media_${name}_applied_$format" GET $origin/_/media_subject 200 \
+			"_message = $value" 1
+	}
+	foreach {format type} {
+		json application/json
+		multipart multipart/form-data
+		raw application/octet-stream
+	} {
+		set body "$command media_subject _sub _entity _has _message = rejected;"
+		set headers [list -H "Content-Type: $type"]
+		test_response "media_${name}_reject_$format" $method $origin$path 415 \
+			{_has _message = .*text/plain, application/x-www-form-urlencoded} 1 $body $headers
+		test_response "media_${name}_accept_patch_$format" $method $origin$path 415 \
+			{Accept-Patch: text/plain, application/x-www-form-urlencoded} \
+			[expr {$method eq "PATCH" ? 1 : 0}] $body $headers
+		test_response "media_${name}_preserved_$format" GET $origin/_/media_subject 200 \
+			"_message = ${name}_form" 1
+	}
+	test_response "media_${name}_reject_before_context" $method \
+		$origin$path?c=media_unknown_context 415 {text/plain, application/x-www-form-urlencoded} \
+		[expr {$method eq "PATCH" ? 2 : 1}] \
+		"$command media_subject _sub _entity;" [list -H {Content-Type: application/json}]
+	test_response "media_${name}_context_preserved" GET $origin/_/media_unknown_context \
+		404 {_error:ts_not_found} 1
+}
+foreach {format header} {
+	absent {Content-Type:}
+	plain {Content-Type: text/plain; charset=utf-8}
+	form {Content-Type: application/x-www-form-urlencoded}
+	json {Content-Type: application/json}
+	multipart {Content-Type: multipart/form-data}
+	raw {Content-Type: application/octet-stream}
+} {
+	test_response "media_delete_content_$format" DELETE $origin/_/media_subject 400 \
+		{_error:ts_misuse} 1 {!! media_subject;} [list -H $header]
+	test_response "media_delete_preserved_$format" GET $origin/_/media_subject 200 \
+		{_message = patch_form} 1
+}
+
+# Every PUT outcome, retry, and PATCH response is independent of TAGL duplicates.
+foreach {suffix view representation} {
+	plain {} {}
+	tagl {?v=tagl} {status_tagl _sub _entity}
+	empty {?v=} {status_empty _sub _entity}
+	html {?v=tag.html} {status_html}
+} {
+	set id status_$suffix
+	set target $origin/_/$id$view
+	test_mutation "status_put_created_$suffix" PUT $target 201 \
+		">>= $id _sub _entity _has _message = old;" $representation
+	test_mutation "status_put_replaced_$suffix" PUT $target [expr {$view eq {} ? 204 : 200}] \
+		">>= $id _sub _entity;" $representation
+	test_mutation "status_put_unchanged_$suffix" PUT $target [expr {$view eq {} ? 204 : 200}] \
+		">>= $id _sub _entity;" $representation
+	test_response "status_get_replaced_$suffix" GET $origin/_/$id 200 {_has _message} 0
+	test_mutation "status_patch_merge_$suffix" PATCH $target [expr {$view eq {} ? 204 : 200}] \
+		">> $id _has _message = patched;" $representation
+	test_mutation "status_patch_unchanged_$suffix" PATCH $target [expr {$view eq {} ? 204 : 200}] \
+		">> $id _has _message = patched;" $representation
+	test_mutation "status_patch_remove_$suffix" PATCH $target [expr {$view eq {} ? 204 : 200}] \
+		"!! $id _has _message;" $representation
+	test_response "status_patch_remove_repeat_$suffix" PATCH $target 404 {cannot delete non-existent relation} 1 \
+		"!! $id _has _message;"
+	test_response "status_post_remove_missing_$suffix" POST $target 404 {cannot delete non-existent relation} 1 \
+		"!! $id _has _message;"
+	test_mutation "status_post_merge_$suffix" POST $origin/_/$id 200 \
+		">> $id _has _message = posted;"
+	test_mutation "status_post_unchanged_$suffix" POST $origin/_/$id 200 \
+		">> $id _has _message = posted;"
+	test_mutation "status_post_remove_$suffix" POST $target 200 "!! $id _has _message;"
+	test_response "status_post_remove_repeat_$suffix" POST $target 404 {cannot delete non-existent relation} 1 \
+		"!! $id _has _message;"
+	test_mutation "status_post_restore_$suffix" POST $target 200 \
+		">> $id _has _message = posted;"
+}
+foreach setting {_false _true} {
+	test_response "status_root_post_duplicates_$setting" POST $origin/ 200 {>> err:} 0 \
+		"%% _ignore_duplicates $setting; >> status_plain _has _message = posted;"
+}
+test_response status_patch_bad_view PATCH "$origin/_/status_plain?v=missing" 404 {>> err:} 1 \
+	{>> status_plain _has _message = unwanted;}
+test_response status_patch_bad_view_preserved GET $origin/_/status_plain 200 {_message = posted} 1
+
 # HTTP response formatting must retain rank order despite reversed identifier order.
 foreach {id parent} {
 	z_order_rel _rel a_order_rel _rel
 	z_order_object _entity a_order_object _entity
 } {
-	test "order_declare_$id" "PUT" "/_/$id" ">> $id _sub $parent;" "200 OK"
+	test "order_declare_$id" "PUT" "/_/$id" ">>= $id _sub $parent;" "201 Created"
 }
 test "order_put_subject" "PUT" "/_/order_subject" \
-	{>> order_subject _sub _entity a_order_rel z_order_object z_order_rel a_order_object, z_order_object;} \
-	"200 OK"
+	{>>= order_subject _sub _entity a_order_rel z_order_object z_order_rel a_order_object, z_order_object;} \
+	"201 Created"
 test "order_get_subject" "GET" "/_/order_subject" "" \
 	{z_order_rel z_order_object, a_order_object[\r\n]+a_order_rel z_order_object}
 
 test "typology_source" "PUT" "/_/type_source" \
-	{>> type_source _sub _entity _has _message = shared;} "200 OK"
+	{>>= type_source _sub _entity _has _message = shared;} "201 Created"
 test "typology_subject" "PUT" "/_/type_subject" \
-	{>> type_subject _sub _entity _type_of type_source;} "200 OK"
+	{>>= type_subject _sub _entity _type_of type_source;} "201 Created"
 test "typology_explicit" "GET" "/_/type_subject" "" \
 	{type_subject _sub _entity[\r\n]+_type_of type_source[\r\n]+$}
 test "typology_expanded" "POST" "/" \
@@ -452,7 +683,7 @@ test "typology_query_explicit" "POST" "/" \
 	{type_source, type_subject}
 
 # Query paths map to existing TAGL type predicates, including reflexive inheritance.
-test "types_post_body" "POST" "/_/type_post" {_sub _entity _type_of type_source} "200 OK"
+test "types_post_body" "POST" "/_/type_post" {>> type_post _sub _entity _type_of type_source;} "200 OK"
 test "types_query" "GET" "/_/,type_source/" "" {type_source, type_subject, type_post}
 test_exec "types_query_head_has_no_body" \
 	[list curl -sS --ignore-content-length --max-time 5 -X HEAD -H {Connection: close} \
@@ -477,8 +708,8 @@ test "types_write_rejection_preserves_subject" "GET" "/_/type_subject" "" \
 test "types_context_create" "POST" "/" \
 	{>> type_context _sub _entity; >> movable _refers_to type_source _context type_context;} "200 OK"
 test "types_context_query" "GET" "/_/,movable/?c=type_context" "" {movable, type_subject, type_post}
-test "types_context_post" "POST" "/_/type_context?c=type_context" {_has _message = contextual} "200 OK"
-test "types_context_delete" "DELETE" "/_/type_context?c=type_context" {_has _message = contextual} "200 OK"
+test "types_context_post" "POST" "/_/type_context?c=type_context" {>> type_context _has _message = contextual;} "200 OK"
+test "types_context_delete" "POST" "/_/type_context?c=type_context" {!! type_context _has _message = contextual;} "200 OK"
 test "types_context_root_post" "POST" "/?c=type_context" {<< movable;} {movable _sub _entity}
 foreach method {GET POST PUT DELETE} {
 	test "types_missing_context_$method" $method "/_/type_subject?c=absent" "" {_error:ts_not_found}
@@ -629,11 +860,11 @@ test_response html_text_no_markup GET {http://localhost:2112/_/html_text_probe?v
 	200 {<b>literal</b>} 0
 
 foreach id {ev:review!h!p!program!s!1!_event err:review!h!p!program!s!1!_error} {
-	test_response "event_put_mismatch_$id" PUT {http://localhost:2112/_/other} \
+	test_response "event_post_mismatch_$id" POST {http://localhost:2112/_/other} \
 		400 {_error:tagl_err} 1 ">> $id;"
 	test_response "event_put_mismatch_absent_$id" GET "http://localhost:2112/_/$id" \
 		404 {_error:ts_not_found} 1
-	test_response "event_put_match_$id" PUT "http://localhost:2112/_/$id" 200 {>> err:} 0 ">> $id;"
+	test_response "event_post_match_$id" POST "http://localhost:2112/_/$id" 200 {>> err:} 0 ">> $id;"
 	test_response "event_put_match_present_$id" GET "http://localhost:2112/_/$id" 200 $id 1
 }
 
@@ -641,8 +872,8 @@ foreach options {foo=bar foo s=x q &q=a q=a& q=a&q=b c=type_context&c= q=%zz c=%
 	test_response "invalid_tagdurl_option_$options" GET "http://localhost:2112/_/animal/?$options" \
 		400 {_error:tagl_err} 1
 }
-test_response hduri_put_plain_slash PUT {http://localhost:2112/_/slash%2Ftag} 200 {>> err:} 0 \
-	{>> "slash/tag" _sub _entity;}
+test_response hduri_put_plain_slash PUT {http://localhost:2112/_/slash%2Ftag} 201 {>> err:} 0 \
+	{>>= "slash/tag" _sub _entity;}
 test_response hduri_get_plain_slash GET {http://localhost:2112/_/slash%2Ftag} 200 {slash/tag} 1
 foreach {url id} {
 	http://joe@example.com hd:com!example!!!!!!joe!!http
@@ -727,12 +958,12 @@ foreach path {/_/missing-tag /_/_entity?v=missing /_/_entity/?v=missing} {
 }
 test_response view_single_own_error GET {http://localhost:2112/_/missing-tag?v=browse.html} 404 {DOCTYPE HTML} 1
 
-# Typos fail before writes; a registered family without write handlers uses TAGL.
+# Typos fail before writes; PUT renders GET while DELETE retains write-handler fallback.
 test_response view_put_typo PUT {http://localhost:2112/_/view_new?v=missing} 404 {>> err:} 1 \
-	{>> view_new _sub _entity;}
+	{>>= view_new _sub _entity;}
 test_response view_put_typo_absent GET {http://localhost:2112/_/view_new} 404 {>> err:} 1
-test_response view_put_partial PUT {http://localhost:2112/_/view_new?v=browse.html} 200 {>> err:} 0 \
-	{>> view_new _sub _entity;}
+test_response view_put_partial PUT {http://localhost:2112/_/view_new?v=browse.html} 201 {>> err:} 0 \
+	{>>= view_new _sub _entity;}
 test_response view_delete_typo DELETE {http://localhost:2112/_/view_new?v=missing} 404 {>> err:} 1
 test_response view_delete_typo_preserved GET {http://localhost:2112/_/view_new} 200 {view_new _sub _entity} 1
 test_response view_delete_partial DELETE {http://localhost:2112/_/view_new?v=browse.html} 200 {>> err:} 0
@@ -801,8 +1032,8 @@ try {
 			test_response view_default_get GET "http://127.0.0.1:$port/_/_entity" 200 {<h1 id="tag-id">_entity} 1
 			test_response view_default_query GET "http://127.0.0.1:$port/_/_entity/" 200 {DOCTYPE HTML} 0
 			test_response view_default_root GET "http://127.0.0.1:$port/" 200 {This is tagd} 1
-			test_response view_default_put PUT "http://127.0.0.1:$port/_/view_default" 200 {DOCTYPE HTML} 0 \
-				{>> view_default _sub _entity;}
+			test_response view_default_put PUT "http://127.0.0.1:$port/_/view_default" 201 {DOCTYPE HTML} 0 \
+				{>>= view_default _sub _entity;}
 			test_response view_default_delete DELETE "http://127.0.0.1:$port/_/view_default" 200 {DOCTYPE HTML} 0
 			test_cli "view_configured_fallback_is_html" \
 				[list curl -sS --max-time 5 -D - \

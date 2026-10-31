@@ -540,6 +540,60 @@ test_cli "predicate_rank_order" \
 	[concat $no_home [list ../bin/tagsh --tagl $order_program --dump]] 1 \
 	{z_order_rel z_order_object, a_order_object[\r\n]+a_order_rel z_order_object}
 
+foreach {name binding} {
+	target {cat _context english}
+	context {dog _context japanese}
+} {
+	test_cli "alias_conflict_$name" [list ../bin/tagsh --tagl "
+		>> dog _sub _entity; >> cat _sub _entity;
+		>> english _sub _entity; >> japanese _sub _entity;
+		>> doggy _refers_to dog _context english;
+		%% _ignore_duplicates _true;
+		>> doggy _refers_to $binding;
+	" --noshell] 0 {_error:ts_ambiguous}
+}
+
+test_cli "alias_delete_then_change_context" [list ../bin/tagsh --tagl {
+	>> dog _sub _entity;
+	>> english _sub _entity; >> japanese _sub _entity;
+	>> doggy _refers_to dog _context english;
+	!! doggy _refers_to dog _context english;
+	>> doggy _refers_to dog _context japanese;
+	%% _context japanese;
+	<< doggy;
+} --noshell] 1 {doggy.*_refers_to dog}
+
+test_cli "replace_get" [list ../bin/tagsh --tagl {
+	>> animal _sub _entity;
+	>> dog _sub animal _has _message = old;
+	>>= dog _sub animal _has _message = new;
+	<< dog;
+} --noshell] 1 {dog _sub animal.*_has _message = new}
+test_cli "replace_duplicate" [list ../bin/tagsh --tagl {
+	>>= dog _sub _entity;
+	>>= dog _sub _entity;
+} --noshell] 0 {_error:ts_duplicate}
+
+foreach {command_name command} {put >> replace >>=} {
+	foreach ignore {_false _true} {
+		foreach {description predicates} {
+			identity {}
+			axioms {_type_of dog, _entity}
+			relation {_type_of dog, _entity _has _message = note}
+		} {
+			set success [expr {$ignore eq "_true" || $description eq "axioms"}]
+			set pattern [expr {$success ? {dog _sub _entity} : {TS_DUPLICATE|_error:ts_duplicate}}]
+			test_cli "${command_name}_duplicate_${description}_${ignore}" \
+				[list ../bin/tagsh --tagl "
+					>> dog _sub _entity $predicates;
+					%% _ignore_duplicates $ignore;
+					$command dog _sub _entity $predicates;
+					<< dog;
+				" --noshell] $success $pattern
+		}
+	}
+}
+
 if {$ERRORS} {
 	puts "$ERRORS errors."
 } else {

@@ -258,6 +258,11 @@ class callback_tester : public TAGL::callback {
 			last_code = _tsp->get(*last_tag, t.id(), nullptr);
 		}
 
+		void cmd_replace(const tagd::abstract_tag& t) override {
+			cmd_put(t);
+			cmd = TOK_CMD_REPLACE;
+		}
+
 		void cmd_put(const tagd::abstract_tag& t) {
 			if (t.id() == t.super_object()) {
 				last_code = _tsp->error(tagd::TS_MISUSE, "id cannot be the same as sub");
@@ -351,6 +356,51 @@ std::string view_response_body(httagd::transaction& tx) {
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_alias_conflicts_never_report_http_success() {
+		for (const auto method : {tagd::HTTP_POST, tagd::HTTP_PATCH}) {
+			for (const bool other_context : {false, true}) {
+				with_view_transaction("", [&](auto& tx, auto& cb) {
+					tx.req->method = method;
+					for (const auto* id : {"dog", "cat", "english", "japanese"}) {
+						TS_ASSERT_TAGD_OK(tx.tsp()->put(tagd::abstract_tag(id, HARD_TAG_SUB,
+							HARD_TAG_ENTITY, tagd::POS_TAG)));
+					}
+					TS_ASSERT_TAGD_OK(tx.tsp()->put(tagd::referent("doggy", "dog", "english")));
+					cb.cmd_put(tagd::referent("doggy", other_context ? "dog" : "cat",
+						other_context ? "japanese" : "english"));
+					TS_ASSERT_EQUALS(tx.most_severe(), tagd::TS_AMBIGUOUS);
+					TS_ASSERT_EQUALS(tx.res->res_code(), -1);
+				});
+			}
+		}
+	}
+
+	void test_mutation_status_ignores_duplicate_setting() {
+		for (auto method : {tagd::HTTP_PUT, tagd::HTTP_POST, tagd::HTTP_PATCH}) {
+			for (const bool ignore : {false, true}) {
+				for (const std::string selected : {"", "tagl"}) {
+					with_view_transaction(selected, [&](auto& tx, auto& cb) {
+						tx.req->method = method;
+						tx.drvr->flags = ignore ? tagd::F_IGNORE_DUPLICATES : 0;
+						tagd::abstract_tag subject("status_subject", HARD_TAG_SUB, HARD_TAG_ENTITY,
+							tagd::POS_TAG);
+						TS_ASSERT_TAGD_OK(tx.tsp()->put(subject, tx.drvr->session_ptr()));
+						if (method == tagd::HTTP_PUT)
+							cb.cmd_replace(subject);
+						else
+							cb.cmd_put(subject);
+
+						TS_ASSERT_TAGD_OK(tx.most_severe());
+						if (method != tagd::HTTP_POST) {
+							TS_ASSERT_EQUALS(tx.res->res_code(), selected.empty() ? 204 : 200);
+							TS_ASSERT_EQUALS(view_response_body(tx).empty(), selected.empty());
+						}
+					});
+				}
+			}
+		}
+	}
+
 	void test_request_retains_raw_target_and_shared_options() {
 		const std::string target = "/_/:_url:?v=browse.html&c=&_url=https://example.com/a?x=1&q=a+b%21";
 		httagd::request req(tagd::HTTP_GET, target);
@@ -849,6 +899,10 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS(httagd::tagd_code_evhtp_res(tagd::TS_CONTRADICTION), EVHTP_RES_CONFLICT);
 	}
 
+	void test_ambiguity_maps_to_http_conflict() {
+		TS_ASSERT_EQUALS(httagd::tagd_code_evhtp_res(tagd::TS_AMBIGUOUS), EVHTP_RES_CONFLICT);
+	}
+
 	void test_tag_link_preserves_invalid_url_identity() {
 		const std::string name = "test_tag_link_preserves_invalid_url_identity";
 		TS_ASSERT(ctemplate::StringToTemplateCache(name, "{{id}}|{{id_lnk}}",
@@ -888,7 +942,7 @@ class Tester : public CxxTest::TestSuite {
 	void test_post_tagdurl(void) {
 		INIT_TSP_TAGL();
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_POST, "/dog"));
-		tagl.execute("is_a animal _has legs _can bark");
+		tagl.execute(">> dog is_a animal _has legs _can bark;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
@@ -899,19 +953,12 @@ class Tester : public CxxTest::TestSuite {
 
 	void test_del_tagdurl(void) {
 		INIT_TSP_TAGL();
-
 		tagl.tagdurl_del(httagd::request(tagd::HTTP_DELETE, "/dog"));
-		tagl.execute("is_a animal _has legs _can bark");
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TS_MISUSE" )
-
-		tagl.clear_errors();
-		tagl.tagdurl_del(httagd::request(tagd::HTTP_DELETE, "/dog"));
-		tagl.execute("_has legs _can bark");
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_DELETE )
-		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT( tagl.tag().related("_has", "legs") )
-		TS_ASSERT( tagl.tag().related("_can", "bark") )
+		tagl.finish();
+		TS_ASSERT_EQUALS(tagl.code(), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(tagl.cmd(), TOK_CMD_DELETE);
+		TS_ASSERT_EQUALS(tagl.tag().id(), "dog");
+		TS_ASSERT(tagl.tag().relations.empty());
 	}
 
 	void test_post_tagdurl_evbuffer_body(void) {
@@ -920,7 +967,7 @@ class Tester : public CxxTest::TestSuite {
 
 		struct evbuffer *input = evbuffer_new();
 
-		std::string s("is_a animal _has legs _can bark");
+		std::string s(">> dog is_a animal _has legs _can bark;");
 		evbuffer_add(input, s.c_str(), s.size());
 		tagl.execute(input);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
@@ -936,7 +983,7 @@ class Tester : public CxxTest::TestSuite {
 	void test_post_tagdurl_referent_context(void) {
 		INIT_TSP_TAGL();
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_POST, "/doggy"));
-		tagl.execute("_refers_to dog _context simple_english");
+		tagl.execute(">> doggy _refers_to dog _context simple_english;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "doggy" )
@@ -947,7 +994,7 @@ class Tester : public CxxTest::TestSuite {
 	void test_post_tagdurl_utf8_referent_context(void) {
 		INIT_TSP_TAGL();
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_POST, "/イヌ"));
-		tagl.execute("_refers_to dog _context japanese");
+		tagl.execute(">> イヌ _refers_to dog _context japanese;");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
 		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "イヌ" )
@@ -955,31 +1002,22 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( dynamic_cast<const tagd::referent&>(tagl.tag()).context(), "japanese" )
 	}
 
-	void test_post_tagdurl_evbuffer_body_constrained_tag_id_error(void) {
+	void test_post_tagdurl_evbuffer_rejects_multiple_statements() {
 		INIT_TSP_TAGL();
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_POST, "/dog"));
-
-		struct evbuffer *input = evbuffer_new();
-
-		std::string s("is_a animal _has legs _can bark; >> cat is_a animal _has legs _can meow");
-		evbuffer_add(input, s.c_str(), s.size());
-		tagl.execute(input);
-		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_ERR" )
-		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
-		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
-		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
-		TS_ASSERT( tagl.tag().related("_has", "legs") )
-		TS_ASSERT( tagl.tag().related("_can", "bark") )
-
+		evbuffer* input = evbuffer_new();
+		const std::string body = ">> dog _has legs; >> dog _has tail;";
+		evbuffer_add(input, body.data(), body.size());
+		TS_ASSERT_EQUALS(tagl.execute(input), tagd::TS_MISUSE);
 		evbuffer_free(input);
 	}
 
 	void test_put_tagdurl_constrained_tag_id(void) {
 		INIT_TSP_TAGL();
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_PUT, "/dog"));
-		tagl.execute(">> dog is_a animal _has legs");
+		tagl.execute(">>= dog is_a animal _has legs");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_REPLACE )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "dog" )
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "animal" )
 		TS_ASSERT( tagl.tag().related("_has", "legs") )
@@ -988,7 +1026,7 @@ class Tester : public CxxTest::TestSuite {
 	void test_put_tagdurl_constrained_tag_id_error(void) {
 		INIT_TSP_TAGL();
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_PUT, "/dog"));
-		tagl.execute(">> cat is_a animal");
+		tagl.execute(">>= cat is_a animal");
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGL_ERR" )
 	}
 
@@ -1010,13 +1048,13 @@ class Tester : public CxxTest::TestSuite {
 		const std::string hduri{"hd:org!wikipedia!en!/wiki/Cat!!!!!!https"};
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_PUT, std::string("/").append(hduri)));
 
-		const std::string s(">> https://en.wikipedia.org/wiki/Cat about cat _has title = \"Cat - Wikipedia, the free encyclopedia\"");
+		const std::string s(">>= https://en.wikipedia.org/wiki/Cat about cat _has title = \"Cat - Wikipedia, the free encyclopedia\"");
 		struct evbuffer *input = evbuffer_new();
 		evbuffer_add(input, s.c_str(), s.size());
 		tagl.execute(input);
 		tagl.print_errors();
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_REPLACE )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "https://en.wikipedia.org/wiki/Cat" )
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "_url" )
 		TS_ASSERT( tagl.tag().related("about", "cat") )
@@ -1030,12 +1068,12 @@ class Tester : public CxxTest::TestSuite {
 		const char *hduri = "hd:org!wikipedia!en!/wiki/Cat!!!!!!https";
 		tagl.tagdurl_put(httagd::request(tagd::HTTP_PUT, std::string("/").append(hduri)));
 
-		const std::string s = std::string(">> ").append(hduri).append(" about cat _has title = \"Cat - Wikipedia, the free encyclopedia\"");
+		const std::string s = std::string(">>= ").append(hduri).append(" about cat _has title = \"Cat - Wikipedia, the free encyclopedia\"");
 		struct evbuffer *input = evbuffer_new();
 		evbuffer_add(input, s.c_str(), s.size());
 		tagl.execute(input);
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tagl.code()), "TAGD_OK" )
-		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_PUT )
+		TS_ASSERT_EQUALS( tagl.cmd() , TOK_CMD_REPLACE )
 		TS_ASSERT_EQUALS( tagl.tag().id() , "https://en.wikipedia.org/wiki/Cat" )
 		TS_ASSERT_EQUALS( tagl.tag().super_object() , "_url" )
 		TS_ASSERT( tagl.tag().related("about", "cat") )

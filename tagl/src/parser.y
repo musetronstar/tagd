@@ -229,6 +229,13 @@ statement ::= put_statement(c) TERMINATOR .
 		tagl->code(tagd::TAGD_OK);
 	tagl->do_callback();
 }
+statement ::= replace_statement TERMINATOR .
+{
+	tagl->cmd(TOK_CMD_REPLACE);
+	if (!tagl->has_errors())
+		tagl->code(tagd::TAGD_OK);
+	tagl->do_callback();
+}
 statement ::= del_statement(c) TERMINATOR .
 {
 	tagl->cmd(c);
@@ -418,9 +425,21 @@ put_statement(c) ::= put_command(p) TAGDURL(U) .
 	scan_tagdurl(tagl, U.str(), p);
 }
 
+// REPLACE always states position; only URL syntax can supply it implicitly.
+replace_statement ::= CMD_REPLACE subject_sub_relation .
+replace_statement ::= CMD_REPLACE subject_sub_relation relations .
+replace_statement ::= CMD_REPLACE replace_url .
+replace_statement ::= CMD_REPLACE replace_url relations .
+replace_url ::= URL(U) . { tagl->new_url(U.str()); }
+replace_url ::= HDURI(U) . { tagl->new_url(U.str()); }
+
 delete_command(c) ::= CMD_DELETE . { c = TOK_CMD_DELETE; }
 delete_command(c) ::= CMD_DELETE_STORAGE . { c = TOK_CMD_DELETE_STORAGE; }
-del_statement(c) ::= delete_command(d) subject . { c = d; }
+del_statement(c) ::= delete_command(d) subject .
+{
+	c = d;
+	tagl->check_http_delete_subject();
+}
 del_statement(c) ::= delete_command(d) UNKNOWN(U) .
 {
 	c = d;
@@ -441,6 +460,7 @@ del_statement(c) ::= delete_command(d) TAGDURL(U) .
 {
 	c = d;
 	scan_tagdurl(tagl, U.str(), d);
+	tagl->check_http_delete_subject();
 }
 
 del_subject_sub_err ::= subject_sub_relation .

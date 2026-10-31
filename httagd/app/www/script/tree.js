@@ -1,4 +1,4 @@
-import { putTag } from "./api.js";
+import { postTag } from "./api.js";
 import { encodePutTag } from "./tagl.js";
 
 /***** Functions navigating and manipulating the tagspace tree  *****/
@@ -71,7 +71,7 @@ async function submitAddChild(event) {
 	try {
 		// Generate the TAGL statement and submit it
 		// TODO don't hardcode _sub, get the relation from the UI
-		await putTag(subId, encodePutTag(subId, "_sub", superId));
+		await postTag(subId, encodePutTag(subId, "_sub", superId));
 		location.reload(); // TODO: Replace with dynamic partial update in future
 	} catch (err) {
 		alert(`Error: ${err.message}`);

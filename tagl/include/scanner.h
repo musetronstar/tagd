@@ -191,6 +191,7 @@ class scanner::tagdurl : public scanner {
 	"<<"                 { emit(TOK_CMD_GET); goto next; }
 	">>+"                { emit(TOK_CMD_STORE); goto next; }
 	"!!+"                { emit(TOK_CMD_DELETE_STORAGE); goto next; }
+	">>="                { emit(TOK_CMD_REPLACE); goto next; }
 	">>"                 { emit(TOK_CMD_PUT); goto next; }
 	"!!"                 { emit(TOK_CMD_DELETE); goto next; }
 	"??"                 { emit(TOK_CMD_QUERY); goto next; }
