@@ -64,7 +64,7 @@ public:
 		if (!directory)
 			throw std::runtime_error("cannot create test directory");
 		home = directory;
-		source = tagd::filepile::path_url((home / "source").string());
+		source = tagd::file_url((home / "source").string());
 		write("some text content\n");
 	}
 	void tearDown() {
@@ -100,7 +100,7 @@ public:
 
 		std::filesystem::copy_file(home / "source", home / "copy");
 		semantic_fault::stored_bytes_read = 0;
-		TS_ASSERT_EQUALS(ts.store(result, tagd::url(tagd::filepile::path_url((home / "copy").string()))), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(ts.store(result, tagd::url(tagd::file_url((home / "copy").string()))), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(semantic_fault::stored_bytes_read, bytes.size());
 
 		const std::string changed = "changed content";
@@ -148,7 +148,7 @@ public:
 		TS_ASSERT_EQUALS(one.stored.id(), two.stored.id());
 		TS_ASSERT_EQUALS(two.revision, 1U);
 		std::filesystem::rename(home / "source", home / "renamed");
-		TS_ASSERT_EQUALS(a.store(two, tagd::url(tagd::filepile::path_url((home / "renamed").string()))), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(a.store(two, tagd::url(tagd::file_url((home / "renamed").string()))), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(one.stored.id(), two.stored.id());
 		TS_ASSERT_DIFFERS(one.link, two.link);
 		TS_ASSERT_EQUALS(two.revision, 1U);
@@ -289,7 +289,7 @@ public:
 		TS_ASSERT_EQUALS(ts.store(first, tagd::url(source)), tagd::TAGD_OK);
 		TS_ASSERT(first.stored.id().find("space%20%23%20%25/filepile/") != std::string::npos);
 		std::filesystem::create_symlink(home / "source", home / "symlink");
-		TS_ASSERT_EQUALS(ts.store(second, tagd::url(tagd::filepile::path_url((home / "symlink").string()))), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(ts.store(second, tagd::url(tagd::file_url((home / "symlink").string()))), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(first.stored.id(), second.stored.id());
 		TS_ASSERT_DIFFERS(first.source.id(), second.source.id());
 		TS_ASSERT_EQUALS(second.revision, 1U);

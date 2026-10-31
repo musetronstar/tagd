@@ -92,6 +92,8 @@ class tagspace_tester : public tagd::tagspace {
 			put_test_tag("action", HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag("fun", "action", tagd::POS_TAG);
 			put_test_tag(HARD_TAG_SUB, HARD_TAG_ENTITY, tagd::POS_SUB_RELATOR);
+			put_test_tag(tagd::HARD_TAG_TYPE_OF, HARD_TAG_ENTITY, tagd::POS_TYPE_RELATOR);
+			put_test_tag(HARD_TAG_URL, HARD_TAG_ENTITY, tagd::POS_TAG);
 			put_test_tag(TEST_TAG_IS_A, HARD_TAG_SUB, tagd::POS_SUB_RELATOR);
 			put_test_tag(TEST_TAG_TYPE_OF, HARD_TAG_SUB, tagd::POS_SUB_RELATOR);
 			put_test_tag("about", HARD_TAG_ENTITY, tagd::POS_RELATOR);
@@ -406,6 +408,97 @@ class driver_tester : public TAGL::driver {
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_tag_id_length_is_checked_before_storage() {
+		const std::string id(tagd::MAX_TAG_LEN + 1, 'a');
+		for (const auto& text : {">> " + id + " _sub _entity;", ">> dog _has " + id + ";"}) {
+			tagspace_tester tsp;
+			TAGL::driver input(&tsp);
+			TS_ASSERT_EQUALS(input.execute(text), tagd::TAGL_ERR);
+			TS_ASSERT(input.errors().back().str().find("_bad_token") != std::string::npos);
+			TS_ASSERT_EQUALS(tsp.pos(id), tagd::POS_UNKNOWN);
+		}
+	}
+
+	void test_reserved_tag_id_prefix_in_grammar_positions() {
+		for (const auto text : {">> :foo _sub _entity;", "<< :foo;",
+			">> dog :foo animal;", ">> dog _sub :foo;", ">> dog _type_of :foo;",
+			">> dog _has :foo;", ">> :foo _refers_to dog _context animal;",
+			">> perro _refers_to :foo _context animal;",
+			">> perro _refers_to dog _context :foo;", "/_/:foo;"}) {
+			tagspace_tester tsp;
+			TAGL::driver input(&tsp);
+			TS_ASSERT_EQUALS(input.execute(text), tagd::TAGL_ERR);
+			if (input.has_errors())
+				TS_ASSERT_DIFFERS(input.errors().back().str().find("_bad_token = :foo"),
+					std::string::npos);
+		}
+		for (const auto* op : {"=", ">", ">=", "<", "<="}) {
+			tagspace_tester tsp;
+			TAGL::driver input(&tsp);
+			TS_ASSERT_EQUALS(input.execute(std::string(">> dog _has legs ") + op + " :foo;"),
+				tagd::TAGD_OK);
+		}
+	}
+
+	void test_url_apostrophe_and_statement_terminator() {
+		for (const auto* terminator : {";", " ;"}) {
+			tagspace_tester tsp;
+			TAGL::driver input(&tsp);
+			TS_ASSERT_EQUALS(input.execute(std::string(">> https://example.com/O'Reilly")
+				+ terminator), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(input.tag().id(), "https://example.com/O'Reilly");
+		}
+	}
+
+	void test_url_family_declarations() {
+		for (const auto* text : {">> hd:com!example!!/a!!!!!!https _sub _url;",
+			">> ev:t!h!p!program!s!1!_event;", ">> err:t!h!p!program!s!1!_error;"}) {
+			tagspace_tester tsp;
+			TAGL::driver input(&tsp);
+			TS_ASSERT_EQUALS(input.execute(text), tagd::TAGD_OK);
+		}
+		for (const auto* text : {">> dog _sub https://example.com;",
+			"?? _interrogator _sub hd:com!example!!!!!!!!https;"}) {
+			tagspace_tester tsp;
+			TAGL::driver input(&tsp);
+			TS_ASSERT_EQUALS(input.execute(text), tagd::TAGL_ERR);
+		}
+		for (const auto* text : {">> hd:com!example!!!!!!!!123;",
+			">> hd:com!example!!!!!!!!https$bad;"}) {
+			tagspace_tester tsp;
+			TAGL::driver input(&tsp);
+			TS_ASSERT_EQUALS(input.execute(text), tagd::URL_ERR_SCHEME);
+		}
+	}
+
+	void test_url_host_case_and_authority_syntax() {
+		for (const auto* text : {">> https://EXAMPLE.com/A;", ">> https://example.com/A;",
+			">> hd:com!example!!/A!!!!!!https;"}) {
+			tagspace_tester tsp;
+			TAGL::driver input(&tsp);
+			TS_ASSERT_EQUALS(input.execute(text), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(input.tag().id(), "https://example.com/A");
+		}
+
+		tagspace_tester tsp;
+		TAGL::driver input(&tsp);
+		TS_ASSERT_EQUALS(input.execute(">> https://u:p@[2001:DB8::1]:8080/a;"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(input.tag().id(), "https://u:p@[2001:db8::1]:8080/a");
+
+		for (const auto& [text, rc] : std::vector<std::pair<std::string, tagd::code>>{
+			{">> hd:com!EXAMPLE!!/A!!!!!!https;", tagd::HDURI_ERR},
+			{">> https://a@b@example.com/;", tagd::URL_ERR_HOST},
+			{">> https://ex%FFample.com/;", tagd::URL_ERR_HOST},
+			{">> https://ex%E6%97%A5ample.com/;", tagd::URL_ERR_HOST},
+			{">> hd:com!ex%25FFample!!/!!!!!!https;", tagd::URL_ERR_HOST},
+			{">> https://[::g]/;", tagd::URL_ERR_HOST},
+			{">> https://example.com:abc/;", tagd::URL_ERR_PORT},
+			{">> https://jo<e@example.com/;", tagd::URL_ERR_USER}}) {
+			tagspace_tester tsp;
+			TAGL::driver input(&tsp);
+			TS_ASSERT_EQUALS(input.execute(text), rc);
+		}
+	}
 
 	void test_rank_order_survives_get_query_and_dump_round_trip() {
 		tagd::tagspace::memory source;
@@ -2402,13 +2495,14 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( TAGD_CODE_STRING(tc), "TAGD_OK" )
 	}
 
-	void test_tag_token_larger_than_buf(void) {
+	void test_tag_token_spanning_refill(void) {
 		std::stringstream ss;
 		std::string id;
 
-		while ( id.size() < (TAGL::BUF_SZ * 3) )
+		while ( id.size() < tagd::MAX_TAG_LEN )
 			id.push_back((char)(id.size() % 10 + 97));  // ascii a-j
 
+		ss << std::string(TAGL::BUF_SZ - tagd::MAX_TAG_LEN / 2, ' ');
 		ss << ">> " << id << " " << TEST_TAG_IS_A << " mammal;";
 
 		struct evbuffer *input = evbuffer_new();

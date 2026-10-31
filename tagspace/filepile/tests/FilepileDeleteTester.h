@@ -67,7 +67,7 @@ class FilepileDeleteTester : public CxxTest::TestSuite {
 	tagd::store_result store(const std::string& bytes, const std::string& name = "source") {
 		std::ofstream(home / name) << bytes;
 		tagd::store_result result;
-		TS_ASSERT_EQUALS(space->store(result, tagd::url(tagd::filepile::path_url(
+		TS_ASSERT_EQUALS(space->store(result, tagd::url(tagd::file_url(
 			(home / name).string()))), tagd::TAGD_OK);
 		return result;
 	}
@@ -90,7 +90,7 @@ public:
 		const auto* directory = mkdtemp(pattern.data());
 		TS_ASSERT(directory);
 		home = directory;
-		source = tagd::filepile::path_url((home / "source").string());
+		source = tagd::file_url((home / "source").string());
 		space = std::make_unique<tagd::tagspace::persistent>();
 		TS_ASSERT_EQUALS(space->create("test", home.string()), tagd::TAGD_OK);
 	}
@@ -156,7 +156,7 @@ public:
 	void test_short_stored_address_returns_an_error_without_removing_anything() {
 		for (const auto* name : {"a", "ab", "abc"}) {
 			tagd::cleanup_result result;
-			const auto stored = tagd::url(tagd::filepile::path_url((home / "filepile" / name).string()));
+			const auto stored = tagd::url(tagd::file_url((home / "filepile" / name).string()));
 			TS_ASSERT_EQUALS(tagd::filepile::remove_content(*space, result, home.string(), stored), tagd::TS_ERR);
 			TS_ASSERT_EQUALS(result.outcome, tagd::cleanup_outcome::not_attempted);
 		}

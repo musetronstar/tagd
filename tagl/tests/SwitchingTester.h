@@ -136,7 +136,7 @@ public:
 		tagd::tagspace::memory space;
 		TS_ASSERT_EQUALS(space.init(), tagd::TAGD_OK);
 		TAGL::driver input(&space, &cb);
-		const tagd::url source("file:///tmp/quotes;\" >> text");
+		const tagd::url source("file:///tmp/quotes;\">>text");
 		const tagd::url invalid("http://");
 		TS_ASSERT_EQUALS(input.execute_store(invalid, ""), invalid.code());
 		TS_ASSERT_EQUALS(cb.calls, 0u);

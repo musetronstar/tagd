@@ -104,6 +104,17 @@ inline tagd::relator make_test_relator(tagd::id_view id, tagd::id_view super_obj
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_tag_id_validation_boundaries() {
+		TS_ASSERT_EQUALS(tagd::valid_tag_id(""), tagd::tag_id_rule::empty);
+		TS_ASSERT_EQUALS(tagd::valid_tag_id(":foo"), tagd::tag_id_rule::reserved_prefix);
+		TS_ASSERT_EQUALS(tagd::valid_tag_id(std::string(tagd::MAX_TAG_LEN, 'a')),
+			tagd::tag_id_rule::valid);
+		TS_ASSERT_EQUALS(tagd::valid_tag_id(std::string(tagd::MAX_TAG_LEN + 1, 'a')),
+			tagd::tag_id_rule::too_long);
+		for (const auto* id : {"_config:default_view", "hd:com!example!!!!!!!!https", "_entity"}) {
+			TS_ASSERT_EQUALS(tagd::valid_tag_id(id), tagd::tag_id_rule::valid);
+		}
+	}
 
 	void test_predicate_indexes_follow_node_and_value_lifetimes() {
 		tagd::predicate_set values{{"r", "o", "1"}, {"r", "o", "2"}, {"s", "o"}};
@@ -435,6 +446,22 @@ class Tester : public CxxTest::TestSuite {
 		cp = tagd::utf8_read(str, &pos);
 		TS_ASSERT_EQUALS( cp , 1 )
 		TS_ASSERT_EQUALS( pos , 1 )
+	}
+
+	void test_utf8_sequence_len(void) {
+		for (const auto& [text, len] : std::vector<std::pair<std::string, size_t>>{
+			{"a", 1}, {"\xc2\x80", 2}, {"é", 2}, {"日", 3}, {"\xef\xbf\xbf", 3}, {"😀", 4},
+			{"\xf4\x8f\xbf\xbf", 4}}) {
+			TS_ASSERT_EQUALS(tagd::utf8_sequence_len(text, 0), len);
+		}
+		TS_ASSERT_EQUALS(tagd::utf8_sequence_len("aé", 1), 2u);
+
+		// RFC 3629 excludes overlong forms, surrogates, and code points above U+10FFFF.
+		for (const auto text : {"", "\x80", "\xbf", "\xc0\xaf", "\xc1\xbf", "\xc3", "\xc3\x28",
+			"\xe0\x80\xaf", "\xe0\x9f\xbf", "\xe6\x97", "\xed\xa0\x80", "\xed\xbf\xbf",
+			"\xf0\x80\x80\xaf", "\xf0\x8f\xbf\xbf", "\xf4\x90\x80\x80", "\xf5\x80\x80\x80", "\xff"}) {
+			TS_ASSERT_EQUALS(tagd::utf8_sequence_len(text, 0), 0u);
+		}
 	}
 
 	void test_utf8_append(void) {

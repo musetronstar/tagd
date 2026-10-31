@@ -410,6 +410,8 @@ put_statement(c) ::= put_command(p) URL(U) .
 { c = p; tagl->new_url(U.str()); }
 put_statement(c) ::= put_command(p) HDURI(U) .
 { c = p; tagl->new_url(U.str()); }
+// Bare and qualified event declarations share constrained-subject validation.
+put_statement(c) ::= put_command(p) event_subject . { c = p; }
 put_statement(c) ::= put_command(p) TAGDURL(U) .
 {
 	c = p;
@@ -516,6 +518,12 @@ subject_sub_relation ::= URL(U) sub_relator_symbol(r) super_object_token(o) .
 	tagl->new_url(U.str(), r.str(), o.str());
 }
 
+subject_sub_relation ::= HDURI(U) sub_relator_symbol(r) super_object_token(o) .
+{
+	// HDURI is another spelling of the same URL declaration and storage identity.
+	tagl->new_url(U.str(), r.str(), o.str());
+}
+
 subject_sub_relation ::= subject_type_id(s) sub_relator_symbol(r) super_object_token(o) .
 {
 	emit_subject(tagl, s, r, o);
@@ -567,14 +575,15 @@ subject ::= HDURI(U) .
 {
 	tagl->new_url(U.str());
 }
-subject ::= EVURI(U) .
+subject ::= event_subject .
+event_subject ::= EVURI(U) .
 {
 	const auto u = U.str();
 	NEW_TAG(tagd::event, u);
 	if (tagl->tag_ptr() != nullptr && !tagl->tag_ptr()->ok())
 		tagl->ferror(tagl->tag_ptr()->code(), "bad evuri: %s", u.c_str());
 }
-subject ::= ERRURI(U) .
+event_subject ::= ERRURI(U) .
 {
 	const auto u = U.str();
 	NEW_TAG(tagd::error, u);

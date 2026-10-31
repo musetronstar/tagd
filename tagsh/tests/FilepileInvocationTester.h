@@ -10,6 +10,20 @@ class FilepileInvocationTester : public CxxTest::TestSuite {
 	std::filesystem::path home;
 	std::string source;
 public:
+	void test_store_path_uses_collection_file_url_spelling() {
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init(home.string()), tagd::TAGD_OK);
+		std::shared_ptr<tagd::tagspace> persistent;
+		TS_ASSERT_EQUALS(cfg.create_tagspace("test", persistent), tagd::TAGD_OK);
+		const auto path = home / "a-b.txt";
+		std::ofstream(path) << "shared file identity\n";
+		tagsh shell(persistent.get(), cfg);
+		TS_ASSERT_EQUALS(shell.interpret_store(path.string(), ""), 0);
+		const tagd::url expected("file://" + path.string());
+		TS_ASSERT(persistent->exists(expected.hduri()));
+		TS_ASSERT(persistent->exists("link:" + expected.hduri() + "#001"));
+	}
+
 	void setUp() {
 		auto pattern = (std::filesystem::temp_directory_path() / "tagsh-store-XXXXXX").string();
 		const auto* directory = mkdtemp(pattern.data());

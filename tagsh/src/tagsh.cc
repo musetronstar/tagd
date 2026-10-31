@@ -448,11 +448,7 @@ int tagsh::interpret_store(const std::string& input, const std::string& predicat
 		if (ec) {
 			_driver.error(tagd::TS_NOT_AVAILABLE, "cannot resolve --store path: " + input + ": " + ec.message());
 		} else {
-			// Encode components independently so path separators remain separators, not URL data.
-			source = "file://";
-			for (const auto& component : path.lexically_normal().relative_path()) {
-				source += '/' + tagd::uri_encode(component.string());
-			}
+			source = tagd::file_url(path.lexically_normal().string());
 		}
 	}
 	if (_driver.has_errors()) {

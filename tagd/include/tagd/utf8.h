@@ -3,6 +3,7 @@
 // #include <cstdint>  // uint32_t defined C++11 only
 #include <stdint.h>
 #include <string>
+#include <string_view>
 
 namespace tagd {
 
@@ -36,6 +37,10 @@ uint32_t utf8_increment(uint32_t);
 
 // returns whether a code point is valid for utf8 encoding
 bool utf8_is_valid(uint32_t);
+
+// Byte length of the RFC 3629 well-formed sequence at pos, or 0 if none starts there:
+// overlong forms, UTF-16 surrogates, and code points above U+10FFFF are not well formed.
+[[nodiscard]] size_t utf8_sequence_len(std::string_view, size_t pos);
 
 } // namespace tagd
 

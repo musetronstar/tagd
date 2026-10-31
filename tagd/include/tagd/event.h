@@ -20,12 +20,8 @@
 \*/
 const std::string EVURI_SCHEME{"ev:"};
 const std::string ERRURI_SCHEME{"err:"};
-const char EVURI_DELIM = '!';
-const std::string EVURI_DELIM_ENCODED{"%21"};
 const size_t EVURI_NUM_ELEMS = 7;
 
-std::string encode_evuri_delim(std::string);
-std::string decode_evuri_delim(std::string);
 std::string system_hostname();
 std::string system_principal();
 

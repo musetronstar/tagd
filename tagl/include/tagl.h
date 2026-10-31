@@ -39,16 +39,37 @@ void TAGL_LOG(const std::string&, tagd::log_level, const std::string&);
 
 namespace TAGL {
 
+using tagdurl_option_map = std::map<std::string, std::string>;
+/*
+ * Clears both outputs; on failure they may contain partial results and must not
+ * be used. _url consumes the remaining raw input without form decoding.
+ */
+[[nodiscard]] tagd::code parse_tagdurl_options(const std::string&, tagdurl_option_map&,
+	tagd::id_vec&, tagd::errorable&);
+
+// HTTP-form encoders: canonical ID escapes stay intact; option spaces become '+'.
+[[nodiscard]] std::string encode_tagdurl_tag_id(tagd::id_view);
+[[nodiscard]] std::string encode_tagdurl_option(std::string_view);
+// Skips '?' inside structured fields; npos means no options or malformed field syntax.
+[[nodiscard]] size_t tagdurl_query_offset(const std::string&);
+
 struct tagdurl_address {
 	std::string selector;
 	std::string operation;
-	std::string query;
+	std::string query;  // raw, including '?'; empty when the target has none
+	// Parsed once from query; selection, the scanner, and httagd reuse them.
+	tagdurl_option_map options;
+	tagd::id_vec contexts;
 	bool description = false;
 	bool descendants = false;
 };
-tagd::code tagdurl_contexts(const std::string&, tagd::id_vec&, tagd::errorable&);
 
-tagd::code parse_tagdurl_address(const std::string&, tagdurl_address&, tagd::errorable&);
+/*
+ * Resets the output; on failure it may contain partial results and must not be
+ * used. On success, options and contexts are the authoritative parsed query.
+ */
+[[nodiscard]] tagd::code parse_tagdurl_address(const std::string&, tagdurl_address&,
+	tagd::errorable&);
 
 struct text_token {
 	// Non-owning parser view; storage comes from token_store and must outlive this slice.
@@ -194,7 +215,10 @@ class driver : public tagd::errorable {
 			const std::string& alias = {});
 		tagd::code set_config_profile(const std::string&);
 		void unset_context();
-		tagd::code select_tagdurl(const tagdurl_address&, std::string&, bool description_read);
+		// Requires a successfully parsed address; operation_path is usable only on success.
+		// The selected tagspace's operation path excludes the query.
+		[[nodiscard]] tagd::code select_tagdurl(const tagdurl_address&, std::string& operation_path,
+			bool description_read);
 		void scan_addressed_tagdurl(const std::string&, int command);
 		tagd::code apply_tagdurl_context(const tagd::id_vec&);
 		void fix_http_target() { _http_target = _selection->target; }
@@ -232,13 +256,18 @@ class driver : public tagd::errorable {
 		// Compose one STORE through the parser without treating the supplied URL as TAGL text.
 		[[nodiscard]] tagd::code execute_store(const tagd::url&, const std::string& predicates);
 		tagd::code execute(evbuffer*);
-		/*
-		 * Not [[nodiscard]]: lemon-generated parser.cc calls this and discards; cannot change
-		 * that file without regenerating from parser.y.
-		 */
 		// HTTP PUT constrains its body; embedded TAGL instead needs the parsed subject.
-		tagd::code scan_tagdurl(int, const std::string& path, tagdurl_mode);
+		[[nodiscard]] tagd::code scan_tagdurl(int, const std::string& path, tagdurl_mode);
 		[[nodiscard]] tagd::code scan_tagdurl(tagd::http_method, const std::string& path);
+		/*
+		 * These overloads require a successfully parsed, unmodified address and its
+		 * matching operation path (after selection, when applicable), without a query.
+		 * They reuse options and contexts without parsing the target again.
+		 */
+		[[nodiscard]] tagd::code scan_tagdurl(int, const std::string& operation_path,
+			const tagdurl_address&, tagdurl_mode);
+		[[nodiscard]] tagd::code scan_tagdurl(tagd::http_method,
+			const std::string& operation_path, const tagdurl_address&);
 		int token() const { return _token; }
 		// Not const: downstream POS lookup may mutate diagnostic state on error paths.
 		int lookup_pos(const std::string&);

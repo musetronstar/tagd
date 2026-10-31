@@ -19,6 +19,18 @@ public:
 
 class SqliteTester : public CxxTest::TestSuite {
 public:
+	void test_tag_id_syntax_validation() {
+		for (const auto& [id, expected] : std::vector<std::pair<std::string, tagd::code>>{
+			{"", tagd::TS_MISUSE}, {":foo", tagd::TS_MISUSE},
+			{std::string(tagd::MAX_TAG_LEN + 1, 'a'), tagd::TS_ERR_MAX_TAG_LEN},
+			{"ordinary:tag", tagd::TAGD_OK}}) {
+			tagdb::sqlite db;
+			TS_ASSERT_TAGD_OK(db.init(":memory:"));
+			TS_ASSERT_EQUALS(db.put(tagd::abstract_tag(id, HARD_TAG_SUB, HARD_TAG_ENTITY,
+				tagd::POS_TAG), nullptr), expected);
+		}
+	}
+
 	void test_broad_query_reads_each_source_declaration_at_most_once() {
 		class database : public tagdb::sqlite {
 		public:

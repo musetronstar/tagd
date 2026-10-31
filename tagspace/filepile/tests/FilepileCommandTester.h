@@ -77,7 +77,7 @@ public:
 		TS_ASSERT(directory);
 		home = directory;
 		write("first content\n");
-		source = tagd::filepile::path_url((home / "source").string());
+		source = tagd::file_url((home / "source").string());
 		space = std::make_unique<tagd::tagspace::persistent>();
 		TS_ASSERT_EQUALS(space->create("test", home.string()), tagd::TAGD_OK);
 	}
@@ -97,7 +97,7 @@ public:
 		for (unsigned i = 0; i != 20; ++i) {
 			const auto name = home / ("other" + std::to_string(i));
 			std::ofstream(name) << "unrelated content";
-			TS_ASSERT_EQUALS(space->store(result, tagd::url(tagd::filepile::path_url(name.string()))),
+			TS_ASSERT_EQUALS(space->store(result, tagd::url(tagd::file_url(name.string()))),
 				tagd::TAGD_OK);
 		}
 		command_reads::rows = 0;
@@ -110,7 +110,7 @@ public:
 		const auto blocked = home / "blocked";
 		std::filesystem::create_directory(blocked);
 		TS_ASSERT_EQUALS(::chmod(blocked.c_str(), 0), 0);
-		const auto rc = space->put(tagd::url(tagd::filepile::path_url((blocked / "file").string())));
+		const auto rc = space->put(tagd::url(tagd::file_url((blocked / "file").string())));
 		TS_ASSERT_EQUALS(::chmod(blocked.c_str(), 0700), 0);
 		TS_ASSERT_EQUALS(rc, tagd::TAGD_OK);
 
@@ -120,15 +120,15 @@ public:
 		TS_ASSERT(tagd::uri_decode_checked(path, stored.stored.path()));
 		std::filesystem::create_directory_symlink(home / "filepile", home / "alias");
 		const auto relative = std::filesystem::path(path).lexically_relative(home / "filepile");
-		tagd::url alias(tagd::filepile::path_url((home / "alias" / relative).string()));
+		tagd::url alias(tagd::file_url((home / "alias" / relative).string()));
 		TS_ASSERT_EQUALS(space->put(alias), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(space->store(stored, alias), tagd::TS_MISUSE);
-		TS_ASSERT_EQUALS(space->put(tagd::url(tagd::filepile::path_url(
+		TS_ASSERT_EQUALS(space->put(tagd::url(tagd::file_url(
 			(home / "nonexistent/../filepile/new").string()))), tagd::TS_MISUSE);
 		std::filesystem::create_directory_symlink(home, home / "home-alias");
 		space->filepile_home((home / "home-alias").string());
 		for (const auto& root : {home, home / "home-alias"}) {
-			TS_ASSERT_EQUALS(space->put(tagd::url(tagd::filepile::path_url(
+			TS_ASSERT_EQUALS(space->put(tagd::url(tagd::file_url(
 				(root / "filepile/new").string()))), tagd::TS_MISUSE);
 		}
 	}
@@ -148,7 +148,7 @@ public:
 		std::filesystem::create_directory_symlink(loop, loop);
 		space->filepile_home(loop.string());
 		TS_ASSERT_EQUALS(space->put(tagd::url(source)), tagd::TAGD_OK);
-		TS_ASSERT_EQUALS(space->put(tagd::url(tagd::filepile::path_url(
+		TS_ASSERT_EQUALS(space->put(tagd::url(tagd::file_url(
 			(loop / "filepile/new").string()))), tagd::TS_MISUSE);
 		tagd::store_result result;
 		TS_ASSERT_EQUALS(space->store(result, tagd::url(source)), tagd::TS_NOT_AVAILABLE);
@@ -172,7 +172,7 @@ public:
 			const auto suffix = std::to_string(flags);
 			const auto path = home / ("source" + suffix);
 			std::ofstream(path) << "original " << suffix;
-			tagd::url declaration(tagd::filepile::path_url(path.string()));
+			tagd::url declaration(tagd::file_url(path.string()));
 			TS_ASSERT_EQUALS(declaration.relation(tagd::HARD_TAG_HAS,
 				tagd::HARD_TAG_MESSAGE, "first"), tagd::TAGD_OK);
 			tagd::store_result first, result;
@@ -250,7 +250,7 @@ public:
 		TS_ASSERT_EQUALS(space->put(tagd::url(stored.stored.id())), tagd::TS_MISUSE);
 		TS_ASSERT_EQUALS(space->put(tagd::abstract_tag(stored.stored.hduri())), tagd::TS_MISUSE);
 		TS_ASSERT_EQUALS(space->store(stored, tagd::url(stored.stored.id())), tagd::TS_MISUSE);
-		TS_ASSERT_EQUALS(space->put(tagd::url(tagd::filepile::path_url(
+		TS_ASSERT_EQUALS(space->put(tagd::url(tagd::file_url(
 			(home / "filepile/not-created.bin").string()))), tagd::TS_MISUSE);
 		TS_ASSERT_EQUALS(dump(), before);
 	}

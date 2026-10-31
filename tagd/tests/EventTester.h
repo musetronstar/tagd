@@ -40,6 +40,17 @@ inline tagd::id_string owned_id(std::string_view sv) {
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_evuri_percent_and_delimiter_identity() {
+		tagd::session ssn;
+		for (const auto value : {"alarm!urgent", "alarm%21urgent", "alarm%urgent"}) {
+			tagd::event source(ssn, value, value);
+			tagd::event parsed(source.evuri());
+			TS_ASSERT_EQUALS(parsed.code(), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(parsed.program(), value);
+			TS_ASSERT_EQUALS(parsed.super_object(), value);
+			TS_ASSERT_EQUALS(parsed.evuri(), source.evuri());
+		}
+	}
 
 	void tearDown() override {
 		event_clock_controlled = false;

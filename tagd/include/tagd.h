@@ -28,6 +28,24 @@ namespace tagd {
 const size_t MAX_TAG_LEN = 8192;
 using id_string = std::string;     // owning string
 using id_view = std::string_view;  // non-owning read-only <pointer + size> to c-string
+
+enum class tag_id_rule { valid, empty, too_long, reserved_prefix };
+
+/*
+ * TAGL and storage share syntax; callers map failures to their own error codes.
+ * Length takes precedence to preserve storage's TS_ERR_MAX_TAG_LEN. Leading ':'
+ * is reserved for placeholders; hard-tag write permissions remain in storage.
+ */
+[[nodiscard]] constexpr tag_id_rule valid_tag_id(id_view id) {
+	if (id.size() > MAX_TAG_LEN)
+		return tag_id_rule::too_long;
+	if (id.empty())
+		return tag_id_rule::empty;
+	if (id.front() == ':')
+		return tag_id_rule::reserved_prefix;
+	return tag_id_rule::valid;
+}
+
 const static id_string EMPTY_ID;     // for returning empty `const id_string&`
 
 class predicate_set;

@@ -212,7 +212,7 @@ tagd::code stored_tagspace::store(store_result& result, const abstract_tag& inpu
 		std::string name;
 		if (previous.revision) {
 			// A needed historical address must exist; another suffix cannot silently repair it.
-			if (filepile::path_url(content.destination(previous.name)) != previous.stored.id())
+			if (file_url(content.destination(previous.name)) != previous.stored.id())
 				return error(TS_ERR, "stored filepile reference is outside the selected home: " + previous.stored.id());
 			rc = content.verify(previous.name, previous.hash);
 			if (rc != TAGD_OK)
@@ -273,7 +273,7 @@ tagd::code stored_tagspace::store(store_result& result, const abstract_tag& inpu
 			const auto extension = canonical_extension(detection.media_type);
 			name = content.digest + '.' + (extension.empty() ? "bin" : extension);
 		}
-		output.stored = url(filepile::path_url(content.destination(name)));
+		output.stored = url(file_url(content.destination(name)));
 		attempted_association = "; attempted A=" + output.source.id()
 			+ "; L=" + output.link + "; B=" + output.stored.id();
 		rc = output.stored.code();

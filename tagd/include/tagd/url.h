@@ -2,10 +2,8 @@
 
 #include <iostream>
 #include <cstring>  // tolower
-#include <map>
+#include <concepts>
 #include "tagd.h"
-
-typedef std::map<std::string, std::string> url_query_map_t;
 
 namespace tagd {
 
@@ -46,7 +44,47 @@ const size_t HDURI_DELIM_COUNT = 9;
 const size_t HDURI_MAX_LEN = HDURI_DELIM_ENCODED.size() * URL_MAX_LEN + HDURI_SCHEME.size() +
 	HDURI_DELIM_COUNT + HDURI_EMPTY_PASSWORD.size();
 
-std::string encode_hduri_delim(id_view);
+/*
+ * RFC 3986 scheme syntax: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." ).
+ * URL parsing owns this rule; the tagdurl lexer uses it to find where an HDURI ends.
+ */
+[[nodiscard]] constexpr bool url_scheme_initial(unsigned char c) {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+[[nodiscard]] constexpr bool url_scheme_byte(unsigned char c) {
+	return url_scheme_initial(c) || (c >= '0' && c <= '9') || c == '+' || c == '-' || c == '.';
+}
+
+// Keep predicates select literal bytes; escaped bytes use uppercase hexadecimal.
+// The append overload requires text not to alias output's storage.
+template <std::predicate<unsigned char> Keep>
+void percent_encode(std::string& output, std::string_view text, Keep keep) {
+	constexpr char hex[] = "0123456789ABCDEF";
+
+	for (unsigned char c : text) {
+		if (keep(c)) {
+			output += c;
+		} else {
+			output += '%';
+			output += hex[c >> 4];
+			output += hex[c & 0x0f];
+		}
+	}
+}
+
+template <std::predicate<unsigned char> Keep>
+[[nodiscard]] std::string percent_encode(std::string_view text, Keep keep) {
+	std::string encoded;
+	encoded.reserve(text.size());
+	percent_encode(encoded, text, keep);
+
+	return encoded;
+}
+
+[[nodiscard]] std::string file_url(std::string_view path);
+
+[[nodiscard]] std::string encode_hduri_delim(id_view);
 // Decode one HDURI layer only; failure leaves the destination unchanged.
 [[nodiscard]] bool decode_hduri_delim(std::string&, id_view);
 
@@ -144,16 +182,13 @@ class url : public abstract_tag {
 			return (_pass_offset == 0 && _pass_len == 0);
 		}
 
-		// parse keys/vals from query string and populate map - returns num k/v pairs parsed
-		static size_t parse_query(url_query_map_t&, const std::string&);
-		static std::string decode_query_value(std::string);
-		static bool query_find(const url_query_map_t&, std::string& val, const std::string& key);
-
 		// insert url part relation into predicate_set
 		static void insert_url_part_relations(tagd::predicate_set&, const url&);
 
 		static bool looks_like_url(const std::string&);
 		static bool looks_like_hduri(const std::string&);
+		// mailto is the only nonhierarchical form with a reversible HDURI layout.
+		static bool looks_like_mailto(const std::string&);
 
 	private:
 		std::string url_substr(const url_size_t offset, const url_size_t len) const {
@@ -175,6 +210,5 @@ class HDURI : public url {
 // Checked decoding rejects malformed escapes and NUL before callers use path bytes.
 bool uri_decode_checked(std::string&, const std::string&);
 std::string uri_decode(const std::string&);
-std::string uri_encode(const std::string&);
 
 } // namespace tagd

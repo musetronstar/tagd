@@ -21,6 +21,17 @@ proc test_fail {n} {
 	puts "\n^^^^^^ $n failed ^^^^^^\n"
 }
 
+# Until expect_background drains it, nothing reads the debug server's PTY between log
+# checks; a full PTY blocks the server. Each check follows the request it examines.
+set server_log_background 0
+proc drain_server_log {} {
+	global server_spawn_id server_log_background
+	if {![info exists server_spawn_id] || $server_log_background} {
+		return
+	}
+	expect -i $server_spawn_id -timeout 0 -re {.+} {exp_continue}
+}
+
 # launches curl using args and expects
 # n = <test_name>, m = method, u = url, d = <body_data>, e = <expect_args>
 proc test {n m u d e} {
@@ -29,6 +40,7 @@ proc test {n m u d e} {
 	upvar 1 NL nl
 
 	set match 0
+	drain_server_log
 
 	if { [string length $d] == 0 } {
 		spawn curl -D - -X$m "http://localhost:2112$u"
@@ -62,6 +74,7 @@ proc test_file {n m u f e} {
 	upvar 1 NL nl
 
 	set match 0
+	drain_server_log
 
 	if { [string length $f] == 0 } {
 		spawn curl -D - -X$m "http://localhost:2112$u"
@@ -406,6 +419,7 @@ test_server_log "log_level_httagd_error_file_request_code" \
 #	 "FILE_TEXT"
 
 # No later assertion reads server logs; keep its PTY drained during request matrices.
+set server_log_background 1
 expect_background -i $server_spawn_id -re {.+} {}
 
 # HTTP response formatting must retain rank order despite reversed identifier order.
@@ -491,6 +505,187 @@ foreach {query error} {c=absent ts_not_found c=type_context, tagl_err} {
 		{404 Not Found}
 }
 
+# TAGL owns request-target syntax, including options and raw URL substitution.
+set malformed_body [file tempfile malformed_body_path]
+puts -nonewline $malformed_body "<< /_/[string repeat hd:/ 131072]x;"
+close $malformed_body
+test_exec malformed_uri_large_post [list curl -sS --max-time 5 -X POST \
+	http://localhost:2112/ --data-binary "@$malformed_body_path" -w {HTTP_STATUS:%{http_code}}] \
+	{HTTP_STATUS:400}
+file delete $malformed_body_path
+
+# Writes a TAGL body of exactly size bytes: the statement, then one comment line.
+proc sized_tagl_body {statement size} {
+	set body [file tempfile path]
+	set prefix "$statement\n-- "
+	puts -nonewline $body "$prefix[string repeat x [expr {$size - [string length $prefix] - 1}]]\n"
+	close $body
+	return $path
+}
+
+# libevhtp buffers a whole body before TAGL reads it; larger bodies close the connection unexecuted.
+set limit_body [sized_tagl_body {>> limit_body_probe _sub _entity;} 16777216]
+test_exec limit_body_accepted [list curl -sS --max-time 10 -X POST http://localhost:2112/ \
+	--data-binary "@$limit_body" -w {HTTP_STATUS:%{http_code}}] {HTTP_STATUS:200}
+file delete $limit_body
+test_response limit_body_executed GET {http://localhost:2112/_/limit_body_probe} \
+	200 {limit_body_probe} 1
+
+set oversized_body [sized_tagl_body {>> oversized_body_probe _sub _entity;} 16777217]
+foreach {name headers} {length {} chunked {-H {Transfer-Encoding: chunked}}} {
+	test_exec_fail "oversized_body_$name" [list curl -sS --max-time 10 -X POST {*}$headers \
+		http://localhost:2112/ --data-binary "@$oversized_body"] {\((52|55|56)\)}
+}
+file delete $oversized_body
+test_response oversized_body_not_executed GET {http://localhost:2112/_/oversized_body_probe} \
+	404 {_error:ts_not_found} 1
+test_response oversized_body_server_alive GET {http://localhost:2112/_/dog} 200 {dog} 1
+foreach scheme {123 https$bad} {
+	test_response "url_option_scheme_$scheme" GET \
+		"http://localhost:2112/_/:_url:?_url=$scheme://example.com" 400 {_error:tagl_err} 1
+}
+
+# Host case is not identity: every spelling of a host names one URL tag.
+test_response url_host_case_declare POST {http://localhost:2112/} 200 {>> err:} 0 \
+	{>> https://EXAMPLE.com/Case;}
+test_response url_host_case_get GET {http://localhost:2112/_/:_url:?_url=https://Example.COM/Case} \
+	200 {https://example.com/Case} 1
+test_response url_host_case_hduri_rejected GET \
+	{http://localhost:2112/_/hd:com!EXAMPLE!!/Case!!!!!!https} 400 {_error:hduri_err} 1
+foreach url {https://exa%20mple.com/ https://example.com:abc/ https://a@b@example.com/} {
+	test_response "url_option_authority_$url" GET "http://localhost:2112/_/:_url:?_url=$url" \
+		400 {_error:tagl_err} 1
+}
+# A malformed URL in the request is the client's error, not the server's.
+foreach {url error} {https://a@b@example.com/ url_err_host https://example.com:abc/ url_err_port} {
+	test_response "url_body_error_$url" POST {http://localhost:2112/} 400 "_error:$error" 1 \
+		">> $url;"
+}
+test_response url_path_error_status GET {http://localhost:2112/_/https%3A%2F%2Fexa%20mple.com%2F} \
+	400 {_error:url_err_host} 1
+
+# A percent escape in the URL host is rejected after transport decoding.
+foreach host {ex%FFample.com ex%C0%AFample.com ex%C2%85ample.com ex%E6%97%A5ample.com
+	ex%25FFample.com ex%61mple.com} {
+	test_response "escaped_host_body_$host" POST {http://localhost:2112/} \
+		400 {_error:url_err_host} 1 \
+		">> https://$host/; >> escaped_host_body_write _sub _entity;"
+	test_response "escaped_host_get_$host" GET "http://localhost:2112/_/:_url:?_url=https://$host/" \
+		400 {_error:tagl_err} 1
+	test_response "escaped_host_put_$host" PUT "http://localhost:2112/_/:_url:?_url=https://$host/" \
+		400 {_error:tagl_err} 1 {>> escaped_host_put_write _sub _entity;}
+}
+foreach tag {escaped_host_body_write escaped_host_put_write} {
+	test_response "escaped_host_no_mutation_$tag" GET "http://localhost:2112/_/$tag" \
+		404 {_error:ts_not_found} 1
+}
+test_response escaped_host_encoded_url GET \
+	{http://localhost:2112/_/https%3A%2F%2Fex%25FFample.com%2F} 400 {_error:url_err_host} 1
+test_response escaped_host_hduri GET \
+	{http://localhost:2112/_/hd:com!ex%25FFample!!/!!!!!!https} 400 {_error:url_err_host} 1
+
+# HTTP escaping carries the literal Unicode host; it is not a percent-escaped URL host.
+test_response unicode_host_declare POST {http://localhost:2112/} 200 {>> err:} 0 \
+	{>> https://日.example.com/Transport;}
+test_response unicode_host_http_hduri GET \
+	{http://localhost:2112/_/hd:com!example!%E6%97%A5!/Transport!!!!!!https} \
+	200 {https://日.example.com/Transport} 1
+# A URL page generates its HDURI link once, in the sibling list; an HDURI is not a referent.
+test_response unicode_host_generated_link GET \
+	{http://localhost:2112/_/hd:com!example!%E6%97%A5!/Transport!!!!!!https?v=browse.html} \
+	200 {href="/_/hd:com!example!%E6%97%A5!/Transport!!!!!!https\?v=browse.html"} 1
+
+foreach {path status} {/_/dog 200 /_/dog?v=browse.html 200 /_/missing-tag 404} {
+	test_response "nosniff_$path" GET "http://localhost:2112$path" $status \
+		{X-Content-Type-Options: nosniff} 1
+}
+
+# The search form carries every option except the search its text input replaces.
+test_response search_form_keeps_options GET \
+	{http://localhost:2112/_/dog?c=simple_english&v=browse.html} 200 \
+	{<input type="hidden" name="(c" value="simple_english|v" value="browse\.html)">} 2
+test_response search_form_omits_search GET {http://localhost:2112/_/*/?q=can+bark&v=browse.html} \
+	200 {type="hidden" name="q"} 0
+
+foreach id {hd:com!example!!!!!!!!https$bad hd:com!example!!!!!!!!123
+	hd:com!example!!/a!!!!!!https'bad hd%3Acom!example!!!!!!joe!%2500!https
+	HD:com!example!!!!!!joe!%2500!https ev%3At!h!p!a!s!1!x%2521 err%3At!h!p!a!s!1!x%2521} {
+	test_response "malformed_uri_get_$id" GET "http://localhost:2112/_/$id" 400 {_error:tagl_err} 1
+	test_response "malformed_uri_put_$id" PUT "http://localhost:2112/_/$id" 400 {_error:tagl_err} 1 \
+		{>> should_not_write _sub _entity;}
+}
+test_response malformed_uri_did_not_write GET {http://localhost:2112/_/should_not_write} \
+	404 {_error:ts_not_found} 1
+
+test_response link_html_entity_setup POST {http://localhost:2112/} 200 {>> err:} 0 \
+	{>> hd:com!example!!/a&amp;!!!!!!https;}
+test_response link_html_entity GET {http://localhost:2112/_/hd:com!example!!/a&amp;!!!!!!https?v=browse.html} \
+	200 {href="/_/hd:com!example!!/a&amp;amp;!!!!!!https\?v=browse.html"} 1
+test_response html_text_setup POST {http://localhost:2112/} 200 {>> err:} 0 \
+	{>> html_text_probe _sub _entity _has _message = "<b>literal</b>";}
+test_response html_text_escaped GET {http://localhost:2112/_/html_text_probe?v=browse.html} \
+	200 {&lt;b&gt;literal&lt;/b&gt;} 1
+test_response html_text_no_markup GET {http://localhost:2112/_/html_text_probe?v=browse.html} \
+	200 {<b>literal</b>} 0
+
+foreach id {ev:review!h!p!program!s!1!_event err:review!h!p!program!s!1!_error} {
+	test_response "event_put_mismatch_$id" PUT {http://localhost:2112/_/other} \
+		400 {_error:tagl_err} 1 ">> $id;"
+	test_response "event_put_mismatch_absent_$id" GET "http://localhost:2112/_/$id" \
+		404 {_error:ts_not_found} 1
+	test_response "event_put_match_$id" PUT "http://localhost:2112/_/$id" 200 {>> err:} 0 ">> $id;"
+	test_response "event_put_match_present_$id" GET "http://localhost:2112/_/$id" 200 $id 1
+}
+
+foreach options {foo=bar foo s=x q &q=a q=a& q=a&q=b c=type_context&c= q=%zz c=%00} {
+	test_response "invalid_tagdurl_option_$options" GET "http://localhost:2112/_/animal/?$options" \
+		400 {_error:tagl_err} 1
+}
+test_response hduri_put_plain_slash PUT {http://localhost:2112/_/slash%2Ftag} 200 {>> err:} 0 \
+	{>> "slash/tag" _sub _entity;}
+test_response hduri_get_plain_slash GET {http://localhost:2112/_/slash%2Ftag} 200 {slash/tag} 1
+foreach {url id} {
+	http://joe@example.com hd:com!example!!!!!!joe!!http
+	http://joe:@example.com hd:com!example!!!!!!joe!%00!http
+	http://joe:%00@example.com hd:com!example!!!!!!joe!%2500!http
+	https://example.com/a%20b hd:com!example!!/a%2520b!!!!!!https
+} {
+	test_response "hduri_declare_$url" POST {http://localhost:2112/} 200 {>> err:} 0 ">> $url ;"
+	test_response "hduri_get_$url" GET "http://localhost:2112/_/$id" 200 $url 1
+	test_response "hduri_link_$url" GET "http://localhost:2112/_/$id?v=browse.html" 200 "/_/$id" 1
+}
+set raw_url {https://example.com/a/b?x=1&c=literal&q=dogs&_url=again&unknown=a&unknown=b+%21;}
+test_response raw_url_declare POST {http://localhost:2112/} 200 {>> err:} 0 \
+	{>> hd:com!example!!/a/b!?x=1&c=literal&q=dogs&_url=again&unknown=a&unknown=b+%2521;!!!!!https;}
+test_response raw_url_get GET "http://localhost:2112/_/:_url:?_url=$raw_url" 200 {b\+%21;} 2
+foreach path {/_/:_url: /_/dog?_url=https://example.com /_/:_url:/legs?_url=https://example.com
+	/?_url=https://example.com
+	/_/,:_url:/:_url:?_url=https://example.com /_/:_url:?foo=bar&_url=https://example.com
+	/_/:_url:?c=a&c=b&_url=https://example.com} {
+	test_response "raw_url_error_$path" GET "http://localhost:2112$path" 400 {_error:tagl_err} 1
+}
+test_response root_url_option_rejects_body POST {http://localhost:2112/?_url=https://example.com} \
+	400 {_error:tagl_err} 1 {>> ignored_url_option _sub _entity;}
+test_response root_url_option_did_not_write GET {http://localhost:2112/_/ignored_url_option} \
+	404 {_error:ts_not_found} 1
+
+test_response url_query_operands_setup POST {http://localhost:2112/} 200 {>> err:} 0 \
+	{>> https://example.com/avatar.png;
+	 >> url_query_subject _sub _entity _type_of https://example.com/avatar.png
+	 _has legs, https://example.com/avatar.png;
+	 >> "alarm,urgent" _sub _event;
+	 >> ev:t!h!p!program!s!1!alarm,urgent;}
+foreach path {/_/,hd:com!example!!/avatar.png!!!!!!https/legs
+	/_/,:_url:/legs?c=type_context&_url=https://example.com/avatar.png
+	/_/*/:_url:?_url=https://example.com/avatar.png} {
+	test_response "url_query_operands_$path" GET "http://localhost:2112$path" \
+		200 {url_query_subject} 1
+}
+test_response event_final_comma_get GET {http://localhost:2112/_/ev:t!h!p!program!s!1!alarm%2Curgent} \
+	200 {ev:t!h!p!program!s!1!alarm,urgent} 1
+test_response event_final_comma_link GET {http://localhost:2112/_/ev:t!h!p!program!s!1!alarm%2Curgent?v=browse.html} \
+	200 {/_/ev:t!h!p!program!s!1!alarm%2Curgent} 1
+
 # HEAD's length must describe GET's representation for both built-in and HTML views.
 foreach path {/_/type_subject /_/type_subject?v=browse.html /_/,type_source/ / /?v=browse.html} {
 	set get_headers [exec curl -sS --max-time 5 -D - -o /dev/null "http://localhost:2112$path"]
@@ -522,8 +717,8 @@ foreach {path marker} {
 	test_response "view_root_$path" GET "http://localhost:2112$path" 200 $marker 1
 }
 test_response view_root_unknown GET {http://localhost:2112/?v=missing} 404 {>> err:} 1
-test_response view_root_search_rejected GET {http://localhost:2112/?s=dog} 400 {_error:ts_misuse} 1
-test_response view_root_empty_search_rejected GET {http://localhost:2112/?s=} 400 {_error:ts_misuse} 1
+test_response view_root_search_rejected GET {http://localhost:2112/?s=dog} 400 {_error:tagl_err} 1
+test_response view_root_empty_search_rejected GET {http://localhost:2112/?s=} 400 {_error:tagl_err} 1
 test_response view_root_empty_query_rejected GET {http://localhost:2112/?q=} 400 {>> err:} 1
 test_response view_root_invalid_context GET {http://localhost:2112/?c=missing} 404 {>> err:} 1
 test_response view_partial_query GET {http://localhost:2112/_/mammal/?v=tag.html} 200 {dog, cat, whale} 1

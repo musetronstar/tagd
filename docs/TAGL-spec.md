@@ -292,10 +292,17 @@ tree hierarchy given by an *ordinal rank*.
 
 ### 4.3 Literals
 
-* TAG: UTF-8 label
+* TAG: nonempty UTF-8 label, at most `MAX_TAG_LEN` (8192) bytes, with no leading `:`
 * INTEGER: signed whole number (e.g., `0`, `1`, `55`, `-23`)
 * FLOAT: signed decimal number (e.g., `3.14`, `-1.0`, `0.0`)
 * STRING: quoted
+
+TAGL validates these ID rules in every tag-ID position and reports `TAGL_ERR`
+with `_caused_by _bad_token`, including for overlong IDs before storage is
+called. Direct storage inserts retain `TS_ERR_MAX_TAG_LEN` for length failures
+and `TS_MISUSE` for empty or reserved-prefix IDs. A colon elsewhere is legal.
+The leading colon is reserved for tagdurl placeholders; modifier strings are
+not tag IDs and are exempt. Hard-tag write permission is separate from syntax.
 
 ### 4.4 Comments
 
@@ -785,10 +792,25 @@ artificial predicates, in any tagspace:
 >> file:///work/animals.db;
 ```
 
-An HDURI spelling may be used for the same URL. This general declaration rule
+An HDURI spelling may be used for the same URL, including an explicit matching
+subordinate relation:
+
+```tagl
+>> hd:com!example!!!!!!!!https _sub _url;
+```
+
+This general declaration rule
 also supplies the file URL objects used by tagspace `_from` predicates.
 
 ### HDURI identity encoding
+
+An HDURI is a URL's stored ID and its canonical spelling in tagdurls and
+generated links. Its field order collates related URLs when a tagspace holds
+very many of them. GET and QUERY display the ordinary URL. An HDURI is not a
+referent, so URL results carry no `_refers_to`; tagsh `.dump_grid` shows the
+stored HDURIs.
+**Pre-beta change:** URL GET and QUERY results previously included
+`_refers_to "hd:…"`.
 
 HDURI retains the `hd:` scheme and ten fields, separated by nine `!` delimiters:
 
@@ -811,14 +833,69 @@ For example:
 | `http://example.com/a!b` | `hd:com!example!!/a%21b!!!!!!http` |
 | `http://example.com/a%21b` | `hd:com!example!!/a%2521b!!!!!!http` |
 
-Identity is the ID produced by ordinary URL parsing, including its existing
-scheme/host case handling. HDURI does not introduce further normalization:
-percent-escape spelling, explicit ports, UTF-8 bytes, and empty versus absent
-query/fragment components remain distinct. The `mailto:` form reconstructs
+Identity is the ID produced by ordinary URL parsing, which lowercases the
+scheme and normalizes host case (below). HDURI does not introduce further
+normalization: percent-escape spelling outside the host, explicit ports, UTF-8
+bytes, and empty versus absent query/fragment components remain distinct. The `mailto:` form reconstructs
 without `//`; `mailto://` is rejected because the layout does not encode both
 forms separately. The `hd:` scheme is reserved for HDURI input.
 Explicit empty ports (a trailing `:` in the authority) are rejected with
 `URL_ERR_PORT`; the component layout represents absent ports and nonempty ports.
+Schemes follow RFC 3986 (`[a-zA-Z][a-zA-Z0-9+.-]*`) in every URL input: TAGL
+URLs and HDURIs, tagdurl `_url` values, and encoded tagdurl URLs. Any other
+scheme, such as `123` or one containing `$`, `!`, `%`, or whitespace, returns
+`URL_ERR_SCHEME`.
+**Pre-beta change:** URLs and HDURIs with other schemes were previously stored
+but could not be addressed by tagdurls; recreate them with valid schemes.
+
+The rest of the URL is checked in the same inputs when the URL is constructed.
+The authority uses RFC 3986 syntax with tagd's stricter literal-host policy:
+
+| Component | Accepted | Error |
+| --- | --- | --- |
+| Host | a registered name (ASCII letters, digits, `-._~!$&'()*+,;=`, UTF-8), an IPv4 address, or a bracketed IP literal (`[::1]`, `[v1.x]`); `%` is forbidden | `URL_ERR_HOST` |
+| Port | digits only | `URL_ERR_PORT` |
+| User, password | the host's characters, `:` in the password, `%XX` escapes, UTF-8 | `URL_ERR_USER` |
+| Path, query, fragment | text without ASCII space, C0 controls, DEL, or C1 controls; write a space as `%20` | `URL_ERR_PATH` |
+
+Raw text in every component must be well-formed UTF-8 without C1 controls.
+User and password escapes must have `%XX` spelling, but their decoded octets
+are not checked as UTF-8. Path, query, and fragment retain their existing
+percent spelling without escape validation. Other Unicode whitespace is
+unchanged by these checks.
+
+The actual URL host cannot contain `%`, including valid escapes such as
+`%61` or `%E6%97%A5`; use literal `a` or `日` instead. This restriction applies
+after HDURI field decoding and HTTP tagdurl transport decoding. For example,
+the HTTP tagdurl `/_/hd:com!example!%E6%97%A5!/!!!!!!https` addresses
+`https://日.example.com/`, while
+`/_/hd:com!example!%25E6%2597%25A5!/!!!!!!https` is rejected because its
+actual URL host contains percent escapes. Literal `!` in a host still uses
+HDURI `%21` escaping. IP literals reject bytes outside their address grammar,
+including embedded NUL; IPv6 zone IDs remain unsupported.
+
+ASCII host letters compare without case, so construction lowercases them:
+`https://EXAMPLE.com/A` and
+`https://example.com/A` are one tag, `https://example.com/A`. User, password,
+path, query, and fragment keep their case. Unicode is stored and printed as
+Unicode, and Unicode host letters are not case-mapped yet (IDNA mapping is
+future work). An IP literal host has no `_public`, `_private`, or `_subdomain`
+relations, and its HDURI keeps the whole literal in the `priv_label` field:
+`hd:![::1]!!/!!!8080!!!https`. HTTP answers URL errors with 400.
+
+**Pre-beta change:** URLs with an uppercase host before a path, port, or user
+were stored with that case. Their HDURIs, such as
+`hd:!EXAMPLE.com!!/A!!!!!!https`, are no longer canonical, so those rows fail
+to load with `HDURI_ERR`. URLs with whitespace, control bytes, malformed UTF-8,
+invalid host or userinfo bytes, or non-digit ports are now rejected, and IPv6
+hosts, previously split at their first `:`, now parse. Recreate affected data
+from the original URLs.
+
+**Pre-beta host change:** previously accepted URLs whose host contains `%`
+now fail with `URL_ERR_HOST`, including HDURIs encoding those hosts. Existing
+rows are not migrated or silently decoded; recreate affected data with the
+intended literal host. This does not change percent escapes in userinfo or
+the empty-password marker below.
 
 Only canonical fields, as produced by `hduri()`, are accepted. Different host
 groupings or noncanonical scheme/host case are rejected. General URL parsing
@@ -848,6 +925,33 @@ automatically.
 Dump reports an invalid stored HDURI, including its stored ID, as an error rather
 than emitting a blank URL subject. A failed dump may contain earlier rows and
 must not be used as a complete export.
+
+### EVURI and ERRURI identity encoding
+
+Events and errors are tags with seven fields separated by six literal `!`
+characters. ERRURI specializes EVURI; neither is an HDURI or a URL object:
+
+```text
+ev:time!host!principal!program!session_id!sequence!event_type_tag
+err:time!host!principal!program!session_id!sequence!event_type_tag
+```
+
+They borrow HDURI's delimiter for collation and its field encoding: literal
+`%` becomes `%25`, and literal `!` becomes `%21`. Decode exactly one layer.
+Event type `alarm!urgent` has final field `alarm%21urgent`, while literal
+`alarm%21urgent` has final field `alarm%2521urgent`. Bare `>> ev:…;` and
+`>> err:…;` declarations use the identity's event type as the super object.
+Subjects and unmodified predicate objects accept these identities; super
+objects, type objects, and relators do not.
+
+In a tagdurl, the final event-type field obeys ordinary ID boundaries after
+the sixth separator. See [tagdurl identity encoding](#tagdurl-identity-encoding)
+for the additional transport escapes. These rules apply to accepted input;
+they do not imply that built-in event types contain punctuation.
+
+**Pre-beta encoding break:** EVURI/ERRURI fields containing literal percent
+signs now escape them. Recreate affected persisted identities from their
+original field values; old ambiguous strings have no automatic migration.
 
 ## 12. Errors
 
@@ -932,8 +1036,10 @@ comma-prefixed list of type objects. The slash after this segment is required:
 ```
 
 Tagdurls use `_sub` for the subordinate relation and `_type_of` for type
-relations; custom relators require TAGL. Type objects are plain tag IDs;
-URL/HDURI type objects are not supported yet. `*` cannot have a type list.
+relations; custom relators require TAGL. Type objects accept plain tag IDs
+and URLs, including HDURIs. URL-family IDs can be subjects and unmodified
+predicate objects, but cannot be super objects or relators. EVURIs and
+ERRURIs cannot be type objects. `*` cannot have a type list.
 The existing predicate segment and search options compose with these queries,
 for example `/zoology/mammal,quadruped/legs,tail?q=can+bark`.
 
@@ -963,6 +1069,16 @@ requiring them to exist in `_config`. Subject and object referents, including
 type objects, are decoded only when a context is set. `?q=` remains QUERY-only;
 root search is also supported.
 
+Options are parsed left to right. The recognized names are `q` (search), `c`
+(context), `v` (view), and `_url` (raw URL substitution). Each requires `=`;
+unknown names, duplicate options, empty pairs, and malformed percent escapes
+are `TAGL_ERR`, equally in embedded TAGL and HTTP. For example, `?foo=bar`,
+`?foo`, `?s=x`, `?q`, `?&q=a`, `?q=a&`, and `?q=a&q=b` are errors.
+`?q=` keeps empty-search semantics in a QUERY path; a root search still
+requires nonempty terms. `?c=` applies no context. HTTP `?v=`
+selects a view; an embedded tagdurl with `?v=` is `TS_NOT_IMPLEMENTED` until
+TAGL views and pipe operators are implemented.
+
 This replaces the earlier unchecked `?c=` behaviour: a context absent from
 the selected target is now an error, and DELETE now accepts validated contexts.
 
@@ -977,6 +1093,10 @@ selections never change that default. Description GET/HEAD requires `_config`
 as the server default, otherwise HTTP 403 is returned before discovery. Data
 requests to `_config`, including its aliases, have the same restriction and
 remain read-only. HEAD has GET status and authorization without a response body.
+Request bodies are limited to 16 MiB because the HTTP library buffers a complete
+body before TAGL reads it. A larger body closes the connection without a
+response, and none of its statements execute. Every response carries
+`X-Content-Type-Options: nosniff`, so browsers render TAGL text as text.
 
 `POST /` remains the general TAGL endpoint with request-local switching.
 `POST /animals` and `/animals/` accept complete statements but fix the target:
@@ -992,6 +1112,112 @@ and take precedence. A tagspace named `favicon.ico` is masked even if the icon
 is missing. Generated links retain the supplied selector and applicable context.
 Errors use existing TAGL `_error` objects with HTTP status. Caching, permissions,
 redirect policy, scopes, and foreign references remain future work.
+
+### Tagdurl identity encoding
+
+Lex the encoded path before decoding individual tokens. Only literal
+delimiters form tagdurl structure: `/_/animal%2Clegs/` queries descendants
+of the single ID `animal,legs`, and `/_/a%2Fb` names `a/b`.
+IDs must be nonempty, no more than `MAX_TAG_LEN` bytes, and cannot start with
+`:`. That prefix is reserved for placeholders; a colon elsewhere remains
+legal. Modifier values are text and do not have these ID restrictions.
+After a literal `=`, a reserved `hd:`, `ev:`, or `err:` prefix starts no
+structured fields: `/_/animal/blood=hd:a` has the modifier text `hd:a`. Encode
+`/ ? & , =` belonging to a modifier value, as in a plain ID.
+
+HDURI is the canonical URL spelling in tagdurls and generated links.
+Structured tagdurl IDs require their literal lowercase `hd:`, `ev:`, or `err:`
+prefix. Encoded or recased prefixes are rejected instead of being decoded as
+plain IDs and then interpreted as structured identities. Properly encoded
+ordinary URLs, including `mailto:`, remain accepted.
+An HDURI token has nine literal `!` separators and ends after its final
+scheme (`[a-zA-Z][a-zA-Z0-9+.-]*`). Literal `/ , = & ; ? #` inside its fields
+are data. For example:
+
+```tagl
+/photos/,hd:com!example!!/avatar.png!!!!!!https/legs;
+```
+
+The leading comma omits a super object and introduces a URL type condition.
+The URL type must exist in `photos`. `/_/HDURI/legs` is invalid because a URL
+cannot occupy the super-object position.
+
+EVURI and ERRURI tokens count six literal `!` separators. The final
+event-type field then obeys ordinary tagdurl ID boundaries. Its `/ ? & , =`
+must be encoded when they belong to the value. Thus final `alarm%2Curgent`
+means one type ID `alarm,urgent`; final `alarm,urgent` separates two tagdurl
+objects. Structural characters in the first six fields remain field data.
+
+At the tagdurl boundary, percent-decode each structured field once and
+rebuild its canonical `%`/`!` encoding. A complete HDURI password field
+`%00` is recognized before decoding and retained as the empty-password
+marker. Absent password (empty field), explicitly empty password (`%00`),
+and literal password text `%00` (`%2500`) remain distinct. Reject decoded
+NUL everywhere else, including within a larger password field and any
+EVURI/ERRURI field. Standalone HDURI parsing remains canonical-only.
+
+There are two transport forms, interpreted by the same tagl lexer and decoder:
+
+| Form | Percent-encoded bytes | Kept literal |
+| --- | --- | --- |
+| Canonical HDURI/EVURI/ERRURI fields | `%` as `%25`, `!` as `%21` | Other field bytes; HDURI reserves the complete password marker `%00` |
+| Canonical tagdurl in TAGL | Plain IDs: `% / ? & , =`, whitespace and `"`; EVURI/ERRURI final field: `/ ? & , =` | Canonical structured escapes, field separators, `#`, non-ASCII, apostrophe |
+| HTTP tagdurl ID | The canonical structural set, plus `?`, `#`, controls, space, non-ASCII, and the forbidden path bytes listed below | RFC path bytes; `/ , = & ;` inside HDURI and the first six EVURI/ERRURI fields |
+| HTTP option value | `% & + #` and bytes forbidden in a query; space becomes `+` | Query characters, including `/ ? , = :` |
+
+Forbidden path bytes also include ``" < > [ \ ] ^ ` { | }``.
+
+HTML templates must escape the resulting request target as an HTML attribute,
+including ampersands; this is separate from percent encoding the tagdurl.
+
+Generated HTTP links preserve canonical `%21` and `%25` escapes and the
+complete HDURI `%00` password marker. They do not add another escape layer.
+For example, URL `https://example.com/a!b?x=1#top` is
+`hd:com!example!!/a%21b!?x=1!#top!!!!https` canonically and
+`/_/hd:com!example!!/a%21b!%3Fx=1!%23top!!!!https` over HTTP.
+An HTTP client's fragment is not sent to the server, so encode `#` as `%23`
+in a tag ID. The options delimiter is the first `?` outside an HDURI or the
+first six EVURI/ERRURI fields. A final-field `%3F` belongs to the event type;
+a literal `?` starts options.
+
+The outer TAGL lexer retains its existing terminal-punctuation rules.
+Adjacent and spaced trailing semicolons both terminate URL-family and
+TAGDURL statements. Apostrophes are legal in these tokens. HTTP `/_/a;`
+names `a;`, whereas the same text in TAGL names `a` and terminates the
+statement. Generated links do not escape semicolons solely to bypass that
+outer lexer; not every HTTP target can be pasted unchanged as a bare
+TAGDURL token. A future literal `_url()` function is outside this syntax.
+
+### Raw URL substitution
+
+Exactly one `:_url:` placeholder may name a subject, URL type object, or
+unmodified predicate object. It cannot be a super object or relator.
+The `_url=` option supplies its raw URL, which is converted to an HDURI:
+
+```tagl
+/_/:_url:?_url=https://example.com/a/b?x=1&y=2;
+/photos/,:_url:/legs?c=web&_url=https://example.com/avatar.png;
+```
+
+All ordinary options precede `_url`. Once `_url=` is encountered, the
+entire remaining text is URL data, without form-decoding or further option
+parsing. Later `&q=`, `&c=`, `&_url=`, unknown or repeated keys, `+`, and
+percent escapes belong to the URL. There is no "option after `_url`" error:
+`_url` is the final option by construction. A missing option, missing
+placeholder, second placeholder, or illegal placeholder position is `TAGL_ERR`.
+Use HDURIs or full TAGL for multiple URL operands. Properly encoded raw URL
+IDs are also accepted; unencoded URL path syntax requires this placeholder.
+
+For embedded TAGL, the raw remainder ends with the TAGDURL token and excludes
+the outer terminator. For HTTP it includes any trailing semicolon in the
+request target. A literal `#` in a canonical `_url` value is a URL fragment;
+HTTP clients omit it, and `%23` remains literal URL escape text with a
+different identity. Use the URL's HDURI to address a fragment over HTTP.
+
+**Pre-beta changes:** tag IDs beginning with `:` are invalid, malformed or
+duplicate options are rejected, and generated links use minimal HTTP
+encoding. EVURI/ERRURI percent escapes use the same single-layer delimiter
+encoding as HDURI. There are no compatibility aliases or storage migrations.
 
 ### Migration
 

@@ -1909,6 +1909,47 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT(c.related(HARD_TAG_HAS, HARD_TAG_FRAGMENT, "#here"));
 	}
 
+	void test_url_get_and_query_add_no_refers_to(void) {
+		TDB_CONS_INIT();
+
+		// _refers_to marks an alias display; an HDURI is a URL's stored ID, not a referent.
+		auto refers_to_count = [](const tagd::abstract_tag& t) {
+			size_t n = 0;
+			for (const auto& p : t.relations) {
+				if (p.relator == HARD_TAG_REFERS_TO)
+					++n;
+			}
+			return n;
+		};
+
+		tagd::url a("http://en.wikipedia.org/wiki/Dog");
+		TS_ASSERT_TAGD_OK(a.relation("about", "dog"))
+		TS_ASSERT_TAGD_OK(tdb.put(a, &ssn));
+
+		tagd::url by_url;
+		TS_ASSERT_TAGD_OK(tdb.get(by_url, a.id(), &ssn));
+		TS_ASSERT_EQUALS(refers_to_count(by_url), 0u);
+
+		tagd::abstract_tag by_hduri;
+		TS_ASSERT_TAGD_OK(tdb.get(by_hduri, a.hduri(), &ssn));
+		TS_ASSERT_EQUALS(by_hduri.id(), a.id());
+		TS_ASSERT_EQUALS(refers_to_count(by_hduri), 0u);
+
+		tagd::url without_session;
+		TS_ASSERT_TAGD_OK(tdb.get(without_session, a.id(), nullptr));
+		TS_ASSERT_EQUALS(refers_to_count(without_session), 0u);
+
+		tagd::interrogator q(HARD_TAG_INTERROGATOR);
+		TS_ASSERT_TAGD_OK(q.relation("about", "dog"))
+		tagd::tag_set S;
+		TS_ASSERT_TAGD_OK(tdb.query(S, q, &ssn));
+		TS_ASSERT_EQUALS(S.size(), 1u);
+		for (const auto& t : S) {
+			TS_ASSERT_EQUALS(t.id(), a.id());
+			TS_ASSERT_EQUALS(refers_to_count(t), 0u);
+		}
+	}
+
 	void test_query_url(void) {
 		TDB_CONS_INIT();
 

@@ -116,6 +116,14 @@ bool url_user_test(std::string u,
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_percent_encode_and_file_url() {
+		TS_ASSERT_EQUALS(tagd::percent_encode("a!%/\xFF", [](unsigned char c) {
+			return c == 'a' || c == '/';
+		}), "a%21%25/%FF");
+		TS_ASSERT_EQUALS(tagd::file_url("/tmp/a-b._~ c%?#/日本"),
+			"file:///tmp/a-b._~%20c%25%3F%23/%E6%97%A5%E6%9C%AC");
+	}
+
 	void test_hduri_preserves_distinct_url_identities() {
 		std::set<std::string> encoded;
 		for (const auto path : {"/a!b", "/a%21b", "/a%2521b", "/a%b", "/a%25b"}) {
@@ -132,8 +140,9 @@ class Tester : public CxxTest::TestSuite {
 	void test_hduri_round_trip_components_and_presence() {
 		for (const auto input : {
 			"http://example.com/a!b?x=1#f",
-			"http://u!%21:p!%00@sub!%21.example.com:8!%21/a!%21?x=!%25#f!%21",
-			"x!%21://example.com/日本語?é=%21#😀",
+			"http://u!%21:p!%00@sub!.example.com:8/a!%21?x=!%25#f!%21",
+			"x+y.z-1://example.com/日本語?é=%21#😀",
+			"https://u:p@[2001:db8::1]:8080/a",
 			"http://joe@example.com", "http://joe:@example.com",
 			"http://joe:%00@example.com", "http://joe:%2500@example.com",
 			"http://example.com", "http://example.com/", "http://example.com?",
@@ -214,6 +223,164 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS(tagd::url("mailto://joe@example.com").code(), tagd::URL_ERR_SCHEME);
 		for (const auto input : {"http://example.com:", "http://joe@example.com:"}) {
 			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::URL_ERR_PORT);
+		}
+	}
+
+	void test_url_scheme_grammar() {
+		for (const auto input : {"svn+ssh://example.com", "a.b-c://example.com", "HTTPS://example.com"}) {
+			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::TAGD_OK);
+		}
+
+		for (const auto input : {"123://example.com", "https$bad://example.com",
+			"+https://example.com", " https://example.com", "ht tps://example.com",
+			"https#bad://example.com", "hd:com!example!!!!!!!!123",
+			"hd:com!example!!!!!!!!https$bad"}) {
+			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::URL_ERR_SCHEME);
+		}
+	}
+
+	void test_url_host_case_is_normalized() {
+		for (const auto& [input, id] : std::vector<std::pair<std::string, std::string>>{
+			{"https://EXAMPLE.com", "https://example.com"},
+			{"https://EXAMPLE.com/A", "https://example.com/A"},
+			{"https://EXAMPLE.com/A#", "https://example.com/A#"},
+			{"https://EXAMPLE.com:8/A", "https://example.com:8/A"},
+			{"HTTPS://Joe:PW@EXAMPLE.com/A?Q=V#F", "https://Joe:PW@example.com/A?Q=V#F"},
+			{"mailto:Joe@EXAMPLE.com", "mailto:Joe@example.com"},
+			{"FILE://HOST/Tmp", "file://host/Tmp"},
+			{"https://日本語.EXAMPLE.com/", "https://日本語.example.com/"},
+			{"https://Ü.example.com/", "https://Ü.example.com/"},
+			{"https://[2001:DB8::1]:8080/", "https://[2001:db8::1]:8080/"}}) {
+			const tagd::url u(input);
+			TS_ASSERT_EQUALS(u.code(), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(u.id(), id);
+			TS_ASSERT_EQUALS(tagd::url(u.hduri()).id(), id);
+		}
+	}
+
+	void test_hduri_rejects_uppercase_hosts() {
+		TS_ASSERT_EQUALS(tagd::url("hd:com!example!!/a!!!!!!https").id(), "https://example.com/a");
+		for (const auto input : {"hd:com!EXAMPLE!!/a!!!!!!https", "hd:!EXAMPLE.com!!/a!!!!!!https",
+			"hd:COM!example!!!!!!!!https", "hd:com!example!WWW!/!!!!!!https"}) {
+			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::HDURI_ERR);
+		}
+	}
+
+	void test_url_ip_literal_hosts() {
+		const tagd::url ipv6("https://user:pw@[::1]:8080/a");
+		TS_ASSERT_EQUALS(ipv6.code(), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(ipv6.user(), "user");
+		TS_ASSERT_EQUALS(ipv6.pass(), "pw");
+		TS_ASSERT_EQUALS(ipv6.host(), "[::1]");
+		TS_ASSERT_EQUALS(ipv6.port(), "8080");
+		TS_ASSERT_EQUALS(ipv6.path(), "/a");
+		TS_ASSERT_EQUALS(tagd::url(ipv6.hduri()).id(), ipv6.id());
+
+		tagd::url related("https://[::1]/");
+		tagd::url::insert_url_part_relations(related.relations, related);
+		TS_ASSERT(related.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_HOST), "[::1]"));
+		TS_ASSERT(!related.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PRIV_LABEL)));
+		TS_ASSERT(!related.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_PUBLIC)));
+		TS_ASSERT(!related.related(owned_id(HARD_TAG_HAS), owned_id(HARD_TAG_SUBDOMAIN)));
+		TS_ASSERT_EQUALS(tagd::url("https://[::ffff:192.0.2.1]:80/a").hduri(),
+			"hd:![::ffff:192.0.2.1]!!/a!!!80!!!https");
+		TS_ASSERT_EQUALS(tagd::url("https://[v1.fe80::a+en1]/").hduri(),
+			"hd:![v1.fe80::a+en1]!!/!!!!!!https");
+
+		for (const auto input : {"https://[::1]", "https://[::1]/", "https://[::ffff:192.0.2.1]/",
+			"https://[v1.fe80::a+en1]/"}) {
+			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::TAGD_OK);
+		}
+
+		for (const auto input : {"https://[::1/", "https://[::g]/", "https://[1:2]/", "https://[]/",
+			"https://[::1]x/", "https://a[::1]/", "https://[v1.]/", "https://[::1%25eth0]/"}) {
+			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::URL_ERR_HOST);
+		}
+	}
+
+	void test_url_host_syntax() {
+		for (const auto input : {"http://sub!.example.com/", "http://a-b_c~d.example.com/",
+			"http://$&'()*+,;=.example.com/", "http://127.0.0.1/", "http://ex日.com/"}) {
+			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::TAGD_OK);
+		}
+
+		for (const auto input : {"https://example.com /a", "https://exa mple.com/a",
+			"https://example.com\t/a", "https://\x1e" "example.com/", "https://example.com\x7f/",
+			"https://a@b@example.com/", "https://ex<a>mple.com/", "https://ex\"ample.com/",
+			"https://ex%4mple.com/", "https://ex%zzmple.com/", "https://exa%20mple.com/",
+			"https://ex%00ample.com/", "https://ex%7Fample.com/",
+			"https://ex\xffmple.com/", "https://ex\xc0\xafmple.com/", "https://ex\x80mple.com/",
+			"https://ex\xed\xa0\x80mple.com/", "https://ex\xc2\x85mple.com/",
+			"hd:com!exa mple!!/a!!!!!!https"}) {
+			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::URL_ERR_HOST);
+		}
+	}
+
+	void test_url_ip_literal_rejects_embedded_nul() {
+		// Explicit lengths keep the bytes that a C-string validator would never see.
+		for (const auto suffix : {"", "junk", "\xff", " ", "%"}) {
+			const auto host = "[::1" + std::string(1, '\0') + suffix + "]";
+			for (const auto& input : {"https://" + host + "/",
+				"hd:!" + tagd::encode_hduri_delim(host) + "!!/!!!!!!https"}) {
+				const tagd::url u(input);
+				TS_ASSERT_EQUALS(u.code(), tagd::URL_ERR_HOST);
+				TS_ASSERT(u.empty());
+			}
+		}
+	}
+
+	void test_url_rejects_percent_escaped_hosts() {
+		for (const auto host : {"ex%FFample.com", "ex%C0%AFample.com", "ex%C2%85ample.com",
+			"ex%E6%97%A5ample.com", "ex%25FFample.com", "ex%61mple.com", "EX%4aMPLE.com",
+			"ex%ample.com", "ex%E6\x97\xa5" "ample.com", "mail.gmail.com%3e"}) {
+			const tagd::url u("https://" + std::string(host) + "/");
+			TS_ASSERT_EQUALS(u.code(), tagd::URL_ERR_HOST);
+			TS_ASSERT(u.empty());
+
+			const tagd::HDURI hduri("hd:!" + tagd::encode_hduri_delim(host) + "!!/!!!!!!https");
+			TS_ASSERT_EQUALS(hduri.code(), tagd::URL_ERR_HOST);
+		}
+
+		// Host restrictions do not change escaped userinfo or URL text components.
+		const tagd::url u("https://u%FF:p%00@example.com/a%20b?q=%FF#%25");
+		TS_ASSERT_EQUALS(u.code(), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(tagd::url(u.hduri()).id(), u.id());
+	}
+
+	void test_url_port_syntax() {
+		TS_ASSERT_EQUALS(tagd::url("https://example.com:080/").port(), "080");
+
+		for (const auto input : {"https://example.com:abc/", "https://example.com:8 0/",
+			"http://joe:example.com", "https://example.com:-1/", "https://[::1]:x/",
+			"hd:com!example!!/!!!abc!!!https"}) {
+			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::URL_ERR_PORT);
+		}
+	}
+
+	void test_url_userinfo_syntax() {
+		const tagd::url u("https://jo%20e:p:w!$&'()*+,;=@example.com/");
+		TS_ASSERT_EQUALS(u.code(), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(u.user(), "jo%20e");
+		TS_ASSERT_EQUALS(u.pass(), "p:w!$&'()*+,;=");
+
+		for (const auto input : {"https://jo e@example.com/", "https://joe:p w@example.com/",
+			"https://jo<e@example.com/", "https://joe:p%zz@example.com/",
+			"https://jo\xff" "e@example.com/", "mailto:jo e@example.com"}) {
+			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::URL_ERR_USER);
+		}
+	}
+
+	void test_url_text_components_exclude_whitespace_controls_and_malformed_utf8() {
+		for (const auto input : {"https://example.com/日本語?é=😀#ü", "https://example.com/a%20b"}) {
+			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::TAGD_OK);
+		}
+
+		for (const auto input : {"https://example.com/a b", "https://example.com/a?x y",
+			"https://example.com/a#x y", "https://example.com?x\ty", "https://example.com#\x7f",
+			"https://example.com/\xff", "https://example.com/a?\xc0\xaf",
+			"https://example.com/\xc2\x85", "https://example.com/\xf4\x90\x80\x80",
+			"file:///tmp/a b", "hd:com!example!!/a b!!!!!!https"}) {
+			TS_ASSERT_EQUALS(tagd::url(input).code(), tagd::URL_ERR_PATH);
 		}
 	}
 
@@ -926,133 +1093,6 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT_EQUALS( a.hduri(), hduri );
 	}
 
-	void test_query_map(void) {
-		url_query_map_t qm, tm;
-		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, ""), 0 );
-		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?"), 0 );
-		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "&"), 0 );
-
-		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a"), 1 );
-		tm = {
-			{"a", ""}
-		};
-		TS_ASSERT_EQUALS( qm, tm );
-
-		qm.clear();
-		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a="), 1 );
-		tm = {
-			{"a", ""}
-		};
-		TS_ASSERT_EQUALS( qm, tm );
-
-		qm.clear();
-		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a&"), 1 );
-		tm = {
-			{"a", ""}
-		};
-		TS_ASSERT_EQUALS( qm, tm );
-
-		qm.clear();
-		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a&b"), 2 );
-		tm = {
-			{"a", ""},
-			{"b", ""}
-		};
-		TS_ASSERT_EQUALS( qm, tm );
-
-		qm.clear();
-		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a=&"), 1 );
-		tm = {
-			{"a", ""}
-		};
-		TS_ASSERT_EQUALS( qm, tm );
-
-		qm.clear();
-		tm = {
-			{"a", "1"},
-			{"b", "2"},
-			{"yo", "hey"}
-		};
-		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a=1&b=2&yo=hey"), 3 );
-		TS_ASSERT_EQUALS( qm, tm );
-
-		qm.clear();
-		// no leading '?'
-		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "a=1&b=2&yo=hey"), 3 );
-		tm = {
-			{"a", "1"},
-			{"b", "2"},
-			{"yo", "hey"}
-		};
-		TS_ASSERT_EQUALS( qm, tm );
-
-		qm.clear();
-		tm = {
-			{"a", "1"},
-			{"b", ""},
-			{"yo", "hey"}
-		};
-		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a=1&b=&yo=hey"), 3 );
-		TS_ASSERT_EQUALS( qm, tm );
-
-		// haven't decided how this should work
-		// qm.clear();
-		// TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a=1&b=?&yo=hey"), 3 );
-		// tm = {
-		// 	{"a", "1"},
-		// 	{"b", "?"},
-		// 	{"yo", "hey"}
-		// };
-		// TS_ASSERT_EQUALS( qm, tm );
-
-		qm.clear();
-		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a=1&b&yo=hey"), 3 );
-		tm = {
-			{"a", "1"},
-			{"b", ""},
-			{"yo", "hey"}
-		};
-		TS_ASSERT_EQUALS( qm, tm );
-	}
-
-	void test_query_map_endcoded(void) {
-		url_query_map_t qm, tm;
-
-		// TODO be comprehensive
-
-		// test '+' => ' '
-		tm = {
-			{"a", "1"},
-			{"b", ""},
-			{"yo", "hey bro"}
-		};
-		TS_ASSERT_EQUALS( tagd::url::parse_query(qm, "?a=1&b=&yo=hey+bro"), 3 );
-		TS_ASSERT_EQUALS( qm, tm );
-	}
-
-	void test_query_find(void) {
-		url_query_map_t qm;
-		size_t n = tagd::url::parse_query(qm, "?a=1&b=2&yo=hey");
-		TS_ASSERT_EQUALS( n , 3 );
-		std::string val;
-		TS_ASSERT( tagd::url::query_find(qm, val, "a") );
-		TS_ASSERT_EQUALS( val , "1" );
-		TS_ASSERT( tagd::url::query_find(qm, val, "b") );
-		TS_ASSERT_EQUALS( val , "2" );
-		TS_ASSERT( tagd::url::query_find(qm, val, "yo") );
-		TS_ASSERT_EQUALS( val , "hey" );
-		TS_ASSERT( !tagd::url::query_find(qm, val, "haha") );
-	}
-
-	void test_query_value_literal_plus_and_form_spaces() {
-		url_query_map_t values;
-		TS_ASSERT_EQUALS(tagd::url::parse_query(values,
-			"?q=c%2B%2b+language%20guide&c=%252B&encoded=%26%3D"), 3u);
-		TS_ASSERT_EQUALS(values["q"], "c++ language guide");
-		TS_ASSERT_EQUALS(values["c"], "%2B");
-		TS_ASSERT_EQUALS(values["encoded"], "&=");
-	}
-
 	void test_looks_like(void) {
 		TS_ASSERT( tagd::url::looks_like_url("http://example.com") )
 		TS_ASSERT( tagd::url::looks_like_hduri("hd:com!example!http") )
@@ -1063,29 +1103,37 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( tagd::url::looks_like_url("http://localhost:2112/each:a?v=browse.html") )
 		TS_ASSERT( !tagd::url::looks_like_hduri("http://localhost:2112/each:a?v=browse.html") )
 		TS_ASSERT( !tagd::url::looks_like_hduri("hd:each!a") )
+
+		TS_ASSERT( tagd::url::looks_like_mailto("mailto:joe@example.com") )
+		TS_ASSERT( tagd::url::looks_like_mailto("MAILTO:joe@example.com") )
+		TS_ASSERT( !tagd::url::looks_like_mailto("mailto") )
+		TS_ASSERT( !tagd::url::looks_like_mailto("joe@example.com") )
 	}
 
 	void test_percent_encode(void) {
-		TS_ASSERT(tagd::uri_encode("ABC") == "ABC");
+		auto encode_all = [](const std::string& text) {
+			return tagd::percent_encode(text, [](unsigned char) { return false; });
+		};
+		TS_ASSERT(encode_all("ABC") == "%41%42%43");
 
 		const std::string src1("\xE3\x82\xA4\xE3\x83\x8C");
 		std::string enc1("%E3%82%A4%E3%83%8C");
 
-		TS_ASSERT_EQUALS(tagd::uri_encode(src1) , enc1);
+		TS_ASSERT_EQUALS(encode_all(src1) , enc1);
 		TS_ASSERT_EQUALS(tagd::uri_decode(enc1) , src1);
 
 		const std::string src("\0\1\2", 3);
 		const std::string enc("%00%01%02");
-		TS_ASSERT_EQUALS(tagd::uri_encode(src) , enc);
+		TS_ASSERT_EQUALS(encode_all(src) , enc);
 		TS_ASSERT_EQUALS(tagd::uri_decode(enc) , src);
 
-		TS_ASSERT_EQUALS(tagd::uri_encode("\xFF") , "%FF");
+		TS_ASSERT_EQUALS(encode_all("\xFF") , "%FF");
 		TS_ASSERT_EQUALS(tagd::uri_decode("%FF") , "\xFF");
 		TS_ASSERT_EQUALS(tagd::uri_decode("%ff") , "\xFF");
 
 		// unsafe chars test, RFC1738
 		const std::string UNSAFE(" <>#{}|\\^~[]`");
-		std::string unsafe_enc = tagd::uri_encode(UNSAFE);
+		std::string unsafe_enc = encode_all(UNSAFE);
 		TS_ASSERT_EQUALS(std::string::npos , unsafe_enc.find_first_of(UNSAFE));
 		TS_ASSERT_EQUALS(tagd::uri_decode(unsafe_enc) , UNSAFE);
 
@@ -1099,7 +1147,7 @@ class Tester : public CxxTest::TestSuite {
 				a[j] = rand() % (1 << 8);
 			int l = rand() % MAX_LEN;
 			std::string o(a, l);
-			std::string e = tagd::uri_encode(o);
+			std::string e = encode_all(o);
 			TS_ASSERT_EQUALS(o , tagd::uri_decode(e));
 		}
 	}
@@ -1166,7 +1214,11 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( url_test("rdar://1234", "rdar", "1234", "", "", "", "") );
 		// host gets lowered
 		TS_ASSERT( url_test("x-yojimbo-item://6303E4C1-6A6E-45A6-AB9D-3A908F59AE0E", "x-yojimbo-item", "6303e4c1-6a6e-45a6-ab9d-3a908f59ae0e", "", "", "", "") );
-		TS_ASSERT( url_user_test("message://%3c330e7f840905021726r6a4ba78dkf1fd71420c1bf6ff@mail.gmail.com%3e", "message", "%3c330e7f840905021726r6a4ba78dkf1fd71420c1bf6ff", "", "mail.gmail.com%3e", "", "", "", "") );
+		// Userinfo retains its escape spelling; host escapes are rejected separately.
+		TS_ASSERT(url_user_test(
+			"message://%3c330e7f840905021726r6a4ba78dkf1fd71420c1bf6ff@mail.gmail.com",
+			"message", "%3c330e7f840905021726r6a4ba78dkf1fd71420c1bf6ff",
+			"", "mail.gmail.com", "", "", "", ""));
 		TS_ASSERT( url_test("http://➡.ws/䨹", "http", "➡.ws", "", "/䨹", "", "") );
 		TS_ASSERT( url_test("http://example.com/something?with,commas,in,url", "http", "example.com", "", "/something", "?with,commas,in,url", "") );
 		TS_ASSERT( url_user_test("mailto:gruber@daringfireball.net?subject=TEST", "mailto", "gruber", "", "daringfireball.net", "", "", "?subject=TEST", "") );

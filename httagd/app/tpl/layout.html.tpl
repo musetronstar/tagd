@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset='utf-8'>
-<title>{{title}}</title>
+<title>{{title:h}}</title>
 <link rel="stylesheet" href="/_file/style/main.css">
 </head>
 <body>
@@ -11,10 +11,10 @@
   <bigger><strong>tagd</strong></bigger>
  </span>
  <span id="search">
-  <form id="search-form" method="GET" action="{{search_action}}">
+  <form id="search-form" method="GET" action="{{search_action:h}}">
 {{#query_options}}
  {{#query_option}}
- <input type="hidden" name="{{query_key}}" value="{{query_value}}">
+ <input type="hidden" name="{{query_key:h}}" value="{{query_value:h}}">
  {{/query_option}}
 {{/query_options}}
    <input id="terms" name="q" type="text" required>

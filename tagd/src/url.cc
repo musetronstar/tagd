@@ -6,11 +6,134 @@
 #include <sstream>
 #include <string>
 #include <strings.h>  // strcasecmp
+#include <arpa/inet.h>  // inet_pton
 
 
 #include "tagd/url.h"
+#include "tagd/utf8.h"
 
 namespace tagd {
+
+namespace {
+
+// URL case rules are ASCII rules; the C library's tolower would follow the process locale.
+constexpr char ascii_lower(char c) {
+	return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
+}
+
+constexpr bool hex_digit(unsigned char c) {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+
+// RFC 3986 unreserved and sub-delims: the ASCII a host holds without percent-encoding.
+constexpr bool host_byte(unsigned char c) {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+		|| std::string_view{"-._~!$&'()*+,;="}.find(static_cast<char>(c)) != std::string_view::npos;
+}
+
+constexpr bool userinfo_byte(unsigned char c) {
+	return host_byte(c) || c == ':';
+}
+
+// Path, query, and fragment keep producer syntax, excluding ASCII space and controls.
+constexpr bool text_byte(unsigned char c) {
+	return c > 0x20 && c < 0x7F;
+}
+
+enum class url_escapes {
+	unchecked,  // '%' is an ordinary byte
+	checked     // '%' begins a %XX escape
+};
+
+/*
+ * Raw text uses the component's ASCII rules and well-formed UTF-8 without C1
+ * controls. Checked escapes validate spelling only, preserving userinfo octets.
+ */
+bool url_component_ok(std::string_view s, bool (*ascii)(unsigned char), url_escapes escapes) {
+	for (size_t i = 0; i < s.size(); ) {
+		const auto c = static_cast<unsigned char>(s[i]);
+		if (c == '%' && escapes != url_escapes::unchecked) {
+			if (s.size() - i < 3 || !hex_digit(s[i + 1]) || !hex_digit(s[i + 2]))
+				return false;
+
+			i += 3;
+			continue;
+		}
+
+		if (c < 0x80) {
+			if (!ascii(c))
+				return false;
+
+			i++;
+			continue;
+		}
+
+		// C1 controls U+0080 to U+009F are the sequences 0xC2 0x80 to 0xC2 0x9F.
+		const auto len = utf8_sequence_len(s, i);
+		if (len == 0 || (c == 0xC2 && static_cast<unsigned char>(s[i + 1]) < 0xA0))
+			return false;
+
+		i += len;
+	}
+
+	return true;
+}
+
+// RFC 3986 IP-literal: "[" ( IPv6address / IPvFuture ) "]"; RFC 6874 zone IDs are not supported.
+bool ip_literal_ok(std::string_view host) {
+	if (host.size() < 3 || host.back() != ']')
+		return false;
+
+	const auto address = host.substr(1, host.size() - 2);
+	if (address.front() == 'v' || address.front() == 'V') {
+		// IPvFuture: "v" 1*HEXDIG "." 1*( unreserved / sub-delims / ":" )
+		const auto dot = address.find('.');
+		if (dot == std::string_view::npos || dot == 1 || dot + 1 == address.size())
+			return false;
+
+		return std::all_of(address.begin() + 1, address.begin() + dot,
+				[](unsigned char c) { return hex_digit(c); })
+			&& std::all_of(address.begin() + dot + 1, address.end(),
+				[](unsigned char c) { return userinfo_byte(c); });
+	}
+
+	// Check every byte before inet_pton, whose C-string input would stop at an embedded NUL.
+	if (!std::all_of(address.begin(), address.end(),
+			[](unsigned char c) { return hex_digit(c) || c == ':' || c == '.'; }))
+		return false;
+
+	in6_addr parsed;
+	return inet_pton(AF_INET6, std::string(address).c_str(), &parsed) == 1;
+}
+
+bool host_ok(std::string_view host) {
+	if (!host.empty() && host.front() == '[')
+		return ip_literal_ok(host);
+
+	// HDURI and HTTP transport escapes are already removed; actual hosts must be literal text.
+	return url_component_ok(host, host_byte, url_escapes::unchecked);
+}
+
+bool port_ok(std::string_view port) {
+	return std::all_of(port.begin(), port.end(),
+		[](unsigned char c) { return c >= '0' && c <= '9'; });
+}
+
+/*
+ * RFC 3986 sections 3.2.2 and 6.2.2.1: ASCII host letters compare without case,
+ * so URL identity keeps them lowercase. Requires a host that passed host_ok.
+ *
+ * TODO: Unicode hosts stay Unicode in tag IDs, but are not case-mapped yet.
+ * Map them with IDNA (UTS #46) and keep the Unicode result; convert to
+ * punycode only where a transport requires ASCII, such as an HTTP request.
+ */
+void normalize_host(std::string& url, size_t offset, size_t len) {
+	for (size_t i = offset; i < offset + len; i++) {
+		url[i] = ascii_lower(url[i]);
+	}
+}
+
+} // namespace
 
 tagd::code url::init(id_view u) {
 	if (u.size() == 0) return _code;  // URL_EMPTY
@@ -38,7 +161,7 @@ tagd::code url::init(id_view u) {
 
 // scheme
 	for (; i < sz; i++) {
-		url_str[i] = tolower(static_cast<unsigned char>(url_str[i]));
+		url_str[i] = ascii_lower(url_str[i]);
 		if (url_str[i] == ':') {
 			if (i == 0)
 				return code(URL_ERR_SCHEME);
@@ -60,6 +183,10 @@ tagd::code url::init(id_view u) {
 
 			return code(URL_ERR_SCHEME);
 		}
+
+		// Every URL input path, including HDURI reconstruction, shares this scheme grammar.
+		if (!(i == 0 ? url_scheme_initial(url_str[i]) : url_scheme_byte(url_str[i])))
+			return code(URL_ERR_SCHEME);
 	}
 
 	// missing ':'
@@ -88,6 +215,12 @@ authority:
 				_user_len = i - _user_offset;
 				i++; // advance past ':'
 				goto pass;
+			case '[':
+				// Userinfo cannot hold '[', so an authority starting with one is an IP literal host.
+				if (i != _user_offset)
+					break;
+				_user_offset = 0;
+				goto host;
 
 			/* {'/', '?', '#'} indicate no user, so it must be host */
 			case '/':
@@ -129,7 +262,7 @@ pass:
 	/*
 		If we made it here, the parsed out user may in fact be a host.
 		If no '@' is encountered, we can assume the user is really a host.
-		Empty passwords are allowed (i.e. http://joe:example.com)
+		Empty passwords are allowed (i.e. http://joe:@example.com)
 	*/
 
 	_pass_offset = i;
@@ -187,6 +320,13 @@ pass:
 
 host:
 	_host_offset = i;
+	// Colons inside an IP literal belong to the address, not a port delimiter.
+	if (i < sz && url_str[i] == '[') {
+		const auto close = url_str.find(']', i);
+		if (close == std::string::npos)
+			return code(URL_ERR_HOST);
+		i = close + 1;
+	}
 	for (; i < sz; i++) {
 
 		// I wish their were a more elegent way than repeating
@@ -287,12 +427,38 @@ query:
 fragment:
 	_fragment_offset = i;
 	_fragment_len = sz - _fragment_offset;
-	if (_fragment_len > 0)
 
 url_ok:
-	// lower host
-	for (i = _host_offset; i < (_host_offset + _host_len); i++)
-		url_str[i] = tolower(static_cast<unsigned char>(url_str[i]));
+	{
+		const std::string_view parsed{url_str};
+		auto part = [&parsed](url_size_t offset, url_size_t len) {
+			return parsed.substr(offset, len);
+		};
+
+		// All URL input forms share these authority and raw-text checks before identity forms.
+		if (!url_component_ok(part(_user_offset, _user_len), userinfo_byte, url_escapes::checked)
+			|| !url_component_ok(part(_pass_offset, _pass_len), userinfo_byte, url_escapes::checked))
+			return code(URL_ERR_USER);
+
+		if (!host_ok(part(_host_offset, _host_len)))
+			return code(URL_ERR_HOST);
+
+		if (!port_ok(part(_port_offset, _port_len)))
+			return code(URL_ERR_PORT);
+
+		// tagd has no query or fragment codes, so their errors report as path errors.
+		if (!url_component_ok(part(_path_offset, _path_len), text_byte, url_escapes::unchecked)
+			|| !url_component_ok(part(_query_offset, _query_len), text_byte, url_escapes::unchecked)
+			|| !url_component_ok(part(_fragment_offset, _fragment_len), text_byte,
+				url_escapes::unchecked))
+			return code(URL_ERR_PATH);
+	}
+
+	/*
+	 * Construction is where URL identity forms. HDURI decoding re-parses here
+	 * too, so an HDURI spelling a host any other way fails its canonical check.
+	 */
+	normalize_host(url_str, _host_offset, _host_len);
 	_id = url_str;
 	// a file: scheme url identifies materialized content;
 	// the url object provides the subordinate relation, never the user
@@ -516,19 +682,18 @@ tagd::code url::init_hduri(id_view uri) {
 }
 
 std::string encode_hduri_delim(id_view elem) {
-	std::string encoded;
-	encoded.reserve(elem.size());
-	for (const char c : elem) {
-		if (c == '%') {
-			encoded += HDURI_PERCENT_ENCODED;
-		} else if (c == HDURI_DELIM) {
-			encoded += HDURI_DELIM_ENCODED;
-		} else {
-			encoded += c;
-		}
-	}
+	return percent_encode(elem, [](unsigned char c) {
+		return c != '%' && c != HDURI_DELIM;
+	});
+}
 
-	return encoded;
+std::string file_url(std::string_view path) {
+	// Collection sources and --store paths must produce the same URL identity.
+	return "file://" + percent_encode(path, [](unsigned char c) {
+		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+			|| (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_'
+			|| c == '~' || c == '/';
+	});
 }
 
 bool decode_hduri_delim(std::string& result, id_view elem) {
@@ -592,8 +757,12 @@ std::string url::hduri() const {
 	std::string priv = d.priv_label();
 	std::string sub = d.sub();
 
-	// Domain classification can trim dots or reject long hosts; URL identity must retain those bytes.
-	if (hduri_host(reverse_labels(pub), priv, reverse_labels(sub)) != host) {
+	/*
+	 * Domain classification can trim dots or reject long hosts; URL identity must retain
+	 * those bytes. An IP literal is an address, so its dots never separate domain labels.
+	 */
+	if (host.starts_with('[')
+		|| hduri_host(reverse_labels(pub), priv, reverse_labels(sub)) != host) {
 		pub.clear();
 		priv = host;
 		sub.clear();
@@ -629,6 +798,10 @@ std::string url::hduri() const {
 
 // inserts host part relations, returns tld_code from domain::init
 void insert_host_parts(tagd::predicate_set& P, const url& u) {
+	// An IP literal is an address, not a registered name with public and private labels.
+	if (u.host().starts_with('['))
+		return;
+
 	tagd::domain d(u.host());
 	if (d.code() == TLD_ERR) return;
 
@@ -647,68 +820,13 @@ void insert_host_parts(tagd::predicate_set& P, const url& u) {
 	return;
 }
 
-std::string url::decode_query_value(std::string value) {
-	// Form '+' means space, but a percent-encoded '+' must remain literal.
-	for (auto& c : value) {
-		if (c == '+')
-			c = ' ';
-	}
-	return uri_decode(value);
-}
-
-size_t url::parse_query(url_query_map_t& M, const std::string& s) {
-	size_t init_map_sz = M.size();
-	size_t i = 0;
-
-	// Optional leading '?' before the first query pair.
-	if (i < s.size() && s[i] == '?')
-		++i;
-
-	while (i < s.size()) {
-		// '&' delimits query pairs.
-		if (s[i] == '&') {
-			++i;
-			continue;
-		}
-
-		// Parse one query pair: <key>[=<value>]
-		size_t pair_end = s.find('&', i);
-		if (pair_end == std::string::npos)
-			pair_end = s.size();
-
-		size_t eq_pos = s.find('=', i);
-		std::string k;
-		std::string v;
-
-		if (eq_pos != std::string::npos && eq_pos < pair_end) {
-			k = s.substr(i, eq_pos - i);
-			v = s.substr(eq_pos + 1, pair_end - eq_pos - 1);
-		} else {
-			// Keys without '=' are allowed and map to an empty value.
-			k = s.substr(i, pair_end - i);
-		}
-
-		if (!k.empty())
-			M[k] = decode_query_value(v);
-
-		i = pair_end;
-	}
-
-	return (M.size() - init_map_sz);
-}
-
-bool url::query_find(const url_query_map_t& m, std::string& val, const std::string& key) {
-	auto it = m.find(key);
-	if (it != m.end()) {
-		val = it->second;
-		return true;
-	} else {
-		return false;
-	}
-}
-
 bool url::looks_like_url(const std::string& s) {
 	return (s.find("://") != std::string::npos);
+}
+
+bool url::looks_like_mailto(const std::string& s) {
+	constexpr std::string_view prefix{"mailto:"};
+	return s.size() >= prefix.size() && strncasecmp(s.c_str(), prefix.data(), prefix.size()) == 0;
 }
 
 // if looks like hduri
@@ -826,58 +944,6 @@ std::string uri_decode(const std::string & sSrc)
 		*pEnd++ = *pSrc++;
 
 	std::string sResult(pStart, pEnd);
-	delete [] pStart;
-	return sResult;
-}
-
-// safe chars: [0-9a-zA-Z_]
-const char SAFE[256] =
-{
-	/*      0 1 2 3  4 5 6 7  8 9 A B  C D E F */
-	/* 0 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-	/* 1 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-	/* 2 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-	/* 3 */ 1,1,1,1, 1,1,1,1, 1,1,0,0, 0,0,0,0,
-
-	/* 4 */ 0,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,
-	/* 5 */ 1,1,1,1, 1,1,1,1, 1,1,1,0, 0,0,0,1,
-	/* 6 */ 0,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,
-	/* 7 */ 1,1,1,1, 1,1,1,1, 1,1,1,0, 0,0,0,0,
-
-	/* 8 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-	/* 9 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-	/* A */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-	/* B */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-
-	/* C */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-	/* D */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-	/* E */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-	/* F */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0
-};
-
-std::string uri_encode(const std::string & sSrc)
-{
-	const char DEC2HEX[16 + 1] = "0123456789ABCDEF";
-	const unsigned char * pSrc = (const unsigned char *)sSrc.c_str();
-	const int SRC_LEN = sSrc.length();
-	unsigned char * const pStart = new unsigned char[SRC_LEN * 3];
-	unsigned char * pEnd = pStart;
-	const unsigned char * const SRC_END = pSrc + SRC_LEN;
-
-	for (; pSrc < SRC_END; ++pSrc)
-	{
-		if (SAFE[*pSrc])
-			*pEnd++ = *pSrc;
-		else
-		{
-			// escape this char
-			*pEnd++ = '%';
-			*pEnd++ = DEC2HEX[*pSrc >> 4];
-			*pEnd++ = DEC2HEX[*pSrc & 0x0F];
-		}
-	}
-
-	std::string sResult((char *)pStart, (char *)pEnd);
 	delete [] pStart;
 	return sResult;
 }

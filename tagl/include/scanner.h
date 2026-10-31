@@ -9,6 +9,7 @@ struct evbuffer;
 
 namespace TAGL {
 
+const std::string QUERY_OPT_URL{"_url"};     // raw URL substitution
 const std::string QUERY_OPT_SEARCH{"q"};    // full text search
 const std::string QUERY_OPT_VIEW{"v"};      // view name
 const std::string QUERY_OPT_CONTEXT{"c"};   // tagspace context
@@ -134,7 +135,7 @@ class scanner::tagdurl : public scanner {
 	private:
 		int _command = -1;
 		tagdurl_mode _mode = tagdurl_mode::resolve_subject;
-		url_query_map_t _options;
+		tagdurl_option_map _options;
 		tagd::id_vec _contexts;
 
 	public:
@@ -142,6 +143,8 @@ class scanner::tagdurl : public scanner {
 		void scan(const char*, size_t) override;
 		void scan(int cmd, const std::string& path, tagdurl_mode);
 		void scan(tagd::http_method, const std::string& path);
+		// Requires a successfully parsed, unmodified address and matching query-free subject_path.
+		void scan(int cmd, const std::string& subject_path, const tagdurl_address&, tagdurl_mode);
 
 		// accapt HTTP method, returns TOK_CMD_*
 		static int method_command(tagd::http_method);
@@ -156,8 +159,8 @@ class scanner::tagdurl : public scanner {
 	ANY			= [^] ;
 
 	URI_SCHEME = [a-zA-Z]+[a-zA-Z0-9.+-]* ":" ;
-	SCHEME_SPEC_DATA  = [^\000 \t\r\n'"]+ ;
-	SCHEME_SPEC_LCHAR = [^\000 \t\r\n'",;]{1} ;
+	SCHEME_SPEC_DATA  = [^\000 \t\r\n"]+ ;
+	SCHEME_SPEC_LCHAR = [^\000 \t\r\n",;]{1} ;
 
 	TAGDURL = "/" SCHEME_SPEC_DATA? SCHEME_SPEC_LCHAR;
 

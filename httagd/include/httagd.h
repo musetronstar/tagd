@@ -121,6 +121,9 @@ class transaction;
 
 static const std::string DEFAULT_CONTENT_TYPE{"text/plain; charset=utf-8"};
 
+// libevhtp buffers a complete request body before TAGL reads it; this bounds that memory.
+inline constexpr uint64_t MAX_REQUEST_BODY_SIZE = 16 * 1024 * 1024;  // bytes, inclusive
+
 class response {
 	protected:
 		evhtp_request_t *_ev_req;
@@ -198,28 +201,48 @@ class request {
 	protected:
 		evhtp_request_t *_ev_req = nullptr;
 		std::string _path;
+		std::string _request_target;
+		std::optional<std::string> _operation_target;
 		std::optional<std::string> _operation_path;
 		std::string _tagspace_selector{"_"};
-		url_query_map_t _query_map;
+		TAGL::tagdurl_address _address;
 
 	public:
 		request(evhtp_request_t *ev_req)
-			: _ev_req{ev_req},
-			_path{_ev_req->uri->path->full}
+			: _ev_req{ev_req}, _path{ev_req->uri->path->full}, _request_target{_path}
 		{
-			if ( ev_req->uri->query_raw != NULL ) {
-				tagd::url::parse_query(
-					_query_map, (char*)ev_req->uri->query_raw );
-			}
+			if (ev_req->uri->query_raw != nullptr)
+				_request_target += "?" + std::string(reinterpret_cast<const char*>(ev_req->uri->query_raw));
 		}
 
 		request(tagd::http_method meth, const std::string path)
-			: method{meth}, _path{path} {}  // for Tester
+			: method{meth}, _path{path.substr(0, TAGL::tagdurl_query_offset(path))},
+			_request_target{path} {}  // for Tester
+
+		/*
+		 * Splits the target and parses its options once; selection, views, and the
+		 * tagdurl scanner reuse the address.
+		 */
+		[[nodiscard]] tagd::code parse_target(tagd::errorable& errors) {
+			if (!has_root_path())
+				return TAGL::parse_tagdurl_address(_request_target, _address, errors);
+
+			// The root has no selector or subject; it carries only options.
+			const auto query = TAGL::tagdurl_query_offset(_request_target);
+			if (query == std::string::npos)
+				return tagd::TAGD_OK;
+
+			_address.query = _request_target.substr(query);
+			return TAGL::parse_tagdurl_options(_address.query.substr(1), _address.options,
+				_address.contexts, errors);
+		}
+
+		const TAGL::tagdurl_address& address() const { return _address; }
+		const tagd::id_vec& query_contexts() const { return _address.contexts; }
 
 		std::string query_opt(const std::string &opt) const {
-			std::string val;
-			tagd::url::query_find(_query_map, val, opt);
-			return val;
+			const auto found = _address.options.find(opt);
+			return found == _address.options.end() ? "" : found->second;
 		}
 
 		std::string query_opt_search() const {
@@ -234,17 +257,19 @@ class request {
 			return this->query_opt(TAGL::QUERY_OPT_CONTEXT);
 		}
 
-		const url_query_map_t &query_map() const {
-			return _query_map;
+		const TAGL::tagdurl_option_map &query_map() const {
+			return _address.options;
 		}
 
 		const std::string& path() const {
 			return _path;
 		}
 
-		void addressed_path(const std::string& operation, const std::string& selector) {
-			_operation_path = operation.substr(0, operation.find('?'));
-			_tagspace_selector = selector;
+		// operation_path comes from select_tagdurl; the parsed query stays this request's.
+		void addressed_path(const std::string& operation_path) {
+			_operation_path = operation_path;
+			_operation_target = operation_path + _address.query;
+			_tagspace_selector = _address.selector;
 		}
 		const std::string& tagspace_selector() const { return _tagspace_selector; }
 		const std::string& operation_path() const {
@@ -255,24 +280,7 @@ class request {
 		}
 
 		std::string tagdurl() const {
-			std::string url = operation_path();
-			std::string opt_search = this->query_opt_search();
-			if (!opt_search.empty()) {
-				url.push_back(url.find('?') == std::string::npos ? '?' : '&');
-				url.append(TAGL::QUERY_OPT_SEARCH);
-				url.push_back('=');
-				url.append(tagd::uri_encode(opt_search));
-			}
-
-			std::string opt_context = this->query_opt_context();
-			if (!opt_context.empty()) {
-				url.push_back(url.find('?') == std::string::npos ? '?' : '&');
-				url.append(TAGL::QUERY_OPT_CONTEXT);
-				url.push_back('=');
-				url.append(tagd::uri_encode(opt_context));
-			}
-
-			return url;
+			return _operation_target ? *_operation_target : _request_target;
 		}
 
 		evhtp_request_t *ev_req() const {
@@ -521,7 +529,7 @@ class  evbuffer_emitter : public ctemplate::ExpandEmitter {
 		}
 
 		void set_tag_link(
-				const url_query_map_t&,
+				const TAGL::tagdurl_option_map&,
 				const std::string&,  // key
 				const std::string&, // val
 				const std::string& selector = {});

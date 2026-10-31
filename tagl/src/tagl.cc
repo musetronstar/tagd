@@ -160,7 +160,25 @@ void driver::free_parser() {
 	}
 }
 
+// Mirror parser.y's op productions: modifier values are strings, not tag IDs.
+static bool modifier_operator(int token) {
+	return token == TOK_EQ || token == TOK_GT || token == TOK_GT_EQ
+		|| token == TOK_LT || token == TOK_LT_EQ;
+}
+
 void driver::parse_tok(int tok, text_token s) {
+		// POS lookup can fail before this call; no later action may replace that error.
+		if (has_errors())
+			return;
+
+		// URI tokens bypass POS lookup, but still obey the common ID size contract.
+		if (!_tagspace_arguments && !modifier_operator(_token)
+			&& (tok == TOK_URL || tok == TOK_HDURI || tok == TOK_EVURI || tok == TOK_ERRURI)
+			&& tagd::valid_tag_id(s.str()) != tagd::tag_id_rule::valid) {
+			error(tagd::TAGL_ERR, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, s.str()));
+			return;
+		}
+
 		if (_predicate_fragment) {
 			// No statement may execute until the complete predicate fragment has been accepted.
 			switch (tok) {
@@ -266,9 +284,9 @@ tagd::code parse_tagdurl_address(const std::string& input, tagdurl_address& addr
 		return errors.error(tagd::TAGL_ERR,
 			tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, input));
 	};
-	const auto query = input.find('?');
+	const auto query = tagdurl_query_offset(input);
 	const auto path = input.substr(0, query);
-	if (path.size() < 2 || path.front() != '/' || path.find("//") != std::string::npos)
+	if (path.size() < 2 || path.front() != '/')
 		return bad_path();
 
 	const auto slash = path.find('/', 1);
@@ -283,9 +301,12 @@ tagd::code parse_tagdurl_address(const std::string& input, tagdurl_address& addr
 	address.description = slash == std::string::npos || slash == path.size() - 1;
 	address.descendants = slash != std::string::npos && slash == path.size() - 1;
 	address.operation = slash == std::string::npos ? "/" : path.substr(slash);
-	if (query != std::string::npos)
-		address.query = input.substr(query);
-	return tagd::TAGD_OK;
+	if (query == std::string::npos)
+		return tagd::TAGD_OK;
+
+	address.query = input.substr(query);
+	return parse_tagdurl_options(address.query.substr(1), address.options, address.contexts,
+		errors);
 }
 
 void driver::restore_tagdurl() {
@@ -301,11 +322,11 @@ void driver::restore_tagdurl() {
 }
 
 tagd::code driver::select_tagdurl(const tagdurl_address& address,
-	std::string& operation, bool description_read) {
+	std::string& operation_path, bool description_read) {
 	if (!_config) {
 		if (address.selector != "_" || address.description)
 			return error(tagd::TS_MISUSE, "tagspace collection not configured");
-		operation = address.operation + address.query;
+		operation_path = address.operation;
 		return tagd::TAGD_OK;
 	}
 
@@ -322,11 +343,7 @@ tagd::code driver::select_tagdurl(const tagdurl_address& address,
 		}
 	} restore{*_session, _session->context()};
 	auto contexts = restore.previous;
-	tagd::id_vec requested;
-	const auto context_rc = tagdurl_contexts(address.query, requested, *this);
-	if (context_rc != tagd::TAGD_OK)
-		return context_rc;
-	contexts.insert(contexts.end(), requested.begin(), requested.end());
+	contexts.insert(contexts.end(), address.contexts.begin(), address.contexts.end());
 	_session->lookup_contexts(contexts);
 
 	// Description reads are config operations: authorize before resolving or discovering names.
@@ -375,7 +392,7 @@ tagd::code driver::select_tagdurl(const tagdurl_address& address,
 			return code(rc);
 		}
 		_selection->target = _config->borrow(_config);
-		operation = "/" + tagd::uri_encode(id) + (address.descendants ? "/" : "") + address.query;
+		operation_path = "/" + encode_tagdurl_tag_id(id) + (address.descendants ? "/" : "");
 		return tagd::TAGD_OK;
 	}
 
@@ -384,7 +401,7 @@ tagd::code driver::select_tagdurl(const tagdurl_address& address,
 		if (rc != tagd::TAGD_OK)
 			return rc;
 	}
-	operation = address.operation + address.query;
+	operation_path = address.operation;
 	return tagd::TAGD_OK;
 }
 
@@ -405,13 +422,14 @@ void driver::scan_addressed_tagdurl(const std::string& input, int command) {
 
 	// A separate parser prevents recursive reductions in the outer statement parser.
 	driver inner(tsp(), _session);
-	inner.scan_tagdurl(command, operation, tagdurl_mode::resolve_subject);
+	const auto rc = inner.scan_tagdurl(command, operation, address, tagdurl_mode::resolve_subject);
 	inner.finish();
+
 	// The outer statement owns restoration after its callback, including lookup contexts.
 	inner._context_level = 0;
-	if (inner.has_errors()) {
+	if (rc != tagd::TAGD_OK || inner.has_errors()) {
 		copy_errors(inner);
-		code(inner.code());
+		code(rc == tagd::TAGD_OK ? inner.code() : rc);
 	} else if (inner.tag_ptr()) {
 		delete_tag();
 		tag_ptr(inner.tag_ptr());
@@ -597,6 +615,10 @@ int driver::lookup_pos(const std::string& s) {
 	}
 	if (_token == TOK_EQ) // '=' separates object and modifier
 		return TOK_MODIFIER;
+	if (!modifier_operator(_token) && tagd::valid_tag_id(s) != tagd::tag_id_rule::valid) {
+		error(tagd::TAGL_ERR, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_BAD_TOKEN, s));
+		return TOK_UNKNOWN;
+	}
 
 	int token;
 	if (TAGL_TRACE_ON && _session != nullptr) {
@@ -674,6 +696,20 @@ tagd::code driver::scan_tagdurl(tagd::http_method method, const std::string& pat
 	scanner::tagdurl sc(this);
 	sc.scan(method, path);
 	return this->code();
+}
+
+tagd::code driver::scan_tagdurl(int cmd, const std::string& operation_path,
+	const tagdurl_address& address, tagdurl_mode mode) {
+	this->init();
+	scanner::tagdurl sc(this);
+	sc.scan(cmd, operation_path, address, mode);
+	return this->code();
+}
+
+tagd::code driver::scan_tagdurl(tagd::http_method method, const std::string& operation_path,
+	const tagdurl_address& address) {
+	return this->scan_tagdurl(scanner::tagdurl::method_command(method), operation_path, address,
+		tagdurl_mode::constrain_body);
 }
 
 text_token driver::store_token_text(const std::string& s) {

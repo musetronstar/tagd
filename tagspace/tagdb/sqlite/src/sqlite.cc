@@ -973,8 +973,13 @@ tagd::code sqlite::format_declaration(tagd::abstract_tag& result,
 		populated.type_relations.transform(f_transform);
 	}
 
-	// A displayed alias or URL keeps a universal reference to its canonical identity.
-	if (!(flags & F_NO_TRANSFORM_REFERENTS) && canonical.id() != populated.id()) {
+	/*
+	 * A displayed alias keeps a universal reference to its canonical identity.
+	 * A URL is displayed from its HDURI, which is its stored ID and collation key,
+	 * not a referent.
+	 */
+	if (!(flags & F_NO_TRANSFORM_REFERENTS) && canonical.pos() != tagd::POS_URL
+		&& canonical.id() != populated.id()) {
 		tagd::predicate_set marker{{HARD_TAG_REFERS_TO, canonical.id()}};
 		const auto rc = order_predicates(marker);
 		if (rc != tagd::TAGD_OK) {
@@ -1482,11 +1487,14 @@ tagd::code sqlite::put_impl(const tagd::abstract_tag& t, session *ssn, flags_t f
 	TAGDB_LOG_DEBUG( "sqlite::put: " << t << " -- " << flag_util::flag_list_str(flags) << std::endl );
 	TAGDB_LOG_DEBUG("tagdb put subject=" << t.id());
 
-	if (t.id().length() > tagd::MAX_TAG_LEN)
+	const auto id_rule = tagd::valid_tag_id(t.id());
+	if (id_rule == tagd::tag_id_rule::too_long)
 		RET_SSN_FERROR(tagd::TS_ERR_MAX_TAG_LEN, "tag exceeds MAX_TAG_LEN of %d", tagd::MAX_TAG_LEN);
 
-	if (t.id().empty())
+	if (id_rule == tagd::tag_id_rule::empty)
 		RET_SSN_ERROR(tagd::TS_MISUSE, "inserting empty tag not allowed");
+	if (id_rule == tagd::tag_id_rule::reserved_prefix)
+		RET_SSN_ERROR(tagd::TS_MISUSE, "tag ID starts with reserved ':': " + t.id());
 
 	if (t.id()[0] == '_' && !_doing_init)
 		RET_SSN_FERROR(tagd::TS_MISUSE, "inserting hard tags not allowed: %s", t.id().c_str());

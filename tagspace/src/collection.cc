@@ -119,16 +119,6 @@ tagd::code subtree(tagspace& ts, id_view root, tag_set& result) {
 	return TAGD_OK;
 }
 
-std::string file_url(const std::string& path) {
-	std::string encoded;
-	for (unsigned char c : path) {
-		// Preserve URI unreserved bytes so ordinary file URLs share canonical spelling.
-		bool unreserved = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
-			|| (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' || c == '~';
-		encoded += (unreserved || c == '/') ? std::string(1, c) : uri_encode(std::string(1, c));
-	}
-	return "file://" + encoded;
-}
 }
 
 tagd::code config::descriptions(tag_set& result) {

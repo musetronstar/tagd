@@ -10,6 +10,26 @@
 
 class TagspaceMemoryTester : public CxxTest::TestSuite {
 public:
+	void test_invalid_url_hosts_do_not_mutate_storage() {
+		const auto nul_url = "https://[::1" + std::string(1, '\0') + "junk]/";
+		for (const auto& input : {nul_url, std::string("https://ex%FFample.com/"),
+			std::string("https://ex%E6%97%A5ample.com/")}) {
+			tagd::tagspace::memory ts;
+			TS_ASSERT_EQUALS(ts.init(), tagd::TAGD_OK);
+			std::ostringstream before;
+			TS_ASSERT_EQUALS(ts.dump(before), tagd::TAGD_OK);
+
+			const tagd::url u(input);
+			TS_ASSERT_EQUALS(u.code(), tagd::URL_ERR_HOST);
+			TS_ASSERT_DIFFERS(ts.put(u), tagd::TAGD_OK);
+
+			ts.clear_errors();
+			std::ostringstream after;
+			TS_ASSERT_EQUALS(ts.dump(after), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(after.str(), before.str());
+		}
+	}
+
 	void test_modifier_referent_collisions_remain_literal() {
 		for (const auto literal : {"perro", "dog"}) {
 			tagd::tagspace::memory ts;

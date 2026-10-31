@@ -315,7 +315,7 @@ class view_test_request : public httagd::request {
 public:
 	view_test_request(const std::string& selected) : request(tagd::HTTP_GET, "/") {
 		if (!selected.empty())
-			_query_map.emplace(TAGL::QUERY_OPT_VIEW, selected);
+			_address.options.emplace(TAGL::QUERY_OPT_VIEW, selected);
 	}
 };
 
@@ -351,6 +351,55 @@ std::string view_response_body(httagd::transaction& tx) {
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_request_retains_raw_target_and_shared_options() {
+		const std::string target = "/_/:_url:?v=browse.html&c=&_url=https://example.com/a?x=1&q=a+b%21";
+		httagd::request req(tagd::HTTP_GET, target);
+		tagd::errorable errors;
+		TS_ASSERT_EQUALS(req.parse_target(errors), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(req.tagdurl(), target);
+		TS_ASSERT_EQUALS(req.address().selector, "_");
+		TS_ASSERT_EQUALS(req.address().operation, "/:_url:");
+		TS_ASSERT_EQUALS(req.query_opt_view(), "browse.html");
+		TS_ASSERT(req.query_map().contains(TAGL::QUERY_OPT_CONTEXT));
+		TS_ASSERT(!req.query_map().contains(TAGL::QUERY_OPT_SEARCH));
+		TS_ASSERT_EQUALS(req.query_opt(TAGL::QUERY_OPT_URL), "https://example.com/a?x=1&q=a+b%21");
+		req.addressed_path("/:_url:");
+		TS_ASSERT_EQUALS(req.operation_path(), "/:_url:");
+		TS_ASSERT_EQUALS(req.tagdurl(), target.substr(2));
+		for (const auto* suffix : {"foo=bar", "foo", "q", "&q=a", "q=a&", "q=a&q=b"}) {
+			httagd::request invalid(tagd::HTTP_GET, std::string("/_/animal/?") + suffix);
+			errors.clear_errors();
+			TS_ASSERT_EQUALS(invalid.parse_target(errors), tagd::TAGL_ERR);
+		}
+
+		// The root has no selector or subject; it carries only options.
+		httagd::request root(tagd::HTTP_GET, "/?q=dog&c=a");
+		errors.clear_errors();
+		TS_ASSERT_EQUALS(root.parse_target(errors), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(root.query_opt_search(), "dog");
+		TS_ASSERT_EQUALS(root.query_contexts().size(), 1u);
+		TS_ASSERT_EQUALS(root.address().query, "?q=dog&c=a");
+	}
+
+	void test_generated_url_and_event_links_preserve_fields() {
+		const std::string name = "test_generated_url_and_event_links_preserve_fields";
+		TS_ASSERT(ctemplate::StringToTemplateCache(name, "{{id_lnk}}", ctemplate::DO_NOT_STRIP));
+		for (const std::string value : {"http://joe@example.com", "http://joe:@example.com",
+			"http://joe:%00@example.com", "mailto:joe@example.com", "https://example.com/a!b?x=1#top",
+			"ev:t!h!p!program!s!1!alarm,urgent", "err:t!h!p!program!s!1!alarm,urgent"}) {
+			httagd::tagd_template tpl(name);
+			tpl.set_tag_link({}, "id", value);
+			TS_ASSERT_TAGD_OK(tpl.expand(name));
+			const tagd::url url(value);
+			const auto id = url.ok() ? url.hduri() : value;
+			TS_ASSERT_EQUALS(tpl.output_str(), "/_/" + TAGL::encode_tagdurl_tag_id(id));
+			INIT_TSP_TAGL();
+			TS_ASSERT_TAGD_OK(tagl.scan_tagdurl(tagd::HTTP_GET, tpl.output_str().substr(2)));
+			tagl.finish();
+			TS_ASSERT_EQUALS(tagl.tag().id(), value);
+		}
+	}
+
 	void test_view_lookup_preserves_registered_handler() {
 		// Lookup preserves the registered handler and gives the caller a retained copy.
 		TS_ASSERT(!accepts_temporary_view_result<httagd::viewspace>);
@@ -807,9 +856,9 @@ class Tester : public CxxTest::TestSuite {
 		for (const std::string invalid : {"hd:com!example!!/a%20b!!!!!!http",
 			"http://example.com:", "mailto://joe@example.com"}) {
 			httagd::tagd_template tpl(name);
-			tpl.set_tag_link(url_query_map_t{}, "id", invalid);
+			tpl.set_tag_link(TAGL::tagdurl_option_map{}, "id", invalid);
 			TS_ASSERT_TAGD_OK(tpl.expand(name));
-			TS_ASSERT_EQUALS(tpl.output_str(), invalid + "|/_/" + tagd::uri_encode(invalid));
+			TS_ASSERT_EQUALS(tpl.output_str(), invalid + "|/_/" + TAGL::encode_tagdurl_tag_id(invalid));
 		}
 	}
 

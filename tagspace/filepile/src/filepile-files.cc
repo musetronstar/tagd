@@ -155,27 +155,7 @@ bool valid_unicode(const std::string& bytes) {
 	return true;
 }
 
-bool unreserved(unsigned char c) {
-	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-		(c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' || c == '~';
-}
-
 } // namespace
-
-std::string path_url(const std::string& path) {
-	constexpr char digits[] = "0123456789ABCDEF";
-	std::string value = "file://";
-	for (unsigned char c : path) {
-		if (unreserved(c) || c == '/')
-			value += c;
-		else {
-			value += '%';
-			value += digits[c >> 4];
-			value += digits[c & 15];
-		}
-	}
-	return value;
-}
 
 tagd::code canonical_source(errorable& errors, url& result, std::string& path, const url& input) {
 	if (input.code() != TAGD_OK)
@@ -228,7 +208,7 @@ tagd::code canonical_source(errorable& errors, url& result, std::string& path, c
 		path += '/' + segment;
 		start = end + 1;
 	}
-	result = url(path_url(path));
+	result = url(file_url(path));
 	if (result.code() != TAGD_OK)
 		return errors.error(result.code(), "canonical source URL exceeds URL limits: " + raw);
 	return TAGD_OK;

@@ -44,7 +44,7 @@ const std::string HTML_CONTENT_TYPE{"text/html; charset=utf-8"};
 
 void fill_header(transaction& tx, tagd_template& tpl, const std::string& title) {
 	tpl.set_value("title", title);
-	tpl.set_value("search_action", "/" + tagd::uri_encode(tx.req->tagspace_selector()) + "/*/");
+	tpl.set_value("search_action", "/" + TAGL::encode_tagdurl_tag_id(tx.req->tagspace_selector()) + "/*/");
 
 	auto qm = tx.req->query_map();
 	if ( qm.size() > 0 ) {
@@ -54,8 +54,16 @@ void fill_header(transaction& tx, tagd_template& tpl, const std::string& title) 
 				qm[TAGL::QUERY_OPT_VIEW] = BROWSE_VIEW_ID.name();
 
 		tpl.show_section("query_options");
-		auto sec_qry = tpl.add_section("query_option");
 		for ( auto &kv : qm ) {
+			/*
+			 * Duplicate options are errors: the form's text input supplies q, and
+			 * the search action has no :_url: placeholder for a _url option.
+			 */
+			if (kv.first == TAGL::QUERY_OPT_SEARCH || kv.first == TAGL::QUERY_OPT_URL)
+				continue;
+
+			// Each section dictionary is one hidden input; reusing one would keep only the last.
+			auto sec_qry = tpl.add_section("query_option");
 			sec_qry->set_value("query_key", kv.first);
 			sec_qry->set_value("query_value", kv.second);
 		}
@@ -413,7 +421,7 @@ get_handler_t browse_handler(
 	}
 );
 
-void fill_error(const url_query_map_t& qm, tagd_template& tpl, const tagd::errorable& errs,
+void fill_error(const TAGL::tagdurl_option_map& qm, tagd_template& tpl, const tagd::errorable& errs,
 	const std::string& selector) {
 	tpl.set_value("err_ids", tagd::tag_ids_str(errs.errors()));
 

@@ -123,4 +123,51 @@ bool utf8_is_valid(uint32_t cp) {
 	);
 }
 
+size_t utf8_sequence_len(std::string_view s, size_t pos) {
+	if (pos >= s.size())
+		return 0;
+
+	const auto lead = static_cast<unsigned char>(s[pos]);
+	if (lead < 0x80)
+		return 1;
+
+	/*
+	 * RFC 3629 section 4: the lead byte fixes the length and the range of the
+	 * first continuation byte, which excludes overlong forms, surrogates, and
+	 * code points above U+10FFFF.
+	 */
+	size_t len = 0;
+	unsigned char low = 0x80, high = 0xBF;
+	if (lead >= 0xC2 && lead <= 0xDF) {
+		len = 2;
+	} else if (lead >= 0xE0 && lead <= 0xEF) {
+		len = 3;
+		if (lead == 0xE0)
+			low = 0xA0;
+		else if (lead == 0xED)
+			high = 0x9F;
+	} else if (lead >= 0xF0 && lead <= 0xF4) {
+		len = 4;
+		if (lead == 0xF0)
+			low = 0x90;
+		else if (lead == 0xF4)
+			high = 0x8F;
+	} else {
+		return 0;
+	}
+
+	if (s.size() - pos < len)
+		return 0;
+
+	for (size_t i = 1; i < len; i++) {
+		const auto c = static_cast<unsigned char>(s[pos + i]);
+		if (c < low || c > high)
+			return 0;
+		low = 0x80;
+		high = 0xBF;
+	}
+
+	return len;
+}
+
 } // namespace tagd

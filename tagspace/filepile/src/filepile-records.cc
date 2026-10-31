@@ -22,8 +22,10 @@ tagd::code link_id(errorable& errors, std::string& id, const url& source, unsign
 		return errors.error(TS_ERR, "filepile content revision must be between 1 and 999: " + source.id());
 	const auto digits = std::to_string(revision);
 	id = "link:" + source.hduri() + '#' + std::string(3 - digits.size(), '0') + digits;
-	if (id.size() > MAX_TAG_LEN)
+	const auto id_rule = valid_tag_id(id);
+	if (id_rule == tag_id_rule::too_long)
 		return errors.error(TS_ERR_MAX_TAG_LEN, "filepile link ID maximum of " + std::to_string(MAX_TAG_LEN) + " bytes exceeded");
+	// The generated link: prefix guarantees a nonempty, nonreserved ID.
 	return TAGD_OK;
 }
 

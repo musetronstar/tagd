@@ -9,24 +9,6 @@
 
 namespace tagd {
 
-std::string encode_evuri_delim(std::string elem) {
-	size_t pos = 0;
-	while ((pos = elem.find(EVURI_DELIM, pos)) != std::string::npos) {
-		elem.replace(pos, 1, EVURI_DELIM_ENCODED);
-		pos += EVURI_DELIM_ENCODED.length();
-	}
-	return elem;
-}
-
-std::string decode_evuri_delim(std::string elem) {
-	size_t pos = 0;
-	while ((pos = elem.find(EVURI_DELIM_ENCODED, pos)) != std::string::npos) {
-		elem.replace(pos, EVURI_DELIM_ENCODED.length(), 1, EVURI_DELIM);
-		pos++;
-	}
-	return elem;
-}
-
 std::string system_hostname() {
 	char buf[256];
 	if (gethostname(buf, sizeof(buf)) != 0)
@@ -75,34 +57,36 @@ event::event(session& ssn, const id_string& program, const id_string& event_type
 }
 
 void event::init_id() {
+	// EVURI borrows HDURI field escaping and its delimiter for collation.
 	std::stringstream ss;
 	ss << EVURI_SCHEME
-	   << encode_evuri_delim(_time) << EVURI_DELIM
-	   << encode_evuri_delim(_host) << EVURI_DELIM
-	   << encode_evuri_delim(_principal) << EVURI_DELIM
-	   << encode_evuri_delim(_program) << EVURI_DELIM
-	   << encode_evuri_delim(_session_id) << EVURI_DELIM
-	   << encode_evuri_delim(_sequence) << EVURI_DELIM
-	   << encode_evuri_delim(_event_type_tag);
+	   << encode_hduri_delim(_time) << HDURI_DELIM
+	   << encode_hduri_delim(_host) << HDURI_DELIM
+	   << encode_hduri_delim(_principal) << HDURI_DELIM
+	   << encode_hduri_delim(_program) << HDURI_DELIM
+	   << encode_hduri_delim(_session_id) << HDURI_DELIM
+	   << encode_hduri_delim(_sequence) << HDURI_DELIM
+	   << encode_hduri_delim(_event_type_tag);
 	_id = ss.str();
 	_sub_relator = HARD_TAG_SUB;
 	_super_object = _event_type_tag.empty() ? HARD_TAG_EVENT : _event_type_tag;
 }
 
 tagd::code event::init_evuri(const std::string& evuri) {
-	if (evuri.substr(0, EVURI_SCHEME.size()) != EVURI_SCHEME)
+	if (std::string_view(evuri).substr(0, EVURI_SCHEME.size()) != EVURI_SCHEME)
 		return code(URI_ERR_SCHEME);
 
-	const std::string& s = evuri.substr(EVURI_SCHEME.size());
+	const auto s = std::string_view(evuri).substr(EVURI_SCHEME.size());
 	size_t i = 0;
 	std::vector<id_string> elems;
 	while (i <= s.size()) {
-		size_t j = s.find(EVURI_DELIM, i);
-		if (j == std::string::npos) {
-			elems.push_back(decode_evuri_delim(s.substr(i)));
+		size_t j = s.find(HDURI_DELIM, i);
+		std::string field;
+		if (!decode_hduri_delim(field, s.substr(i, j == std::string::npos ? j : j - i)))
+			return code(TS_MISUSE);
+		elems.push_back(std::move(field));
+		if (j == std::string::npos)
 			break;
-		}
-		elems.push_back(decode_evuri_delim(s.substr(i, j - i)));
 		i = j + 1;
 	}
 

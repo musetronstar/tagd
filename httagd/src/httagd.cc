@@ -275,9 +275,7 @@ tagd::code httagl::execute(transaction& tx) {
 					return code();
 			} else {
 				// A general TAGL body still shares the request's validated lookup context.
-				tagd::id_vec contexts;
-				if (TAGL::tagdurl_contexts(tx.req->tagdurl(), contexts, *this) != tagd::TAGD_OK
-					|| apply_tagdurl_context(contexts) != tagd::TAGD_OK)
+				if (apply_tagdurl_context(tx.req->query_contexts()) != tagd::TAGD_OK)
 					return code();
 			}
 			TAGL::driver::execute(tx.req->ev_req()->buffer_in);
@@ -347,7 +345,7 @@ tagd::code httagl::tagdurl_del(const request& req) {
 
 tagd::code httagl::scan_request_tagdurl(const request& req) {
 	this->init();
-	return TAGL::driver::scan_tagdurl(req.method, req.tagdurl());
+	return TAGL::driver::scan_tagdurl(req.method, req.operation_path(), req.address());
 }
 
 void callback::default_cmd_put(const tagd::abstract_tag& t) {
@@ -413,6 +411,16 @@ evhtp_res tagd_code_evhtp_res(tagd::code tc) {
 		case tagd::TS_AMBIGUOUS:
 		case tagd::HTTP_ERR:
 		case tagd::TS_MISUSE:
+		// URL syntax errors come from the request's own path or body text.
+		case tagd::URI_ERR_SCHEME:
+		case tagd::URL_EMPTY:
+		case tagd::URL_MAX_LEN:
+		case tagd::URL_ERR_SCHEME:
+		case tagd::URL_ERR_HOST:
+		case tagd::URL_ERR_PORT:
+		case tagd::URL_ERR_PATH:
+		case tagd::URL_ERR_USER:
+		case tagd::HDURI_ERR:
 			return EVHTP_RES_BADREQ;  // 400
 		case tagd::TS_NOT_FOUND:
 			return EVHTP_RES_NOTFOUND;	// 404
@@ -444,6 +452,9 @@ void response::send_ev_reply(evhtp_res res) {
 			add_header_content_length(length);
 		evbuffer_drain(_ev_req->buffer_out, length);
 	}
+
+	// Browsers render the declared type, so TAGL text holding markup never runs as HTML.
+	add_header("X-Content-Type-Options", "nosniff");
 
 	HTTAGD_LOG_DEBUG("httagd send_ev_reply res=" << res << " name=" << evhtp_res_str(res));
 	{
@@ -558,9 +569,9 @@ std::string request::abs_url_view(const std::string& view_name) const {
 	else
 		url = "/";
 
-	// TODO we may want to replace the _query_map v=<name> attribute and keep others
+	// TODO we may want to replace the request's parsed v=<name> option and keep others
 	// for now just add  v=<view_name>
-	url.append("?v=").append(view_name);
+	url.append("?v=").append(TAGL::encode_tagdurl_option(view_name));
 
 	return url;
 }
@@ -823,7 +834,7 @@ tagd_template* tagd_template::include(const std::string &id, const std::string &
 
 // sets the value of a template marker to <key> and also its
 // corresponding <key>_lnk marker to the hyperlink representation of <key>
-void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::string& key,
+void tagd_template::set_tag_link(const TAGL::tagdurl_option_map& query_map, const std::string& key,
 	const std::string& val, const std::string& selector) {
 	if (val == "*") { // wildcard relator
 		// empty link
@@ -834,21 +845,23 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 	std::string opt_str;
 
 	std::string view_name;
-	tagd::url::query_find(query_map, view_name, TAGL::QUERY_OPT_VIEW);
+	if (const auto found = query_map.find(TAGL::QUERY_OPT_VIEW); found != query_map.end())
+		view_name = found->second;
 	if (!view_name.empty()) {
 		opt_str.push_back(opt_str.empty() ? '?' : '&');
 		opt_str.append(TAGL::QUERY_OPT_VIEW);
 		opt_str.push_back(('='));
-		opt_str.append(tagd::uri_encode(view_name));
+		opt_str.append(TAGL::encode_tagdurl_option(view_name));
 	}
 
 	std::string context;
-	tagd::url::query_find(query_map, context, TAGL::QUERY_OPT_CONTEXT);
+	if (const auto found = query_map.find(TAGL::QUERY_OPT_CONTEXT); found != query_map.end())
+		context = found->second;
 	if (!context.empty()) {
 		opt_str.push_back(opt_str.empty() ? '?' : '&');
 		opt_str.append(TAGL::QUERY_OPT_CONTEXT);
 		opt_str.push_back(('='));
-		opt_str.append(tagd::uri_encode(context));
+		opt_str.append(TAGL::encode_tagdurl_option(context));
 	}
 
 	// TODO: Consider HTTP resolution redirects or _resolve_redirect; preserve aliases and _ here.
@@ -856,20 +869,19 @@ void tagd_template::set_tag_link(const url_query_map_t& query_map, const std::st
 	auto f_set_vals = [this, &key, &opt_str, &selector](const std::string& key_val, const std::string& lnk_val) {
 		this->set_value(
 			std::string(key).append("_lnk"),
-			std::string("/").append(selector.empty() ? "_/" : tagd::uri_encode(selector) + "/")
+			std::string("/").append(selector.empty() ? "_/" : TAGL::encode_tagdurl_tag_id(selector) + "/")
 				.append(lnk_val).append(opt_str)
 		);
 		this->set_value(key, key_val);
 	};
 
-	if ( tagd::url::looks_like_hduri(val) ) {
-		tagd::HDURI u(val);
-		f_set_vals(u.ok() ? u.id() : val, tagd::uri_encode(u.ok() ? u.hduri() : val));
-	} else if ( tagd::url::looks_like_url(val) ) {
-		tagd::url u(val);
-		f_set_vals(u.ok() ? u.id() : val, tagd::uri_encode(u.ok() ? u.hduri() : val));
+	// Only URL spellings require core parsing; ordinary labels keep their nominal identity.
+	if (tagd::url::looks_like_hduri(val) || tagd::url::looks_like_url(val)
+		|| tagd::url::looks_like_mailto(val)) {
+		const tagd::url u(val);
+		f_set_vals(u.ok() ? u.id() : val, TAGL::encode_tagdurl_tag_id(u.ok() ? u.hduri() : val));
 	} else {
-		f_set_vals(val, tagd::uri_encode(val));
+		f_set_vals(val, TAGL::encode_tagdurl_tag_id(val));
 	}
 }
 
@@ -918,26 +930,29 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	  .share_errors(*vws)
 	  .share_errors(ssn);
 
+	auto parse_rc = req.parse_target(tagl);
+	if (parse_rc == tagd::TAGD_OK && req.has_root_path()
+		&& req.query_map().contains(TAGL::QUERY_OPT_URL)) {
+		// Root handlers otherwise bypass tagdurl subject validation.
+		parse_rc = tagl.error(tagd::TAGL_ERR, "_url option requires one :_url: placeholder");
+	}
+
 	// Root reads without a search are EMPTY, not incomplete tagdurl statements.
 	const bool root_read = req.has_root_path()
 		&& (method == htp_method_GET || method == htp_method_HEAD);
 	const bool root_empty = root_read && !req.query_map().contains(TAGL::QUERY_OPT_SEARCH);
-	if (root_read && req.query_map().contains("s")) {
-		tagl.error(tagd::TS_MISUSE, "root search with ?s= is not supported");
-	} else if (root_empty) {
+	if (parse_rc == tagd::TAGD_OK && root_empty) {
 		req.method = method == htp_method_HEAD ? tagd::HTTP_HEAD : tagd::HTTP_GET;
 		// EMPTY still uses the request's validated referent context.
-		tagd::id_vec contexts;
-		if (TAGL::tagdurl_contexts(req.tagdurl(), contexts, tagl) == tagd::TAGD_OK)
-			tagl.apply_tagdurl_context(contexts);
+		parse_rc = tagl.apply_tagdurl_context(req.query_contexts());
 	}
 
 	// Shared parsing determines the operation; transport policy cannot change its meaning.
-	if (!req.has_root_path()) {
-		TAGL::tagdurl_address address;
-		auto rc = TAGL::parse_tagdurl_address(req.tagdurl(), address, tagl);
+	if (parse_rc == tagd::TAGD_OK && !req.has_root_path()) {
+		const auto& address = req.address();
+		auto rc = tagd::TAGD_OK;
 		const bool read = method == htp_method_GET || method == htp_method_HEAD;
-		if (rc == tagd::TAGD_OK && address.description
+		if (address.description
 			&& (method == htp_method_PUT || method == htp_method_DELETE)) {
 			// TODO: Consider tagspace creation through the HTTP service in future development.
 			rc = tagl.error(tagd::TAGL_ERR,
@@ -947,10 +962,11 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 		if (rc == tagd::TAGD_OK)
 			rc = tagl.select_tagdurl(address, operation, read);
 		if (rc == tagd::TAGD_OK) {
-			req.addressed_path(operation, address.selector);
+			req.addressed_path(operation);
 			if (method == htp_method_POST || method == htp_method_PUT || method == htp_method_DELETE)
 				tagl.fix_http_target();
 		}
+		parse_rc = rc;
 	}
 
 	/*
@@ -959,7 +975,7 @@ void main_cb(evhtp_request_t *ev_req, void *arg) {
 	 * target or alias must not reuse another tagspace's same-ID representation;
 	 * validators alone do not prevent fresh-cache reuse.
 	 */
-	if (tagl.has_errors())
+	if (parse_rc != tagd::TAGD_OK || tagl.has_errors())
 		tagl.do_callback();
 	else if (root_empty)
 		CB.empty();
@@ -1118,8 +1134,30 @@ server::~server() {
 	event_base_free(_evbase);
 }
 
+static evhtp_res keep_request_query(evhtp_request_t* req, evhtp_headers_t*, void*) {
+	/*
+	 * libevhtp treats a form body as query_raw when its query list is null.
+	 * An empty list prevents that fallback; libevhtp owns and frees the list.
+	 * TAGL alone interprets request-target options and consumes the TAGL body.
+	 */
+	if (req->uri->query == nullptr)
+		req->uri->query = evhtp_query_new();
+	return req->uri->query == nullptr ? EVHTP_RES_FATAL : EVHTP_RES_OK;
+}
+
+static evhtp_res set_request_query_hook(evhtp_connection_t* connection, void*) {
+	// Let libevhtp allocate its hook storage, then use the typed C++ callback field.
+	if (evhtp_connection_set_hook(connection, evhtp_hook_on_headers, nullptr, nullptr) != 0)
+		return EVHTP_RES_FATAL;
+	connection->hooks->on_headers = keep_request_query;
+	return EVHTP_RES_OK;
+}
+
 tagd::code server::start() {
-	// for debug printing request data
+	// libevhtp closes the connection once a body reaches its limit; allow exactly the maximum.
+	evhtp_set_max_body_size(_htp, MAX_REQUEST_BODY_SIZE + 1);
+	evhtp_set_post_accept_cb(_htp, set_request_query_hook, nullptr);
+	// Debug hooks must be chained from set_request_query_hook; replacing it loses query isolation.
 	// evhtp_set_post_accept_cb(_htp, set_my_connection_handlers, nullptr);
 	evhtp_set_cb(_htp, "/_file", file_cb, this);
 	evhtp_set_cb(_htp, "/favicon.ico", favicon_cb, this);
