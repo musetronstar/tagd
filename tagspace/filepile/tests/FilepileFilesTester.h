@@ -4,6 +4,8 @@
 #include <fstream>
 #include <filesystem>
 #include <unistd.h>
+#include <sstream>
+#include <dirent.h>
 
 // Linker wrappers exercise real filesystem failures without a production injection API.
 namespace filepile_fault {
@@ -11,8 +13,17 @@ inline int read_error = 0, write_error = 0, sync_error = 0, link_error = 0, unli
 inline bool zero_write = false;
 inline bool interrupted_read = false, interrupted_write = false, short_io = false;
 inline unsigned sync_count = 0;
+inline bool scan_error = false;
 }
 extern "C" {
+struct dirent* __real_readdir(DIR*);
+struct dirent* __wrap_readdir(DIR* directory) {
+	if (filepile_fault::scan_error) {
+		errno = EACCES;
+		return nullptr;
+	}
+	return __real_readdir(directory);
+}
 ssize_t __real_read(int, void*, size_t);
 ssize_t __real_write(int, const void*, size_t);
 int __real_fsync(int);
@@ -88,8 +99,93 @@ public:
 		filepile_fault::link_error = filepile_fault::unlink_error = 0;
 		filepile_fault::short_io = filepile_fault::zero_write = false;
 		filepile_fault::read_error = 0;
+		filepile_fault::scan_error = false;
 		std::filesystem::remove_all(root);
 	}
+	void test_stored_address_and_removal_use_the_pile_root() {
+		write("addressed content");
+		tagd::filepile::files f;
+		TS_ASSERT_EQUALS(f.init(root.string(), tagd::url(tagd::file_url(
+			(root / "source").string()))), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(f.capture(), tagd::TAGD_OK);
+		const auto name = f.digest + ".txt";
+		const tagd::url stored("filepile:///" + f.digest.substr(0, 2) + '/'
+			+ f.digest.substr(2, 2) + '/' + name);
+		std::string parsed;
+		TS_ASSERT_EQUALS(tagd::filepile::stored_address(diagnostics, parsed, stored), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(parsed, name);
+		TS_ASSERT_EQUALS(f.publish(name), tagd::TAGD_OK);
+		tagd::cleanup_result removed;
+		TS_ASSERT_EQUALS(tagd::filepile::remove_content(diagnostics, removed, root.string(), stored),
+			tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(removed.outcome, tagd::cleanup_outcome::removed);
+		TS_ASSERT(!std::filesystem::exists(f.destination(name)));
+		for (const auto& wrong : {tagd::file_url(f.destination(name)), "file://" + stored.path()}) {
+			TS_ASSERT_EQUALS(tagd::filepile::stored_address(diagnostics, parsed, tagd::url(wrong)),
+				tagd::TS_ERR);
+		}
+	}
+
+	void test_diagnostics_name_source_ids_and_internal_roles() {
+		write("abc");
+		const tagd::url missing(tagd::file_url((root / "missing # %").string()));
+		tagd::filepile::files absent;
+		TS_ASSERT_EQUALS(absent.init(root.string(), missing), tagd::TS_NOT_FOUND);
+		std::ostringstream text;
+		absent.print_errors(text);
+		TS_ASSERT_DIFFERS(text.str().find("open source: " + missing.id()), std::string::npos);
+		TS_ASSERT_EQUALS(text.str().find((root / "missing # %").string()), std::string::npos);
+
+		tagd::filepile::files staging;
+		TS_ASSERT_EQUALS(staging.init(root.string(), tagd::url(tagd::file_url(
+			(root / "source").string()))), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(::chmod((root / "filepile/.staging").c_str(), 0), 0);
+		const auto stage_rc = staging.capture();
+		TS_ASSERT_EQUALS(::chmod((root / "filepile/.staging").c_str(), 0700), 0);
+		TS_ASSERT_EQUALS(stage_rc, tagd::TS_INTERNAL_ERR);
+		text.str("");
+		staging.print_errors(text);
+		TS_ASSERT_DIFFERS(text.str().find("create staging:"), std::string::npos);
+		TS_ASSERT_EQUALS(text.str().find(root.string()), std::string::npos);
+		TS_ASSERT_EQUALS(text.str().find(".staging"), std::string::npos);
+
+		const auto loop = root / "loop";
+		std::filesystem::create_directory_symlink(loop, loop);
+		tagd::filepile::files invalid_home;
+		TS_ASSERT_DIFFERS(invalid_home.init(loop.string(), tagd::url(tagd::file_url(
+			(root / "source").string()))), tagd::TAGD_OK);
+		text.str("");
+		invalid_home.print_errors(text);
+		TS_ASSERT_EQUALS(text.str().find(root.string()), std::string::npos);
+	}
+
+	void test_shard_scan_failures_have_no_partial_content_identity() {
+		write("abc");
+		tagd::filepile::files f;
+		TS_ASSERT_EQUALS(f.init(root.string(), tagd::url(tagd::file_url(
+			(root / "source").string()))), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(f.capture(), tagd::TAGD_OK);
+		const auto shard = root / "filepile" / f.digest.substr(0, 2) / f.digest.substr(2, 2);
+		std::filesystem::create_directories(shard);
+		for (const bool readdir_failure : {false, true}) {
+			f.clear_errors();
+			if (readdir_failure)
+				filepile_fault::scan_error = true;
+			else
+				TS_ASSERT_EQUALS(::chmod(shard.c_str(), 0), 0);
+			const auto rc = f.discover(found);
+			filepile_fault::scan_error = false;
+			TS_ASSERT_EQUALS(::chmod(shard.c_str(), 0700), 0);
+			TS_ASSERT_DIFFERS(rc, tagd::TAGD_OK);
+			std::ostringstream text;
+			f.print_errors(text);
+			TS_ASSERT_DIFFERS(text.str().find("scan filepile shard:"), std::string::npos);
+			TS_ASSERT_EQUALS(text.str().find(root.string()), std::string::npos);
+			TS_ASSERT_EQUALS(text.str().find(f.digest), std::string::npos);
+			TS_ASSERT_EQUALS(text.str().find("filepile:///"), std::string::npos);
+		}
+	}
+
 	void test_initialization_failure_is_explicit() {
 		tagd::filepile::files f;
 		TS_ASSERT_EQUALS(f.capture(), tagd::TS_MISUSE);
@@ -155,7 +251,28 @@ public:
 		const auto shard = root / "filepile" / g.digest.substr(0, 2) / g.digest.substr(2, 2);
 		std::ofstream(shard / (g.digest + ".bin")) << "abc";
 		TS_ASSERT_EQUALS(g.discover(found), tagd::TS_AMBIGUOUS);
+		std::ostringstream text;
+		g.print_errors(text);
+		TS_ASSERT_EQUALS(text.str().find(root.string()), std::string::npos);
+		TS_ASSERT_DIFFERS(text.str().find(tagd::filepile_url(g.digest + ".txt")), std::string::npos);
+		TS_ASSERT_DIFFERS(text.str().find(tagd::filepile_url(g.digest + ".bin")), std::string::npos);
 	}
+	void test_invalid_shard_name_is_not_reported_as_a_content_identity() {
+		write("abc");
+		tagd::filepile::files f;
+		TS_ASSERT_EQUALS(f.init(root.string(), tagd::url(tagd::file_url(
+			(root / "source").string()))), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(f.capture(), tagd::TAGD_OK);
+		const auto shard = root / "filepile" / f.digest.substr(0, 2) / f.digest.substr(2, 2);
+		std::filesystem::create_directories(shard);
+		std::ofstream(shard / (f.digest + ".txt.alternate")) << "abc";
+		TS_ASSERT_EQUALS(f.discover(found), tagd::TS_ERR);
+		std::ostringstream text;
+		f.print_errors(text);
+		TS_ASSERT_EQUALS(text.str().find(root.string()), std::string::npos);
+		TS_ASSERT_EQUALS(text.str().find("filepile:///"), std::string::npos);
+	}
+
 	void test_short_io_eintr_and_durability_failures() {
 		write("a meaningful prefix of bytes");
 		tagd::filepile::files f;
@@ -229,6 +346,7 @@ public:
 			TS_ASSERT_DIFFERS(f.capture(), tagd::TAGD_OK);
 			filepile_fault::zero_write = false;
 			filepile_fault::read_error = 0;
+			filepile_fault::scan_error = false;
 			TS_ASSERT_EQUALS(f.cleanup(), tagd::TAGD_OK);
 		}
 	}

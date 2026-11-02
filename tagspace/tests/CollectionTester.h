@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <sstream>
 
 class CollectionTester : public CxxTest::TestSuite {
@@ -64,6 +65,103 @@ public:
 
 		TS_ASSERT_EQUALS(cfg.open_tagspace("a", "", first), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(cfg.del(tagd::abstract_tag("animals")), tagd::TS_MISUSE);
+	}
+
+	void test_default_layout_registration_keeps_sources_derived_from_home() {
+		{
+			tagd::tagspace::persistent db;
+			TS_ASSERT_EQUALS(db.create("animals", root.string()), tagd::TAGD_OK);
+		}
+		// An absolute path in this configuration would have been synthesized by registration.
+		struct restore_directory {
+			std::filesystem::path path = std::filesystem::current_path();
+			~restore_directory() {
+				std::filesystem::current_path(path);
+			}
+		} restore;
+		std::filesystem::current_path(root.parent_path());
+		const auto configured_home = root.filename().string();
+		for (const auto access : {tagd::tagspace_access::local, tagd::tagspace_access::named_only}) {
+			tagd::config cfg;
+			TS_ASSERT_EQUALS(cfg.init(configured_home), tagd::TAGD_OK);
+			std::shared_ptr<tagd::tagspace> opened;
+			TS_ASSERT_EQUALS(cfg.open_tagspace("animals", "", opened, nullptr, {}, access), tagd::TAGD_OK);
+			tagd::abstract_tag description;
+			TS_ASSERT_EQUALS(cfg.get(description, "animals"), tagd::TAGD_OK);
+			for (const auto& p : description.relations) {
+				TS_ASSERT_DIFFERS(p.relator, tagd::HARD_TAG_FROM);
+			}
+			std::ostringstream text;
+			TS_ASSERT_EQUALS(cfg.dump(text), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(text.str().find(root.string()), std::string::npos);
+			TS_ASSERT(!cfg.exists(tagd::url(tagd::file_url(
+				tagd::tagspace_database_path(root.string(), "animals"))).hduri()));
+			TS_ASSERT_EQUALS(cfg.set(tagd::HARD_TAG_CONFIG_HOME, (root / "different").string()), tagd::TS_MISUSE);
+			TS_ASSERT_EQUALS(cfg.home(), configured_home);
+		}
+	}
+
+	void test_explicit_location_keeps_its_declared_source() {
+		const auto path = root / "explicit.db";
+		{
+			tagd::tagspace::persistent db;
+			TS_ASSERT_EQUALS(db.create_file(path.string()), tagd::TAGD_OK);
+		}
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init(root.string()), tagd::TAGD_OK);
+		std::shared_ptr<tagd::tagspace> opened;
+		TS_ASSERT_EQUALS(cfg.open_tagspace(path.string(), "", opened), tagd::TAGD_OK);
+		tagd::abstract_tag description;
+		TS_ASSERT_EQUALS(cfg.get(description, "explicit"), tagd::TAGD_OK);
+		const tagd::url source(tagd::file_url(path.string()));
+		TS_ASSERT(description.related(tagd::HARD_TAG_FROM, source.hduri()));
+		TS_ASSERT(cfg.exists(source.hduri()));
+	}
+
+	void test_missing_and_recursive_sources_report_only_tagspace_ids() {
+		tagd::config cfg;
+		TS_ASSERT_EQUALS(cfg.init(root.string()), tagd::TAGD_OK);
+		std::shared_ptr<tagd::tagspace> opened;
+		for (const auto& target : {std::string("absent"), (root / "absent.db").string()}) {
+			TS_ASSERT_EQUALS(cfg.open_tagspace(target, "", opened), tagd::TS_NOT_FOUND);
+			std::ostringstream text;
+			cfg.print_errors(text);
+			TS_ASSERT_DIFFERS(text.str().find("no such tagspace source: absent"), std::string::npos);
+			TS_ASSERT_EQUALS(text.str().find(root.string()), std::string::npos);
+		}
+		const auto path = root / "recursive.tagl";
+		std::ofstream(path) << "%% _tagspace recursive.tagl;";
+		const auto loader = [&](const std::string& source, std::shared_ptr<tagd::tagspace>) {
+			std::shared_ptr<tagd::tagspace> nested;
+			return cfg.open_tagspace(source, "", nested);
+		};
+		TS_ASSERT_EQUALS(cfg.open_tagspace(path.string(), "", opened, nullptr, {},
+			tagd::tagspace_access::local, loader), tagd::TS_MISUSE);
+		std::ostringstream text;
+		cfg.print_errors(text);
+		TS_ASSERT_DIFFERS(text.str().find("recursive source load: recursive"), std::string::npos);
+		TS_ASSERT_EQUALS(text.str().find(root.string()), std::string::npos);
+	}
+
+	void test_database_open_failures_never_name_the_storage_path() {
+		const auto path = root / "private.db";
+		{
+			tagd::tagspace::persistent db;
+			TS_ASSERT_EQUALS(db.create_file(path.string()), tagd::TAGD_OK);
+		}
+		TS_ASSERT_EQUALS(::chmod(path.c_str(), 0), 0);
+		tagd::tagspace::persistent unreadable;
+		const auto rc = unreadable.open_file(path.string());
+		TS_ASSERT_EQUALS(::chmod(path.c_str(), 0600), 0);
+		TS_ASSERT_DIFFERS(rc, tagd::TAGD_OK);
+		std::ostringstream text;
+		unreadable.print_errors(text);
+		TS_ASSERT_EQUALS(text.str().find(root.string()), std::string::npos);
+		tagd::tagspace::persistent missing;
+		TS_ASSERT_EQUALS(missing.open_file((root / "absent.db").string()), tagd::TS_NOT_FOUND);
+		text.str("");
+		missing.print_errors(text);
+		TS_ASSERT_EQUALS(text.str().find(root.string()), std::string::npos);
 	}
 
 	void test_session_borrow_prevents_close() {
@@ -240,6 +338,10 @@ public:
 		std::filesystem::copy_file(source, replacement);
 		tagd::url old_url("file://" + source.string()), new_url("file://" + replacement.string());
 		TS_ASSERT_EQUALS(cfg.put(new_url), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cfg.put(old_url), tagd::TAGD_OK);
+		tagd::abstract_tag declared("animals");
+		TS_ASSERT_EQUALS(declared.relation(tagd::HARD_TAG_FROM, old_url.hduri()), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(cfg.put(declared), tagd::TAGD_OK);
 
 		tagd::abstract_tag remove("animals");
 		TS_ASSERT_EQUALS(remove.relation(tagd::HARD_TAG_FROM, old_url.hduri()), tagd::TAGD_OK);

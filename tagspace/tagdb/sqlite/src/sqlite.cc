@@ -546,7 +546,7 @@ tagd::code sqlite::_init(const std::string& fname) {
 		// must be executed outside of transaction
 		this->exec("PRAGMA foreign_keys = ON");
 		if (_code != tagd::TAGD_OK)
-			return this->ferror(tagd::TS_INTERNAL_ERR, "PRAGMA foreign_keys failed: %s", _db_fname.c_str());
+			return this->error(tagd::TS_INTERNAL_ERR, "database PRAGMA foreign_keys failed");
 	}
 
 	return _code;
@@ -917,12 +917,12 @@ tagd::code sqlite::open() {
 		SQLITE_OPEN_READWRITE | (_create_missing ? SQLITE_OPEN_CREATE : 0), nullptr);
 	if( rc != SQLITE_OK ){
 		this->close();
-		RET_SQLITE_FERROR(tagd::TS_INTERNAL_ERR, "open database failed: %s", _db_fname.c_str());
+		RET_SQLITE_FERROR(tagd::TS_INTERNAL_ERR, "open database failed");
 	}
 	_code = tagd::TAGD_OK;
 
 	if ( this->exec("PRAGMA temp_store = MEMORY") != tagd::TAGD_OK)
-		return this->ferror(tagd::TS_INTERNAL_ERR, "PRAGMA temp_store failed: %s", _db_fname.c_str());
+		return this->error(tagd::TS_INTERNAL_ERR, "database PRAGMA temp_store failed");
 
 	return this->code(tagd::TAGD_OK);
 }

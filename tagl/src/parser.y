@@ -164,6 +164,14 @@ void scan_tagdurl(TAGL::driver *tagl, const std::string& tagdurl, int command = 
 %syntax_error
 {
 	switch(yymajor) { // token that caused error
+		case TOK_URL:
+		case TOK_HDURI: {
+			// Rejected URL identity positions still report the URL's own format error.
+			const tagd::url value(TOKEN.str());
+			tagl->ferror(value.ok() ? tagd::TAGL_ERR : value.code(),
+				"parse error near: %s", TOKEN.str().c_str());
+			break;
+		}
 		case TOK_UNKNOWN:
 			if (!TOKEN.empty())
 				tagl->error(tagd::TS_NOT_FOUND, tagd::predicate(HARD_TAG_CAUSED_BY, HARD_TAG_UNKNOWN_TAG, TOKEN.str()));
@@ -893,6 +901,10 @@ rhs_object(o) ::= QUOTED_STR(Q) .
 { o = {Q, tagd::TYPE_STRING}; }
 rhs_object(o) ::= UNKNOWN(U) .
 { o = {U, tagd::TYPE_STRING}; }
+/*
+ * TODO(TAGL-types): Require double quotes around URL text used as a literal
+ * modifier so its syntax distinguishes strings from URL references.
+ */
 rhs_object(o) ::= URL(U) .
 { o = {U, tagd::TYPE_STRING}; }
 rhs_object(o) ::= HDURI(U) .

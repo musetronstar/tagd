@@ -10,28 +10,29 @@ tagd::code sqlite::prepare_delete() {
 	if (_write_poisoned)
 		return error(tagd::TS_INTERNAL_ERR, "commit outcome unknown; reopen and check storage");
 
+	// Storage diagnostics name the database role; its physical location stays private.
 	struct stat status{};
 	if (::stat(_db_fname.c_str(), &status) < 0) {
 		const auto saved = errno;
 		return error(saved == ENOENT ? tagd::TS_NOT_FOUND : tagd::TS_NOT_AVAILABLE,
-			"required database: " + _db_fname + ": " + std::strerror(saved));
+			"required database: " + std::string(std::strerror(saved)));
 	}
 	if (::access(_db_fname.c_str(), R_OK | W_OK) < 0)
 		return error(tagd::TS_NOT_AVAILABLE,
-			"required database: " + _db_fname + ": " + std::strerror(errno));
+			"required database: " + std::string(std::strerror(errno)));
 
 	const auto durable = prepare_store();
 	if (durable != tagd::TAGD_OK)
 		return error(tagd::TS_NOT_AVAILABLE,
-			"required database: " + _db_fname + ": " + sqlite3_errmsg(_db));
+			"required database: " + std::string(sqlite3_errmsg(_db)));
 
 	// A lock is not an empty reference set. Check writability before planning a cascade.
 	if (sqlite3_exec(_db, "BEGIN IMMEDIATE", nullptr, nullptr, nullptr) != SQLITE_OK)
 		return error(tagd::TS_NOT_AVAILABLE,
-			"required database: " + _db_fname + ": " + sqlite3_errmsg(_db));
+			"required database: " + std::string(sqlite3_errmsg(_db)));
 	if (sqlite3_exec(_db, "ROLLBACK", nullptr, nullptr, nullptr) != SQLITE_OK) {
 		_write_poisoned = true;
-		return error(tagd::TS_INTERNAL_ERR, "cannot release database preflight transaction: " + _db_fname);
+		return error(tagd::TS_INTERNAL_ERR, "cannot release database preflight transaction");
 	}
 	return code(tagd::TAGD_OK);
 }
@@ -60,7 +61,7 @@ tagd::code sqlite::del_batch(std::span<const tagd::id_string> ids, session* ssn)
 	write_transaction transaction(*this, write_transaction::kind::immediate);
 	if (transaction.begin() != tagd::TAGD_OK)
 		return error(tagd::TS_NOT_AVAILABLE,
-			"required database: " + _db_fname + ": " + sqlite3_errmsg(_db));
+			"required database: " + std::string(sqlite3_errmsg(_db)));
 
 	const auto result = [&]() -> tagd::code {
 		std::set<tagd::id_string> affected;
@@ -84,14 +85,14 @@ tagd::code sqlite::del_batch(std::span<const tagd::id_string> ids, session* ssn)
 		sqlite3_stmt* statement = nullptr;
 		if (sqlite3_prepare_v2(_db, dependencies.c_str(), -1, &statement, nullptr) != SQLITE_OK)
 			return error(tagd::TS_NOT_AVAILABLE,
-				"cannot check database references: " + _db_fname + ": " + sqlite3_errmsg(_db));
+				"cannot check database references: " + std::string(sqlite3_errmsg(_db)));
 		const auto step = sqlite3_step(statement);
 		sqlite3_finalize(statement);
 		if (step == SQLITE_ROW)
 			return error(tagd::TS_DEPENDENCY, "unrelated references block managed deletion");
 		if (step != SQLITE_DONE)
 			return error(tagd::TS_NOT_AVAILABLE,
-				"cannot check database references: " + _db_fname + ": " + sqlite3_errmsg(_db));
+				"cannot check database references: " + std::string(sqlite3_errmsg(_db)));
 
 		for (const auto& id : ids) {
 			const auto rc = delete_fts_tag(id);

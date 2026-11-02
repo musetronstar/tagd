@@ -2,6 +2,7 @@
 
 #include <cxxtest/TestSuite.h>
 #include "tagspace.h"
+#include "tagspace-config.h"
 #include "tagdb.h"
 #include "filepile-files.h"
 #include "filepile-records.h"
@@ -116,20 +117,21 @@ public:
 
 		tagd::store_result stored;
 		TS_ASSERT_EQUALS(space->store(stored, tagd::url(source)), tagd::TAGD_OK);
-		std::string path;
-		TS_ASSERT(tagd::uri_decode_checked(path, stored.stored.path()));
+		const auto path = home / "filepile" / stored.stored.path().substr(1);
+		tagd::store_result rejected;
+		TS_ASSERT_EQUALS(space->store(rejected, tagd::url(tagd::file_url(path.string()))), tagd::TS_MISUSE);
 		std::filesystem::create_directory_symlink(home / "filepile", home / "alias");
 		const auto relative = std::filesystem::path(path).lexically_relative(home / "filepile");
 		tagd::url alias(tagd::file_url((home / "alias" / relative).string()));
 		TS_ASSERT_EQUALS(space->put(alias), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(space->store(stored, alias), tagd::TS_MISUSE);
 		TS_ASSERT_EQUALS(space->put(tagd::url(tagd::file_url(
-			(home / "nonexistent/../filepile/new").string()))), tagd::TS_MISUSE);
+			(home / "nonexistent/../filepile/new").string()))), tagd::TAGD_OK);
 		std::filesystem::create_directory_symlink(home, home / "home-alias");
 		space->filepile_home((home / "home-alias").string());
 		for (const auto& root : {home, home / "home-alias"}) {
 			TS_ASSERT_EQUALS(space->put(tagd::url(tagd::file_url(
-				(root / "filepile/new").string()))), tagd::TS_MISUSE);
+				(root / "filepile/new").string()))), tagd::TAGD_OK);
 		}
 	}
 
@@ -143,13 +145,32 @@ public:
 		TS_ASSERT_EQUALS(rc, tagd::TAGD_OK);
 	}
 
-	void test_unresolved_home_uses_configured_path_for_identifier_guards() {
+	void test_store_resolution_failures_preserve_the_supplied_source_url() {
+		tagd::store_result stored;
+		TS_ASSERT_EQUALS(space->store(stored, tagd::url(source)), tagd::TAGD_OK);
+		std::filesystem::create_directory_symlink(home / "loop", home / "loop");
+		std::filesystem::create_directory_symlink(home / "filepile", home / "alias");
+
+		const std::string prefix = "file://" + home.string();
+		for (const auto& input : {prefix + "/%6coop", prefix + "/%61lias" + stored.stored.path()}) {
+			tagd::store_result rejected;
+			const auto rc = space->store(rejected, tagd::url(input));
+			TS_ASSERT_EQUALS(rc, input.ends_with("%6coop") ? tagd::TS_NOT_AVAILABLE : tagd::TS_MISUSE);
+			std::ostringstream text;
+			space->print_errors(text);
+			TS_ASSERT_DIFFERS(text.str().find(input), std::string::npos);
+			TS_ASSERT_EQUALS(text.str().find(prefix + "/loop"), std::string::npos);
+			TS_ASSERT_EQUALS(text.str().find(prefix + "/alias"), std::string::npos);
+		}
+	}
+
+	void test_unresolved_home_does_not_change_file_url_identity() {
 		const auto loop = home / "loop";
 		std::filesystem::create_directory_symlink(loop, loop);
 		space->filepile_home(loop.string());
 		TS_ASSERT_EQUALS(space->put(tagd::url(source)), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(space->put(tagd::url(tagd::file_url(
-			(loop / "filepile/new").string()))), tagd::TS_MISUSE);
+			(loop / "filepile/new").string()))), tagd::TAGD_OK);
 		tagd::store_result result;
 		TS_ASSERT_EQUALS(space->store(result, tagd::url(source)), tagd::TS_NOT_AVAILABLE);
 	}
@@ -160,7 +181,8 @@ public:
 		const auto before = dump();
 		for (const auto& id : {stored.stored.hduri(), stored.link}) {
 			tagd::abstract_tag forged(id, tagd::HARD_TAG_SUB, tagd::id_view{}, tagd::POS_REFERENT);
-			TS_ASSERT_EQUALS(space->del(forged, nullptr, tagd::F_NO_POS_CAST), tagd::TS_DEPENDENCY);
+			TS_ASSERT_EQUALS(space->del(forged, nullptr, tagd::F_NO_POS_CAST),
+				id == stored.link ? tagd::TS_DEPENDENCY : tagd::TS_MISUSE);
 			if (id == stored.link) {
 				TS_ASSERT_EQUALS(forged.relation(tagd::HARD_TAG_FROM, stored.source.hduri()), tagd::TAGD_OK);
 			} else {
@@ -251,11 +273,97 @@ public:
 			TS_ASSERT_EQUALS(space->put(type), tagd::TS_MISUSE);
 			TS_ASSERT_EQUALS(space->put(tagd::abstract_tag("forged", tagd::HARD_TAG_SUB, object, tagd::POS_TAG)), tagd::TS_MISUSE);
 		}
-		TS_ASSERT_EQUALS(space->put(tagd::url(stored.stored.id())), tagd::TS_DUPLICATE);
+		TS_ASSERT_EQUALS(space->put(tagd::url(stored.stored.id())), tagd::TS_MISUSE);
 		TS_ASSERT_EQUALS(space->put(tagd::abstract_tag(stored.stored.hduri())), tagd::TS_MISUSE);
 		TS_ASSERT_EQUALS(space->store(stored, tagd::url(stored.stored.id())), tagd::TS_MISUSE);
+		TS_ASSERT_EQUALS(dump(), before);
 		TS_ASSERT_EQUALS(space->put(tagd::url(tagd::file_url(
-			(home / "filepile/not-created.bin").string()))), tagd::TS_MISUSE);
+			(home / "filepile/not-created.bin").string()))), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(space->put(tagd::url("file:///filepile/x")), tagd::TAGD_OK);
+	}
+
+	void test_filepile_scheme_guards_every_tagspace_without_a_stored_record() {
+		tagd::tagspace::persistent direct;
+		TS_ASSERT_EQUALS(direct.create_file((home / "direct.db").string()), tagd::TAGD_OK);
+		tagd::tagspace::memory memory;
+		TS_ASSERT_EQUALS(memory.init(), tagd::TAGD_OK);
+		tagd::config config;
+		TS_ASSERT_EQUALS(config.init(""), tagd::TAGD_OK);
+		const tagd::url missing("filepile:///aa/aa/" + std::string(64, 'a') + ".bin");
+		for (tagd::tagspace* ts : {static_cast<tagd::tagspace*>(space.get()),
+			static_cast<tagd::tagspace*>(&direct), static_cast<tagd::tagspace*>(&memory),
+			static_cast<tagd::tagspace*>(&config)}) {
+			for (const auto& id : {missing.id(), missing.hduri(), std::string("filepile:///bad"),
+				std::string("FILEPILE:///x"), std::string("filepile:x"),
+				"filepile:///aa/aa/" + std::string(64, 'a') + ".PNG",
+				"filepile://host/aa/aa/" + std::string(64, 'a') + ".bin",
+				std::string("hd:!!!/bad!!!!!!filepile"), std::string("HD:!!!/bad!!!!!!FILEPILE")}) {
+				tagd::replace_outcome outcome;
+				tagd::abstract_tag subject(id);
+				TS_ASSERT_EQUALS(ts->put(subject), tagd::TS_MISUSE);
+				TS_ASSERT(!ts->exists(id));
+				TS_ASSERT_EQUALS(ts->replace(outcome, subject), tagd::TS_MISUSE);
+				TS_ASSERT_EQUALS(ts->del(subject), tagd::TS_MISUSE);
+				TS_ASSERT(!ts->exists(id));
+				tagd::referent alias(id, tagd::HARD_TAG_ENTITY, tagd::HARD_TAG_ENTITY);
+				TS_ASSERT_EQUALS(ts->put(alias), tagd::TS_MISUSE);
+				TS_ASSERT_EQUALS(ts->del(alias), tagd::TS_MISUSE);
+				TS_ASSERT_EQUALS(ts->put(static_cast<const tagd::abstract_tag&>(alias)), tagd::TS_MISUSE);
+				TS_ASSERT_EQUALS(ts->del(static_cast<const tagd::abstract_tag&>(alias)), tagd::TS_MISUSE);
+				tagd::abstract_tag child("forged", tagd::HARD_TAG_SUB, id, tagd::POS_TAG);
+				TS_ASSERT_EQUALS(ts->put(child), tagd::TS_MISUSE);
+				tagd::abstract_tag type("forged", tagd::HARD_TAG_SUB, tagd::HARD_TAG_ENTITY, tagd::POS_TAG);
+				TS_ASSERT_EQUALS(type.type_relation(tagd::HARD_TAG_TYPE_OF, id), tagd::TAGD_OK);
+				TS_ASSERT_EQUALS(ts->put(type), tagd::TS_MISUSE);
+				TS_ASSERT(!ts->exists("forged"));
+			}
+		}
+	}
+
+	void test_unstored_filepile_referent_cannot_bypass_the_scheme_guard() {
+		const tagd::url missing("filepile:///aa/aa/" + std::string(64, 'a') + ".bin");
+		// A private damaged-data fixture has a URL and referent, but no STORE or B facts.
+		auto fixture = tagdb::make_backend();
+		TS_ASSERT_EQUALS(fixture->open({tagdb::storage_kind::file,
+			tagd::tagspace_database_path(home.string(), "test")}), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(fixture->put(missing, nullptr), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(space->put(tagd::abstract_tag("context", tagd::HARD_TAG_SUB,
+			tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(space->put(tagd::referent("copy", missing.hduri(), "context")), tagd::TAGD_OK);
+		auto session = space->get_session();
+		TS_ASSERT_EQUALS(session.push_context("context"), tagd::TAGD_OK);
+		const auto before = dump();
+		tagd::replace_outcome outcome;
+		for (const bool with_home : {true, false}) {
+			if (!with_home)
+				space->filepile_home("");
+			TS_ASSERT_EQUALS(space->put(tagd::abstract_tag("copy"), &session), tagd::TS_MISUSE);
+			TS_ASSERT_EQUALS(space->replace(outcome, tagd::abstract_tag("copy"), &session), tagd::TS_MISUSE);
+			TS_ASSERT_EQUALS(space->del(tagd::abstract_tag("copy"), &session), tagd::TS_MISUSE);
+			TS_ASSERT_EQUALS(dump(), before);
+		}
+	}
+
+	void test_referents_cannot_write_or_classify_through_stored_content() {
+		tagd::store_result stored;
+		TS_ASSERT_EQUALS(space->store(stored, tagd::url(source)), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(space->put(tagd::abstract_tag("context", tagd::HARD_TAG_SUB,
+			tagd::HARD_TAG_ENTITY, tagd::POS_TAG)), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(space->put(tagd::referent("copy", stored.stored.hduri(), "context")), tagd::TAGD_OK);
+		auto session = space->get_session();
+		TS_ASSERT_EQUALS(session.push_context("context"), tagd::TAGD_OK);
+		const auto before = dump();
+		tagd::abstract_tag subject("copy");
+		TS_ASSERT_EQUALS(subject.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "note"), tagd::TAGD_OK);
+		tagd::replace_outcome outcome;
+		TS_ASSERT_EQUALS(space->put(subject, &session), tagd::TS_MISUSE);
+		TS_ASSERT_EQUALS(space->replace(outcome, subject, &session), tagd::TS_MISUSE);
+		TS_ASSERT_EQUALS(space->del(subject, &session), tagd::TS_MISUSE);
+		TS_ASSERT_EQUALS(space->put(tagd::abstract_tag("forged", tagd::HARD_TAG_SUB,
+			"copy", tagd::POS_TAG), &session), tagd::TS_MISUSE);
+		tagd::abstract_tag type("forged", tagd::HARD_TAG_SUB, tagd::HARD_TAG_ENTITY, tagd::POS_TAG);
+		TS_ASSERT_EQUALS(type.type_relation(tagd::HARD_TAG_TYPE_OF, "copy"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(space->put(type, &session), tagd::TS_MISUSE);
 		TS_ASSERT_EQUALS(dump(), before);
 	}
 
@@ -282,7 +390,7 @@ public:
 		TS_ASSERT_EQUALS(space->put(component), tagd::TS_MISUSE);
 		TS_ASSERT_EQUALS(space->del(component), tagd::TS_MISUSE);
 		TS_ASSERT_EQUALS(space->del(tagd::abstract_tag(stored.link)), tagd::TS_DEPENDENCY);
-		TS_ASSERT_EQUALS(space->del(tagd::url(stored.stored.id())), tagd::TS_DEPENDENCY);
+		TS_ASSERT_EQUALS(space->del(tagd::url(stored.stored.id())), tagd::TS_MISUSE);
 		TS_ASSERT_EQUALS(space->del(tagd::url(source)), tagd::TS_DEPENDENCY);
 	}
 

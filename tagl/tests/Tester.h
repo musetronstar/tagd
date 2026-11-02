@@ -9,6 +9,7 @@ static_assert(__has_cpp_attribute(nodiscard), "[[nodiscard]] required for TAGL::
 #include <unistd.h>
 #include "tagl.h"
 #include "tagspace.h"
+#include "tagspace-config.h"
 
 #include <event2/buffer.h>
 
@@ -408,6 +409,132 @@ class driver_tester : public TAGL::driver {
 
 class Tester : public CxxTest::TestSuite {
 	public:
+	void test_filepile_scheme_is_system_owned_but_references_and_literals_are_allowed() {
+		const tagd::url stored("filepile:///aa/aa/" + std::string(64, 'a') + ".bin");
+		for (const auto& id : {stored.id(), stored.hduri()}) {
+			for (const auto& statement : {">> " + id + " _has _message = note;",
+				">>+ " + id + ";", ">>= " + id + ";", "!! " + id + ";",
+				"!!+ " + id + " _has _message;", ">> pic _sub " + id + ";",
+				">> pic _type_of " + id + ";"}) {
+				tagspace_tester ts;
+				TS_ASSERT_TAGD_OK(ts.put(stored));
+				callback_tester cb(&ts);
+				TAGL::driver input(&ts, &cb);
+				TSM_ASSERT_EQUALS(statement, input.execute(statement), tagd::TAGL_ERR);
+				TS_ASSERT_EQUALS(cb.cmd_error_calls, 1);
+				tagd::abstract_tag after;
+				TS_ASSERT_TAGD_OK(ts.get(after, stored.hduri()));
+				TS_ASSERT(after.relations.empty());
+				TS_ASSERT(!ts.exists("pic"));
+			}
+			tagspace_tester ts;
+			TS_ASSERT_TAGD_OK(ts.put(stored));
+			callback_tester cb(&ts);
+			TAGL::driver input(&ts, &cb);
+			TS_ASSERT_TAGD_OK(input.execute("<< " + id + ";"));
+			TS_ASSERT_TAGD_OK(cb.last_code);
+			TS_ASSERT_TAGD_OK(input.execute(">> dog _has " + id + ";"));
+			TS_ASSERT_TAGD_OK(cb.last_code);
+			TS_ASSERT_TAGD_OK(input.execute(">> dog _has _message = " + id + ";"));
+			TS_ASSERT_EQUALS(cb.last_tag->relations.begin()->modifier, id);
+		}
+		for (const std::string literal : {"filepile:///invalid", "\"filepile:///invalid\""}) {
+			tagspace_tester ts;
+			callback_tester cb(&ts);
+			TAGL::driver input(&ts, &cb);
+			TS_ASSERT_TAGD_OK(input.execute(">> dog _has _message = " + literal + ";"));
+			TS_ASSERT_EQUALS(cb.last_tag->relations.begin()->modifier, "filepile:///invalid");
+		}
+	}
+
+	void test_filepile_scheme_cannot_be_declared_as_an_ordinary_name() {
+		const std::string hash(64, 'a');
+		for (const auto& id : {std::string("filepile:///bad"), std::string("FILEPILE:///x"),
+			std::string("filepile:x"), "filepile:///aa/aa/" + hash + ".PNG",
+			"filepile://host/aa/aa/" + hash + ".bin", std::string("hd:!!!/bad!!!!!!filepile"),
+			std::string("HD:!!!/bad!!!!!!FILEPILE")}) {
+			const std::string quoted = '"' + id + '"';
+			for (const auto& statement : {">> " + quoted + " _sub _entity;",
+				">>= " + quoted + " _sub _entity;", "!! " + quoted + ";", "!!+ " + quoted + ";",
+				">> " + quoted + " _refers_to dog _context child;"}) {
+				tagspace_tester ts;
+				// DELETE resolves ordinary names before dispatch; seed the damaged identity privately.
+				const bool deleting = statement.starts_with("!!");
+				if (deleting) {
+					TS_ASSERT_TAGD_OK(ts.put(tagd::abstract_tag(id, HARD_TAG_SUB, HARD_TAG_ENTITY,
+						tagd::POS_TAG)));
+				}
+				callback_tester cb(&ts);
+				TAGL::driver input(&ts, &cb);
+				TSM_ASSERT_EQUALS(statement, input.execute(statement), tagd::TAGL_ERR);
+				TS_ASSERT_EQUALS(cb.cmd_error_calls, 1);
+				TS_ASSERT_EQUALS(ts.exists(id), deleting);
+			}
+
+			for (const auto& relator : {"_sub", "_type_of"}) {
+				tagspace_tester ts;
+				TS_ASSERT_TAGD_OK(ts.put(tagd::abstract_tag(id, HARD_TAG_SUB, HARD_TAG_ENTITY,
+					tagd::POS_TAG)));
+				callback_tester cb(&ts);
+				TAGL::driver input(&ts, &cb);
+				TS_ASSERT_EQUALS(input.execute(">> pic " + std::string(relator) + " " + quoted + ";"),
+					tagd::TAGL_ERR);
+				TS_ASSERT_EQUALS(cb.cmd_error_calls, 1);
+				TS_ASSERT(!ts.exists("pic"));
+			}
+		}
+
+		tagspace_tester ts;
+		callback_tester cb(&ts);
+		TAGL::driver input(&ts, &cb);
+		TS_ASSERT_EQUALS(input.execute(">> filepile:x _sub _entity;"), tagd::TAGL_ERR);
+		TS_ASSERT_EQUALS(cb.cmd_error_calls, 1);
+		TS_ASSERT(!ts.exists("filepile:x"));
+	}
+
+	void test_http_write_refusals_deliver_one_error_callback() {
+		for (const bool config_target : {false, true}) {
+			tagd::config cfg;
+			TS_ASSERT_TAGD_OK(cfg.init(""));
+			std::shared_ptr<tagd::tagspace> memory;
+			TS_ASSERT_TAGD_OK(cfg.open_tagspace("_default", "", memory));
+			auto* target = config_target ? static_cast<tagd::tagspace*>(&cfg) : memory.get();
+			callback_tester cb(target);
+			TAGL::driver input(target, &cb);
+			input.configure(cfg, true);
+			input.http_mutations(false);
+			TS_ASSERT_EQUALS(input.execute(">> forbidden _sub _entity;"), tagd::TS_MISUSE);
+			TS_ASSERT_EQUALS(cb.cmd_error_calls, 1);
+			TS_ASSERT(!target->exists("forbidden"));
+		}
+
+		for (const auto& command : {">>+", "!!+"}) {
+			tagd::config cfg;
+			TS_ASSERT_TAGD_OK(cfg.init(""));
+			std::shared_ptr<tagd::tagspace> memory;
+			TS_ASSERT_TAGD_OK(cfg.open_tagspace("_default", "", memory));
+			callback_tester cb(memory.get());
+			TAGL::driver input(memory.get(), &cb);
+			input.configure(cfg, true);
+			TS_ASSERT_EQUALS(input.execute(std::string(command) + " file:///not-acquired;"),
+				tagd::TS_NOT_IMPLEMENTED);
+			TS_ASSERT_EQUALS(cb.cmd_error_calls, 1);
+		}
+	}
+
+	void test_malformed_filepile_references_keep_the_url_error() {
+		for (const std::string id : {"filepile:///invalid", "hd:!!!/invalid!!!!!!filepile"}) {
+			for (const auto& statement : {">>+ " + id + ";", "<< " + id + ";",
+				">> pic _sub " + id + ";", ">> dog _type_of " + id + ";",
+				">> dog _has " + id + ";"}) {
+				tagspace_tester ts;
+				callback_tester cb(&ts);
+				TAGL::driver input(&ts, &cb);
+				TSM_ASSERT_EQUALS(statement, input.execute(statement), tagd::URL_ERR_PATH);
+			}
+		}
+	}
+
 	void test_http_body_reports_grammar_errors_before_finish() {
 		tagd::tagspace::memory ts;
 		TS_ASSERT_TAGD_OK(ts.init());

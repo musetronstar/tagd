@@ -889,6 +889,7 @@ void driver::do_callback() {
 	 */
 	if ((_cmd == TOK_CMD_PUT || _cmd == TOK_CMD_REPLACE || _cmd == TOK_CMD_STORE ||
 		_cmd == TOK_CMD_DELETE || _cmd == TOK_CMD_DELETE_STORAGE) && !permit_write()) {
+		_error_callback_delivered = true;
 		_callback->cmd_error();
 		return;
 	}
@@ -896,8 +897,25 @@ void driver::do_callback() {
 	if (_http && (_cmd == TOK_CMD_STORE || _cmd == TOK_CMD_DELETE_STORAGE)) {
 		_http_forbidden = true;
 		error(tagd::TS_NOT_IMPLEMENTED, "HTTP filepile invocation is not implemented");
+		_error_callback_delivered = true;
 		_callback->cmd_error();
 		return;
+	}
+
+	/*
+	 * B is system-owned by scheme, including identities never stored here.
+	 * Whole-subject !!+ is the sole user write that may address B directly.
+	 */
+	if (_cmd == TOK_CMD_PUT || _cmd == TOK_CMD_REPLACE || _cmd == TOK_CMD_STORE ||
+		_cmd == TOK_CMD_DELETE || _cmd == TOK_CMD_DELETE_STORAGE) {
+		const bool whole_delete = _cmd == TOK_CMD_DELETE_STORAGE && _tag->pos() == tagd::POS_URL
+			&& _tag->relations.empty() && _tag->type_relations.empty();
+		if (!whole_delete && tagd::writes_filepile_identity(*_tag)) {
+			error(tagd::TAGL_ERR, "filepile identities are system-owned");
+			_error_callback_delivered = true;
+			_callback->cmd_error();
+			return;
+		}
 	}
 
 	switch (_cmd) {

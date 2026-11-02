@@ -84,6 +84,12 @@ template <std::predicate<unsigned char> Keep>
 
 [[nodiscard]] std::string file_url(std::string_view path);
 
+inline constexpr size_t filepile_digest_length = 64;
+[[nodiscard]] bool valid_filepile_path(std::string_view path);
+[[nodiscard]] std::string filepile_url(std::string_view name);
+[[nodiscard]] bool has_filepile_scheme(id_view id);
+[[nodiscard]] bool writes_filepile_identity(const abstract_tag& tag);
+
 [[nodiscard]] std::string encode_hduri_delim(id_view);
 // Decode one HDURI layer only; failure leaves the destination unchanged.
 [[nodiscard]] bool decode_hduri_delim(std::string&, id_view);

@@ -240,6 +240,37 @@ class FilepileSystemTests(unittest.TestCase):
             dumped = self.run_cli('--tagspace', 'test', '--dump')
             self.assertNotIn('must_not_exist', dumped.stdout)
 
+    def test_filepile_write_refusal_is_reported_once(self):
+        valid = 'filepile:///aa/aa/' + 'a' * 64 + '.bin'
+        for subject in (valid, '"filepile:///bad"', '"FILEPILE:///x"', 'filepile:x',
+                        '"hd:!!!/bad!!!!!!filepile"'):
+            with self.subTest(subject=subject):
+                result = self.run_cli('--tagspace', 'test', '--tagl',
+                                      '>> ' + subject + ' _has _message = forbidden;')
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(result.stderr.count('_error:tagl_err'), 1, result.stderr)
+                self.assertNotIn('forbidden', self.run_cli('--tagspace', 'test', '--dump').stdout)
+
+    def test_never_stored_filepile_delete_reports_not_found(self):
+        missing = 'filepile:///aa/aa/' + 'a' * 64 + '.bin'
+        result = self.run_cli('--tagspace', 'test', '--tagl', '!!+ ' + missing + ';')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('_error:ts_not_found', result.stderr)
+        self.assertIn(missing, result.stderr)
+        self.assertNotIn('system-owned', result.stderr)
+
+    def test_stored_url_delete_removes_final_sources_but_keeps_original_files(self):
+        self.store().check_returncode()
+        content = next((self.home / 'filepile').glob('*/*/*'))
+        stored = 'filepile:///' + content.relative_to(self.home / 'filepile').as_posix()
+        result = self.run_cli('--tagspace', 'test', '--tagl', '!!+ ' + stored + ';', '--dump')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn(self.url, result.stdout)
+        self.assertNotIn(stored, result.stdout)
+        self.assertNotIn('link:hd:', result.stdout)
+        self.assertFalse(content.exists())
+        self.assertTrue(self.source.exists())
+
     def test_managed_delete_all_local_input_modes(self):
         statement = '!!+ ' + self.url + ';\n'
         script = self.home / 'delete.tagl'

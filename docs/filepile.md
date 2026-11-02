@@ -20,7 +20,7 @@ tagsh/bin/tagsh --home /data/tagd --tagspace Photos \
 * Successful stores print the retained storage-link ID. Errors and advisory
   warnings are TAGL error objects on stderr; warnings do not fail the command.
 * `!!+ URL;` deletes managed storage and its selected records. Predicate-bearing
-  `!!+` uses ordinary DELETE semantics and keeps the subject and stored bytes.
+  `!!+` uses ordinary DELETE semantics; it is forbidden on system-owned B.
 * `.store` is removed. `--store FILE_OR_URL...` queues the same TAGL STORE
   command for each operand. Shell-expanded globs supply multiple operands;
   tagsh does not expand patterns itself.
@@ -109,6 +109,9 @@ relation resolver's existing source closure.
   `TS_MISUSE`; loading or dumping TAGL does not make them persistent.
 * Direct C++ named persistent storage retains its selected home. Configuration
   supplies the effective home independently of the database's own location.
+* B's identity is `filepile:///<xx>/<yy>/<digest>.<ext>`, rooted at the pile
+  within that home. Moving or copying a complete home preserves B and L without
+  changing references. A retains its original source URL and location.
 * Filepile requires a backend supporting durable atomic PUT. SQLite verifies
   `synchronous=EXTRA` and rejects OFF/MEMORY journaling and read-only databases.
 * Frontend write restrictions remain in force. No HTTP store endpoint is added.
@@ -146,7 +149,7 @@ unchanged even when detection or mapping changes.
 | --- | --- | --- |
 | Source A | Canonical source URL, `_file` | Existing URL component predicates |
 | Link L | `link:<complete-source-HDURI>#001`, `_link:filepile` | `_from A`, `_to B`, `_has _revision`, source `_mtime`, `_stored_time` |
-| Stored B | Canonical URL (`_sub _file`), `_type_of _file:stored` | `_has _hash:SHA-256`, `_file_size`, `_media_type`, physical-object `_mtime` |
+| Stored B | `filepile:///<xx>/<yy>/<digest>.<ext>` (`_sub _file`), `_type_of _file:stored` | `_has _hash:SHA-256`, `_file_size`, `_media_type`, physical-object `_mtime` |
 
 * Each source has independent revisions within each tagspace, from `001` to
   `999`. A new revision is the highest retained number plus one, or `001`
@@ -163,6 +166,13 @@ unchanged even when detection or mapping changes.
   Ordinary loading cannot recreate protected filepile records until explicit
   restore mode is implemented. Old `_is_a _file:stored` declarations are
   incompatible with this pre-beta format; no migration is provided.
+
+This is a pre-beta stored-identity break: recreate stores that used absolute
+`file:` URLs for B. No detection or conversion of the old representation is
+provided. A dump uses the same `filepile:` identities in any home containing
+the corresponding bytes; loading protected records requires the separate
+restore feature. See [Stored-file URL classification](TAGL-spec.md#stored-file-url-classification)
+for the strict URL format.
 
 HDURI escapes `%` as `%25` and `!` as `%21`, independently of file URL encoding.
 For example, source `file:///tmp/a%21b` has link ID
@@ -204,12 +214,17 @@ by the encoding change. See [HDURI identity encoding](TAGL-spec.md#hduri-identit
 * A source A deletes A and all its retained links. User relations on removed
   A, B, and L records are deleted with those records. B and its bytes remain when
   another source still has a link to B in this tagspace.
-* A stored URL B deletes B and every link to B, preserving all source A tags.
-  A URL with both roles fails with `TS_MISUSE`.
+* A stored URL B deletes B, every link to B, and each source A with no other
+  retained link. A source with another link keeps that link, its B, and its user
+  relations. Original source files are never removed.
+* An association whose A uses `filepile:` or whose B does not is damaged data:
+  `TS_ERR` before record changes or stored-content cleanup. STORE and DELETE
+  STORAGE share this validation.
 * A stored B without any links is damaged state: `!!+ B` returns `TS_ERR` and
   retains its record and bytes. Cleanup awaits the future role-restricted repair
   facility. A later STORE of identical content can reuse B and restore a link.
-* A URL with neither a stored B role nor managed associations follows ordinary
+* A never-stored `filepile:` B returns `TS_NOT_FOUND`, naming its ID. Other URLs
+  with neither a stored B role nor managed associations follow ordinary
   DELETE behavior, preserving that URL's ordinary identity and database durability settings. Managed
   sources accept the same local URL spellings as STORE, including `localhost` and
   equivalent percent encodings. Predicate-bearing forms delete only the requested
@@ -248,6 +263,17 @@ auto rc = space.delete_storage(result, tagd::url("file:///photos/a.jpg"), sessio
 Pass a URL containing only its identity for whole-subject deletion. Passing a
 fetched record's predicates requests predicate deletion, just as in TAGL.
 
+## Diagnostics
+
+Messages and logged events identify A and B by tag ID. Source failures retain
+the supplied URL, including its escapes and symlink spelling. They never print
+the decoded path or resolved target. Home, staging, and shard failures name
+only the internal role. Discovery cannot name B until its suffix is known;
+ambiguous candidates are reported as complete `filepile:` IDs. Collection errors
+name only the tagspace ID, and SQLite errors name the database role. By-name
+collection registration stores no absolute `_from` source, including autoload;
+explicit locations retain their declared source.
+
 ## Deferred work and practical limits
 
 * No concurrent writers, permissions/roles, cancellation protocol, automatic
@@ -255,19 +281,21 @@ fetched record's predicates requests predicate deletion, just as in TAGL.
 * The tagspace layer protects generated URL parts, B metadata and classification,
   and L identity, endpoints, revision and timestamps. Ordinary PUT cannot create
   managed records or classify through a subtype of `_file:stored`. PUT, STORE,
-  and REPLACE accept user relations on existing A, B, L, and event records.
+  and REPLACE accept user relations on existing A, L, and event records.
   Supplied system facts or filepile classes are `TS_MISUSE`, even unchanged;
   identity may be restated but not changed. Self and `_entity` typing are
-  validated no-ops. An unrecorded URL inside filepile is `TS_MISUSE`.
-  Ordinary PUT compares the decoded, lexically normalized path with the
-  configured and canonical filepile roots, cached when the home is configured.
-  It does not inspect the resource.
-  If home resolution failed, ordinary PUT still checks the configured root;
-  storage operations report the configuration error.
-  An outside symlink alias remains an ordinary URL identifier; STORE resolves
-  aliases and rejects any source inside filepile. STORE predicates describe A;
-  B cannot be a source. Ordinary deletion of A with links, or of L/B, is
-  `TS_DEPENDENCY`. The previous `TS_RELATION_DEPENDENCY` name is removed.
+  validated no-ops. B is system-owned by its `filepile:` scheme, even when
+  unrecorded or no home is configured. Scheme matching is case-insensitive;
+  malformed quoted identities and API-supplied names remain reserved. Malformed
+  URL tokens still receive URL parsing errors. The TAGL driver refuses B write
+  subjects, subordinate objects, and type objects with `TAGL_ERR`; the tagspace refuses API
+  and referent writes with `TS_MISUSE`. Whole-subject `!!+ B` is the exception.
+  Reads, predicate object references, and literal modifiers remain allowed;
+  URL-like modifiers, even malformed ones, are literal text.
+  Every `file:` URL is an ordinary name for PUT. Only local STORE resolves
+  aliases and rejects a real source inside the pile. STORE predicates describe A;
+  B cannot be a source. Ordinary deletion of A with links, or of L, is
+  `TS_DEPENDENCY`; ordinary deletion of B is refused by the scheme rule.
 * Filepile events use `_event:filepile_store` or `_event:filepile_delete`, with
   `_has _message` to record
   the requested URL, affected A/B/L mappings, actual result code, and changes.
@@ -275,8 +303,7 @@ fetched record's predicates requests predicate deletion, just as in TAGL.
   events are not automatically inserted into the selected tagspace. Deletion
   retains one initiating event identity and occurrence time through final cleanup
   reporting; it never emits a separate cleanup event.
-* Absolute B URLs disclose paths and require explicit reconciliation after home
-  relocation. Case-insensitive path aliases may retain separate histories.
+* Case-insensitive source path aliases may retain separate histories.
 * History and recorded-content selection use backend predicate queries. The current SQLite
   plan scans relations despite existing indexes; measured tuning is deferred.
 * A duplicate may incur source read, temporary write, and stored-object read.

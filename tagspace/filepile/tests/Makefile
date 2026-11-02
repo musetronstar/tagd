@@ -32,7 +32,7 @@ filepile_tests: $(LIBTAGSPACE) $(LIBTAGD) FilepileTester.h
 
 filepile_files_tests: $(LIBTAGSPACE) $(LIBTAGD) FilepileFilesTester.h
 	$(CXXTEST) FilepileFilesTester.h -o filepile-files-tester.cpp
-	g++ $(CXXFLAGS) filepile-files-tester.cpp -o filepile-files-tester $(INC) $(LFLAGS) -Wl,--wrap=read,--wrap=write,--wrap=fsync,--wrap=linkat,--wrap=unlinkat
+	g++ $(CXXFLAGS) filepile-files-tester.cpp -o filepile-files-tester $(INC) $(LFLAGS) -Wl,--wrap=read,--wrap=write,--wrap=fsync,--wrap=linkat,--wrap=unlinkat,--wrap=readdir
 	./filepile-files-tester
 
 filepile_vocabulary_tests: $(LIBTAGSPACE) $(LIBTAGD) FilepileVocabularyTester.h

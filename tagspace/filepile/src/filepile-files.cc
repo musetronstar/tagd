@@ -14,10 +14,15 @@
 namespace tagd::filepile {
 namespace {
 
-tagd::code system_failure(errorable& errors, const std::string& operation, const std::string& path,
-	tagd::code status = TS_INTERNAL_ERR) {
+/*
+ * Diagnostics name a supplied tag ID or an internal role, never a resolved path.
+ * Filesystem names remain private to the calls that access those resources.
+ */
+tagd::code system_failure(errorable& errors, const std::string& operation,
+	const std::string& identity = {}, tagd::code status = TS_INTERNAL_ERR) {
 	const int saved = errno;
-	return errors.error(status, operation + ": " + path + ": " + std::strerror(saved));
+	return errors.error(status, operation + (identity.empty() ? "" : ": " + identity)
+		+ ": " + std::strerror(saved));
 }
 
 class descriptor {
@@ -49,34 +54,36 @@ public:
 constexpr int read_flags = O_RDONLY | O_NONBLOCK | O_NOCTTY | O_CLOEXEC;
 constexpr int directory_flags = O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC;
 
-tagd::code sync(errorable& errors, int fd, const std::string& path) {
+tagd::code sync(errorable& errors, int fd, const std::string& identity) {
 	int rc;
 	do {
 		rc = ::fsync(fd);
 	} while (rc < 0 && errno == EINTR);
 	if (rc < 0)
-		return system_failure(errors, "fsync", path);
+		return system_failure(errors, "fsync", identity);
 	return TAGD_OK;
 }
 
-tagd::code directory(errorable& errors, descriptor& result, int parent, const std::string& name, bool create) {
+tagd::code directory(errorable& errors, descriptor& result, int parent,
+	const std::string& name, bool create, const std::string& operation) {
 	// Managed components must not redirect content outside the selected root.
 	if (create && ::mkdirat(parent, name.c_str(), 0700) < 0 && errno != EEXIST)
-		return system_failure(errors, "mkdirat", name);
+		return system_failure(errors, operation);
+
 	int fd = ::openat(parent, name.c_str(), directory_flags);
 	if (fd < 0)
-		return system_failure(errors, "open directory", name, errno == ENOENT ? TS_NOT_FOUND :
+		return system_failure(errors, operation, {}, errno == ENOENT ? TS_NOT_FOUND :
 			(errno == ELOOP || errno == ENOTDIR) ? TS_ERR : TS_INTERNAL_ERR);
 	result = descriptor(fd);
 	return TAGD_OK;
 }
 
-tagd::code stat_file(errorable& errors, int fd, struct stat& s, const std::string& path) {
+tagd::code stat_file(errorable& errors, int fd, struct stat& s, const std::string& identity) {
 	if (::fstat(fd, &s) < 0)
-		return system_failure(errors, "fstat", path);
+		return system_failure(errors, "fstat", identity);
 	if (!S_ISREG(s.st_mode) || s.st_size < 0 ||
 		static_cast<uintmax_t>(s.st_size) > std::numeric_limits<uint64_t>::max())
-		return errors.error(TS_ERR, "filepile requires a regular file with a representable size: " + path);
+		return errors.error(TS_ERR, "filepile requires a regular file with a representable size: " + identity);
 	return TAGD_OK;
 }
 
@@ -86,24 +93,26 @@ bool same_snapshot(const struct stat& a, const struct stat& b) {
 		a.st_ctim.tv_sec == b.st_ctim.tv_sec && a.st_ctim.tv_nsec == b.st_ctim.tv_nsec;
 }
 
-tagd::code read_bytes(errorable& errors, ssize_t& n, int fd, char* bytes, size_t size, const std::string& path) {
+tagd::code read_bytes(errorable& errors, ssize_t& n, int fd, char* bytes, size_t size,
+	const std::string& identity) {
 	do {
 		n = ::read(fd, bytes, size);
 	} while (n < 0 && errno == EINTR);
 	if (n < 0)
-		return system_failure(errors, "read", path);
+		return system_failure(errors, "read", identity);
 	return TAGD_OK;
 }
 
-tagd::code write_bytes(errorable& errors, int fd, const char* bytes, size_t size, const std::string& path) {
+tagd::code write_bytes(errorable& errors, int fd, const char* bytes, size_t size,
+	const std::string& identity) {
 	while (size) {
 		const auto n = ::write(fd, bytes, size);
 		if (n < 0 && errno == EINTR)
 			continue;
 		if (n < 0)
-			return system_failure(errors, "write", path);
+			return system_failure(errors, "write", identity);
 		if (!n)
-			return errors.error(TS_INTERNAL_ERR, "write made no progress: " + path);
+			return errors.error(TS_INTERNAL_ERR, "write made no progress: " + identity);
 		bytes += n;
 		size -= n;
 	}
@@ -167,6 +176,8 @@ tagd::code canonical_source(errorable& errors, url& result, std::string& path, c
 		if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
 	}
 	// TODO(filepile-http): Add httagd-client acquisition behind this interface.
+	if (scheme == "filepile")
+		return errors.error(TS_MISUSE, "stored content cannot be a source: " + input.id());
 	if (scheme != "file")
 		return errors.error(TS_NOT_IMPLEMENTED, "filepile source scheme is not implemented: " + scheme);
 	const auto invalid = [&]() {
@@ -216,14 +227,14 @@ tagd::code canonical_source(errorable& errors, url& result, std::string& path, c
 
 class files::impl {
 public:
-	std::string path, root, stage_name;
+	std::string path, root, stage_name, source_id;
 	descriptor source, home, pile, staging, stage;
 	bool initialized = false;
 
 	tagd::code cleanup(errorable& errors) {
 		if (!stage_name.empty()) {
 			if (::unlinkat(staging.get(), stage_name.c_str(), 0) < 0)
-				return system_failure(errors, "unlink staging", root + "/.staging/" + stage_name);
+				return system_failure(errors, "unlink staging");
 			stage_name.clear();
 		}
 		return TAGD_OK;
@@ -241,26 +252,28 @@ tagd::code files::init(const std::string& canonical_home, const url& input) {
 	if (_impl->source.get() >= 0)
 		return error(TS_MISUSE, "filepile files already initialized");
 
+	// Diagnostics retain the supplied spelling while source owns the canonical identity.
+	_impl->source_id = input.id();
 	auto rc = canonical_source(*this, source, _impl->path, input);
 	if (rc != TAGD_OK)
 		return rc;
 	int fd = ::open(_impl->path.c_str(), read_flags);
 	if (fd < 0)
-		return system_failure(*this, "open source", _impl->path, errno == ENOENT ? TS_NOT_FOUND : TS_INTERNAL_ERR);
+		return system_failure(*this, "open source", _impl->source_id, errno == ENOENT ? TS_NOT_FOUND : TS_INTERNAL_ERR);
 	_impl->source = descriptor(fd);
-	rc = stat_file(*this, fd, initial, _impl->path);
+	rc = stat_file(*this, fd, initial, _impl->source_id);
 	if (rc != TAGD_OK)
 		return rc;
 
 	// Tagspace fixes the home at configuration; resolving it again could select a different pile.
 	_impl->root = (std::filesystem::path(canonical_home) / "filepile").string();
-	rc = directory(*this, _impl->home, AT_FDCWD, canonical_home, false);
+	rc = directory(*this, _impl->home, AT_FDCWD, canonical_home, false, "open home");
 	if (rc != TAGD_OK)
 		return rc;
-	rc = directory(*this, _impl->pile, _impl->home.get(), "filepile", true);
+	rc = directory(*this, _impl->pile, _impl->home.get(), "filepile", true, "prepare filepile");
 	if (rc != TAGD_OK)
 		return rc;
-	rc = directory(*this, _impl->staging, _impl->pile.get(), ".staging", true);
+	rc = directory(*this, _impl->staging, _impl->pile.get(), ".staging", true, "prepare staging");
 	if (rc != TAGD_OK)
 		return rc;
 	_impl->initialized = true;
@@ -288,7 +301,7 @@ tagd::code files::capture() {
 	}
 	int fd = ::openat(_impl->staging.get(), name.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
 	if (fd < 0)
-		return system_failure(*this, "create staging", _impl->root + "/.staging/" + name);
+		return system_failure(*this, "create staging");
 	_impl->stage = descriptor(fd);
 	_impl->stage_name = name;
 
@@ -298,12 +311,12 @@ tagd::code files::capture() {
 	while (remaining) {
 		ssize_t n;
 		rc = read_bytes(*this, n, _impl->source.get(), buffer.data(),
-			std::min<uint64_t>(remaining, buffer.size()), _impl->path);
+			std::min<uint64_t>(remaining, buffer.size()), _impl->source_id);
 		if (rc != TAGD_OK)
 			return rc;
 		if (!n)
-			return error(TS_ERR, "source shrank during filepile storage: " + source.id());
-		rc = write_bytes(*this, fd, buffer.data(), n, _impl->root + "/.staging/" + name);
+			return error(TS_ERR, "source shrank during filepile storage: " + _impl->source_id);
+		rc = write_bytes(*this, fd, buffer.data(), n, "staging");
 		if (rc != TAGD_OK)
 			return rc;
 		rc = hash_check(*this, hash.update({buffer.data(), static_cast<size_t>(n)}));
@@ -313,11 +326,11 @@ tagd::code files::capture() {
 		remaining -= n;
 	}
 	ssize_t extra;
-	rc = read_bytes(*this, extra, _impl->source.get(), buffer.data(), 1, _impl->path);
+	rc = read_bytes(*this, extra, _impl->source.get(), buffer.data(), 1, _impl->source_id);
 	if (rc != TAGD_OK)
 		return rc;
 	if (extra)
-		return error(TS_ERR, "source grew during filepile storage: " + source.id());
+		return error(TS_ERR, "source grew during filepile storage: " + _impl->source_id);
 	rc = hash_check(*this, hash.finish(digest));
 	if (rc != TAGD_OK)
 		return rc;
@@ -333,15 +346,15 @@ tagd::code files::validate_source() {
 	tagd::code rc;
 
 	struct stat after{};
-	rc = stat_file(*this, _impl->source.get(), after, _impl->path);
+	rc = stat_file(*this, _impl->source.get(), after, _impl->source_id);
 	if (rc != TAGD_OK)
 		return rc;
 	if (!same_snapshot(initial, after))
-		return error(TS_ERR, "source changed during filepile storage: " + source.id());
+		return error(TS_ERR, "source changed during filepile storage: " + _impl->source_id);
 	if (::stat(_impl->path.c_str(), &after) < 0)
-		return system_failure(*this, "stat source path", _impl->path, errno == ENOENT ? TS_NOT_FOUND : TS_INTERNAL_ERR);
+		return system_failure(*this, "stat source", _impl->source_id, errno == ENOENT ? TS_NOT_FOUND : TS_INTERNAL_ERR);
 	if (initial.st_dev != after.st_dev || initial.st_ino != after.st_ino)
-		return error(TS_ERR, "source path changed during filepile storage: " + source.id());
+		return error(TS_ERR, "source path changed during filepile storage: " + _impl->source_id);
 	return TAGD_OK;
 }
 
@@ -352,15 +365,15 @@ std::string files::destination(const std::string& name) const {
 tagd::code files::discover(std::string& match) {
 	if (!_impl->initialized)
 		return error(TS_MISUSE, "filepile files require successful initialization");
-	if (digest.size() != 64)
+	if (digest.size() != digest_length)
 		return error(TS_MISUSE, "filepile discovery requires captured content");
 	match.clear();
 	descriptor first, second;
 	// A missing shard means no object, not a failed store; suppress expected diagnostics.
 	errorable lookup;
-	auto rc = directory(lookup, first, _impl->pile.get(), digest.substr(0, 2), false);
+	auto rc = directory(lookup, first, _impl->pile.get(), digest.substr(0, 2), false, "scan filepile shard");
 	if (rc == TAGD_OK)
-		rc = directory(lookup, second, first.get(), digest.substr(2, 2), false);
+		rc = directory(lookup, second, first.get(), digest.substr(2, 2), false, "scan filepile shard");
 	if (rc == TS_NOT_FOUND)
 		return TAGD_OK;
 	if (rc != TAGD_OK) {
@@ -370,10 +383,10 @@ tagd::code files::discover(std::string& match) {
 	// fdopendir consumes its descriptor; keep the checked directory separately owned.
 	const int scan_fd = ::openat(second.get(), ".", directory_flags);
 	if (scan_fd < 0)
-		return system_failure(*this, "scan filepile shard", destination(digest));
+		return system_failure(*this, "scan filepile shard");
 	DIR* raw = ::fdopendir(scan_fd);
 	if (!raw) {
-		const auto rc = system_failure(*this, "scan filepile shard", destination(digest));
+		const auto rc = system_failure(*this, "scan filepile shard");
 		::close(scan_fd);
 		return rc;
 	}
@@ -383,14 +396,18 @@ tagd::code files::discover(std::string& match) {
 		errno = 0;
 		auto* entry = ::readdir(entries.get());
 		if (!entry) {
-			if (errno) return system_failure(*this, "readdir", destination(digest));
+			if (errno)
+				return system_failure(*this, "scan filepile shard");
 			break;
 		}
 		std::string name = entry->d_name;
 		if (!name.starts_with(digest + '.') || name.size() <= digest.size() + 1)
 			continue;
+		if (!url(filepile_url(name)).ok())
+			return error(TS_ERR, "invalid content name in filepile shard");
 		if (!match.empty())
-			return error(TS_AMBIGUOUS, "multiple filepile objects: " + destination(match) + ", " + destination(name));
+			return error(TS_AMBIGUOUS, "multiple filepile objects: " + filepile_url(match)
+				+ ", " + filepile_url(name));
 		match = name;
 	}
 	return TAGD_OK;
@@ -402,21 +419,21 @@ tagd::code files::verify(const std::string& name, const std::string& hash, bool 
 	tagd::code rc;
 
 	// TODO(filepile-integrity): Full verification remains required before every reuse.
-	const auto path = destination(name);
+	const auto identity = filepile_url(name);
 	descriptor first;
-	rc = directory(*this, first, _impl->pile.get(), name.substr(0, 2), false);
+	rc = directory(*this, first, _impl->pile.get(), name.substr(0, 2), false, "open filepile shard");
 	if (rc != TAGD_OK)
 		return rc;
 	descriptor second;
-	rc = directory(*this, second, first.get(), name.substr(2, 2), false);
+	rc = directory(*this, second, first.get(), name.substr(2, 2), false, "open filepile shard");
 	if (rc != TAGD_OK)
 		return rc;
 	const int fd = ::openat(second.get(), name.c_str(), read_flags | O_NOFOLLOW);
 	if (fd < 0)
-		return system_failure(*this, "open stored file", path, errno == ENOENT ? TS_NOT_FOUND :
+		return system_failure(*this, "open stored file", identity, errno == ENOENT ? TS_NOT_FOUND :
 			errno == ELOOP ? TS_ERR : TS_INTERNAL_ERR);
 	descriptor content(fd);
-	rc = stat_file(*this, fd, stored, path);
+	rc = stat_file(*this, fd, stored, identity);
 	if (rc != TAGD_OK)
 		return rc;
 	sha256 actual;
@@ -424,18 +441,18 @@ tagd::code files::verify(const std::string& name, const std::string& hash, bool 
 	uint64_t remaining = stored.st_size;
 	while (remaining) {
 		ssize_t n;
-		rc = read_bytes(*this, n, fd, bytes.data(), std::min<uint64_t>(remaining, bytes.size()), path);
+		rc = read_bytes(*this, n, fd, bytes.data(), std::min<uint64_t>(remaining, bytes.size()), identity);
 		if (rc != TAGD_OK)
 			return rc;
 		if (!n)
-			return error(TS_ERR, "stored file changed during verification: " + path);
+			return error(TS_ERR, "stored file changed during verification: " + identity);
 		rc = hash_check(*this, actual.update({bytes.data(), static_cast<size_t>(n)}));
 		if (rc != TAGD_OK)
 			return rc;
 		remaining -= n;
 	}
 	struct stat after{};
-	rc = stat_file(*this, fd, after, path);
+	rc = stat_file(*this, fd, after, identity);
 	if (rc != TAGD_OK)
 		return rc;
 	std::string value;
@@ -443,26 +460,26 @@ tagd::code files::verify(const std::string& name, const std::string& hash, bool 
 	if (rc != TAGD_OK)
 		return rc;
 	ssize_t extra;
-	rc = read_bytes(*this, extra, fd, bytes.data(), 1, path);
+	rc = read_bytes(*this, extra, fd, bytes.data(), 1, identity);
 	if (rc != TAGD_OK)
 		return rc;
 	if (extra || !same_snapshot(stored, after) || value != hash)
-		return error(TS_ERR, "stored file failed SHA-256 verification: " + path);
+		return error(TS_ERR, "stored file failed SHA-256 verification: " + identity);
 	if (durable) {
 		// Reused orphans may come from a failed sync; hashing alone promises no durability.
-		rc = sync(*this, fd, path);
+		rc = sync(*this, fd, identity);
 		if (rc != TAGD_OK)
 			return rc;
-		rc = sync(*this, second.get(), path);
+		rc = sync(*this, second.get(), identity);
 		if (rc != TAGD_OK)
 			return rc;
-		rc = sync(*this, first.get(), path);
+		rc = sync(*this, first.get(), identity);
 		if (rc != TAGD_OK)
 			return rc;
-		rc = sync(*this, _impl->pile.get(), _impl->root);
+		rc = sync(*this, _impl->pile.get(), "filepile");
 		if (rc != TAGD_OK)
 			return rc;
-		rc = sync(*this, _impl->home.get(), _impl->root);
+		rc = sync(*this, _impl->home.get(), "home");
 		if (rc != TAGD_OK)
 			return rc;
 	}
@@ -479,44 +496,44 @@ tagd::code files::publish(const std::string& name) {
 	if (rc != TAGD_OK)
 		return rc;
 	descriptor first;
-	rc = directory(*this, first, _impl->pile.get(), digest.substr(0, 2), true);
+	rc = directory(*this, first, _impl->pile.get(), digest.substr(0, 2), true, "prepare filepile shard");
 	if (rc != TAGD_OK)
 		return rc;
 	descriptor second;
-	rc = directory(*this, second, first.get(), digest.substr(2, 2), true);
+	rc = directory(*this, second, first.get(), digest.substr(2, 2), true, "prepare filepile shard");
 	if (rc != TAGD_OK)
 		return rc;
-	rc = sync(*this, _impl->stage.get(), _impl->root + "/.staging/" + _impl->stage_name);
+	rc = sync(*this, _impl->stage.get(), "staging");
 	if (rc != TAGD_OK)
 		return rc;
 	// Hard-link publication cannot replace an existing content address.
 	if (::linkat(_impl->staging.get(), _impl->stage_name.c_str(), second.get(), name.c_str(), 0) < 0) {
 		if (errno != EEXIST)
-			return system_failure(*this, "linkat", destination(name));
+			return system_failure(*this, "linkat", filepile_url(name));
 		rc = verify(name, digest, true);
 		if (rc != TAGD_OK)
 			return rc;
 	} else {
-		rc = stat_file(*this, _impl->stage.get(), stored, destination(name));
+		rc = stat_file(*this, _impl->stage.get(), stored, filepile_url(name));
 		if (rc != TAGD_OK)
 			return rc;
 	}
 	rc = cleanup();
 	if (rc != TAGD_OK)
 		return rc;
-	rc = sync(*this, _impl->staging.get(), _impl->root + "/.staging");
+	rc = sync(*this, _impl->staging.get(), "staging");
 	if (rc != TAGD_OK)
 		return rc;
-	rc = sync(*this, second.get(), destination(name));
+	rc = sync(*this, second.get(), filepile_url(name));
 	if (rc != TAGD_OK)
 		return rc;
-	rc = sync(*this, first.get(), destination(name));
+	rc = sync(*this, first.get(), filepile_url(name));
 	if (rc != TAGD_OK)
 		return rc;
-	rc = sync(*this, _impl->pile.get(), _impl->root);
+	rc = sync(*this, _impl->pile.get(), "filepile");
 	if (rc != TAGD_OK)
 		return rc;
-	rc = sync(*this, _impl->home.get(), _impl->root);
+	rc = sync(*this, _impl->home.get(), "home");
 	if (rc != TAGD_OK)
 		return rc;
 	return TAGD_OK;
@@ -527,36 +544,22 @@ tagd::code files::cleanup() {
 	return _impl->cleanup(*this);
 }
 
-tagd::code stored_address(errorable& errors, std::string& name,
-	const std::string& canonical_home, const url& stored) {
-	std::string path;
-	url canonical;
-	const auto rc = canonical_source(errors, canonical, path, stored);
-	if (rc != TAGD_OK)
-		return rc;
-	name = std::filesystem::path(path).filename().string();
-	if (name.size() <= digest_length + 1 || name[digest_length] != '.' ||
-		name.substr(0, digest_length).find_first_not_of("0123456789abcdef") != std::string::npos)
+tagd::code stored_address(errorable& errors, std::string& name, const url& stored) {
+	if (!stored.ok())
+		return errors.error(stored.code(), "invalid stored filepile URL");
+	if (stored.scheme() != "filepile" || !valid_filepile_path(stored.path()))
 		return errors.error(TS_ERR, "invalid stored filepile address: " + stored.id());
 
-	// Validate the digest before slicing its directory prefixes, including for malformed input.
-	const auto expected = std::filesystem::path(canonical_home) / "filepile"
-		/ name.substr(0, 2) / name.substr(2, 2) / name;
-	if (path != expected)
-		return errors.error(TS_ERR, "stored filepile address is outside the selected home: " + stored.id());
+	name = std::filesystem::path(stored.path()).filename().string();
 	return TAGD_OK;
 }
 
 // Cleanup uses directory descriptors so a managed component cannot redirect unlink outside filepile.
 tagd::code remove_content(errorable& errors, cleanup_result& result,
 	const std::string& canonical_home, const url& stored) {
-	std::string path;
-	url canonical;
-	auto rc = canonical_source(errors, canonical, path, stored);
-	if (rc != TAGD_OK)
-		return rc;
+	const auto identity = stored.id();
 	std::string name;
-	rc = stored_address(errors, name, canonical_home, stored);
+	auto rc = stored_address(errors, name, stored);
 	if (rc != TAGD_OK)
 		return rc;
 
@@ -565,7 +568,7 @@ tagd::code remove_content(errorable& errors, cleanup_result& result,
 			result.outcome = cleanup_outcome::already_missing;
 			return TAGD_OK;
 		}
-		return system_failure(errors, "remove stored content", path, TS_NOT_AVAILABLE);
+		return system_failure(errors, "remove stored content", identity, TS_NOT_AVAILABLE);
 	};
 	descriptor parent(::open(canonical_home.c_str(), directory_flags));
 	if (parent.get() < 0)
@@ -580,14 +583,14 @@ tagd::code remove_content(errorable& errors, cleanup_result& result,
 	if (::fstatat(parent.get(), name.c_str(), &status, AT_SYMLINK_NOFOLLOW) < 0)
 		return failure();
 	if (!S_ISREG(status.st_mode))
-		return errors.error(TS_NOT_AVAILABLE, "stored content is not a regular file: " + path);
+		return errors.error(TS_NOT_AVAILABLE, "stored content is not a regular file: " + identity);
 	if (::unlinkat(parent.get(), name.c_str(), 0) < 0)
 		return failure();
 
 	// A durability failure after unlink must not claim that the bytes remain present.
 	result.outcome = cleanup_outcome::removed;
 	if (::fsync(parent.get()) < 0)
-		return system_failure(errors, "sync content deletion", path, TS_NOT_AVAILABLE);
+		return system_failure(errors, "sync content deletion", identity, TS_NOT_AVAILABLE);
 	return TAGD_OK;
 }
 

@@ -96,7 +96,7 @@ tagd::code sqlite::open(const storage_location& location) {
 		::close(fd);
 		guard.database = path;
 	} else if (!std::filesystem::is_regular_file(path, ec)) {
-		return error(tagd::TS_NOT_FOUND, "no database file: " + path);
+		return error(tagd::TS_NOT_FOUND, "no database file");
 	}
 
 	// A removal racing with open must not cause implicit database creation.

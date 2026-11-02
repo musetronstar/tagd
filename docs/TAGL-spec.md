@@ -787,8 +787,13 @@ share a unique namespace across all contexts and ordinary tags in `_config`;
 user tagspaces retain independent namespaces. Names beginning `_` are reserved.
 
 Each description has at most one local `_from` file URL, with no modifier.
-Absent `_from`, its source is `<home>/tagspaces/<id>/<id>.db`. Child descriptions
-do not inherit sources. `.db` opens existing persistent storage; `.tagl` executes
+Absent `_from`, its source is `<home>/tagspaces/<id>/<id>.db`. Opening an
+undeclared tagspace by name, including autoload, registers a description without
+`_from` or a generated source URL tag. Its source remains derived from home.
+An explicit filesystem location retains `_from`. Missing-source and recursive-load
+errors name only the tagspace ID; SQLite errors name the database by role.
+Child descriptions do not inherit sources. `.db` opens existing persistent
+storage; `.tagl` executes
 into a memory instance. Suffixes are case-sensitive. Declaration does not open
 or require the file, but source uniqueness is checked again before opening.
 Close before editing an effective source; edits never move files. Retained
@@ -1307,19 +1312,41 @@ still accepts arbitrary complete URLs without rewriting them.
 
 ### Stored-file URL classification
 
+The `filepile:` scheme has the form
+`filepile:///<h[0:2]>/<h[2:4]>/<h>.<ext>`. Its root denotes the selected home's
+filepile. The host is empty; `h` is a 64-character lowercase SHA-256 digest,
+and the two directory names match its first four characters. The extension
+contains one or more lowercase ASCII letters, digits, underscores, or hyphens;
+it need not occur in the current media-type table. Query strings, fragments,
+percent escapes, and other path forms are invalid (`URL_ERR_PATH`). A nonempty
+host is `URL_ERR_HOST`. Scheme letters normalize to lowercase as for other
+URLs. HDURI encoding preserves the same identity and `_sub _file` position.
+
 A stored filepile URL retains its syntax-derived `_sub _file` identity and
 receives the system-maintained type relation `_type_of _file:stored`. Dumps
 include that relation and all association/content metadata. Ordinary PUT cannot
 create this classification, even indirectly through a type or subordinate
 object beneath `_file:stored` in the integrated order. PUT, STORE, and REPLACE
-accept user relations on existing source, stored-copy, link, and event records.
-Supplied system facts or filepile classes are `TS_MISUSE`, even unchanged.
-Identity may be restated unchanged; self and
-`_entity` typing are validated no-ops. An unrecorded URL inside filepile is
-`TS_MISUSE`. STORE predicates describe the source; a stored copy cannot be a
-source. Explicit restore is a separate pending feature;
-ordinary loading cannot reconstruct managed filepile records, and legacy
-`_is_a _file:stored` declarations are incompatible.
+accept user relations on existing source, link, and event records. Supplied
+system facts or filepile classes are `TS_MISUSE`, even unchanged. Their identity
+may be restated unchanged; self and `_entity` typing are validated no-ops.
+
+B is system-owned by scheme, whether or not it has been stored. A literal URL or
+HDURI used as a write subject, subordinate object, or type object is `TAGL_ERR`.
+The scheme reservation is case-insensitive and also covers malformed identities
+supplied as quoted or ordinary tag names. Malformed URL tokens still report
+their URL parsing error before the write guard runs.
+The sole subject exception is whole-subject `!!+ B`. API writes and referents
+resolving to B are refused with `TS_MISUSE` in every tagspace, even without a
+home. Reads and predicate object references are allowed. Modifiers are literal
+text, including malformed `filepile:` text; they are not URL-validated.
+
+Every `file:` URL remains an ordinary filesystem identity, including paths in
+the pile. Only local STORE resolves real locations and refuses a source inside
+the pile, including symlinks (`TS_MISUSE`). HTTP STORE and DELETE STORAGE remain
+403 before the scheme restriction; ordinary B writes are 400 and reads are 200.
+Dumps contain `filepile:` statements; only the separate pending restore mode
+will load these system-owned identities.
 
 ### STORE (`>>+`)
 
@@ -1352,9 +1379,12 @@ work. See [Filepile storage](filepile.md) for metadata, diagnostics, and limits.
 
 `!!+` shares ordinary DELETE grammar. Without predicates, the subject must be a
 URL. A source URL deletes A and its retained links, plus unshared B records and
-bytes. A stored B URL deletes B and all links to it, preserving the sources.
-Both roles on one URL produce `TS_MISUSE`; a URL with no managed storage follows
-ordinary DELETE. Original source resources and existing audit tags survive.
+bytes. A stored B URL deletes B, every link to it, and each source with no other
+retained link. Sources with another link keep that link, its B, and their user
+relations. An association whose A uses `filepile:` or whose B does not is damaged
+state: STORE and DELETE STORAGE return `TS_ERR` before changing records or bytes.
+A never-stored B returns `TS_NOT_FOUND`. Other URLs with no managed storage
+follow ordinary DELETE. Original source resources and existing audit tags survive.
 User relations on removed records are deleted with those records.
 
 ```tagl
@@ -1364,9 +1394,10 @@ User relations on removed records are deleted with those records.
 
 Predicate and type-relation forms retain the subject and stored bytes, even
 when removing the final predicate. Subordinate relations are rejected. Ordinary
-`!!` cannot remove A with filepile links, L, or B: these return `TS_DEPENDENCY`.
-Generated URL, content and association facts cannot be edited through ordinary
-PUT/DELETE or predicate-bearing `!!+`; user descriptions retain normal semantics.
+`!!` cannot remove A with filepile links or L (`TS_DEPENDENCY`). B is system-owned:
+ordinary DELETE and predicate-bearing `!!+ B` are `TAGL_ERR` in the driver and
+`TS_MISUSE` in the API. Generated URL and association facts cannot be edited;
+user descriptions on A and L retain normal semantics.
 
 DELETE STORAGE validates unrelated dependencies, atomically deletes selected
 records, then cleans up eligible files. Shared local content survives. Unknown

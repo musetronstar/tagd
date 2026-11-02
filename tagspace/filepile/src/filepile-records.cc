@@ -55,6 +55,10 @@ code read_association(errorable& errors, association& item, const abstract_tag& 
 	if (!source.ok() || !stored.ok() || source.hduri() != item.source || stored.hduri() != item.stored)
 		return errors.error(TS_ERR, "filepile endpoints must be canonical URL identities: " + item.link);
 
+	// STORE and DELETE must reject damaged endpoints before changing records or bytes.
+	if (source.scheme() == "filepile" || stored.scheme() != "filepile")
+		return errors.error(TS_ERR, "invalid filepile association endpoints: " + item.link);
+
 	// STORE allocation and DELETE selection must interpret the same source/revision identity.
 	std::string expected;
 	const auto rc = link_id(errors, expected, source, item.revision);
@@ -143,7 +147,7 @@ bool system_predicate(const predicate& p, const filepile::record_roles& roles,
 
 }
 
-code stored_tagspace::managed_path(bool& result, const url& value, bool resolve) {
+code stored_tagspace::managed_path(bool& result, const url& value) {
 	result = false;
 	auto scheme = value.scheme();
 	auto host = value.host();
@@ -155,7 +159,7 @@ code stored_tagspace::managed_path(bool& result, const url& value, bool resolve)
 	}
 	if (scheme != "file" || (!host.empty() && host != "localhost"))
 		return TAGD_OK;
-	if (resolve && !_filepile_home_error.empty())
+	if (!_filepile_home_error.empty())
 		return error(TS_NOT_AVAILABLE, _filepile_home_error);
 	if (_filepile_canonical_home.empty() && _filepile_configured_root.empty())
 		return TAGD_OK;
@@ -164,16 +168,11 @@ code stored_tagspace::managed_path(bool& result, const url& value, bool resolve)
 	if (!uri_decode_checked(path, value.path()))
 		return error(TS_MISUSE, "invalid encoded file path: " + value.id());
 
-	std::filesystem::path candidate(path);
-	if (resolve) {
-		std::error_code ec;
-		candidate = std::filesystem::weakly_canonical(candidate, ec);
-		if (ec)
-			return error(TS_NOT_AVAILABLE, "cannot resolve file URL: " + path + ": " + ec.message());
-	} else {
-		// Ordinary PUT declares an identifier; it must not inspect the resource or its aliases.
-		candidate = candidate.lexically_normal();
-	}
+	// Only local STORE compares real locations; declarations reveal nothing about the home.
+	std::error_code ec;
+	const auto candidate = std::filesystem::weakly_canonical(path, ec);
+	if (ec)
+		return error(TS_NOT_AVAILABLE, "cannot resolve file URL: " + value.id() + ": " + ec.message());
 	const auto canonical_root = _filepile_canonical_home.empty() ? std::string{}
 		: (std::filesystem::path(_filepile_canonical_home) / "filepile").string();
 	for (const auto& root : {canonical_root, _filepile_configured_root}) {
@@ -187,13 +186,13 @@ code stored_tagspace::managed_path(bool& result, const url& value, bool resolve)
 
 code stored_tagspace::replace(replace_outcome& outcome, const abstract_tag& input,
 	tagspace_session* ssn, flags_t flags) {
-	if (!prepare())
-		return code();
+	// The backend invokes its preservation callback only for an existing record.
+	const auto guarded = guard_mutation(input, false, ssn, flags);
+	if (guarded != TAGD_OK)
+		return guarded;
+
 	const auto rc = backend().replace(outcome, input, ssn, flags,
 		[&](abstract_tag& candidate, const abstract_tag& existing) -> tagd::code {
-			const auto guarded = guard_mutation(input, false, ssn, flags);
-			if (guarded != TAGD_OK)
-				return guarded;
 			filepile::record_roles roles;
 			auto status = filepile::classify(roles, backend(), candidate.id());
 			if (status != TAGD_OK)
@@ -226,9 +225,6 @@ code stored_tagspace::guard_mutation(const abstract_tag& input, bool deleting,
 		reset(ssn);
 	if (!prepare())
 		return code();
-	// Referent declarations edit name bindings, never the referred tag or its filepile facts.
-	if (input.pos() == POS_REFERENT && !(flags & F_NO_POS_CAST))
-		return code(TAGD_OK);
 
 	auto& db = backend();
 	abstract_tag resolved(input);
@@ -237,6 +233,17 @@ code stored_tagspace::guard_mutation(const abstract_tag& input, bool deleting,
 		if (rc != TAGD_OK)
 			return rc;
 	}
+
+	/*
+	 * API callers and referents must obey the same scheme rule as literal TAGL.
+	 * No record or configured home is needed to reserve a filepile identity.
+	 */
+	if (writes_filepile_identity(resolved))
+		return error(TS_MISUSE, "filepile identities are system-owned");
+
+	// A referent's name obeys the scheme rule, but its target's filepile facts are unchanged.
+	if (input.pos() == POS_REFERENT && !(flags & F_NO_POS_CAST))
+		return code(TAGD_OK);
 
 	filepile::record_roles roles;
 	auto rc = filepile::classify(roles, db, resolved.id());
@@ -250,15 +257,6 @@ code stored_tagspace::guard_mutation(const abstract_tag& input, bool deleting,
 		return error(TS_DEPENDENCY, "managed filepile records require !!+ URL: " + resolved.id());
 
 	if (!deleting) {
-		bool managed = false;
-		if (is_url) {
-			rc = managed_path(managed, identity);
-			if (rc != TAGD_OK)
-				return rc;
-		}
-		if (managed && !roles.stored)
-			return error(TS_MISUSE, "cannot declare an unrecorded filepile URL: " + resolved.id());
-
 		std::vector<id_string> objects;
 		const bool protected_identity = roles.link || (event_id && roles.event);
 		if (protected_identity && !resolved.super_object().empty()) {

@@ -1226,6 +1226,91 @@ class Tester : public CxxTest::TestSuite {
 		TS_ASSERT( url_test("http://lcweb2.loc.gov/cgi-bin/query/h?pp/horyd:@field(NUMBER+@band(thc+5a46634))", "http", "lcweb2.loc.gov", "", "/cgi-bin/query/h", "?pp/horyd:@field(NUMBER+@band(thc+5a46634))", "") );
 	}
 
+	void test_filepile_scheme_reservation_does_not_require_a_valid_url() {
+		for (const auto id : {"filepile:", "FILEPILE:x", "filepile:///bad", "filepile://host/bad",
+			"hd:!!!/bad!!!!!!filepile", "HD:!!!/bad!!!!!!FILEPILE", "hd:bad!filepile"}) {
+			TS_ASSERT(tagd::has_filepile_scheme(id));
+			TS_ASSERT(tagd::writes_filepile_identity(tagd::abstract_tag(id)));
+			TS_ASSERT(tagd::writes_filepile_identity(tagd::abstract_tag("child", tagd::HARD_TAG_SUB,
+				id, tagd::POS_TAG)));
+			tagd::abstract_tag typed("child");
+			TS_ASSERT_EQUALS(typed.type_relation(tagd::HARD_TAG_TYPE_OF, id), tagd::TAGD_OK);
+			TS_ASSERT(tagd::writes_filepile_identity(typed));
+			TS_ASSERT(tagd::writes_filepile_identity(tagd::referent(id, "target", "context")));
+			TS_ASSERT(!tagd::writes_filepile_identity(tagd::referent("copy", id, "context")));
+		}
+
+		for (const auto id : {"", "filepile", "filepiles:x", "xfilepile:x", "file:///filepile/x",
+			"https://example.test/filepile:x", "link:hd:!!!/bad!!!!!!filepile#001",
+			"hd:!!!/filepile:x!!!!!!file", "hd:bad!filepile!https"}) {
+			TS_ASSERT(!tagd::has_filepile_scheme(id));
+			TS_ASSERT(!tagd::writes_filepile_identity(tagd::abstract_tag(id)));
+		}
+
+		tagd::abstract_tag reference("album");
+		TS_ASSERT_EQUALS(reference.relation(tagd::HARD_TAG_HAS, "filepile:///bad"), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(reference.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE,
+			"filepile:///bad"), tagd::TAGD_OK);
+		TS_ASSERT(!tagd::writes_filepile_identity(reference));
+	}
+
+	void test_filepile_url_construction_uses_the_checked_layout() {
+		const std::string hash = "3fa2" + std::string(60, 'b');
+		const auto identity = tagd::filepile_url(hash + ".png");
+		TS_ASSERT_EQUALS(identity, "filepile:///3f/a2/" + hash + ".png");
+		TS_ASSERT_EQUALS(tagd::url(identity).code(), tagd::TAGD_OK);
+		for (const auto name : {"", "a", "ab", "abc"}) {
+			TS_ASSERT_EQUALS(tagd::url(tagd::filepile_url(name)).code(), tagd::URL_ERR_PATH);
+		}
+	}
+
+	void test_filepile_identity_and_format() {
+		const std::string hash = "3fa2" + std::string(60, 'b');
+		const std::string path = "/3f/a2/" + hash + ".png";
+		const std::string identity = "filepile://" + path;
+		for (const auto& scheme : {"filepile:", "FILEPILE:"}) {
+			tagd::url value(std::string(scheme) + "//" + path);
+			TS_ASSERT_EQUALS(value.code(), tagd::TAGD_OK);
+			if (!value.ok())
+				continue;
+
+			TS_ASSERT_EQUALS(value.id(), identity);
+			TS_ASSERT_EQUALS(value.sub_relator(), tagd::HARD_TAG_SUB);
+			TS_ASSERT_EQUALS(value.super_object(), tagd::HARD_TAG_FILE);
+			TS_ASSERT_EQUALS(value.hduri(), "hd:!!!" + path + "!!!!!!filepile");
+			TS_ASSERT(tagd::url::looks_like_hduri(value.hduri()));
+			tagd::HDURI restored(value.hduri());
+			TS_ASSERT_EQUALS(restored.code(), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(restored.id(), identity);
+			TS_ASSERT_EQUALS(restored.super_object(), tagd::HARD_TAG_FILE);
+		}
+
+		for (const auto& suffix : {"bin", "x_9-test"}) {
+			TS_ASSERT_EQUALS(tagd::url("filepile:///3f/a2/" + hash + '.' + suffix).code(),
+				tagd::TAGD_OK);
+		}
+
+		const std::vector<std::string> invalid{
+			"/not/a/hash.png", "/3f/a2/3Fa2" + std::string(60, 'b') + ".png",
+			"/3f/a2/" + hash.substr(1) + ".png", "/3f/a2/" + hash + "b.png",
+			"/ff/a2/" + hash + ".png", "/3f/ff/" + hash + ".png",
+			"/3f/a2/" + hash, "/3f/a2/" + hash + '.',
+			path + ".gz", path + "X", path + '?', path + '#', path + "/",
+			"/3f/a2/" + hash + ".%70ng", "/3f/../" + hash + ".png",
+			"/3f/a2/" + hash + ".p+ng", "/", "", "/" + path, "?q", "#fragment"
+		};
+		for (const auto& bad : invalid) {
+			TS_ASSERT_EQUALS(tagd::url("filepile://" + bad).code(), tagd::URL_ERR_PATH);
+			TS_ASSERT_EQUALS(tagd::HDURI("hd:!!!" + tagd::encode_hduri_delim(bad)
+				+ "!!!!!!filepile").code(),
+				tagd::URL_ERR_PATH);
+		}
+		for (const auto& authority : {"x", "localhost", "user@x", "x:80"}) {
+			TS_ASSERT_EQUALS(tagd::url("filepile://" + std::string(authority) + path).code(),
+				tagd::URL_ERR_HOST);
+		}
+	}
+
 	void test_file_uri(void) {
 		tagd::url a("file:///favicon.ico");
 		TS_ASSERT( !a.empty() );

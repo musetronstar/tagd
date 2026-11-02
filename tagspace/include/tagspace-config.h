@@ -167,6 +167,8 @@ public:
 	[[nodiscard]] tagd::code get(abstract_tag&, id_view, tagspace_session* = nullptr, flags_t = 0) override;
 	[[nodiscard]] tagd::code query(tag_set&, const interrogator&, tagspace_session* = nullptr, flags_t = 0) override;
 	[[nodiscard]] tagd::code put(const abstract_tag&, tagspace_session* = nullptr, flags_t = 0) override;
+	[[nodiscard]] tagd::code replace(replace_outcome&, const abstract_tag&,
+		tagspace_session* = nullptr, flags_t = 0) override;
 	[[nodiscard]] tagd::code del(const abstract_tag&, tagspace_session* = nullptr, flags_t = 0) override;
 	[[nodiscard]] part_of_speech pos(id_view, tagspace_session* = nullptr, flags_t = 0) override;
 	[[nodiscard]] bool exists(id_view, flags_t = 0) const override;

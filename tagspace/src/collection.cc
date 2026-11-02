@@ -491,18 +491,25 @@ tagd::code config::open_tagspace(const std::string& target, const std::string& a
 
 	std::error_code ec;
 	if (action != source_action::create && !fs::is_regular_file(path, ec))
-		return error(TS_NOT_FOUND, "no such tagspace source: " + path);
+		return error(TS_NOT_FOUND, "no such tagspace source: " + id);
 	if (!_loading.insert(path).second)
-		return error(TS_MISUSE, "recursive source load: " + path);
+		return error(TS_MISUSE, "recursive source load: " + id);
 	struct loading_guard {
 		std::set<std::string>& loading;
 		std::string path;
 		~loading_guard() { loading.erase(path); }
 	} guard{_loading, path};
 
-	url source(file_url(path));
-	if (!declared)
+	/*
+	 * Default-layout sources are derived from home, never published as paths.
+	 * Only an explicit location needs _from; by-name descriptions stay portable.
+	 */
+	const bool explicit_source = !declared && !spelling.empty();
+	url source;
+	if (explicit_source) {
+		source = url(file_url(path));
 		(void)description.relation(HARD_TAG_FROM, source.hduri());
+	}
 	if ((rc = validate_collection(&description, false, true)) != TAGD_OK)
 		return rc;
 
@@ -545,14 +552,16 @@ tagd::code config::open_tagspace(const std::string& target, const std::string& a
 	if ((rc = validate_collection(&description, false, true)) != TAGD_OK)
 		return rc;
 
-	bool source_existed = _configspace.exists(source.hduri());
+	const bool source_existed = explicit_source && _configspace.exists(source.hduri());
 	if (!declared) {
-		rc = _configspace.put(source, nullptr, F_IGNORE_DUPLICATES);
-		if (rc != TAGD_OK)
-			return finish(rc);
+		if (explicit_source) {
+			rc = _configspace.put(source, nullptr, F_IGNORE_DUPLICATES);
+			if (rc != TAGD_OK)
+				return finish(rc);
+		}
 		rc = put(description);
 		if (rc != TAGD_OK) {
-			if (!source_existed)
+			if (explicit_source && !source_existed)
 				(void)_configspace.del(source);
 			return code(rc);
 		}
@@ -561,7 +570,7 @@ tagd::code config::open_tagspace(const std::string& target, const std::string& a
 		// Undo only this publication; successful statements inside the script survive.
 		if (!declared) {
 			(void)_configspace.del(abstract_tag(id));
-			if (!source_existed)
+			if (explicit_source && !source_existed)
 				(void)_configspace.del(source);
 			refresh_sources();
 		}

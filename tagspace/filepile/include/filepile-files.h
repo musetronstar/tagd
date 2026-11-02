@@ -9,9 +9,9 @@ namespace tagd::filepile {
 [[nodiscard]] tagd::code canonical_source(errorable&, url&, std::string& path, const url&);
 
 // SHA-256 addresses use a full lowercase hexadecimal digest, then a nonempty extension.
-inline constexpr size_t digest_length = 64;
+inline constexpr size_t digest_length = filepile_digest_length;
 [[nodiscard]] code stored_address(errorable&, std::string& name,
-	const std::string& canonical_home, const url& stored);
+	const url& stored);
 [[nodiscard]] tagd::code remove_content(errorable&, cleanup_result&,
 	const std::string& canonical_home, const url& stored);
 

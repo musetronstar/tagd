@@ -4,7 +4,6 @@
 #include "filepile-records.h"
 #include "tagd/datetime.h"
 #include "tagd/magic.h"
-#include <filesystem>
 #include <set>
 
 namespace tagd {
@@ -20,7 +19,7 @@ struct history {
 };
 
 tagd::code latest(errorable& errors, history& result, tagdb::tagdb& db,
-	const url& source, const std::string& home, tagspace_session* ssn) {
+	const url& source, tagspace_session* ssn) {
 	tagd::code rc;
 	if (!db.exists(source.hduri()))
 		return TAGD_OK;
@@ -55,7 +54,7 @@ tagd::code latest(errorable& errors, history& result, tagdb::tagdb& db,
 		}
 	}
 	if (result.revision) {
-		rc = filepile::stored_address(errors, result.name, home, result.stored);
+		rc = filepile::stored_address(errors, result.name, result.stored);
 		if (rc != TAGD_OK)
 			return rc;
 		result.hash = result.name.substr(0, filepile::digest_length);
@@ -88,18 +87,14 @@ tagd::code verify_recorded_content(errorable& errors, std::set<std::string>& ver
 		return errors.error(rc, "cannot query recorded filepile content");
 
 	for (const auto& record : records) {
-		url canonical;
-		std::string path;
-		const auto parsed = filepile::canonical_source(errors, canonical, path, url(record.id()));
+		std::string name;
+		const auto parsed = filepile::stored_address(errors, name, url(record.id()));
 		if (parsed != TAGD_OK)
 			return parsed;
-		const std::string name = std::filesystem::path(path).filename();
 
 		// Metadata narrows lookup; the URL-derived address remains the integrity authority.
 		if (!name.starts_with(content.digest + '.'))
 			continue;
-		if (path != content.destination(name))
-			return errors.error(TS_ERR, "stored filepile reference is outside the selected home: " + canonical.id());
 
 		// This operation-local result includes durability; reuse must not hash the same object twice.
 		const auto rc = content.verify(name, content.digest, true);
@@ -150,17 +145,21 @@ tagd::code stored_tagspace::store(store_result& result, const abstract_tag& inpu
 		rc = db.prepare_store();
 		if (rc != TAGD_OK)
 			return error(rc, "backend cannot establish durable filepile storage");
+
+		const url supplied(input.id());
 		url canonical;
 		std::string source_path;
-		rc = filepile::canonical_source(*this, canonical, source_path, url(input.id()));
+		rc = filepile::canonical_source(*this, canonical, source_path, supplied);
 		if (rc != TAGD_OK)
 			return rc;
+
+		// Path checks report the caller's URL, preserving its supplied spelling.
 		bool managed = false;
-		rc = managed_path(managed, canonical, true);
+		rc = managed_path(managed, supplied);
 		if (rc != TAGD_OK)
 			return rc;
 		if (managed)
-			return error(TS_MISUSE, "cannot STORE a managed filepile URL: " + canonical.id());
+			return error(TS_MISUSE, "cannot STORE a managed filepile URL: " + supplied.id());
 
 		abstract_tag resolved(input);
 		if (!(flags & F_NO_TRANSFORM_REFERENTS)) {
@@ -182,12 +181,11 @@ tagd::code stored_tagspace::store(store_result& result, const abstract_tag& inpu
 		if (rc != TAGD_OK)
 			return rc;
 		history previous;
-		rc = latest(*this, previous, db, canonical,
-			_filepile_canonical_home, ssn);
+		rc = latest(*this, previous, db, canonical, ssn);
 		if (rc != TAGD_OK)
 			return rc;
 
-		rc = content.init(_filepile_canonical_home, canonical);
+		rc = content.init(_filepile_canonical_home, supplied);
 		if (rc != TAGD_OK)
 			return rc;
 		rc = content.capture();
@@ -212,8 +210,8 @@ tagd::code stored_tagspace::store(store_result& result, const abstract_tag& inpu
 		std::string name;
 		if (previous.revision) {
 			// A needed historical address must exist; another suffix cannot silently repair it.
-			if (file_url(content.destination(previous.name)) != previous.stored.id())
-				return error(TS_ERR, "stored filepile reference is outside the selected home: " + previous.stored.id());
+			if (filepile_url(previous.name) != previous.stored.id())
+				return error(TS_ERR, "inconsistent stored filepile identity: " + previous.stored.id());
 			rc = content.verify(previous.name, previous.hash);
 			if (rc != TAGD_OK)
 				return rc;
@@ -273,12 +271,12 @@ tagd::code stored_tagspace::store(store_result& result, const abstract_tag& inpu
 			const auto extension = canonical_extension(detection.media_type);
 			name = content.digest + '.' + (extension.empty() ? "bin" : extension);
 		}
-		output.stored = url(file_url(content.destination(name)));
+		output.stored = url(filepile_url(name));
 		attempted_association = "; attempted A=" + output.source.id()
 			+ "; L=" + output.link + "; B=" + output.stored.id();
 		rc = output.stored.code();
 		if (rc != TAGD_OK)
-			return error(rc, "filepile destination exceeds URL limits");
+			return error(rc, "invalid stored filepile identity");
 		rc = output.stored.type_relation(HARD_TAG_TYPE_OF, HARD_TAG_FILE_STORED);
 		if (rc != TAGD_OK)
 			return error(rc, "cannot classify stored filepile URL");

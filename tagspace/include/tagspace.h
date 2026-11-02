@@ -35,7 +35,7 @@ class stored_tagspace : public tagspace {
 	std::string _filepile_canonical_home, _filepile_configured_root, _filepile_home_error;
 	std::string _home_reason = "no home directory is configured.";
 	tagd::code finish(tagd::code) const;
-	[[nodiscard]] tagd::code managed_path(bool&, const url&, bool resolve = false);
+	[[nodiscard]] tagd::code managed_path(bool&, const url&);
 	[[nodiscard]] tagd::code guard_mutation(const abstract_tag&, bool deleting,
 		tagspace_session*, flags_t);
 

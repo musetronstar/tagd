@@ -492,6 +492,10 @@ try {
 
 
 # Direct-file startup never consults the implicit home configuration.
+set stored_url "filepile:///aa/aa/[string repeat a 64].bin"
+test_cli "filepile_system_owned" \
+	[list ../bin/tagsh --noshell --tagl ">> $stored_url;"] 0 {_error:tagl_err}
+
 set direct_tmp [exec mktemp -d /tmp/direct-db-XXXXXX]
 try {
 	set db [file join $direct_tmp animals.db]
@@ -501,7 +505,7 @@ try {
 	puts $stream {invalid config must not be loaded;}
 	close $stream
 	set base [list env HOME=$home ../bin/tagsh --db $db]
-	test_cli "direct_missing" [concat $base [list --dump]] 0 {no such tagspace source}
+	test_cli "direct_missing" [concat $base [list --dump]] 0 {no such tagspace source: animals"}
 	test_cli "direct_create" [concat $base [list --create --tagl {>> donkey _sub _entity;} --dump]] 1 {donkey _sub _entity}
 	test_cli "direct_persist" [concat $base [list --dump]] 1 {donkey _sub _entity}
 	test_cli "direct_duplicate" [concat $base [list --create --dump]] 0 {create database}

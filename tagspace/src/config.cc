@@ -58,6 +58,14 @@ const setting* find_setting(id_view id) {
 	return nullptr;
 }
 
+// Configuration previews must refuse B before looking for a record or a profile value.
+code guard_filepile_identity(errorable& errors, const abstract_tag& input) {
+	if (writes_filepile_identity(input))
+		return errors.error(TS_MISUSE, "filepile identities are system-owned");
+
+	return TAGD_OK;
+}
+
 bool valid_port(const std::string& value, uint16_t& port) {
 	unsigned number = 0;
 	auto [end, ec] = std::from_chars(value.data(), value.data() + value.size(), number);
@@ -429,6 +437,12 @@ tagd::code config::put(const abstract_tag& input, tagspace_session* ssn, flags_t
 		(flags & F_NO_TRANSFORM_REFERENTS) ? nullptr : ssn);
 	if (resolved != TAGD_OK)
 		return finish(resolved);
+	const auto guarded = guard_filepile_identity(*this, t);
+	if (guarded != TAGD_OK) {
+		if (ssn)
+			ssn->code(guarded);
+		return guarded;
+	}
 
 	// Validate the input, then the stored tag as this PUT would leave it.
 	auto rc = validate(t, true);
@@ -473,6 +487,24 @@ tagd::code config::put(const abstract_tag& input, tagspace_session* ssn, flags_t
 	return finish(rc);
 }
 
+tagd::code config::replace(replace_outcome& outcome, const abstract_tag& input,
+	tagspace_session* ssn, flags_t flags) {
+	reset(ssn);
+	prepare();
+	abstract_tag resolved;
+	auto rc = _configspace.resolve_referents(resolved, input,
+		(flags & F_NO_TRANSFORM_REFERENTS) ? nullptr : ssn);
+	if (rc != TAGD_OK)
+		return finish(rc);
+
+	rc = guard_filepile_identity(*this, resolved);
+	if (rc == TAGD_OK)
+		rc = tagspace::replace(outcome, input, ssn, flags);
+	if (ssn)
+		ssn->code(rc);
+	return rc;
+}
+
 tagd::code config::del(const abstract_tag& input, tagspace_session* ssn, flags_t flags) {
 	reset(ssn);
 	prepare();
@@ -486,6 +518,12 @@ tagd::code config::del(const abstract_tag& input, tagspace_session* ssn, flags_t
 		(flags & F_NO_TRANSFORM_REFERENTS) ? nullptr : ssn);
 	if (resolved != TAGD_OK)
 		return finish(resolved);
+	const auto guarded = guard_filepile_identity(*this, t);
+	if (guarded != TAGD_OK) {
+		if (ssn)
+			ssn->code(guarded);
+		return guarded;
+	}
 
 	/*
 	 * Hard tags, and whole-tag deletion of the selected profile's ancestry, are never

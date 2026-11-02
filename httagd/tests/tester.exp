@@ -1295,7 +1295,7 @@ try {
 	puts $stream {invalid config must not be loaded;}
 	close $stream
 	set base [list env HOME=$home ../bin/httagd --db $db]
-	test_cli "direct_missing" [concat $base [list --dump]] 0 {no such tagspace source}
+	test_cli "direct_missing" [concat $base [list --dump]] 0 {no such tagspace source: animals"}
 	test_cli "direct_create" [concat $base [list --create --tagl {>> donkey _sub _entity;} --dump]] 1 {donkey _sub _entity}
 	test_cli "direct_persist" [concat $base [list --dump]] 1 {donkey _sub _entity}
 	test_cli "direct_duplicate" [concat $base [list --create --dump]] 0 {create database}
@@ -1315,6 +1315,73 @@ try {
 	test_cli "direct_switch_reuses_source" [concat $base [list --tagl "%% _use _default; %% _use $db; << donkey;" --dump]] 1 {donkey}
 } finally {
 	file delete -force $direct_tmp
+}
+
+# Seed B through local STORE; HTTP can read it but cannot write system-owned identity.
+set filepile_tmp [exec mktemp -d /tmp/httagd-filepile-XXXXXX]
+try {
+	set home [file join $filepile_tmp home]
+	set source [file join $filepile_tmp source]
+	set stream [open $source w]
+	puts $stream {stored content}
+	close $stream
+	test_cli filepile_seed [list ../../tagsh/bin/tagsh --home $home --tagspace files \
+		--create --noshell --store $source] 1 {link:hd:}
+	set physical [lindex [glob [file join $home filepile * * *]] 0]
+	set name [file tail $physical]
+	set stored "filepile:///[string range $name 0 1]/[string range $name 2 3]/$name"
+	set encoded [string map {: %3A / %2F} $stored]
+	set listener [socket -server {apply {{channel host port} {close $channel}}} -myaddr 127.0.0.1 0]
+	set port [lindex [fconfigure $listener -sockname] 2]
+	close $listener
+	set config [file join $filepile_tmp config.tagl]
+	set stream [open $config w]
+	puts $stream {>> default_config _sub _config _has _config:tagdurl_autoload = _true;}
+	puts $stream {>> missing _sub _tagspace;}
+	close $stream
+	spawn -noecho ../bin/httagd --home $home --config $config --tagspace _config --bind-addr 127.0.0.1 \
+		--bind-port $port --tpl-dir ../app/tpl --www-dir ./www \
+		--log-level emergency,_role:httagd:notice
+	set filepile_server $spawn_id
+	set filepile_pid [exp_pid -i $filepile_server]
+	try {
+		set ready 0
+		expect {
+			-i $filepile_server -timeout $STARTUP_TIMEOUT
+			-regexp {-- httagd start bind_addr=127\.0\.0\.1 bind_port=[0-9]+} {set ready 1}
+			eof {}
+			timeout {}
+		}
+		if {$ready} {
+			set target "http://127.0.0.1:$port/files/$encoded"
+			test_response filepile_get GET $target 200 {_type_of _file:stored} 1
+			test_response filepile_put PUT $target 400 {_error:tagl_err} 1 ">>= $stored _has _message = forbidden;"
+			test_response filepile_delete DELETE $target 400 {_error:tagl_err} 1
+			foreach command {>>+ !!+} {
+				test_response "filepile_http_forbidden_$command" POST "http://127.0.0.1:$port/files" \
+					403 {_error:ts_not_implemented} 1 "$command $stored;"
+			}
+			test_response filepile_unchanged GET $target 200 {_type_of _file:stored} 1
+			foreach name {missing nosuch} {
+				set target "http://127.0.0.1:$port/$name/"
+				# Reading a registered description does not open its database.
+				if {$name eq "missing"} { append target _entity }
+				test_response "missing_source_id_$name" GET $target 404 "no such tagspace source: $name\"" 1
+				test_response "missing_source_private_$name" GET $target 404 $filepile_tmp 0
+			}
+
+		} else {
+			test_fail filepile_http_startup
+			incr ERRORS
+		}
+	} finally {
+		catch {exec kill -TERM $filepile_pid}
+		catch {expect -i $filepile_server -timeout 5 eof}
+		catch {close -i $filepile_server}
+		wait -i $filepile_server
+	}
+} finally {
+	file delete -force $filepile_tmp
 }
 
 source addressing.exp

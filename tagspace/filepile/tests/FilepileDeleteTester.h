@@ -73,9 +73,7 @@ class FilepileDeleteTester : public CxxTest::TestSuite {
 	}
 
 	std::string path(const tagd::store_result& result) {
-		std::string value;
-		TS_ASSERT(tagd::uri_decode_checked(value, result.stored.path()));
-		return value;
+		return (home / "filepile" / result.stored.path().substr(1)).string();
 	}
 
 	std::string dump() {
@@ -193,7 +191,7 @@ public:
 		TS_ASSERT_EQUALS(result.content.size(), 2u);
 	}
 
-	void test_stored_cascade_preserves_sources_and_reuses_only_highest_revision() {
+	void test_stored_cascade_keeps_other_revisions_and_reuses_only_highest_revision() {
 		const auto first = store("first");
 		const auto second = store("second");
 		const auto third = store("third");
@@ -203,7 +201,7 @@ public:
 		TS_ASSERT_EQUALS(store("fourth").revision, 4u);
 		TS_ASSERT_EQUALS(space->delete_storage(result, tagd::url(third.stored.id())), tagd::TAGD_OK);
 		TS_ASSERT(space->exists(first.source.hduri()));
-		TS_ASSERT(space->exists(shared.source.hduri()));
+		TS_ASSERT(!space->exists(shared.source.hduri()));
 		TS_ASSERT(!space->exists(shared.link));
 		const auto fourth = store("fourth", "other");
 		TS_ASSERT_EQUALS(fourth.revision, 1u);
@@ -212,6 +210,69 @@ public:
 		TS_ASSERT_EQUALS(space->delete_storage(result, tagd::url(source)), tagd::TAGD_OK);
 		TS_ASSERT_EQUALS(store("restart").revision, 1u);
 		TS_ASSERT(!std::filesystem::exists(path(second)));
+	}
+
+	void test_stored_cascade_removes_only_sources_without_other_links() {
+		const auto first = store("shared");
+		const auto retained = store("retained");
+		const auto other = store("shared", "other");
+		for (const auto& id : {first.source.id(), other.source.id()}) {
+			tagd::url description(id);
+			TS_ASSERT_EQUALS(description.relation(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "keep"), tagd::TAGD_OK);
+			TS_ASSERT_EQUALS(space->put(description), tagd::TAGD_OK);
+		}
+		tagd::filepile_delete_result result;
+		TS_ASSERT_EQUALS(space->delete_storage(result, tagd::url(first.stored.id())), tagd::TAGD_OK);
+		TS_ASSERT(result.committed);
+		TS_ASSERT(!space->exists(first.stored.hduri()));
+		TS_ASSERT(!space->exists(first.link));
+		TS_ASSERT(!space->exists(other.link));
+		TS_ASSERT(!space->exists(other.source.hduri()));
+		TS_ASSERT(space->exists(retained.link));
+		TS_ASSERT(space->exists(retained.stored.hduri()));
+		tagd::url source_record;
+		TS_ASSERT_EQUALS(space->get(source_record, first.source.hduri()), tagd::TAGD_OK);
+		TS_ASSERT(source_record.related(tagd::HARD_TAG_HAS, tagd::HARD_TAG_MESSAGE, "keep"));
+		TS_ASSERT(!std::filesystem::exists(path(first)));
+		TS_ASSERT(std::filesystem::exists(path(retained)));
+		TS_ASSERT(std::filesystem::exists(home / "source"));
+		TS_ASSERT(std::filesystem::exists(home / "other"));
+	}
+
+	void test_non_filepile_stored_endpoint_is_damaged_data() {
+		const auto stored = store("first");
+		auto fixture = tagdb::make_backend();
+		TS_ASSERT_EQUALS(fixture->open({tagdb::storage_kind::file,
+			tagd::tagspace_database_path(home.string(), "test")}), tagd::TAGD_OK);
+		tagd::abstract_tag change(stored.link);
+		TS_ASSERT_EQUALS(change.relation(tagd::HARD_TAG_TO, stored.stored.hduri()), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(fixture->del(change, nullptr), tagd::TAGD_OK);
+		change.relations.clear();
+		TS_ASSERT_EQUALS(change.relation(tagd::HARD_TAG_TO, stored.source.hduri()), tagd::TAGD_OK);
+		TS_ASSERT_EQUALS(fixture->put(change, nullptr), tagd::TAGD_OK);
+		const auto before = dump();
+		tagd::filepile_delete_result result;
+		TS_ASSERT_EQUALS(space->delete_storage(result, tagd::url(source)), tagd::TS_ERR);
+		TS_ASSERT(!result.committed);
+		TS_ASSERT_EQUALS(dump(), before);
+		TS_ASSERT(std::filesystem::exists(path(stored)));
+	}
+
+	void test_never_stored_filepile_delete_reports_not_found() {
+		const auto retained = store("retained");
+		const tagd::url missing("filepile:///aa/aa/" + std::string(64, 'a') + ".bin");
+		const auto before = dump();
+		for (const auto& id : {missing.id(), missing.hduri()}) {
+			tagd::filepile_delete_result result;
+			TS_ASSERT_EQUALS(space->delete_storage(result, tagd::url(id)), tagd::TS_NOT_FOUND);
+			TS_ASSERT(!result.committed);
+			std::ostringstream text;
+			space->print_errors(text);
+			TS_ASSERT_DIFFERS(text.str().find(missing.id()), std::string::npos);
+			TS_ASSERT_EQUALS(text.str().find("system-owned"), std::string::npos);
+			TS_ASSERT_EQUALS(dump(), before);
+			TS_ASSERT(std::filesystem::exists(path(retained)));
+		}
 	}
 
 	void test_predicate_delete_and_nonmanaged_fallback_preserve_semantics() {
@@ -244,6 +305,8 @@ public:
 			tagd::filepile_delete_result result;
 			TS_ASSERT_EQUALS(space->delete_storage(result, tagd::url(source)), tagd::TS_DEPENDENCY);
 			TS_ASSERT(!result.committed);
+			TS_ASSERT_EQUALS(space->delete_storage(result, tagd::url(stored.stored.id())), tagd::TS_DEPENDENCY);
+			TS_ASSERT(!result.committed);
 			TS_ASSERT_EQUALS(dump(), before);
 			TS_ASSERT(std::filesystem::exists(path(stored)));
 			TS_ASSERT_EQUALS(space->del(tagd::abstract_tag("dependent")), tagd::TAGD_OK);
@@ -253,7 +316,7 @@ public:
 	void test_missing_content_warns_and_logs_without_failing() {
 		const auto stored = store("first");
 		std::filesystem::remove(path(stored));
-		TS_ASSERT_EQUALS(space->del(tagd::url(stored.stored.id())), tagd::TS_DEPENDENCY);
+		TS_ASSERT_EQUALS(space->del(tagd::url(stored.stored.id())), tagd::TS_MISUSE);
 		TS_ASSERT_EQUALS(space->del(tagd::abstract_tag(stored.link)), tagd::TS_DEPENDENCY);
 		std::ostringstream output;
 		tagd::logger logger(output);
@@ -318,11 +381,17 @@ public:
 		TS_ASSERT_EQUALS(sqlite3_exec(other, "BEGIN EXCLUSIVE", nullptr, nullptr, nullptr), SQLITE_OK);
 		tagd::filepile_delete_result result;
 		TS_ASSERT_EQUALS(space->delete_storage(result, tagd::url(source)), tagd::TS_NOT_AVAILABLE);
+		std::ostringstream diagnostic;
+		space->print_errors(diagnostic);
+		TS_ASSERT_EQUALS(diagnostic.str().find(database), std::string::npos);
 		TS_ASSERT(std::filesystem::exists(path(stored)));
 		TS_ASSERT_EQUALS(sqlite3_exec(other, "ROLLBACK", nullptr, nullptr, nullptr), SQLITE_OK);
 		sqlite3_close(other);
 		std::filesystem::rename(database, database + ".saved");
 		TS_ASSERT_EQUALS(space->delete_storage(result, tagd::url(source)), tagd::TS_NOT_FOUND);
+		diagnostic.str("");
+		space->print_errors(diagnostic);
+		TS_ASSERT_EQUALS(diagnostic.str().find(database), std::string::npos);
 		TS_ASSERT(std::filesystem::exists(path(stored)));
 		std::filesystem::rename(database + ".saved", database);
 		TS_ASSERT(space->exists(stored.link));
@@ -341,7 +410,7 @@ public:
 		TS_ASSERT(std::filesystem::exists(path(stored)));
 		std::ostringstream diagnostic;
 		space->print_errors(diagnostic);
-		TS_ASSERT_DIFFERS(diagnostic.str().find(database), std::string::npos);
+		TS_ASSERT_EQUALS(diagnostic.str().find(database), std::string::npos);
 	}
 
 	void test_missing_home_with_an_external_database_warns_after_commit() {
@@ -370,7 +439,7 @@ public:
 		auto fixture = tagdb::make_backend();
 		TS_ASSERT_EQUALS(fixture->open({tagdb::storage_kind::file,
 			tagd::tagspace_database_path(home.string(), "test")}), tagd::TAGD_OK);
-		// Only a private legacy-data fixture may construct an otherwise forbidden dual role.
+		// A private damaged-data fixture exercises the shared association endpoint contract.
 		tagd::abstract_tag link("link:" + first.stored.hduri() + "#001", tagd::HARD_TAG_SUB,
 			tagd::HARD_TAG_LINK_FILEPILE, tagd::POS_TAG);
 		TS_ASSERT_EQUALS(link.relation(tagd::HARD_TAG_FROM, first.stored.hduri()), tagd::TAGD_OK);
@@ -380,7 +449,7 @@ public:
 		TS_ASSERT_EQUALS(fixture->put(link, nullptr), tagd::TAGD_OK);
 		const auto before = dump();
 		tagd::filepile_delete_result result;
-		TS_ASSERT_EQUALS(space->delete_storage(result, tagd::url(first.stored.id())), tagd::TS_MISUSE);
+		TS_ASSERT_EQUALS(space->delete_storage(result, tagd::url(first.stored.id())), tagd::TS_ERR);
 		TS_ASSERT_EQUALS(dump(), before);
 		TS_ASSERT(std::filesystem::exists(path(first)));
 
@@ -410,7 +479,7 @@ public:
 		TS_ASSERT_EQUALS(space->store(stored, tagd::url(source)), tagd::TS_ERR);
 		tagd::filepile_delete_result result;
 		TS_ASSERT_EQUALS(space->delete_storage(result, tagd::url(first.stored.id())), tagd::TAGD_OK);
-		TS_ASSERT(space->exists(first.source.hduri()));
+		TS_ASSERT(!space->exists(first.source.hduri()));
 		TS_ASSERT_EQUALS(store("next").revision, 1u);
 	}
 

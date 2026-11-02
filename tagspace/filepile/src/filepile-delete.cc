@@ -11,7 +11,7 @@ namespace {
 using filepile::association;
 
 code associations(errorable& errors, std::vector<association>& output,
-	tagdb::tagdb& db, const std::string& canonical_home, id_view relator, id_view object) {
+	tagdb::tagdb& db, id_view relator, id_view object) {
 	interrogator query(HARD_TAG_WHAT, HARD_TAG_SUB, HARD_TAG_LINK_FILEPILE);
 	auto rc = query.relation(relator, object);
 	if (rc != TAGD_OK)
@@ -50,7 +50,7 @@ code associations(errorable& errors, std::vector<association>& output,
 			return errors.error(TS_ERR, "filepile target lacks managed classification: " + item.stored);
 
 		std::string name;
-		rc = filepile::stored_address(errors, name, canonical_home, stored);
+		rc = filepile::stored_address(errors, name, stored);
 		if (rc != TAGD_OK)
 			return rc;
 		output.push_back(std::move(item));
@@ -119,12 +119,19 @@ code stored_tagspace::delete_storage(filepile_delete_result& result, const abstr
 			status = db.get(explicit_link, match.id(), nullptr, filepile::canonical_flags);
 			if (status != TAGD_OK)
 				return status;
-			if (explicit_link.related(HARD_TAG_FROM, requested.hduri()))
+			if (explicit_link.related(HARD_TAG_FROM, requested.hduri())) {
+				association item;
+				status = filepile::read_association(*this, item, explicit_link);
+				if (status != TAGD_OK)
+					return status;
 				source_role = true;
+			}
 		}
-		if (source_role && roles.stored)
-			return error(TS_MISUSE, "URL has both source and stored-file roles: " + input.id());
 		if (!source_role && !roles.stored) {
+			// Bare !!+ is permitted for B; absence is not an ordinary-write refusal.
+			if (has_filepile_scheme(requested.id()))
+				return error(TS_NOT_FOUND, "no such stored file: " + requested.id());
+
 			status = del(input, ssn, flags);
 			result.committed = status == TAGD_OK;
 			return status;
@@ -141,7 +148,7 @@ code stored_tagspace::delete_storage(filepile_delete_result& result, const abstr
 
 		// TODO(filepile-foreign-tagspaces): Local references suffice only for one participating
 		// tagspace. See TASKS.d/2026-10-28-foreign-tagspaces.md before sharing a filepile.
-		status = associations(*this, selected, db, _filepile_canonical_home,
+		status = associations(*this, selected, db,
 			source_role ? HARD_TAG_FROM : HARD_TAG_TO, requested.hduri());
 		if (status != TAGD_OK)
 			return status;
@@ -156,11 +163,33 @@ code stored_tagspace::delete_storage(filepile_delete_result& result, const abstr
 			ids.push_back(link.link);
 			candidates.insert(link.stored);
 		}
+		if (!source_role) {
+			// Reverse !!+ A: remove a source only when no retained link survives !!+ B.
+			std::set<id_string> sources;
+			for (const auto& link : selected) {
+				sources.insert(link.source);
+			}
+
+			for (const auto& source : sources) {
+				std::vector<association> history;
+				status = associations(*this, history, db, HARD_TAG_FROM, source);
+				if (status != TAGD_OK)
+					return status;
+
+				bool retained = false;
+				for (const auto& link : history) {
+					retained |= link.stored != requested.hduri();
+				}
+				if (!retained)
+					ids.push_back(source);
+			}
+		}
+
 		for (const auto& id : candidates) {
 			bool shared = false;
 			if (source_role) {
 				std::vector<association> references;
-				status = associations(*this, references, db, _filepile_canonical_home, HARD_TAG_TO, id);
+				status = associations(*this, references, db, HARD_TAG_TO, id);
 				if (status != TAGD_OK)
 					return status;
 				for (const auto& link : references)

@@ -26,9 +26,18 @@ id_string canonical_url_id(id_view input) {
 
 namespace {
 
+constexpr size_t filepile_shard_width = 2;
+
 // URL case rules are ASCII rules; the C library's tolower would follow the process locale.
 constexpr char ascii_lower(char c) {
 	return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
+}
+
+bool ascii_equal(std::string_view left, std::string_view right) {
+	return left.size() == right.size() && std::equal(left.begin(), left.end(), right.begin(),
+		[](char a, char b) {
+			return ascii_lower(a) == ascii_lower(b);
+		});
 }
 
 constexpr bool hex_digit(unsigned char c) {
@@ -145,6 +154,74 @@ void normalize_host(std::string& url, size_t offset, size_t len) {
 
 } // namespace
 
+bool has_filepile_scheme(id_view id) {
+	// Reserve the scheme even when a quoted or API-supplied name is not a valid URL.
+	const auto colon = id.find(':');
+	if (colon == id_view::npos)
+		return false;
+
+	const auto scheme = id.substr(0, colon);
+	if (ascii_equal(scheme, "filepile"))
+		return true;
+	if (!ascii_equal(scheme, "hd"))
+		return false;
+
+	// HDURI's final component is the scheme; malformed earlier components cannot free it.
+	const auto delimiter = id.rfind(HDURI_DELIM);
+	return delimiter != id_view::npos && ascii_equal(id.substr(delimiter + 1), "filepile");
+}
+
+bool writes_filepile_identity(const abstract_tag& tag) {
+	// Driver, storage, and configuration share the system-owned identity boundary.
+	if (has_filepile_scheme(tag.id()))
+		return true;
+
+	// A referent binds its own name; its target is not a structural parent or a write target.
+	const bool referent = tag.pos() == POS_REFERENT && tag.sub_relator() == HARD_TAG_REFERS_TO;
+	if (!referent && has_filepile_scheme(tag.super_object()))
+		return true;
+
+	for (const auto& p : tag.type_relations) {
+		if (has_filepile_scheme(p.object))
+			return true;
+	}
+
+	return false;
+}
+
+std::string filepile_url(std::string_view name) {
+	// The URL root is the pile; construction and validation share its shard layout.
+	const auto first = name.substr(0, filepile_shard_width);
+	const auto second = name.substr(first.size(), filepile_shard_width);
+	return "filepile:///" + std::string(first) + '/' + std::string(second) + '/' + std::string(name);
+}
+
+bool valid_filepile_path(std::string_view path) {
+	constexpr size_t shard_width = filepile_shard_width;
+	constexpr size_t first_shard_offset = 1;
+	constexpr size_t second_shard_offset = first_shard_offset + shard_width + 1;
+	constexpr size_t name_offset = second_shard_offset + shard_width + 1;
+	constexpr size_t extension_offset = name_offset + filepile_digest_length + 1;
+
+	/*
+	 * This is the single definition of a stored address. Its root is the pile,
+	 * and the shards must match the digest so one name selects one physical file.
+	 */
+	if (path.size() <= extension_offset || path[0] != '/'
+		|| path[second_shard_offset - 1] != '/' || path[name_offset - 1] != '/'
+		|| path[extension_offset - 1] != '.')
+		return false;
+
+	const auto digest = path.substr(name_offset, filepile_digest_length);
+	if (digest.find_first_not_of("0123456789abcdef") != std::string_view::npos
+		|| path.substr(first_shard_offset, shard_width) != digest.substr(0, shard_width)
+		|| path.substr(second_shard_offset, shard_width) != digest.substr(shard_width, shard_width))
+		return false;
+
+	return path.substr(extension_offset).find_first_not_of(
+		"abcdefghijklmnopqrstuvwxyz0123456789_-") == std::string_view::npos;
+}
+
 tagd::code url::init(id_view u) {
 	if (u.size() == 0) return _code;  // URL_EMPTY
 
@@ -177,6 +254,22 @@ tagd::code url::init(id_view u) {
 				return code(URL_ERR_SCHEME);
 
 			_scheme_len = i;
+			if (f_scheme() == "filepile") {
+				if (url_str.substr(i, 3) != "://")
+					return code(URL_ERR_PATH);
+
+				i += 3;
+				// Query and fragment delimiters end an empty authority, even without a path.
+				if (i < sz && url_str[i] != '/' && url_str[i] != '?' && url_str[i] != '#')
+					return code(URL_ERR_HOST);
+
+				if (!valid_filepile_path(std::string_view(url_str).substr(i)))
+					return code(URL_ERR_PATH);
+
+				_path_offset = i;
+				_path_len = sz - i;
+				goto url_ok;
+			}
 			if (url_str.substr(i, 3) == "://") {
 				// Only the nonhierarchical mailto form has a reversible component layout.
 				if (f_scheme() == "mailto")
@@ -470,9 +563,9 @@ url_ok:
 	 */
 	normalize_host(url_str, _host_offset, _host_len);
 	_id = url_str;
-	// a file: scheme url identifies materialized content;
+	// file: and filepile: schemes identify materialized content;
 	// the url object provides the subordinate relation, never the user
-	if (this->scheme() == "file") {
+	if (this->scheme() == "file" || this->scheme() == "filepile") {
 		_sub_relator = HARD_TAG_SUB;
 		_super_object = HARD_TAG_FILE;
 	}
@@ -682,9 +775,9 @@ tagd::code url::init_hduri(id_view uri) {
 
 	_id = id;
 
-	// a file: scheme url identifies materialized content;
+	// file: and filepile: schemes identify materialized content;
 	// the url object provides the subordinate relation, never the user
-	if (this->scheme() == "file") {
+	if (this->scheme() == "file" || this->scheme() == "filepile") {
 		_sub_relator = HARD_TAG_SUB;
 		_super_object = HARD_TAG_FILE;
 	}
@@ -868,6 +961,8 @@ bool url::looks_like_hduri(const std::string& uri) {
 			if (str.substr((i+1), sz-1) == "https")
 				return true;
 			break;
+		case 9:  // "!filepile"
+			return str.substr(i + 1) == "filepile";
 		default:
 			return false;
 	}

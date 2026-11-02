@@ -124,7 +124,7 @@ void stored_tagspace::filepile_home(std::string home, std::string reason) {
 			_filepile_canonical_home = canonical.string();
 	}
 	if (ec)
-		_filepile_home_error = "cannot resolve filepile home: " + _filepile_home + ": " + ec.message();
+		_filepile_home_error = "cannot resolve filepile home: " + ec.message();
 }
 
 tagd::code stored_tagspace::initialize_location(const tagdb::storage_location& location) {
@@ -234,9 +234,7 @@ tagd::code stored_tagspace::put(const url& t, tagspace_session* ssn, flags_t fla
 }
 
 tagd::code stored_tagspace::put(const referent& t, tagspace_session* ssn, flags_t flags) {
-	if (!prepare())
-		return code();
-	return finish(_impl->db->put(t, ssn, flags));
+	return put(static_cast<const abstract_tag&>(t), ssn, flags);
 }
 
 tagd::code stored_tagspace::del(const abstract_tag& t, tagspace_session* ssn, flags_t flags) {
@@ -254,9 +252,7 @@ tagd::code stored_tagspace::del(const url& t, tagspace_session* ssn, flags_t fla
 }
 
 tagd::code stored_tagspace::del(const referent& t, tagspace_session* ssn, flags_t flags) {
-	if (!prepare())
-		return code();
-	return finish(_impl->db->del(t, ssn, flags));
+	return del(static_cast<const abstract_tag&>(t), ssn, flags);
 }
 
 tagd::code stored_tagspace::query(tag_set& result, const interrogator& q, tagspace_session* ssn, flags_t flags) {
